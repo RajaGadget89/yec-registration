@@ -63,5 +63,6 @@ The YEC (Young Entrepreneurs Club) Registration System is a web application desi
 - Security best practices implementation
 
 ---
-
+Create by Pisut SharePoint
+DevOps Theory
 *This document serves as the foundation for the project and informs all other memory files.* 

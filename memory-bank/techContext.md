@@ -86,5 +86,4 @@
 - Caching strategies (Next.js built-in caching)
 
 ---
-
 *This document describes the technologies used in the project and how they're configured.* 
