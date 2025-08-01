@@ -1,0 +1,39 @@
+# Dockerfile.dev
+
+FROM node:20-alpine
+
+# ติดตั้งเครื่องมือสำหรับ build (รองรับ sharp และ Tailwind)
+RUN apk update && apk add --no-cache \
+    build-base \
+    python3 \
+    git \
+    vips-dev \
+    autoconf \
+    automake \
+    libtool \
+    libffi-dev \
+    jpeg-dev \
+    cairo-dev \
+    pango-dev \
+    gdk-pixbuf-dev \
+    libwebp-dev \
+    bash
+
+# Working directory
+WORKDIR /app
+
+# คัดลอก package.json และ lockfile เพื่อติดตั้ง dependency
+COPY package.json package-lock.json* ./
+
+# ติดตั้ง dependencies
+RUN npm install
+
+# คัดลอก source code ทั้งหมด
+COPY . .
+
+# Port ที่ Next.js ใช้
+EXPOSE 3000
+
+# รันเซิร์ฟเวอร์ Development
+CMD ["npm", "run", "dev"]
+

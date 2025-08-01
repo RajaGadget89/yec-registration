@@ -1,0 +1,20 @@
+# docker-compose.dev.yml
+
+version: "3.8"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: yec-dev
+    ports:
+      - "8080:3000" # Localhost:8080 → Container:3000
+    volumes:
+      - .:/app       # Hot reload
+      - /app/node_modules # Exclude local node_modules
+    environment:
+      - NODE_ENV=development
+      - HOSTNAME=0.0.0.0
+      - PORT=3000
+    restart: unless-stopped
