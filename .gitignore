@@ -30,9 +30,9 @@ docker-compose.override.yml
 
 # ========================================
 # Cursor AI
-.cursor/
-cursorignore
-memorybank/
+#.cursor/
+#cursorignore
+#memorybank/
 
 # ========================================
 # macOS / Editor / Misc
