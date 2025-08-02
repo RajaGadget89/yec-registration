@@ -1,0 +1,406 @@
+import { FormField } from './FormSchema';
+
+export interface ValidationResult {
+  isValid: boolean;
+  message: string | null;
+  status: 'valid' | 'partial' | 'invalid';
+}
+
+export const validateField = (
+  field: FormField,
+  value: any,
+  formData?: { [key: string]: any }
+): ValidationResult => {
+  // Handle empty required fields
+  if (field.required && (!value || (typeof value === 'string' && value.trim() === ''))) {
+    return {
+      isValid: false,
+      message: `กรุณากรอก${field.label}`,
+      status: 'invalid',
+    };
+  }
+
+  // Handle optional fields that are empty
+  if (!field.required && (!value || (typeof value === 'string' && value.trim() === ''))) {
+    return {
+      isValid: true,
+      message: null,
+      status: 'valid',
+    };
+  }
+
+  // Custom validation function
+  if (field.validation?.customValidation) {
+    const customError = field.validation.customValidation(value);
+    if (customError) {
+      return {
+        isValid: false,
+        message: customError,
+        status: 'invalid',
+      };
+    }
+  }
+
+  // Pattern validation
+  if (field.validation?.pattern && typeof value === 'string') {
+    if (!field.validation.pattern.test(value)) {
+      return {
+        isValid: false,
+        message: `รูปแบบ${field.label}ไม่ถูกต้อง`,
+        status: 'invalid',
+      };
+    }
+  }
+
+  // Length validation
+  if (typeof value === 'string') {
+    if (field.validation?.minLength && value.length < field.validation.minLength) {
+      return {
+        isValid: false,
+        message: `${field.label}ต้องมีอย่างน้อย ${field.validation.minLength} ตัวอักษร`,
+        status: 'invalid',
+      };
+    }
+
+    if (field.validation?.maxLength && value.length > field.validation.maxLength) {
+      return {
+        isValid: false,
+        message: `${field.label}ต้องมีไม่เกิน ${field.validation.maxLength} ตัวอักษร`,
+        status: 'invalid',
+      };
+    }
+  }
+
+  // File validation
+  if (field.type === 'upload' && value instanceof File) {
+    const fileValidation = validateFile(value, field.validation);
+    if (!fileValidation.isValid) {
+      return fileValidation;
+    }
+  }
+
+  // Special field validations
+  switch (field.id) {
+    case 'phone':
+      return validatePhone(value);
+    case 'email':
+      return validateEmail(value);
+    case 'lineId':
+      return validateLineId(value);
+    case 'businessTypeOther':
+      return validateBusinessTypeOther(value, formData);
+    case 'roommateInfo':
+      return validateRoommateInfo(value, formData);
+    case 'roommatePhone':
+      return validateRoommatePhone(value, formData);
+    default:
+      return {
+        isValid: true,
+        message: null,
+        status: 'valid',
+      };
+  }
+};
+
+const validateFile = (file: File, validation?: any): ValidationResult => {
+  // File type validation
+  if (validation?.fileTypes && !validation.fileTypes.includes(file.type)) {
+    return {
+      isValid: false,
+      message: `ไฟล์ต้องเป็นรูปแบบ ${validation.fileTypes.join(', ')}`,
+      status: 'invalid',
+    };
+  }
+
+  // File size validation
+  if (validation?.maxFileSize) {
+    const maxSizeInBytes = validation.maxFileSize * 1024 * 1024; // Convert MB to bytes
+    if (file.size > maxSizeInBytes) {
+      return {
+        isValid: false,
+        message: `ขนาดไฟล์ต้องไม่เกิน ${validation.maxFileSize}MB`,
+        status: 'invalid',
+      };
+    }
+  }
+
+  return {
+    isValid: true,
+    message: null,
+    status: 'valid',
+  };
+};
+
+const validatePhone = (value: string): ValidationResult => {
+  if (!value) {
+    return {
+      isValid: false,
+      message: 'กรุณากรอกเบอร์โทรศัพท์',
+      status: 'invalid',
+    };
+  }
+
+  const phonePattern = /^0\d{9}$/;
+  if (!phonePattern.test(value)) {
+    return {
+      isValid: false,
+      message: 'เบอร์โทรศัพท์ต้องขึ้นต้นด้วย 0 และมี 10 หลัก',
+      status: 'invalid',
+    };
+  }
+
+  return {
+    isValid: true,
+    message: null,
+    status: 'valid',
+  };
+};
+
+const validateEmail = (value: string): ValidationResult => {
+  if (!value) {
+    return {
+      isValid: false,
+      message: 'กรุณากรอกอีเมล',
+      status: 'invalid',
+    };
+  }
+
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailPattern.test(value)) {
+    return {
+      isValid: false,
+      message: 'รูปแบบอีเมลไม่ถูกต้อง',
+      status: 'invalid',
+    };
+  }
+
+  return {
+    isValid: true,
+    message: null,
+    status: 'valid',
+  };
+};
+
+const validateLineId = (value: string): ValidationResult => {
+  if (!value) {
+    return {
+      isValid: false,
+      message: 'กรุณากรอก Line ID',
+      status: 'invalid',
+    };
+  }
+
+  const lineIdPattern = /^[a-zA-Z0-9._-]+$/;
+  if (!lineIdPattern.test(value)) {
+    return {
+      isValid: false,
+      message: 'Line ID ต้องเป็นภาษาอังกฤษเท่านั้น',
+      status: 'invalid',
+    };
+  }
+
+  if (value.length > 30) {
+    return {
+      isValid: false,
+      message: 'Line ID ต้องมีไม่เกิน 30 ตัวอักษร',
+      status: 'invalid',
+    };
+  }
+
+  return {
+    isValid: true,
+    message: null,
+    status: 'valid',
+  };
+};
+
+const validateBusinessTypeOther = (value: string, formData?: { [key: string]: any }): ValidationResult => {
+  // Only validate if businessType is 'other'
+  if (formData?.businessType !== 'other') {
+    return {
+      isValid: true,
+      message: null,
+      status: 'valid',
+    };
+  }
+
+  if (!value || value.trim() === '') {
+    return {
+      isValid: false,
+      message: 'กรุณาระบุประเภทกิจการ',
+      status: 'invalid',
+    };
+  }
+
+  if (value.length > 50) {
+    return {
+      isValid: false,
+      message: 'ประเภทกิจการต้องมีไม่เกิน 50 ตัวอักษร',
+      status: 'invalid',
+    };
+  }
+
+  return {
+    isValid: true,
+    message: null,
+    status: 'valid',
+  };
+};
+
+const validateRoommateInfo = (value: string, formData?: { [key: string]: any }): ValidationResult => {
+  // Only validate if roomType is 'double'
+  if (formData?.roomType !== 'double') {
+    return {
+      isValid: true,
+      message: null,
+      status: 'valid',
+    };
+  }
+
+  if (!value || value.trim() === '') {
+    return {
+      isValid: false,
+      message: 'กรุณากรอกชื่อ นามสกุล ผู้นอนร่วม',
+      status: 'invalid',
+    };
+  }
+
+  if (value.length > 100) {
+    return {
+      isValid: false,
+      message: 'ชื่อผู้นอนร่วมต้องมีไม่เกิน 100 ตัวอักษร',
+      status: 'invalid',
+    };
+  }
+
+  return {
+    isValid: true,
+    message: null,
+    status: 'valid',
+  };
+};
+
+const validateRoommatePhone = (value: string, formData?: { [key: string]: any }): ValidationResult => {
+  // Only validate if roomType is 'double'
+  if (formData?.roomType !== 'double') {
+    return {
+      isValid: true,
+      message: null,
+      status: 'valid',
+    };
+  }
+
+  if (!value) {
+    return {
+      isValid: false,
+      message: 'กรุณากรอกเบอร์โทรผู้ร่วมพัก',
+      status: 'invalid',
+    };
+  }
+
+  const phonePattern = /^0\d{9}$/;
+  if (!phonePattern.test(value)) {
+    return {
+      isValid: false,
+      message: 'เบอร์โทรผู้ร่วมพักต้องขึ้นต้นด้วย 0 และมี 10 หลัก',
+      status: 'invalid',
+    };
+  }
+
+  return {
+    isValid: true,
+    message: null,
+    status: 'valid',
+  };
+};
+
+export const validateForm = (formData: { [key: string]: any }, formSchema: FormField[]): {
+  isValid: boolean;
+  errors: { [key: string]: string };
+} => {
+  const errors: { [key: string]: string } = {};
+  let isValid = true;
+
+  formSchema.forEach((field) => {
+    const validation = validateField(field, formData[field.id], formData);
+    if (!validation.isValid) {
+      errors[field.id] = validation.message || '';
+      isValid = false;
+    }
+
+    // Validate extra fields
+    if (field.extraField) {
+      const extraFieldValidation = validateField(
+        {
+          ...field.extraField,
+          required: shouldShowExtraField(field, formData),
+        },
+        formData[field.extraField.id],
+        formData
+      );
+      if (!extraFieldValidation.isValid) {
+        errors[field.extraField.id] = extraFieldValidation.message || '';
+        isValid = false;
+      }
+    }
+
+    // Validate roommate phone field
+    if (field.roommatePhoneField && shouldShowExtraField(field, formData)) {
+      const roommatePhoneValidation = validateField(
+        {
+          ...field.roommatePhoneField,
+          required: true,
+        },
+        formData[field.roommatePhoneField.id],
+        formData
+      );
+      if (!roommatePhoneValidation.isValid) {
+        errors[field.roommatePhoneField.id] = roommatePhoneValidation.message || '';
+        isValid = false;
+      }
+    }
+  });
+
+  return { isValid, errors };
+};
+
+export const shouldShowExtraField = (field: FormField, formData: { [key: string]: any }): boolean => {
+  switch (field.id) {
+    case 'businessType':
+      return formData.businessType === 'other';
+    case 'roomType':
+      return formData.roomType === 'double';
+    default:
+      return false;
+  }
+};
+
+export const getFieldStatus = (validation: ValidationResult): 'valid' | 'partial' | 'invalid' => {
+  return validation.status;
+};
+
+export const getFieldBorderColor = (status: 'valid' | 'partial' | 'invalid'): string => {
+  switch (status) {
+    case 'valid':
+      return 'border-green-500';
+    case 'partial':
+      return 'border-yellow-500';
+    case 'invalid':
+      return 'border-red-500';
+    default:
+      return 'border-gray-300';
+  }
+};
+
+export const getFieldTextColor = (status: 'valid' | 'partial' | 'invalid'): string => {
+  switch (status) {
+    case 'valid':
+      return 'text-green-600';
+    case 'partial':
+      return 'text-yellow-600';
+    case 'invalid':
+      return 'text-red-600';
+    default:
+      return 'text-gray-600';
+  }
+}; 
