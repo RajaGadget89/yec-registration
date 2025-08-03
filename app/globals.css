@@ -3,6 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  
+  /* YEC Brand Colors */
+  --yec-primary: #1A237E;    /* PANTONE 3591 */
+  --yec-accent: #4285C5;     /* PANTONE 2394 */
+  --yec-highlight: #4CD1E0;  /* PANTONE 3105 */
 }
 
 @theme inline {
@@ -10,12 +15,22 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  /* YEC Brand Colors for Tailwind */
+  --color-yec-primary: var(--yec-primary);
+  --color-yec-accent: var(--yec-accent);
+  --color-yec-highlight: var(--yec-highlight);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    
+    /* YEC Brand Colors - Dark Mode (slightly adjusted for better contrast) */
+    --yec-primary: #2A337E;    /* Lighter version for dark mode */
+    --yec-accent: #5295D5;     /* Lighter version for dark mode */
+    --yec-highlight: #5CE1F0;  /* Lighter version for dark mode */
   }
 }
 
@@ -23,4 +38,54 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* YEC Brand Color Utility Classes */
+.text-yec-primary {
+  color: var(--yec-primary);
+}
+
+.text-yec-accent {
+  color: var(--yec-accent);
+}
+
+.text-yec-highlight {
+  color: var(--yec-highlight);
+}
+
+.bg-yec-primary {
+  background-color: var(--yec-primary);
+}
+
+.bg-yec-accent {
+  background-color: var(--yec-accent);
+}
+
+.bg-yec-highlight {
+  background-color: var(--yec-highlight);
+}
+
+.border-yec-primary {
+  border-color: var(--yec-primary);
+}
+
+.border-yec-accent {
+  border-color: var(--yec-accent);
+}
+
+.border-yec-highlight {
+  border-color: var(--yec-highlight);
+}
+
+/* Hover states for interactive elements */
+.hover\:bg-yec-accent:hover {
+  background-color: var(--yec-accent);
+}
+
+.hover\:text-yec-accent:hover {
+  color: var(--yec-accent);
+}
+
+.hover\:border-yec-accent:hover {
+  border-color: var(--yec-accent);
 }

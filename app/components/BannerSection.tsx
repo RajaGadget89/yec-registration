@@ -1,10 +1,12 @@
 "use client";
 
+import Image from "next/image";
+
 export default function BannerSection() {
   const handleScrollToRegistration = () => {
     const target = document.getElementById("form");
     if (target) {
-      const header = document.querySelector('header');
+      const header = document.querySelector("header");
       const headerHeight = header ? header.offsetHeight : 80;
       const targetPosition = target.offsetTop - headerHeight;
       window.scrollTo({ top: targetPosition, behavior: "smooth" });
@@ -12,84 +14,208 @@ export default function BannerSection() {
   };
 
   return (
-    <section id="event-schedule" className="py-16 bg-white">
+    <section 
+      id="event-schedule" 
+      className="py-16 bg-white"
+      aria-labelledby="event-schedule-heading"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-blue-900 mb-4">
+        <header className="text-center mb-12">
+          <h2 
+            id="event-schedule-heading"
+            className="text-3xl sm:text-4xl font-bold text-yec-primary mb-4"
+          >
             Event Schedule & Activities
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             Discover the exciting lineup of activities and networking opportunities planned for YEC Day
           </p>
+        </header>
+
+        {/* YEC Day Banner - Full image visible */}
+        <div 
+          className="relative w-full h-96 sm:h-[500px] lg:h-[600px] bg-gradient-to-r from-yec-highlight/20 to-yec-accent/20 rounded-xl overflow-hidden mb-8 shadow-lg"
+          role="img"
+          aria-label="YEC Day event banner featuring Songkhla location, November 23rd 2025 date, and Burisriphu Hotel Hatyai venue"
+        >
+          <Image 
+            src="/assets/YEC DAY2 _cre.png" 
+            alt="YEC Day Banner showing Songkhla event details for November 23rd 2025 at Burisriphu Hotel Hatyai" 
+            fill
+            className="object-contain"
+            priority
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 80vw"
+          />
+          {/* Optional overlay for better text readability if needed */}
+          <div className="absolute inset-0 bg-black/5" aria-hidden="true"></div>
         </div>
 
-        {/* Banner Image Placeholder */}
-        <div className="relative w-full h-64 sm:h-80 lg:h-96 bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg overflow-hidden">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg 
-                  className="w-8 h-8 text-blue-600" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
-                  />
-                </svg>
-              </div>
-              <p className="text-blue-600 font-medium">YEC Day Banner</p>
-              <p className="text-blue-500 text-sm mt-2">Event schedule and activities will be displayed here</p>
+        {/* Event Highlights - Redesigned Cards */}
+        <div 
+          className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-4"
+          role="list"
+          aria-label="Event highlights and activities"
+        >
+          {/* Networking Card */}
+          <article 
+            className="group relative overflow-hidden bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 focus-within:ring-4 focus-within:ring-yec-accent focus-within:ring-opacity-50"
+            role="listitem"
+            tabIndex={0}
+          >
+            {/* Image Container */}
+            <div className="relative h-48 overflow-hidden">
+              <Image 
+                src="/assets/YEC-Networking.png" 
+                alt="Group of professionals networking and connecting in a business setting" 
+                fill
+                className="object-cover group-hover:scale-110 transition-transform duration-700"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+              {/* Overlay */}
+              <div 
+                className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                aria-hidden="true"
+              ></div>
             </div>
-          </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              <h3 className="text-2xl font-bold text-yec-primary mb-3 group-hover:text-yec-accent transition-colors duration-300">
+                <span className="inline-block animate-pulse" aria-hidden="true">🤝</span>
+                <span className="sr-only">Handshake emoji representing</span> Networking
+              </h3>
+              <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">
+                Connect with industry leaders and fellow entrepreneurs in an engaging environment designed for meaningful relationships.
+              </p>
+              
+              {/* Animated underline */}
+              <div 
+                className="mt-4 h-1 bg-gradient-to-r from-yec-accent to-yec-primary rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
+                aria-hidden="true"
+              ></div>
+            </div>
+          </article>
+
+          {/* Learning Card */}
+          <article 
+            className="group relative overflow-hidden bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 focus-within:ring-4 focus-within:ring-yec-accent focus-within:ring-opacity-50"
+            role="listitem"
+            tabIndex={0}
+          >
+            {/* Image Container */}
+            <div className="relative h-48 overflow-hidden">
+              <Image 
+                src="/assets/YEC-Learning.png" 
+                alt="Group of people attending a workshop or learning session with colorful background" 
+                fill
+                className="object-cover group-hover:scale-110 transition-transform duration-700"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+              {/* Overlay */}
+              <div 
+                className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                aria-hidden="true"
+              ></div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              <h3 className="text-2xl font-bold text-yec-primary mb-3 group-hover:text-yec-accent transition-colors duration-300">
+                <span className="inline-block animate-bounce" aria-hidden="true">📚</span>
+                <span className="sr-only">Book emoji representing</span> Learning
+              </h3>
+              <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">
+                Gain valuable insights from expert speakers and interactive workshops that will accelerate your entrepreneurial journey.
+              </p>
+              
+              {/* Animated underline */}
+              <div 
+                className="mt-4 h-1 bg-gradient-to-r from-yec-accent to-yec-primary rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
+                aria-hidden="true"
+              ></div>
+            </div>
+          </article>
+
+          {/* Growth Card */}
+          <article 
+            className="group relative overflow-hidden bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 focus-within:ring-4 focus-within:ring-yec-accent focus-within:ring-opacity-50"
+            role="listitem"
+            tabIndex={0}
+          >
+            {/* Image Container */}
+            <div className="relative h-48 overflow-hidden">
+              <Image 
+                src="/assets/YEC-Growth.png" 
+                alt="Group of people on a wooden deck overlooking water, representing business growth and expansion" 
+                fill
+                className="object-cover group-hover:scale-110 transition-transform duration-700"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+              {/* Overlay */}
+              <div 
+                className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                aria-hidden="true"
+              ></div>
+            </div>
+            
+            {/* Content */}
+            <div className="p-6">
+              <h3 className="text-2xl font-bold text-yec-primary mb-3 group-hover:text-yec-accent transition-colors duration-300">
+                <span className="inline-block animate-ping" aria-hidden="true">🚀</span>
+                <span className="sr-only">Rocket emoji representing</span> Growth
+              </h3>
+              <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">
+                Discover new opportunities and strategies that will help your business scale and reach new heights of success.
+              </p>
+              
+              {/* Animated underline */}
+              <div 
+                className="mt-4 h-1 bg-gradient-to-r from-yec-accent to-yec-primary rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
+                aria-hidden="true"
+              ></div>
+            </div>
+          </article>
         </div>
 
-        {/* Event Highlights */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
-          <div className="text-center p-6 bg-blue-50 rounded-lg">
-            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-blue-900 mb-2">Networking</h3>
-            <p className="text-gray-600">Connect with industry leaders and fellow entrepreneurs</p>
-          </div>
-
-          <div className="text-center p-6 bg-blue-50 rounded-lg">
-            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-blue-900 mb-2">Learning</h3>
-            <p className="text-gray-600">Gain insights from expert speakers and workshops</p>
-          </div>
-
-          <div className="text-center p-6 bg-blue-50 rounded-lg">
-            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-blue-900 mb-2">Growth</h3>
-            <p className="text-gray-600">Discover new opportunities for your business</p>
-          </div>
-        </div>
-
-        {/* CTA Button - Below Event Schedule */}
-        <div className="text-center mt-8">
+        {/* Enhanced CTA Button - More engaging and motivating */}
+        <div className="text-center mt-2">
           <button
             onClick={handleScrollToRegistration}
-            className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-8 py-4 md:px-10 md:py-4 rounded-full shadow-lg transition-all text-lg md:text-xl transform hover:scale-105 active:scale-95 min-h-[48px] min-w-[140px] touch-manipulation focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:ring-offset-2 animate-pulse"
-            aria-label="Register for YEC Day event"
+            className="group relative inline-flex items-center justify-center bg-gradient-to-r from-yec-accent to-yec-primary hover:from-yec-primary hover:to-yec-accent text-white font-bold px-10 py-5 rounded-full shadow-2xl transition-all duration-500 text-xl transform hover:scale-110 active:scale-95 focus:outline-none focus:ring-4 focus:ring-yec-highlight focus:ring-opacity-50 animate-pulse hover:animate-none overflow-hidden"
+            aria-label="Register for YEC Day event - Scrolls to registration form"
+            aria-describedby="cta-description"
           >
-            จองเลย!!
+            {/* Shimmer effect */}
+            <div 
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"
+              aria-hidden="true"
+            ></div>
+            
+            {/* Button content */}
+            <span className="relative z-10 flex items-center space-x-2">
+              <span>จองเลย!!</span>
+              <svg 
+                className="w-5 h-5 transform group-hover:translate-x-1 transition-transform duration-300" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </span>
           </button>
+          
+          {/* Motivational text below button */}
+          <p 
+            id="cta-description"
+            className="text-yec-primary font-medium mt-3 text-sm animate-bounce"
+            aria-live="polite"
+          >
+            <span className="inline-block animate-bounce" aria-hidden="true">🚀</span>
+            <span className="sr-only">Rocket emoji indicating urgency</span>
+            Don&apos;t miss this opportunity! Limited spots available
+          </p>
         </div>
       </div>
     </section>
