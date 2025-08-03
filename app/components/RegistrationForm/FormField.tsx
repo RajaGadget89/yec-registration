@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import { FormField as FormFieldType } from './FormSchema';
 import { validateField, getFieldBorderColor, getFieldTextColor, shouldShowExtraField } from './formValidation';
 
@@ -88,9 +89,11 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
             </div>
             {previewUrl && (
               <div className="relative">
-                <img
+                <Image
                   src={previewUrl}
                   alt="Preview"
+                  width={400}
+                  height={192}
                   className="w-full h-48 object-cover rounded-lg border"
                 />
                 <button
