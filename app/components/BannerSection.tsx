@@ -1,6 +1,18 @@
+"use client";
+
 export default function BannerSection() {
+  const handleScrollToRegistration = () => {
+    const target = document.getElementById("form");
+    if (target) {
+      const header = document.querySelector('header');
+      const headerHeight = header ? header.offsetHeight : 80;
+      const targetPosition = target.offsetTop - headerHeight;
+      window.scrollTo({ top: targetPosition, behavior: "smooth" });
+    }
+  };
+
   return (
-    <section className="py-16 bg-white">
+    <section id="event-schedule" className="py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-blue-900 mb-4">
@@ -67,6 +79,17 @@ export default function BannerSection() {
             <h3 className="text-xl font-semibold text-blue-900 mb-2">Growth</h3>
             <p className="text-gray-600">Discover new opportunities for your business</p>
           </div>
+        </div>
+
+        {/* CTA Button - Below Event Schedule */}
+        <div className="text-center mt-8">
+          <button
+            onClick={handleScrollToRegistration}
+            className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-8 py-4 md:px-10 md:py-4 rounded-full shadow-lg transition-all text-lg md:text-xl transform hover:scale-105 active:scale-95 min-h-[48px] min-w-[140px] touch-manipulation focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:ring-offset-2 animate-pulse"
+            aria-label="Register for YEC Day event"
+          >
+            จองเลย!!
+          </button>
         </div>
       </div>
     </section>
