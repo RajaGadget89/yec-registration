@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 export default function TopMenuBar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -18,16 +19,35 @@ export default function TopMenuBar() {
     <header 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
-          ? 'bg-white shadow-md' 
+          ? 'bg-yec-primary shadow-md' 
           : 'bg-transparent'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo Placeholder */}
+          {/* Logo */}
           <div className="flex items-center">
-            <div className="text-2xl font-bold text-blue-900">
-              YEC Day
+            {/* Desktop Logo */}
+            <div className="hidden md:block">
+              <Image 
+                src="/assets/logo-full.png" 
+                alt="YEC Day Logo" 
+                width={138} 
+                height={46} 
+                className="h-9 w-auto"
+                priority
+              />
+            </div>
+            {/* Mobile Logo */}
+            <div className="md:hidden">
+              <Image 
+                src="/assets/logo-shield-only.png" 
+                alt="YEC Day Logo" 
+                width={46} 
+                height={46} 
+                className="h-9 w-9"
+                priority
+              />
             </div>
           </div>
 
@@ -35,30 +55,30 @@ export default function TopMenuBar() {
           <nav className="hidden md:flex space-x-8">
             <a 
               href="#home" 
-              className={`font-medium transition-colors ${
+              className={`font-bold text-lg transition-colors ${
                 isScrolled 
-                  ? 'text-blue-900 hover:text-blue-700' 
-                  : 'text-white hover:text-blue-200'
+                  ? 'text-white hover:text-yec-accent' 
+                  : 'text-white hover:text-yec-accent'
               }`}
             >
               Home
             </a>
             <a 
               href="#about" 
-              className={`font-medium transition-colors ${
+              className={`font-bold text-lg transition-colors ${
                 isScrolled 
-                  ? 'text-blue-900 hover:text-blue-700' 
-                  : 'text-white hover:text-blue-200'
+                  ? 'text-white hover:text-yec-accent' 
+                  : 'text-white hover:text-yec-accent'
               }`}
             >
               About
             </a>
             <a 
               href="#form" 
-              className={`font-medium transition-colors ${
+              className={`font-bold text-lg transition-colors ${
                 isScrolled 
-                  ? 'text-blue-900 hover:text-blue-700' 
-                  : 'text-white hover:text-blue-200'
+                  ? 'text-white hover:text-yec-accent' 
+                  : 'text-white hover:text-yec-accent'
               }`}
             >
               Register
@@ -70,8 +90,8 @@ export default function TopMenuBar() {
             <button 
               className={`p-2 rounded-md ${
                 isScrolled 
-                  ? 'text-blue-900 hover:text-blue-700' 
-                  : 'text-white hover:text-blue-200'
+                  ? 'text-white hover:text-yec-accent' 
+                  : 'text-white hover:text-yec-accent'
               }`}
             >
               <svg 
