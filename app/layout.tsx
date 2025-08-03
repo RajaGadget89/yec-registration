@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -21,6 +21,9 @@ export const metadata: Metadata = {
     shortcut: "/assets/favicon.ico",
   },
   manifest: "/assets/site.webmanifest",
+};
+
+export const viewport: Viewport = {
   themeColor: "#ffffff",
 };
 
@@ -37,7 +40,6 @@ export default function RootLayout({
         <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
         <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
         <link rel="manifest" href="/assets/site.webmanifest" />
-        <meta name="theme-color" content="#ffffff" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
