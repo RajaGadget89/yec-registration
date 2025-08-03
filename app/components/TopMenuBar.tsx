@@ -24,17 +24,17 @@ export default function TopMenuBar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-20">
           {/* Logo */}
-          <div className="flex items-center">
+          <div className="flex-shrink-0">
             {/* Desktop Logo */}
             <div className="hidden md:block">
               <Image 
                 src="/assets/logo-full.png" 
                 alt="YEC Day Logo" 
-                width={138} 
-                height={46} 
-                className="h-9 w-auto"
+                width={180} 
+                height={60} 
+                className="h-12 w-auto"
                 priority
               />
             </div>
@@ -43,43 +43,31 @@ export default function TopMenuBar() {
               <Image 
                 src="/assets/logo-shield-only.png" 
                 alt="YEC Day Logo" 
-                width={46} 
-                height={46} 
-                className="h-9 w-9"
+                width={56} 
+                height={56} 
+                className="h-12 w-auto"
                 priority
               />
             </div>
           </div>
 
-          {/* Navigation Menu */}
+          {/* Navigation */}
           <nav className="hidden md:flex space-x-8">
             <a 
               href="#home" 
-              className={`font-bold text-lg transition-colors ${
-                isScrolled 
-                  ? 'text-white hover:text-yec-accent' 
-                  : 'text-white hover:text-yec-accent'
-              }`}
+              className="text-lg font-bold text-white hover:text-yec-accent transition-colors"
             >
               Home
             </a>
             <a 
               href="#about" 
-              className={`font-bold text-lg transition-colors ${
-                isScrolled 
-                  ? 'text-white hover:text-yec-accent' 
-                  : 'text-white hover:text-yec-accent'
-              }`}
+              className="text-lg font-bold text-white hover:text-yec-accent transition-colors"
             >
               About
             </a>
             <a 
               href="#form" 
-              className={`font-bold text-lg transition-colors ${
-                isScrolled 
-                  ? 'text-white hover:text-yec-accent' 
-                  : 'text-white hover:text-yec-accent'
-              }`}
+              className="text-lg font-bold text-white hover:text-yec-accent transition-colors"
             >
               Register
             </a>
@@ -87,25 +75,9 @@ export default function TopMenuBar() {
 
           {/* Mobile Menu Button */}
           <div className="md:hidden">
-            <button 
-              className={`p-2 rounded-md ${
-                isScrolled 
-                  ? 'text-white hover:text-yec-accent' 
-                  : 'text-white hover:text-yec-accent'
-              }`}
-            >
-              <svg 
-                className="h-6 w-6" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M4 6h16M4 12h16M4 18h16" 
-                />
+            <button className="text-white hover:text-yec-accent transition-colors">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
           </div>
