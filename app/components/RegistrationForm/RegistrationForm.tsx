@@ -12,7 +12,7 @@ export default function RegistrationForm() {
 
   // Validate form on data change
   useEffect(() => {
-    const { isValid, errors: validationErrors } = validateForm(formData, formSchema);
+    const { errors: validationErrors } = validateForm(formData, formSchema);
     setErrors(validationErrors);
   }, [formData]);
 
