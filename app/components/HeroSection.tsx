@@ -25,7 +25,7 @@ export default function HeroSection() {
       >
         <button
           onClick={handleScroll}
-          className="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-6 py-3 md:px-8 md:py-3 rounded-full shadow-lg transition-all text-sm md:text-lg transform hover:scale-105 active:scale-95 pointer-events-auto min-h-[44px] min-w-[120px] touch-manipulation focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:ring-offset-2"
+          className="bg-yec-accent hover:bg-yec-primary text-white font-semibold px-6 py-3 md:px-8 md:py-3 rounded-full shadow-lg transition-all text-sm md:text-lg transform hover:scale-105 active:scale-95 pointer-events-auto min-h-[44px] min-w-[120px] touch-manipulation focus:outline-none focus:ring-2 focus:ring-yec-primary focus:ring-offset-2"
           aria-label="View event schedule and activities"
         >
           จองเลย!!

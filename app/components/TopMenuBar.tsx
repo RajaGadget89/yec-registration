@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 export default function TopMenuBar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -18,48 +19,55 @@ export default function TopMenuBar() {
     <header 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled 
-          ? 'bg-white shadow-md' 
+          ? 'bg-yec-primary shadow-md' 
           : 'bg-transparent'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo Placeholder */}
-          <div className="flex items-center">
-            <div className="text-2xl font-bold text-blue-900">
-              YEC Day
+        <div className="flex justify-between items-center h-20">
+          {/* Logo */}
+          <div className="flex-shrink-0">
+            {/* Desktop Logo */}
+            <div className="hidden md:block">
+              <Image 
+                src="/assets/logo-full.png" 
+                alt="YEC Day Logo" 
+                width={180} 
+                height={60} 
+                className="h-12 w-auto"
+                priority
+              />
+            </div>
+            {/* Mobile Logo */}
+            <div className="md:hidden">
+              <Image 
+                src="/assets/logo-shield-only.png" 
+                alt="YEC Day Logo" 
+                width={56} 
+                height={56} 
+                className="h-12 w-auto"
+                priority
+              />
             </div>
           </div>
 
-          {/* Navigation Menu */}
+          {/* Navigation */}
           <nav className="hidden md:flex space-x-8">
             <a 
               href="#home" 
-              className={`font-medium transition-colors ${
-                isScrolled 
-                  ? 'text-blue-900 hover:text-blue-700' 
-                  : 'text-white hover:text-blue-200'
-              }`}
+              className="text-lg font-bold text-white hover:text-yec-accent transition-colors"
             >
               Home
             </a>
             <a 
               href="#about" 
-              className={`font-medium transition-colors ${
-                isScrolled 
-                  ? 'text-blue-900 hover:text-blue-700' 
-                  : 'text-white hover:text-blue-200'
-              }`}
+              className="text-lg font-bold text-white hover:text-yec-accent transition-colors"
             >
               About
             </a>
             <a 
               href="#form" 
-              className={`font-medium transition-colors ${
-                isScrolled 
-                  ? 'text-blue-900 hover:text-blue-700' 
-                  : 'text-white hover:text-blue-200'
-              }`}
+              className="text-lg font-bold text-white hover:text-yec-accent transition-colors"
             >
               Register
             </a>
@@ -67,25 +75,9 @@ export default function TopMenuBar() {
 
           {/* Mobile Menu Button */}
           <div className="md:hidden">
-            <button 
-              className={`p-2 rounded-md ${
-                isScrolled 
-                  ? 'text-blue-900 hover:text-blue-700' 
-                  : 'text-white hover:text-blue-200'
-              }`}
-            >
-              <svg 
-                className="h-6 w-6" 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M4 6h16M4 12h16M4 18h16" 
-                />
+            <button className="text-white hover:text-yec-accent transition-colors">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
           </div>
