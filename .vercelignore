@@ -1,4 +1,4 @@
 .eslintrc
-.eslint*
+#.eslint*
 eslint.config.mjs
 
