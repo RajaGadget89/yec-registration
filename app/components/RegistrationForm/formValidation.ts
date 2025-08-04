@@ -6,13 +6,29 @@ export interface ValidationResult {
   status: 'valid' | 'partial' | 'invalid';
 }
 
+export const validateThaiPhoneNumber = (digits: string): string | null => {
+  if (!digits.startsWith('0')) return 'เบอร์โทรศัพท์ไทยต้องขึ้นต้นด้วยเลข 0';
+  if (digits.length !== 10) return 'เบอร์โทรศัพท์ต้องมี 10 หลัก';
+  if (!/^\d{10}$/.test(digits)) return 'เบอร์โทรศัพท์ต้องเป็นตัวเลขเท่านั้น';
+  return null;
+};
+
+export const formatThaiPhoneNumber = (digits: string): string => {
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+};
+
 export const validateField = (
   field: FormField,
   value: any,
   formData?: { [key: string]: any }
 ): ValidationResult => {
-  // Handle empty required fields
-  if (field.required && (!value || (typeof value === 'string' && value.trim() === ''))) {
+  // Check if field should be required based on conditions
+  const isConditionallyRequired = shouldFieldBeRequired(field, formData);
+  
+  // Handle empty required fields (including conditionally required)
+  if ((field.required || isConditionallyRequired) && (!value || (typeof value === 'string' && value.trim() === ''))) {
     return {
       isValid: false,
       message: `กรุณากรอก${field.label}`,
@@ -77,6 +93,12 @@ export const validateField = (
     if (!fileValidation.isValid) {
       return fileValidation;
     }
+  }
+
+  // Tel field validation
+  if (field.type === 'tel') {
+    const error = validateThaiPhoneNumber(value);
+    if (error) return { status: 'invalid', message: error, isValid: false };
   }
 
   // Special field validations
@@ -375,6 +397,21 @@ export const shouldShowExtraField = (field: FormField, formData: { [key: string]
   }
 };
 
+export const shouldFieldBeRequired = (field: FormField, formData?: { [key: string]: any }): boolean => {
+  if (!formData) return false;
+  
+  switch (field.id) {
+    case 'businessTypeOther':
+      return formData.businessType === 'other';
+    case 'roommateInfo':
+      return formData.roomType === 'double';
+    case 'roommatePhone':
+      return formData.roomType === 'double';
+    default:
+      return false;
+  }
+};
+
 export const getFieldStatus = (validation: ValidationResult): 'valid' | 'partial' | 'invalid' => {
   return validation.status;
 };
@@ -403,4 +440,37 @@ export const getFieldTextColor = (status: 'valid' | 'partial' | 'invalid'): stri
     default:
       return 'text-gray-600';
   }
+};
+
+export const calculateFormProgress = (formData: { [key: string]: any }, formSchema: FormField[]): number => {
+  let totalRequiredFields = 0;
+  let completedRequiredFields = 0;
+
+  formSchema.forEach((field) => {
+    // Count main field if required
+    if (field.required) {
+      totalRequiredFields++;
+      if (formData[field.id] && formData[field.id] !== '') {
+        completedRequiredFields++;
+      }
+    }
+
+    // Count extra field if conditionally required
+    if (field.extraField && shouldShowExtraField(field, formData)) {
+      totalRequiredFields++;
+      if (formData[field.extraField.id] && formData[field.extraField.id] !== '') {
+        completedRequiredFields++;
+      }
+    }
+
+    // Count roommate phone field if conditionally required
+    if (field.roommatePhoneField && shouldShowExtraField(field, formData)) {
+      totalRequiredFields++;
+      if (formData[field.roommatePhoneField.id] && formData[field.roommatePhoneField.id] !== '') {
+        completedRequiredFields++;
+      }
+    }
+  });
+
+  return totalRequiredFields > 0 ? Math.round((completedRequiredFields / totalRequiredFields) * 100) : 0;
 }; 

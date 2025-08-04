@@ -182,9 +182,10 @@ export const formSchema: FormField[] = [
     id: 'nickname',
     type: 'input',
     label: 'ชื่อเล่น',
-    required: false,
-    placeholder: 'กรุณากรอกชื่อเล่น (ไม่บังคับ)',
+    required: true,
+    placeholder: 'กรุณากรอกชื่อเล่น',
     validation: {
+      minLength: 1,
       maxLength: 30,
     },
   },
