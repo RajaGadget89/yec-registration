@@ -9,6 +9,65 @@ export default function RegistrationForm() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isProcessingFiles, setIsProcessingFiles] = useState(false);
+  const [fileProcessingProgress, setFileProcessingProgress] = useState(0);
+
+  // Load existing form data only in edit mode
+  useEffect(() => {
+    // Check if we're in edit mode via URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEditMode = urlParams.get('edit') === 'true';
+    
+    // Clean up any stale localStorage data on fresh page loads
+    if (!isEditMode) {
+      localStorage.removeItem('yecRegistrationData');
+    }
+    
+    if (isEditMode) {
+      try {
+        const storedData = sessionStorage.getItem('yecEditData');
+        if (storedData) {
+          const parsedData = JSON.parse(storedData);
+          if (parsedData && typeof parsedData === 'object') {
+            // Merge with initial data to ensure all fields exist
+            const mergedData = { ...initialFormData, ...parsedData };
+            
+            // Handle file fields - preserve file metadata for display
+            const fileFields = ['profileImage', 'chamberCard', 'paymentSlip'];
+            let hasFileData = false;
+            fileFields.forEach(fieldId => {
+              if (mergedData[fieldId] && typeof mergedData[fieldId] === 'object' && 'name' in mergedData[fieldId]) {
+                // Keep the file metadata for display purposes
+                // The FormField component will handle showing the file info
+                hasFileData = true;
+              }
+            });
+            
+            setFormData(mergedData);
+            setIsEditing(true);
+            
+            // Clean up sessionStorage after loading
+            sessionStorage.removeItem('yecEditData');
+            
+            // Remove edit parameter from URL without page reload
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('edit');
+            window.history.replaceState({}, '', newUrl.toString());
+          }
+        }
+      } catch (err) {
+        console.error('Error loading stored form data:', err);
+        // Continue with initial form data if there's an error
+      }
+    }
+    
+    // Cleanup function to clear any stale data
+    return () => {
+      // Clear any remaining edit data when component unmounts
+      sessionStorage.removeItem('yecEditData');
+    };
+  }, []);
 
   // Validate form on data change
   useEffect(() => {
@@ -41,15 +100,77 @@ export default function RegistrationForm() {
     }
 
     setIsSubmitting(true);
+    setIsProcessingFiles(true);
     
-    // TODO: Submit to API
-    console.log('Form data:', formData);
-    
-    // Simulate API call
-    setTimeout(() => {
+    // Save form data to localStorage for preview page
+    try {
+      // Convert File objects to a storable format
+      const dataToStore = { ...formData };
+      
+      // Handle File objects for upload fields
+      const uploadFields = ['profileImage', 'chamberCard', 'paymentSlip'];
+      
+      // Process files to store both metadata and base64 data
+      const filesToProcess = uploadFields.filter(fieldId => dataToStore[fieldId] instanceof File);
+      
+      if (filesToProcess.length === 0) {
+        // No files to convert, save immediately
+        localStorage.setItem('yecRegistrationData', JSON.stringify(dataToStore));
+        window.location.href = '/preview';
+        return;
+      }
+      
+      let processedFiles = 0;
+      const totalFiles = filesToProcess.length;
+      setFileProcessingProgress(0);
+      
+      filesToProcess.forEach(fieldId => {
+        const file = dataToStore[fieldId] as File;
+        const reader = new FileReader();
+        
+        reader.onload = () => {
+          const base64Data = reader.result as string;
+          dataToStore[fieldId] = {
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            lastModified: file.lastModified,
+            dataUrl: base64Data, // Store the image data as base64
+          };
+          
+          processedFiles++;
+          setFileProcessingProgress((processedFiles / totalFiles) * 100);
+          
+          // When all files are processed, save and redirect
+          if (processedFiles === totalFiles) {
+            localStorage.setItem('yecRegistrationData', JSON.stringify(dataToStore));
+            setIsProcessingFiles(false);
+            window.location.href = '/preview';
+          }
+        };
+        
+        reader.onerror = () => {
+          console.error(`Error reading file ${fieldId}:`, file.name);
+          processedFiles++;
+          setFileProcessingProgress((processedFiles / totalFiles) * 100);
+          
+          // Continue with other files even if one fails
+          if (processedFiles === totalFiles) {
+            localStorage.setItem('yecRegistrationData', JSON.stringify(dataToStore));
+            setIsProcessingFiles(false);
+            window.location.href = '/preview';
+          }
+        };
+        
+        reader.readAsDataURL(file);
+      });
+    } catch (err) {
+      console.error('Error saving form data:', err);
+      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
+    } finally {
       setIsSubmitting(false);
-      alert('ฟอร์มถูกส่งเรียบร้อยแล้ว! (This is a demo - no actual submission)');
-    }, 2000);
+      setIsProcessingFiles(false);
+    }
   };
 
   const isFormValid = Object.keys(errors).length === 0;
@@ -67,6 +188,25 @@ export default function RegistrationForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8">
+          {/* Edit mode notification */}
+          {isEditing && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <h3 className="text-sm font-medium text-blue-800 mb-1">
+                    กำลังแก้ไขข้อมูล
+                  </h3>
+                  <p className="text-sm text-blue-700">
+                    ข้อมูลของคุณถูกโหลดแล้ว ไฟล์รูปภาพที่อัปโหลดไว้จะแสดงด้านล่าง กรุณาอัปโหลดใหม่หากต้องการเปลี่ยน
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {formSchema.map((field) => (
               <div key={field.id} className={field.type === 'upload' ? 'md:col-span-2' : ''}>
@@ -111,7 +251,9 @@ export default function RegistrationForm() {
               {isSubmitting ? (
                 <div className="flex items-center justify-center space-x-2">
                   <div className="w-5 h-5 border-2 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
-                  <span>กำลังส่งข้อมูล...</span>
+                  <span>
+                    {isProcessingFiles ? 'กำลังประมวลผลไฟล์...' : 'กำลังส่งข้อมูล...'}
+                  </span>
                 </div>
               ) : (
                 'ส่งข้อมูลการลงทะเบียน'
@@ -140,6 +282,24 @@ export default function RegistrationForm() {
               ></div>
             </div>
           </div>
+
+          {/* File Processing Progress */}
+          {isProcessingFiles && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                <span>กำลังประมวลผลไฟล์</span>
+                <span>{Math.round(fileProcessingProgress)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${fileProcessingProgress}%` 
+                  }}
+                ></div>
+              </div>
+            </div>
+          )}
         </form>
       </div>
     </section>
