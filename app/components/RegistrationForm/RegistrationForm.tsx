@@ -35,12 +35,10 @@ export default function RegistrationForm() {
             
             // Handle file fields - preserve file metadata for display
             const fileFields = ['profileImage', 'chamberCard', 'paymentSlip'];
-            let hasFileData = false;
             fileFields.forEach(fieldId => {
               if (mergedData[fieldId] && typeof mergedData[fieldId] === 'object' && 'name' in mergedData[fieldId]) {
                 // Keep the file metadata for display purposes
                 // The FormField component will handle showing the file info
-                hasFileData = true;
               }
             });
             
@@ -237,34 +235,66 @@ export default function RegistrationForm() {
             ))}
           </div>
 
-          {/* Submit Button */}
-          <div className="mt-12 text-center">
+          {/* Submit Button - Enhanced */}
+          <div className="mt-8 text-center">
             <button
               type="submit"
               disabled={!isFormValid || isSubmitting}
-              className={`px-8 py-4 rounded-lg font-bold text-lg transition-all duration-300 transform ${
+              className={`group relative px-10 py-4 rounded-xl font-bold text-lg transition-all duration-300 transform min-h-[56px] min-w-[220px] ${
                 isFormValid && !isSubmitting
-                  ? 'bg-yellow-400 hover:bg-yellow-500 text-blue-900 hover:scale-105 shadow-lg hover:shadow-xl'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  ? 'bg-gradient-to-r from-yec-primary to-yec-accent hover:from-yec-accent hover:to-yec-primary text-white hover:scale-105 shadow-lg hover:shadow-xl hover:-translate-y-1 active:translate-y-0 active:shadow-md focus:outline-none focus:ring-4 focus:ring-yec-accent/30 focus:ring-offset-2'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-md'
               }`}
             >
-              {isSubmitting ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-5 h-5 border-2 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
-                  <span>
-                    {isProcessingFiles ? 'กำลังประมวลผลไฟล์...' : 'กำลังส่งข้อมูล...'}
-                  </span>
-                </div>
-              ) : (
-                'ส่งข้อมูลการลงทะเบียน'
+              {/* Button Background Animation */}
+              {isFormValid && !isSubmitting && (
+                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              )}
+              
+              {/* Button Content */}
+              <div className="relative flex items-center justify-center space-x-2">
+                {isSubmitting ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>
+                      {isProcessingFiles ? 'กำลังประมวลผลไฟล์...' : 'กำลังส่งข้อมูล...'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 text-white group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                    <span>ส่งข้อมูลการลงทะเบียน</span>
+                  </>
+                )}
+              </div>
+              
+              {/* Hover Effect */}
+              {isFormValid && !isSubmitting && (
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
               )}
             </button>
             
-            {!isFormValid && (
-              <p className="mt-4 text-sm text-red-600">
-                กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง
-              </p>
-            )}
+            {/* Status Messages */}
+            <div className="mt-4 space-y-2">
+              {!isFormValid && (
+                <p className="text-sm text-red-600 dark:text-red-400 flex items-center justify-center space-x-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <span>กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง</span>
+                </p>
+              )}
+              {isSubmitting && (
+                <p className="text-sm text-blue-600 dark:text-blue-400 flex items-center justify-center space-x-1">
+                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span>กำลังประมวลผลข้อมูล กรุณารอสักครู่...</span>
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Form Progress Indicator */}

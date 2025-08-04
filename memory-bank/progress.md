@@ -38,6 +38,9 @@ Overall Completion: 75%
 - **Documentation**: LOW - User and admin documentation
 
 ## Recent Achievements (2025-01-27)
+- **Layout and Styling Issues Resolved**: Fixed missing Tailwind configuration and CSS loading issues
+- **Duplicate Key Bug Fixed**: Removed duplicate 'roi-et' entry in FormSchema that was causing React warnings
+- **ESLint Warnings Resolved**: Fixed unused variable warning in FormField component
 - **Preview Page Implementation**: Created fully responsive preview page with PDPA consent and form data review
 - **Success Page Creation**: Built confirmation page with registration ID and next steps information
 - **API Endpoint Development**: Implemented registration API with proper validation and error handling
@@ -62,6 +65,11 @@ Overall Completion: 75%
 - **No Authentication**: HIGH - No user authentication system
 - **No Testing**: MEDIUM - No test framework configured
 - **File Upload Storage**: MEDIUM - Uploaded files not persisted (currently handled in memory)
+
+## Recently Resolved Issues
+- **Layout and Styling Issues**: ✅ RESOLVED - Fixed missing Tailwind configuration and CSS loading
+- **React Key Warnings**: ✅ RESOLVED - Removed duplicate province entries in FormSchema
+- **ESLint Warnings**: ✅ RESOLVED - Fixed unused variable in FormField component
 
 ## Milestones
 - **Phase 1 (Core Registration)**: DUE 2025-02-17 - [IN PROGRESS]
