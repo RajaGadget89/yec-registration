@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { FormField as FormFieldType } from './FormSchema';
-import { validateField, getFieldBorderColor, getFieldTextColor, shouldShowExtraField } from './formValidation';
+import { validateField, getFieldBorderColor, shouldShowExtraField, shouldFieldBeRequired, validateThaiPhoneNumber, formatThaiPhoneNumber } from './formValidation';
 
 interface FormFieldProps {
   field: FormFieldType;
@@ -14,27 +14,44 @@ interface FormFieldProps {
 }
 
 export default function FormField({ field, value, onChange, formData, onExtraFieldChange }: FormFieldProps) {
+  // Ensure required is always a boolean - memoized to prevent infinite re-renders
+  const normalizedField = useMemo(() => ({
+    ...field,
+    required: !!field.required
+  }), [field]);
+  
   const [validation, setValidation] = useState<any>(null);
   const [isFocused, setIsFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [displayValue, setDisplayValue] = useState<string>('');
 
   // Validate field on value change
   useEffect(() => {
-    const result = validateField(field, value, formData);
+    const result = validateField(normalizedField, value, formData);
     setValidation(result);
-  }, [field, value, formData]);
+  }, [normalizedField, value, formData]);
 
   // Handle file preview
   useEffect(() => {
-    if (field.type === 'upload' && value instanceof File) {
+    if (normalizedField.type === 'upload' && value instanceof File) {
       const url = URL.createObjectURL(value);
       setPreviewUrl(url);
       return () => URL.revokeObjectURL(url);
     } else {
       setPreviewUrl(null);
     }
-  }, [field.type, value]);
+  }, [normalizedField.type, value]);
+
+  // Handle phone number formatting
+  useEffect(() => {
+    if (normalizedField.type === 'tel' && value) {
+      const digits = value.replace(/\D/g, '');
+      setDisplayValue(formatThaiPhoneNumber(digits));
+    } else if (normalizedField.type === 'tel') {
+      setDisplayValue('');
+    }
+  }, [normalizedField.type, value]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -47,26 +64,184 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
     onChange(event.target.value);
   };
 
+  const handlePhoneChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.target.value;
+    const digits = input.replace(/\D/g, '');
+    
+    // Limit to 10 digits
+    if (digits.length <= 10) {
+      onChange(digits);
+    }
+  };
+
+  const handleExtraPhoneChange = (fieldId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.target.value;
+    const digits = input.replace(/\D/g, '');
+    
+    // Limit to 10 digits
+    if (digits.length <= 10) {
+      onExtraFieldChange?.(fieldId, digits);
+    }
+  };
+
   const getBorderColor = () => {
     if (isFocused) return 'border-blue-500';
     if (validation) return getFieldBorderColor(validation.status);
     return 'border-gray-300';
   };
 
-  const getTextColor = () => {
-    if (validation) return getFieldTextColor(validation.status);
-    return 'text-gray-600';
+  const getAutoCompleteValue = (fieldId: string): string => {
+    const autoCompleteMap: { [key: string]: string } = {
+      // Personal information
+      'firstName': 'given-name',
+      'lastName': 'family-name',
+      'nickname': 'given-name', // Changed from 'nickname' to 'given-name' (standard HTML value)
+      'email': 'email',
+      'phone': 'tel',
+      'lineId': 'username',
+      
+      // Address information
+      'address': 'street-address',
+      'province': 'address-level1',
+      'district': 'address-level2',
+      'subDistrict': 'address-level3',
+      'postalCode': 'postal-code',
+      
+      // Organization information
+      'organizationName': 'organization',
+      'organizationType': 'organization-title',
+      'position': 'organization-title',
+      
+      // Default fallback
+      'default': 'off'
+    };
+    
+    return autoCompleteMap[fieldId] || 'off';
+  };
+
+
+
+  const renderValidationMessage = () => {
+    if (!validation) {
+      const isConditionallyRequired = shouldFieldBeRequired(normalizedField, formData);
+      if (normalizedField.required || isConditionallyRequired) {
+        return (
+          <span className="text-sm text-gray-500 flex items-center">
+            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            กรุณากรอก{field.label}
+          </span>
+        );
+      }
+      return null;
+    }
+
+    if (validation.status === 'valid') {
+      return (
+        <span className="text-sm text-green-600 flex items-center">
+          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+          {field.label}ถูกต้อง
+        </span>
+      );
+    }
+
+    if (validation.status === 'invalid') {
+      return (
+        <span className="text-sm text-red-600 flex items-center">
+          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          {validation.message}
+        </span>
+      );
+    }
+
+    if (validation.status === 'partial') {
+      return (
+        <span className="text-sm text-yellow-600 flex items-center">
+          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          กรุณากรอก{field.label}ให้ครบถ้วน
+        </span>
+      );
+    }
+
+    return null;
+  };
+
+  const renderExtraFieldValidationMessage = (extraField: any, value: any) => {
+    // Create a temporary field object for validation
+    const tempField = {
+      ...extraField,
+      required: shouldFieldBeRequired({ id: extraField.id } as any, formData),
+    };
+    
+    const validation = validateField(tempField, value, formData);
+    
+    if (!validation) {
+      const isConditionallyRequired = shouldFieldBeRequired({ id: extraField.id } as any, formData);
+      if (isConditionallyRequired) {
+        return (
+          <span className="text-sm text-gray-500 flex items-center">
+            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            กรุณากรอก{extraField.label}
+          </span>
+        );
+      }
+      return null;
+    }
+
+    if (validation.status === 'valid') {
+      return (
+        <span className="text-sm text-green-600 flex items-center">
+          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
+          {extraField.label}ถูกต้อง
+        </span>
+      );
+    }
+
+    if (validation.status === 'invalid') {
+      return (
+        <span className="text-sm text-red-600 flex items-center">
+          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          {validation.message}
+        </span>
+      );
+    }
+
+    if (validation.status === 'partial') {
+      return (
+        <span className="text-sm text-yellow-600 flex items-center">
+          <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          กรุณากรอก{extraField.label}ให้ครบถ้วน
+        </span>
+      );
+    }
+
+    return null;
   };
 
   const renderField = () => {
-    switch (field.type) {
+    switch (normalizedField.type) {
       case 'upload':
         return (
           <div className="space-y-4">
             <div className="flex items-center justify-center w-full">
               <label
-                htmlFor={field.id}
-                className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+                htmlFor={normalizedField.id}
+                className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors ${getBorderColor().replace('border-', 'border-dashed-')}`}
               >
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
                   <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
@@ -79,7 +254,8 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
                 </div>
                 <input
                   ref={fileInputRef}
-                  id={field.id}
+                  id={normalizedField.id}
+                  name={normalizedField.id}
                   type="file"
                   className="hidden"
                   accept="image/jpeg,image/jpg,image/png"
@@ -92,9 +268,9 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
                 <Image
                   src={previewUrl}
                   alt="Preview"
-                  width={400}
-                  height={192}
-                  className="w-full h-48 object-cover rounded-lg border"
+                  width={800}
+                  height={600}
+                  className="w-full h-auto max-h-96 object-contain rounded-lg border border-gray-200 shadow-sm"
                 />
                 <button
                   type="button"
@@ -113,117 +289,186 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
                 ไฟล์ที่เลือก: {value.name} ({(value.size / 1024 / 1024).toFixed(2)} MB)
               </p>
             )}
+            {renderValidationMessage()}
           </div>
         );
 
       case 'select':
         return (
-          <select
-            id={field.id}
-            value={value || ''}
-            onChange={handleInputChange}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
-          >
-            <option value="">กรุณาเลือก{field.label}</option>
-            {field.options?.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div className="space-y-1">
+            <select
+              id={normalizedField.id}
+              name={normalizedField.id}
+              value={value || ''}
+              onChange={handleInputChange}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
+            >
+              <option value="">กรุณาเลือก{normalizedField.label}</option>
+              {normalizedField.options?.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {renderValidationMessage()}
+          </div>
         );
 
       case 'tel':
+        const phoneValidation = value ? validateThaiPhoneNumber(value) : null;
+        const isPhoneValid = value && value.length === 10 && !phoneValidation;
+        
         return (
-          <input
-            type="tel"
-            id={field.id}
-            value={value || ''}
-            onChange={handleInputChange}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder={field.placeholder}
-            maxLength={10}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
-          />
+          <div className="space-y-1">
+            <input
+              type="tel"
+              id={normalizedField.id}
+              name={normalizedField.id}
+              autoComplete="tel"
+              value={displayValue}
+              onChange={handlePhoneChange}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              placeholder={normalizedField.placeholder || "0812345678"}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
+            />
+            {value && (
+              <div className="flex items-center space-x-2">
+                {isPhoneValid ? (
+                  <span className="text-sm text-green-600 flex items-center">
+                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    เบอร์โทรศัพท์ถูกต้อง
+                  </span>
+                ) : phoneValidation ? (
+                  <span className="text-sm text-red-600 flex items-center">
+                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {phoneValidation}
+                  </span>
+                ) : (
+                  <span className="text-sm text-gray-500">
+                    กรุณากรอกเบอร์โทรศัพท์ 10 หลัก
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         );
 
       case 'email':
         return (
-          <input
-            type="email"
-            id={field.id}
-            value={value || ''}
-            onChange={handleInputChange}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder={field.placeholder}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
-          />
+          <div className="space-y-1">
+            <input
+              type="email"
+              id={normalizedField.id}
+              name={normalizedField.id}
+              autoComplete="email"
+              value={value || ''}
+              onChange={handleInputChange}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              placeholder={normalizedField.placeholder}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
+            />
+            {renderValidationMessage()}
+          </div>
         );
 
       default:
         return (
-          <input
-            type="text"
-            id={field.id}
-            value={value || ''}
-            onChange={handleInputChange}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            placeholder={field.placeholder}
-            maxLength={field.validation?.maxLength}
-            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
-          />
+          <div className="space-y-1">
+            <input
+              type="text"
+              id={normalizedField.id}
+              name={normalizedField.id}
+              autoComplete={getAutoCompleteValue(normalizedField.id)}
+              value={value || ''}
+              onChange={handleInputChange}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              placeholder={normalizedField.placeholder}
+              maxLength={normalizedField.validation?.maxLength}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
+            />
+            {renderValidationMessage()}
+          </div>
         );
     }
   };
 
   return (
     <div className="space-y-2">
-      <label htmlFor={field.id} className="block text-sm font-medium text-gray-700">
-        {field.label}
-        {field.required && <span className="text-red-500 ml-1">*</span>}
+      <label htmlFor={normalizedField.id} className="block text-sm font-medium text-gray-700">
+        {normalizedField.label}
+        {normalizedField.required && <span className="text-red-500 ml-1">*</span>}
       </label>
       
       {renderField()}
-      
-      {validation && validation.message && (
-        <p className={`text-sm ${getTextColor()}`}>
-          {validation.message}
-        </p>
-      )}
 
       {/* Render extra field if needed */}
-      {field.extraField && shouldShowExtraField(field, formData) && (
+      {normalizedField.extraField && shouldShowExtraField(normalizedField, formData) && (
         <div className="mt-4 pl-4 border-l-2 border-blue-200">
-          <label htmlFor={field.extraField.id} className="block text-sm font-medium text-gray-700">
-            {field.extraField.label}
-            {field.extraField.type === 'tel' && <span className="text-red-500 ml-1">*</span>}
-          </label>
+                      <label htmlFor={normalizedField.extraField.id} className="block text-sm font-medium text-gray-700">
+              {normalizedField.extraField.label}
+              {(normalizedField.extraField.type === 'tel' || shouldFieldBeRequired({ id: normalizedField.extraField.id } as any, formData)) && <span className="text-red-500 ml-1">*</span>}
+            </label>
           
-          {field.extraField.type === 'tel' ? (
-            <input
-              type="tel"
-              id={field.extraField.id}
-              value={formData[field.extraField.id] || ''}
-              onChange={(e) => onExtraFieldChange?.(field.extraField!.id, e.target.value)}
-              placeholder="0812345678"
-              maxLength={10}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-            />
+                      {normalizedField.extraField.type === 'tel' ? (
+            <div className="space-y-1">
+              <input
+                type="tel"
+                id={normalizedField.extraField.id}
+                name={normalizedField.extraField.id}
+                autoComplete="tel"
+                value={formData[normalizedField.extraField.id] ? formatThaiPhoneNumber(formData[normalizedField.extraField.id]) : ''}
+                onChange={(e) => handleExtraPhoneChange(normalizedField.extraField!.id, e)}
+                placeholder="0812345678"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+              />
+              {formData[normalizedField.extraField.id] && (
+                <div className="flex items-center space-x-2">
+                  {formData[normalizedField.extraField.id].length === 10 && !validateThaiPhoneNumber(formData[normalizedField.extraField.id]) ? (
+                    <span className="text-sm text-green-600 flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                      เบอร์โทรศัพท์ถูกต้อง
+                    </span>
+                  ) : validateThaiPhoneNumber(formData[normalizedField.extraField.id]) ? (
+                    <span className="text-sm text-red-600 flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {validateThaiPhoneNumber(formData[normalizedField.extraField.id])}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-500">
+                      กรุณากรอกเบอร์โทรศัพท์ 10 หลัก
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           ) : (
-            <input
-              type="text"
-              id={field.extraField.id}
-              value={formData[field.extraField.id] || ''}
-              onChange={(e) => onExtraFieldChange?.(field.extraField!.id, e.target.value)}
-              placeholder={`กรุณากรอก${field.extraField.label}`}
-              maxLength={field.extraField.validation?.maxLength}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-            />
+            <div className="space-y-1">
+              <input
+                type="text"
+                id={normalizedField.extraField.id}
+                name={normalizedField.extraField.id}
+                autoComplete={getAutoCompleteValue(normalizedField.extraField.id)}
+                value={formData[normalizedField.extraField.id] || ''}
+                onChange={(e) => onExtraFieldChange?.(normalizedField.extraField!.id, e.target.value)}
+                placeholder={`กรุณากรอก${normalizedField.extraField.label}`}
+                maxLength={normalizedField.extraField.validation?.maxLength}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
+              />
+              {renderExtraFieldValidationMessage(normalizedField.extraField, formData[normalizedField.extraField.id])}
+            </div>
           )}
         </div>
       )}
