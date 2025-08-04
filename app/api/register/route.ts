@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FormData } from '../../components/RegistrationForm/FormSchema';
+import { FormData, formSchema } from '../../components/RegistrationForm/FormSchema';
+import { generateYECBadge } from '../../lib/badgeGenerator';
+import { sendBadgeEmail } from '../../lib/emailService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,8 +34,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Generate registration ID
+    const registrationId = `YEC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
     // TODO: Add database integration here
-    // For now, just log the data and return success
+    // For now, just log the data
     console.log('Registration data received:', {
       ...formData,
       profileImage: formData.profileImage ? 'File uploaded' : 'No file',
@@ -41,17 +46,71 @@ export async function POST(request: NextRequest) {
       paymentSlip: formData.paymentSlip ? 'File uploaded' : 'No file',
     });
 
+    // Generate badge
+    let badgeBuffer: Buffer | null = null;
+    try {
+      const fullName = `${formData.title} ${formData.firstName} ${formData.lastName}`;
+      
+      // Get YEC province display name
+      const yecProvinceField = formSchema.find(field => field.id === 'yecProvince');
+      const yecProvinceOption = yecProvinceField?.options?.find(opt => opt.value === formData.yecProvince);
+      const yecProvinceDisplay = yecProvinceOption?.label || formData.yecProvince;
+
+      const badgeData = {
+        registrationId,
+        fullName,
+        nickname: formData.nickname,
+        phone: formData.phone,
+        yecProvince: yecProvinceDisplay,
+        businessType: formData.businessType,
+        businessTypeOther: formData.businessTypeOther,
+        profileImageBase64: formData.profileImage?.dataUrl || undefined
+      };
+
+      badgeBuffer = await generateYECBadge(badgeData);
+      console.log('Badge generated successfully');
+    } catch (error) {
+      console.error('Error generating badge:', error);
+      // Continue without badge if generation fails
+    }
+
     // Simulate processing time
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    return NextResponse.json(
-      { 
-        success: true,
-        message: 'Registration submitted successfully',
-        registrationId: `YEC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      },
-      { status: 200 }
-    );
+    const response: any = {
+      success: true,
+      message: 'Registration submitted successfully',
+      registrationId
+    };
+
+    // Include badge as base64 if generated successfully
+    if (badgeBuffer) {
+      response.badgeBase64 = `data:image/png;base64,${badgeBuffer.toString('base64')}`;
+      
+      // Send email with badge attachment
+      try {
+        const fullName = `${formData.title} ${formData.firstName} ${formData.lastName}`;
+        const emailSent = await sendBadgeEmail(
+          formData.email,
+          fullName,
+          badgeBuffer,
+          registrationId
+        );
+        
+        if (emailSent) {
+          console.log('Badge email sent successfully to:', formData.email);
+          response.emailSent = true;
+        } else {
+          console.error('Failed to send badge email to:', formData.email);
+          response.emailSent = false;
+        }
+      } catch (emailError) {
+        console.error('Error sending badge email:', emailError);
+        response.emailSent = false;
+      }
+    }
+
+    return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
     console.error('Registration API error:', error);
