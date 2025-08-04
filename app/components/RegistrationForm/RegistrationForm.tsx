@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { formSchema, initialFormData, FormData } from './FormSchema';
-import { validateForm, shouldShowExtraField } from './formValidation';
+import { validateForm, shouldShowExtraField, calculateFormProgress } from './formValidation';
 import FormField from './FormField';
 
 export default function RegistrationForm() {
@@ -81,18 +81,15 @@ export default function RegistrationForm() {
                 {/* Render roommate phone field separately for better layout */}
                 {field.id === 'roomType' && shouldShowExtraField(field, formData) && field.roommatePhoneField && (
                   <div className="mt-4 pl-4 border-l-2 border-blue-200">
-                    <label htmlFor={field.roommatePhoneField.id} className="block text-sm font-medium text-gray-700">
-                      {field.roommatePhoneField.label}
-                      <span className="text-red-500 ml-1">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      id={field.roommatePhoneField.id}
-                      value={formData[field.roommatePhoneField.id] || ''}
-                      onChange={(e) => handleExtraFieldChange(field.roommatePhoneField!.id, e.target.value)}
-                      placeholder="0812345678"
-                      maxLength={10}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    <FormField
+                      field={{
+                        ...field.roommatePhoneField,
+                        required: field.roommatePhoneField.required ?? true
+                      }}
+                      value={formData[field.roommatePhoneField.id]}
+                      onChange={(value) => handleExtraFieldChange(field.roommatePhoneField!.id, value)}
+                      formData={formData}
+                      onExtraFieldChange={handleExtraFieldChange}
                     />
                   </div>
                 )}
@@ -132,13 +129,13 @@ export default function RegistrationForm() {
           <div className="mt-8">
             <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
               <span>ความคืบหน้า</span>
-              <span>{Math.round((Object.keys(formData).filter(key => formData[key] && formData[key] !== '').length / Object.keys(formData).length) * 100)}%</span>
+              <span>{calculateFormProgress(formData, formSchema)}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                 style={{ 
-                  width: `${(Object.keys(formData).filter(key => formData[key] && formData[key] !== '').length / Object.keys(formData).length) * 100}%` 
+                  width: `${calculateFormProgress(formData, formSchema)}%` 
                 }}
               ></div>
             </div>

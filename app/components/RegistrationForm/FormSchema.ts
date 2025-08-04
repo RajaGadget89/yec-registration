@@ -21,6 +21,7 @@ export interface FormField {
     id: string;
     label: string;
     type: 'input' | 'tel';
+    required?: boolean;
     validation?: {
       pattern?: RegExp;
       minLength?: number;
@@ -31,6 +32,7 @@ export interface FormField {
     id: string;
     label: string;
     type: 'tel';
+    required?: boolean;
     validation?: {
       pattern?: RegExp;
       customValidation?: (value: string) => string | null;
@@ -182,9 +184,10 @@ export const formSchema: FormField[] = [
     id: 'nickname',
     type: 'input',
     label: 'ชื่อเล่น',
-    required: false,
-    placeholder: 'กรุณากรอกชื่อเล่น (ไม่บังคับ)',
+    required: true,
+    placeholder: 'กรุณากรอกชื่อเล่น',
     validation: {
+      minLength: 1,
       maxLength: 30,
     },
   },
@@ -277,6 +280,7 @@ export const formSchema: FormField[] = [
       id: 'businessTypeOther',
       label: 'ระบุประเภทกิจการ',
       type: 'input',
+      required: true,
       validation: {
         minLength: 1,
         maxLength: 50,
@@ -308,6 +312,7 @@ export const formSchema: FormField[] = [
       id: 'roommateInfo',
       label: 'ชื่อ นามสกุล ผู้นอนร่วม',
       type: 'input',
+      required: true,
       validation: {
         minLength: 1,
         maxLength: 100,
@@ -318,6 +323,7 @@ export const formSchema: FormField[] = [
       id: 'roommatePhone',
       label: 'เบอร์โทรผู้ร่วมพัก',
       type: 'tel',
+      required: true,
       validation: {
         pattern: /^0\d{9}$/,
         customValidation: (value: string) => {
