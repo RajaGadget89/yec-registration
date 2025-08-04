@@ -177,9 +177,19 @@ export default function PreviewPage() {
           mainElement.style.opacity = '0';
         }
         
-        // Navigate to success page after fade
+        // Navigate to success page after fade with badge data and email status if available
         setTimeout(() => {
-          router.push(`/success?id=${result.registrationId}`);
+          let successUrl = `/success?id=${result.registrationId}`;
+          
+          if (result.badgeBase64) {
+            successUrl += `&badge=${encodeURIComponent(result.badgeBase64)}`;
+          }
+          
+          if (result.emailSent !== undefined) {
+            successUrl += `&email=${result.emailSent}`;
+          }
+          
+          router.push(successUrl);
         }, 500);
       } else {
         const errorData = await response.json();
