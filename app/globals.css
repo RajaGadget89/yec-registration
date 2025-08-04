@@ -22,8 +22,31 @@
   --color-yec-highlight: var(--yec-highlight);
 }
 
+/* Light theme (default) */
+.light {
+  --background: #ffffff;
+  --foreground: #171717;
+  
+  /* YEC Brand Colors */
+  --yec-primary: #1A237E;    /* PANTONE 3591 */
+  --yec-accent: #4285C5;     /* PANTONE 2394 */
+  --yec-highlight: #4CD1E0;  /* PANTONE 3105 */
+}
+
+/* Dark theme */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  
+  /* YEC Brand Colors - Dark Mode (slightly adjusted for better contrast) */
+  --yec-primary: #2A337E;    /* Lighter version for dark mode */
+  --yec-accent: #5295D5;     /* Lighter version for dark mode */
+  --yec-highlight: #5CE1F0;  /* Lighter version for dark mode */
+}
+
+/* System preference fallback */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light):not(.dark) {
     --background: #0a0a0a;
     --foreground: #ededed;
     

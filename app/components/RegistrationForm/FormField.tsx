@@ -13,6 +13,215 @@ interface FormFieldProps {
   onExtraFieldChange?: (fieldId: string, value: any) => void;
 }
 
+// Searchable Dropdown Component for Provinces
+function SearchableProvinceDropdown({ 
+  field, 
+  value, 
+  onChange, 
+  setIsFocused, 
+  getBorderColor 
+}: { 
+  field: FormFieldType; 
+  value: any; 
+  onChange: (value: any) => void; 
+  setIsFocused: (focused: boolean) => void; 
+  getBorderColor: () => string; 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter provinces based on search term
+  const filteredOptions = useMemo(() => {
+    if (!field.options) return [];
+    
+    if (!searchTerm.trim()) {
+      return field.options;
+    }
+    
+    return field.options.filter(option => 
+      option.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      option.value.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [field.options, searchTerm]);
+
+  // Get selected option label
+  const selectedOption = useMemo(() => {
+    return field.options?.find(option => option.value === value);
+  }, [field.options, value]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isOpen) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        setIsOpen(true);
+        setTimeout(() => searchInputRef.current?.focus(), 100);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case 'Escape':
+        setIsOpen(false);
+        setSearchTerm('');
+        setHighlightedIndex(-1);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        setHighlightedIndex(prev => 
+          prev < filteredOptions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setHighlightedIndex(prev => 
+          prev > 0 ? prev - 1 : filteredOptions.length - 1
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
+          onChange(filteredOptions[highlightedIndex].value);
+          setIsOpen(false);
+          setSearchTerm('');
+          setHighlightedIndex(-1);
+        }
+        break;
+    }
+  };
+
+  // Handle option selection
+  const handleOptionSelect = (optionValue: string) => {
+    onChange(optionValue);
+    setIsOpen(false);
+    setSearchTerm('');
+    setHighlightedIndex(-1);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+        setSearchTerm('');
+        setHighlightedIndex(-1);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Reset highlighted index when search term changes
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [searchTerm]);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      {/* Main Button */}
+      <button
+        type="button"
+        id={field.id}
+        name={field.id}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          if (!isOpen) {
+            setTimeout(() => searchInputRef.current?.focus(), 100);
+          }
+        }}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        className={`w-full px-3 py-2 text-left border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()} bg-white`}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <div className="flex items-center justify-between">
+          <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
+            {selectedOption ? selectedOption.label : `กรุณาเลือก${field.label}`}
+          </span>
+          <svg 
+            className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-hidden">
+          {/* Search Input */}
+          <div className="p-2 border-b border-gray-100">
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                ref={searchInputRef}
+                id={`${field.id}-search`}
+                name={`${field.id}-search`}
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="ค้นหาจังหวัด..."
+                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onKeyDown={handleKeyDown}
+                aria-label="ค้นหาจังหวัด"
+              />
+            </div>
+          </div>
+
+          {/* Options List */}
+          <div className="max-h-48 overflow-y-auto">
+            {filteredOptions.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-gray-500 text-center">
+                ไม่พบจังหวัดที่ค้นหา
+              </div>
+            ) : (
+              filteredOptions.map((option, index) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => handleOptionSelect(option.value)}
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors ${
+                    index === highlightedIndex ? 'bg-blue-50' : ''
+                  } ${option.value === value ? 'bg-blue-100 text-blue-900' : 'text-gray-900'}`}
+                >
+                  <div className="flex items-center">
+                    {option.value === value && (
+                      <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                    <span className={option.value === value ? 'font-medium' : ''}>
+                      {option.label}
+                    </span>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* Results Count */}
+          {searchTerm && (
+            <div className="px-3 py-2 text-xs text-gray-500 border-t border-gray-100 bg-gray-50">
+              พบ {filteredOptions.length} จังหวัด
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FormField({ field, value, onChange, formData, onExtraFieldChange }: FormFieldProps) {
   // Ensure required is always a boolean - memoized to prevent infinite re-renders
   const normalizedField = useMemo(() => ({
@@ -34,10 +243,18 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
 
   // Handle file preview
   useEffect(() => {
-    if (normalizedField.type === 'upload' && value instanceof File) {
-      const url = URL.createObjectURL(value);
-      setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
+    if (normalizedField.type === 'upload') {
+      if (value instanceof File) {
+        const url = URL.createObjectURL(value);
+        setPreviewUrl(url);
+        return () => URL.revokeObjectURL(url);
+      } else if (value && typeof value === 'object' && 'dataUrl' in value) {
+        // Handle base64 data URL from localStorage
+        setPreviewUrl(value.dataUrl);
+        return () => setPreviewUrl(null);
+      } else {
+        setPreviewUrl(null);
+      }
     } else {
       setPreviewUrl(null);
     }
@@ -265,13 +482,15 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
             </div>
             {previewUrl && (
               <div className="relative">
-                <Image
-                  src={previewUrl}
-                  alt="Preview"
-                  width={800}
-                  height={600}
-                  className="w-full h-auto max-h-96 object-contain rounded-lg border border-gray-200 shadow-sm"
-                />
+                <div className="w-full h-48 bg-gray-50 rounded-lg border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center">
+                  <Image
+                    src={previewUrl}
+                    alt="Preview"
+                    width={200}
+                    height={200}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -288,6 +507,23 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
               <p className="text-sm text-gray-600">
                 ไฟล์ที่เลือก: {value.name} ({(value.size / 1024 / 1024).toFixed(2)} MB)
               </p>
+            )}
+            {/* Show file info for metadata objects (from localStorage) */}
+            {value && typeof value === 'object' && 'name' in value && !(value instanceof File) && !('dataUrl' in value) && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                  <span className="text-sm text-blue-800 font-medium">{value.name}</span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  {(value.size / 1024 / 1024).toFixed(2)} MB • {value.type}
+                </p>
+                <p className="text-xs text-blue-500 mt-1">
+                  ไฟล์นี้ถูกอัปโหลดแล้ว กรุณาอัปโหลดใหม่หากต้องการเปลี่ยน
+                </p>
+              </div>
             )}
             {renderValidationMessage()}
           </div>
@@ -377,6 +613,17 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
             />
             {renderValidationMessage()}
           </div>
+        );
+
+      case 'province':
+        return (
+          <SearchableProvinceDropdown
+            field={normalizedField}
+            value={value}
+            onChange={onChange}
+            setIsFocused={setIsFocused}
+            getBorderColor={getBorderColor}
+          />
         );
 
       default:
