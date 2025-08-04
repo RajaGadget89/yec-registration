@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { FormField as FormFieldType } from './FormSchema';
 import { validateField, getFieldBorderColor, shouldShowExtraField, shouldFieldBeRequired, validateThaiPhoneNumber, formatThaiPhoneNumber } from './formValidation';
@@ -14,6 +14,12 @@ interface FormFieldProps {
 }
 
 export default function FormField({ field, value, onChange, formData, onExtraFieldChange }: FormFieldProps) {
+  // Ensure required is always a boolean - memoized to prevent infinite re-renders
+  const normalizedField = useMemo(() => ({
+    ...field,
+    required: !!field.required
+  }), [field]);
+  
   const [validation, setValidation] = useState<any>(null);
   const [isFocused, setIsFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -22,30 +28,30 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
 
   // Validate field on value change
   useEffect(() => {
-    const result = validateField(field, value, formData);
+    const result = validateField(normalizedField, value, formData);
     setValidation(result);
-  }, [field, value, formData]);
+  }, [normalizedField, value, formData]);
 
   // Handle file preview
   useEffect(() => {
-    if (field.type === 'upload' && value instanceof File) {
+    if (normalizedField.type === 'upload' && value instanceof File) {
       const url = URL.createObjectURL(value);
       setPreviewUrl(url);
       return () => URL.revokeObjectURL(url);
     } else {
       setPreviewUrl(null);
     }
-  }, [field.type, value]);
+  }, [normalizedField.type, value]);
 
   // Handle phone number formatting
   useEffect(() => {
-    if (field.type === 'tel' && value) {
+    if (normalizedField.type === 'tel' && value) {
       const digits = value.replace(/\D/g, '');
       setDisplayValue(formatThaiPhoneNumber(digits));
-    } else if (field.type === 'tel') {
+    } else if (normalizedField.type === 'tel') {
       setDisplayValue('');
     }
-  }, [field.type, value]);
+  }, [normalizedField.type, value]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -84,12 +90,41 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
     return 'border-gray-300';
   };
 
+  const getAutoCompleteValue = (fieldId: string): string => {
+    const autoCompleteMap: { [key: string]: string } = {
+      // Personal information
+      'firstName': 'given-name',
+      'lastName': 'family-name',
+      'nickname': 'given-name', // Changed from 'nickname' to 'given-name' (standard HTML value)
+      'email': 'email',
+      'phone': 'tel',
+      'lineId': 'username',
+      
+      // Address information
+      'address': 'street-address',
+      'province': 'address-level1',
+      'district': 'address-level2',
+      'subDistrict': 'address-level3',
+      'postalCode': 'postal-code',
+      
+      // Organization information
+      'organizationName': 'organization',
+      'organizationType': 'organization-title',
+      'position': 'organization-title',
+      
+      // Default fallback
+      'default': 'off'
+    };
+    
+    return autoCompleteMap[fieldId] || 'off';
+  };
+
 
 
   const renderValidationMessage = () => {
     if (!validation) {
-      const isConditionallyRequired = shouldFieldBeRequired(field, formData);
-      if (field.required || isConditionallyRequired) {
+      const isConditionallyRequired = shouldFieldBeRequired(normalizedField, formData);
+      if (normalizedField.required || isConditionallyRequired) {
         return (
           <span className="text-sm text-gray-500 flex items-center">
             <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -199,13 +234,13 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
   };
 
   const renderField = () => {
-    switch (field.type) {
+    switch (normalizedField.type) {
       case 'upload':
         return (
           <div className="space-y-4">
             <div className="flex items-center justify-center w-full">
               <label
-                htmlFor={field.id}
+                htmlFor={normalizedField.id}
                 className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors ${getBorderColor().replace('border-', 'border-dashed-')}`}
               >
                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -219,7 +254,8 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
                 </div>
                 <input
                   ref={fileInputRef}
-                  id={field.id}
+                  id={normalizedField.id}
+                  name={normalizedField.id}
                   type="file"
                   className="hidden"
                   accept="image/jpeg,image/jpg,image/png"
@@ -261,15 +297,16 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
         return (
           <div className="space-y-1">
             <select
-              id={field.id}
+              id={normalizedField.id}
+              name={normalizedField.id}
               value={value || ''}
               onChange={handleInputChange}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
             >
-              <option value="">กรุณาเลือก{field.label}</option>
-              {field.options?.map((option) => (
+              <option value="">กรุณาเลือก{normalizedField.label}</option>
+              {normalizedField.options?.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -287,12 +324,14 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
           <div className="space-y-1">
             <input
               type="tel"
-              id={field.id}
+              id={normalizedField.id}
+              name={normalizedField.id}
+              autoComplete="tel"
               value={displayValue}
               onChange={handlePhoneChange}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder={field.placeholder || "0812345678"}
+              placeholder={normalizedField.placeholder || "0812345678"}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
             />
             {value && (
@@ -326,12 +365,14 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
           <div className="space-y-1">
             <input
               type="email"
-              id={field.id}
+              id={normalizedField.id}
+              name={normalizedField.id}
+              autoComplete="email"
               value={value || ''}
               onChange={handleInputChange}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder={field.placeholder}
+              placeholder={normalizedField.placeholder}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
             />
             {renderValidationMessage()}
@@ -343,13 +384,15 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
           <div className="space-y-1">
             <input
               type="text"
-              id={field.id}
+              id={normalizedField.id}
+              name={normalizedField.id}
+              autoComplete={getAutoCompleteValue(normalizedField.id)}
               value={value || ''}
               onChange={handleInputChange}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder={field.placeholder}
-              maxLength={field.validation?.maxLength}
+              placeholder={normalizedField.placeholder}
+              maxLength={normalizedField.validation?.maxLength}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
             />
             {renderValidationMessage()}
@@ -360,46 +403,48 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
 
   return (
     <div className="space-y-2">
-      <label htmlFor={field.id} className="block text-sm font-medium text-gray-700">
-        {field.label}
-        {field.required && <span className="text-red-500 ml-1">*</span>}
+      <label htmlFor={normalizedField.id} className="block text-sm font-medium text-gray-700">
+        {normalizedField.label}
+        {normalizedField.required && <span className="text-red-500 ml-1">*</span>}
       </label>
       
       {renderField()}
 
       {/* Render extra field if needed */}
-      {field.extraField && shouldShowExtraField(field, formData) && (
+      {normalizedField.extraField && shouldShowExtraField(normalizedField, formData) && (
         <div className="mt-4 pl-4 border-l-2 border-blue-200">
-          <label htmlFor={field.extraField.id} className="block text-sm font-medium text-gray-700">
-            {field.extraField.label}
-            {(field.extraField.type === 'tel' || shouldFieldBeRequired({ id: field.extraField.id } as any, formData)) && <span className="text-red-500 ml-1">*</span>}
-          </label>
+                      <label htmlFor={normalizedField.extraField.id} className="block text-sm font-medium text-gray-700">
+              {normalizedField.extraField.label}
+              {(normalizedField.extraField.type === 'tel' || shouldFieldBeRequired({ id: normalizedField.extraField.id } as any, formData)) && <span className="text-red-500 ml-1">*</span>}
+            </label>
           
-          {field.extraField.type === 'tel' ? (
+                      {normalizedField.extraField.type === 'tel' ? (
             <div className="space-y-1">
               <input
                 type="tel"
-                id={field.extraField.id}
-                value={formData[field.extraField.id] ? formatThaiPhoneNumber(formData[field.extraField.id]) : ''}
-                onChange={(e) => handleExtraPhoneChange(field.extraField!.id, e)}
+                id={normalizedField.extraField.id}
+                name={normalizedField.extraField.id}
+                autoComplete="tel"
+                value={formData[normalizedField.extraField.id] ? formatThaiPhoneNumber(formData[normalizedField.extraField.id]) : ''}
+                onChange={(e) => handleExtraPhoneChange(normalizedField.extraField!.id, e)}
                 placeholder="0812345678"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
               />
-              {formData[field.extraField.id] && (
+              {formData[normalizedField.extraField.id] && (
                 <div className="flex items-center space-x-2">
-                  {formData[field.extraField.id].length === 10 && !validateThaiPhoneNumber(formData[field.extraField.id]) ? (
+                  {formData[normalizedField.extraField.id].length === 10 && !validateThaiPhoneNumber(formData[normalizedField.extraField.id]) ? (
                     <span className="text-sm text-green-600 flex items-center">
                       <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                       เบอร์โทรศัพท์ถูกต้อง
                     </span>
-                  ) : validateThaiPhoneNumber(formData[field.extraField.id]) ? (
+                  ) : validateThaiPhoneNumber(formData[normalizedField.extraField.id]) ? (
                     <span className="text-sm text-red-600 flex items-center">
                       <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
-                      {validateThaiPhoneNumber(formData[field.extraField.id])}
+                      {validateThaiPhoneNumber(formData[normalizedField.extraField.id])}
                     </span>
                   ) : (
                     <span className="text-sm text-gray-500">
@@ -413,14 +458,16 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
             <div className="space-y-1">
               <input
                 type="text"
-                id={field.extraField.id}
-                value={formData[field.extraField.id] || ''}
-                onChange={(e) => onExtraFieldChange?.(field.extraField!.id, e.target.value)}
-                placeholder={`กรุณากรอก${field.extraField.label}`}
-                maxLength={field.extraField.validation?.maxLength}
+                id={normalizedField.extraField.id}
+                name={normalizedField.extraField.id}
+                autoComplete={getAutoCompleteValue(normalizedField.extraField.id)}
+                value={formData[normalizedField.extraField.id] || ''}
+                onChange={(e) => onExtraFieldChange?.(normalizedField.extraField!.id, e.target.value)}
+                placeholder={`กรุณากรอก${normalizedField.extraField.label}`}
+                maxLength={normalizedField.extraField.validation?.maxLength}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
               />
-              {renderExtraFieldValidationMessage(field.extraField, formData[field.extraField.id])}
+              {renderExtraFieldValidationMessage(normalizedField.extraField, formData[normalizedField.extraField.id])}
             </div>
           )}
         </div>

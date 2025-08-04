@@ -82,7 +82,10 @@ export default function RegistrationForm() {
                 {field.id === 'roomType' && shouldShowExtraField(field, formData) && field.roommatePhoneField && (
                   <div className="mt-4 pl-4 border-l-2 border-blue-200">
                     <FormField
-                      field={field.roommatePhoneField}
+                      field={{
+                        ...field.roommatePhoneField,
+                        required: field.roommatePhoneField.required ?? true
+                      }}
                       value={formData[field.roommatePhoneField.id]}
                       onChange={(value) => handleExtraFieldChange(field.roommatePhoneField!.id, value)}
                       formData={formData}
