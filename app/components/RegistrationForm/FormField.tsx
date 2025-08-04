@@ -92,9 +92,9 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
                 <Image
                   src={previewUrl}
                   alt="Preview"
-                  width={400}
-                  height={192}
-                  className="w-full h-48 object-cover rounded-lg border"
+                  width={800}
+                  height={600}
+                  className="w-full h-auto max-h-96 object-contain rounded-lg border border-gray-200 shadow-sm"
                 />
                 <button
                   type="button"
