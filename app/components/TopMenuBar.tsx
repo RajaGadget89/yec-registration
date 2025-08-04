@@ -5,22 +5,30 @@ import Image from 'next/image';
 
 export default function TopMenuBar() {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isLandingPage, setIsLandingPage] = useState(false);
 
   useEffect(() => {
+    // Check if we're on the landing page (root path)
+    const isLanding = window.location.pathname === '/' || window.location.pathname === '/index.html';
+    setIsLandingPage(isLanding);
+
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 50);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    // Only add scroll listener on landing page
+    if (isLanding) {
+      window.addEventListener('scroll', handleScroll);
+      return () => window.removeEventListener('scroll', handleScroll);
+    }
   }, []);
 
   return (
     <header 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled 
-          ? 'bg-yec-primary shadow-md' 
-          : 'bg-transparent'
+        isLandingPage 
+          ? (isScrolled ? 'bg-yec-primary shadow-md' : 'bg-transparent')
+          : 'bg-yec-primary shadow-md'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

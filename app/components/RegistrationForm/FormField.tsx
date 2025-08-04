@@ -34,10 +34,18 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
 
   // Handle file preview
   useEffect(() => {
-    if (normalizedField.type === 'upload' && value instanceof File) {
-      const url = URL.createObjectURL(value);
-      setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
+    if (normalizedField.type === 'upload') {
+      if (value instanceof File) {
+        const url = URL.createObjectURL(value);
+        setPreviewUrl(url);
+        return () => URL.revokeObjectURL(url);
+      } else if (value && typeof value === 'object' && 'dataUrl' in value) {
+        // Handle base64 data URL from localStorage
+        setPreviewUrl(value.dataUrl);
+        return () => setPreviewUrl(null);
+      } else {
+        setPreviewUrl(null);
+      }
     } else {
       setPreviewUrl(null);
     }
@@ -265,13 +273,15 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
             </div>
             {previewUrl && (
               <div className="relative">
-                <Image
-                  src={previewUrl}
-                  alt="Preview"
-                  width={800}
-                  height={600}
-                  className="w-full h-auto max-h-96 object-contain rounded-lg border border-gray-200 shadow-sm"
-                />
+                <div className="w-full h-48 bg-gray-50 rounded-lg border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center">
+                  <Image
+                    src={previewUrl}
+                    alt="Preview"
+                    width={200}
+                    height={200}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -288,6 +298,23 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
               <p className="text-sm text-gray-600">
                 ไฟล์ที่เลือก: {value.name} ({(value.size / 1024 / 1024).toFixed(2)} MB)
               </p>
+            )}
+            {/* Show file info for metadata objects (from localStorage) */}
+            {value && typeof value === 'object' && 'name' in value && !(value instanceof File) && !('dataUrl' in value) && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                  </svg>
+                  <span className="text-sm text-blue-800 font-medium">{value.name}</span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">
+                  {(value.size / 1024 / 1024).toFixed(2)} MB • {value.type}
+                </p>
+                <p className="text-xs text-blue-500 mt-1">
+                  ไฟล์นี้ถูกอัปโหลดแล้ว กรุณาอัปโหลดใหม่หากต้องการเปลี่ยน
+                </p>
+              </div>
             )}
             {renderValidationMessage()}
           </div>
