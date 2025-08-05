@@ -8,29 +8,29 @@ import Footer from '../components/Footer';
 export default function SuccessPage() {
   const router = useRouter();
   const [registrationId, setRegistrationId] = useState<string | null>(null);
-  const [badgeBase64, setBadgeBase64] = useState<string | null>(null);
+  const [badgeUrl, setBadgeUrl] = useState<string | null>(null);
   const [isBadgeLoading, setIsBadgeLoading] = useState(false);
   const [badgeError, setBadgeError] = useState<string | null>(null);
   const [emailSent, setEmailSent] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Get registration ID, badge, and email status from URL params
+    // Get registration ID, badge URL, and email status from URL params
     const urlParams = new URLSearchParams(window.location.search);
     const id = urlParams.get('id');
-    const badge = urlParams.get('badge');
+    const badgeUrl = urlParams.get('badgeUrl');
     const emailStatus = urlParams.get('email');
     
     if (id) {
       setRegistrationId(id);
     }
     
-    if (badge) {
+    if (badgeUrl) {
       setIsBadgeLoading(true);
       try {
-        const decodedBadge = decodeURIComponent(badge);
-        setBadgeBase64(decodedBadge);
+        const decodedBadgeUrl = decodeURIComponent(badgeUrl);
+        setBadgeUrl(decodedBadgeUrl);
       } catch (error) {
-        console.error('Error decoding badge:', error);
+        console.error('Error decoding badge URL:', error);
         setBadgeError('ไม่สามารถโหลดบัตรประจำตัวได้');
       } finally {
         setIsBadgeLoading(false);
@@ -81,7 +81,7 @@ export default function SuccessPage() {
             </p>
 
             {/* Generated Badge - Displayed above Registration ID */}
-            {(badgeBase64 || isBadgeLoading || badgeError) && (
+            {(badgeUrl || isBadgeLoading || badgeError) && (
               <div className="bg-white rounded-lg shadow-md p-6 mb-8 max-w-md mx-auto">
                 <h2 className="text-lg font-semibold text-gray-800 mb-4 text-center">
                   บัตรประจำตัว YEC
@@ -110,11 +110,11 @@ export default function SuccessPage() {
                 )}
                 
                 {/* Badge Image */}
-                {badgeBase64 && !isBadgeLoading && !badgeError && (
+                {badgeUrl && !isBadgeLoading && !badgeError && (
                   <>
                     <div className="flex justify-center">
                       <img 
-                        src={badgeBase64} 
+                        src={badgeUrl} 
                         alt="Your YEC Badge" 
                         className="max-w-full h-auto rounded-lg shadow-sm border"
                         style={{ maxWidth: '300px' }}
@@ -124,7 +124,7 @@ export default function SuccessPage() {
                       <button
                         onClick={() => {
                           const link = document.createElement('a');
-                          link.href = badgeBase64;
+                          link.href = badgeUrl;
                           link.download = `yec-badge-${registrationId}.png`;
                           link.click();
                         }}

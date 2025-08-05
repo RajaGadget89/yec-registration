@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { formSchema, initialFormData, FormData } from './FormSchema';
 import { validateForm, shouldShowExtraField, calculateFormProgress } from './formValidation';
 import FormField from './FormField';
+import { uploadFileToSupabase } from '../../lib/uploadFileToSupabase';
 
 export default function RegistrationForm() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -18,12 +19,12 @@ export default function RegistrationForm() {
     // Check if we're in edit mode via URL parameter
     const urlParams = new URLSearchParams(window.location.search);
     const isEditMode = urlParams.get('edit') === 'true';
-    
+
     // Clean up any stale localStorage data on fresh page loads
     if (!isEditMode) {
       localStorage.removeItem('yecRegistrationData');
     }
-    
+
     if (isEditMode) {
       try {
         const storedData = sessionStorage.getItem('yecEditData');
@@ -32,22 +33,27 @@ export default function RegistrationForm() {
           if (parsedData && typeof parsedData === 'object') {
             // Merge with initial data to ensure all fields exist
             const mergedData = { ...initialFormData, ...parsedData };
-            
-            // Handle file fields - preserve file metadata for display
+
+            // Handle file fields - preserve URLs or metadata for display
             const fileFields = ['profileImage', 'chamberCard', 'paymentSlip'];
             fileFields.forEach(fieldId => {
-              if (mergedData[fieldId] && typeof mergedData[fieldId] === 'object' && 'name' in mergedData[fieldId]) {
-                // Keep the file metadata for display purposes
-                // The FormField component will handle showing the file info
+              if (mergedData[fieldId]) {
+                if (typeof mergedData[fieldId] === 'string' && mergedData[fieldId].startsWith('http')) {
+                  // New format: URL from Supabase - keep as is
+                  // The FormField component will handle displaying the image
+                } else if (typeof mergedData[fieldId] === 'object' && 'name' in mergedData[fieldId]) {
+                  // Old format: file metadata - keep for display purposes
+                  // The FormField component will handle showing the file info
+                }
               }
             });
-            
+
             setFormData(mergedData);
             setIsEditing(true);
-            
+
             // Clean up sessionStorage after loading
             sessionStorage.removeItem('yecEditData');
-            
+
             // Remove edit parameter from URL without page reload
             const newUrl = new URL(window.location.href);
             newUrl.searchParams.delete('edit');
@@ -59,7 +65,7 @@ export default function RegistrationForm() {
         // Continue with initial form data if there's an error
       }
     }
-    
+
     // Cleanup function to clear any stale data
     return () => {
       // Clear any remaining edit data when component unmounts
@@ -89,9 +95,9 @@ export default function RegistrationForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const { isValid, errors: validationErrors } = validateForm(formData, formSchema);
-    
+
     if (!isValid) {
       setErrors(validationErrors);
       return;
@@ -99,72 +105,90 @@ export default function RegistrationForm() {
 
     setIsSubmitting(true);
     setIsProcessingFiles(true);
-    
-    // Save form data to localStorage for preview page
+
     try {
-      // Convert File objects to a storable format
-      const dataToStore = { ...formData };
-      
       // Handle File objects for upload fields
       const uploadFields = ['profileImage', 'chamberCard', 'paymentSlip'];
-      
-      // Process files to store both metadata and base64 data
-      const filesToProcess = uploadFields.filter(fieldId => dataToStore[fieldId] instanceof File);
-      
+      const filesToProcess = uploadFields.filter(fieldId => formData[fieldId] instanceof File);
+
       if (filesToProcess.length === 0) {
-        // No files to convert, save immediately
-        localStorage.setItem('yecRegistrationData', JSON.stringify(dataToStore));
+        // No new files to upload, save data immediately
+        const minimalData = {
+          ...formData,
+          // Keep existing URLs or metadata, remove any File objects
+          profileImage: typeof formData.profileImage === 'string' ? formData.profileImage : 
+                       (formData.profileImage?.dataUrl ? formData.profileImage : null),
+          chamberCard: typeof formData.chamberCard === 'string' ? formData.chamberCard : 
+                      (formData.chamberCard?.dataUrl ? formData.chamberCard : null),
+          paymentSlip: typeof formData.paymentSlip === 'string' ? formData.paymentSlip : 
+                      (formData.paymentSlip?.dataUrl ? formData.paymentSlip : null),
+        };
+        localStorage.setItem('yecRegistrationData', JSON.stringify(minimalData));
         window.location.href = '/preview';
         return;
       }
-      
+
+      // Upload files to Supabase first
       let processedFiles = 0;
       const totalFiles = filesToProcess.length;
       setFileProcessingProgress(0);
-      
-      filesToProcess.forEach(fieldId => {
-        const file = dataToStore[fieldId] as File;
-        const reader = new FileReader();
+
+      const uploadedFiles: { [key: string]: string } = {};
+      const uploadPromises = filesToProcess.map(async (fieldId) => {
+        const file = formData[fieldId] as File;
         
-        reader.onload = () => {
-          const base64Data = reader.result as string;
-          dataToStore[fieldId] = {
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            lastModified: file.lastModified,
-            dataUrl: base64Data, // Store the image data as base64
-          };
+        try {
+          // Determine folder based on field type
+          let folder = 'documents';
+          if (fieldId === 'profileImage') {
+            folder = 'profile-images';
+          } else if (fieldId === 'chamberCard') {
+            folder = 'chamber-cards';
+          } else if (fieldId === 'paymentSlip') {
+            folder = 'payment-slips';
+          }
+
+          // Upload file to Supabase
+          const fileUrl = await uploadFileToSupabase(file, folder);
+          uploadedFiles[fieldId] = fileUrl;
           
           processedFiles++;
           setFileProcessingProgress((processedFiles / totalFiles) * 100);
           
-          // When all files are processed, save and redirect
-          if (processedFiles === totalFiles) {
-            localStorage.setItem('yecRegistrationData', JSON.stringify(dataToStore));
-            setIsProcessingFiles(false);
-            window.location.href = '/preview';
-          }
-        };
-        
-        reader.onerror = () => {
-          console.error(`Error reading file ${fieldId}:`, file.name);
-          processedFiles++;
-          setFileProcessingProgress((processedFiles / totalFiles) * 100);
-          
-          // Continue with other files even if one fails
-          if (processedFiles === totalFiles) {
-            localStorage.setItem('yecRegistrationData', JSON.stringify(dataToStore));
-            setIsProcessingFiles(false);
-            window.location.href = '/preview';
-          }
-        };
-        
-        reader.readAsDataURL(file);
+          console.log(`File ${fieldId} uploaded successfully:`, fileUrl);
+        } catch (error) {
+          console.error(`Error uploading file ${fieldId}:`, error);
+          throw new Error(`Failed to upload ${fieldId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
       });
+
+      // Wait for all uploads to complete
+      await Promise.all(uploadPromises);
+
+      // Create minimal data object with file URLs instead of File objects
+      const minimalData = {
+        ...formData,
+        // Replace File objects with URLs, preserve existing URLs or metadata
+        profileImage: uploadedFiles.profileImage || 
+                     (typeof formData.profileImage === 'string' ? formData.profileImage : 
+                      (formData.profileImage?.dataUrl ? formData.profileImage : null)),
+        chamberCard: uploadedFiles.chamberCard || 
+                    (typeof formData.chamberCard === 'string' ? formData.chamberCard : 
+                     (formData.chamberCard?.dataUrl ? formData.chamberCard : null)),
+        paymentSlip: uploadedFiles.paymentSlip || 
+                    (typeof formData.paymentSlip === 'string' ? formData.paymentSlip : 
+                     (formData.paymentSlip?.dataUrl ? formData.paymentSlip : null)),
+      };
+
+      // Store minimal data in localStorage
+      localStorage.setItem('yecRegistrationData', JSON.stringify(minimalData));
+      
+      setIsProcessingFiles(false);
+      window.location.href = '/preview';
+
     } catch (err) {
-      console.error('Error saving form data:', err);
-      alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
+      console.error('Error processing form data:', err);
+      alert('เกิดข้อผิดพลาดในการอัปโหลดไฟล์ กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsSubmitting(false);
       setIsProcessingFiles(false);
@@ -204,7 +228,7 @@ export default function RegistrationForm() {
               </div>
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {formSchema.map((field) => (
               <div key={field.id} className={field.type === 'upload' ? 'md:col-span-2' : ''}>
@@ -215,7 +239,7 @@ export default function RegistrationForm() {
                   formData={formData}
                   onExtraFieldChange={handleExtraFieldChange}
                 />
-                
+
                 {/* Render roommate phone field separately for better layout */}
                 {field.id === 'roomType' && shouldShowExtraField(field, formData) && field.roommatePhoneField && (
                   <div className="mt-4 pl-4 border-l-2 border-blue-200">
@@ -240,17 +264,16 @@ export default function RegistrationForm() {
             <button
               type="submit"
               disabled={!isFormValid || isSubmitting}
-              className={`group relative px-10 py-4 rounded-xl font-bold text-lg transition-all duration-300 transform min-h-[56px] min-w-[220px] ${
-                isFormValid && !isSubmitting
+              className={`group relative px-10 py-4 rounded-xl font-bold text-lg transition-all duration-300 transform min-h-[56px] min-w-[220px] ${isFormValid && !isSubmitting
                   ? 'bg-gradient-to-r from-yec-primary to-yec-accent hover:from-yec-accent hover:to-yec-primary text-white hover:scale-105 shadow-lg hover:shadow-xl hover:-translate-y-1 active:translate-y-0 active:shadow-md focus:outline-none focus:ring-4 focus:ring-yec-accent/30 focus:ring-offset-2'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-md'
-              }`}
+                }`}
             >
               {/* Button Background Animation */}
               {isFormValid && !isSubmitting && (
                 <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               )}
-              
+
               {/* Button Content */}
               <div className="relative flex items-center justify-center space-x-2">
                 {isSubmitting ? (
@@ -269,13 +292,13 @@ export default function RegistrationForm() {
                   </>
                 )}
               </div>
-              
+
               {/* Hover Effect */}
               {isFormValid && !isSubmitting && (
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
               )}
             </button>
-            
+
             {/* Status Messages */}
             <div className="mt-4 space-y-2">
               {!isFormValid && (
@@ -304,10 +327,10 @@ export default function RegistrationForm() {
               <span>{calculateFormProgress(formData, formSchema)}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
+              <div
                 className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ 
-                  width: `${calculateFormProgress(formData, formSchema)}%` 
+                style={{
+                  width: `${calculateFormProgress(formData, formSchema)}%`
                 }}
               ></div>
             </div>
@@ -321,10 +344,10 @@ export default function RegistrationForm() {
                 <span>{Math.round(fileProcessingProgress)}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                  style={{ 
-                    width: `${fileProcessingProgress}%` 
+                  style={{
+                    width: `${fileProcessingProgress}%`
                   }}
                 ></div>
               </div>
