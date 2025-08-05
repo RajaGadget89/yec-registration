@@ -1,77 +1,58 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-// Email configuration
-const emailConfig = {
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true for 465, false for other ports
-  auth: {
-    user: process.env.SMTP_USER || 'your-email@gmail.com',
-    pass: process.env.SMTP_PASS || 'your-app-password',
-  },
-};
-
-// Create transporter
-const transporter = nodemailer.createTransporter(emailConfig);
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 interface EmailOptions {
   to: string;
   subject: string;
-  text: string;
-  html?: string;
-  attachments?: Array<{
-    filename: string;
-    content: Buffer;
-    contentType: string;
-  }>;
+  html: string;
 }
 
-export async function sendEmail(options: EmailOptions): Promise<boolean> {
+export async function sendEmail({ to, subject, html }: EmailOptions) {
   try {
-    const mailOptions = {
-      from: `"YEC Day Registration" <${emailConfig.auth.user}>`,
-      to: options.to,
-      subject: options.subject,
-      text: options.text,
-      html: options.html || options.text,
-      attachments: options.attachments || [],
-    };
+    const { error } = await resend.emails.send({
+      from: 'YEC <info@rajagadget.live>', // เปลี่ยนได้ตามที่ verify ไว้ใน Resend
+      to,
+      subject,
+      html,
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email sent successfully:', info.messageId);
-    return true;
-  } catch (error) {
-    console.error('Error sending email:', error);
-    return false;
+    if (error) {
+      console.error('Email sending error:', error);
+      throw new Error('Failed to send email');
+    }
+  } catch (err) {
+    console.error('Unexpected error in sendEmail:', err);
+    throw err;
   }
 }
 
 export async function sendBadgeEmail(
   userEmail: string,
   userName: string,
-  badgeBuffer: Buffer,
+  badgeUrl: string,
   registrationId: string
 ): Promise<boolean> {
   const subject = 'Your YEC Day Badge';
-  const text = `Dear ${userName},
-
-Please find attached your official badge for YEC Day. Show this at the check-in gate.
-
-Registration ID: ${registrationId}
-
-Best regards,
-YEC Day Team`;
-
+  
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #1A237E;">YEC Day Registration Confirmation</h2>
       
       <p>Dear ${userName},</p>
       
-      <p>Thank you for registering for YEC Day! Please find attached your official badge.</p>
+      <p>Thank you for registering for YEC Day! Your official badge is ready.</p>
       
       <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
         <strong>Registration ID:</strong> ${registrationId}
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <h3 style="color: #1A237E; margin-bottom: 15px;">Your YEC Badge</h3>
+        <img src="${badgeUrl}" alt="YEC Day Badge" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
+        <p style="margin-top: 15px; font-size: 14px; color: #666;">
+          <a href="${badgeUrl}" style="color: #4285C5; text-decoration: none;">Click here to download your badge</a>
+        </p>
       </div>
       
       <p><strong>Important:</strong> Please show this badge at the check-in gate on the day of the event.</p>
@@ -83,29 +64,41 @@ YEC Day Team`;
     </div>
   `;
 
-  return sendEmail({
-    to: userEmail,
-    subject,
-    text,
-    html,
-    attachments: [
-      {
-        filename: 'badge.png',
-        content: badgeBuffer,
-        contentType: 'image/png',
-      },
-    ],
-  });
+  try {
+    await sendEmail({
+      to: userEmail,
+      subject,
+      html,
+    });
+    
+    console.log('Badge email sent successfully to:', userEmail);
+    return true;
+  } catch (error) {
+    console.error('Error sending badge email:', error);
+    return false;
+  }
 }
 
 // Test email configuration
 export async function testEmailConnection(): Promise<boolean> {
   try {
-    await transporter.verify();
-    console.log('Email server connection verified');
+    // Test by sending a simple email to verify the API key
+    const { error } = await resend.emails.send({
+      from: 'YEC <info@rajagadget.live>',
+      to: 'test@example.com',
+      subject: 'Test Email',
+      html: '<p>This is a test email to verify Resend configuration.</p>',
+    });
+
+    if (error) {
+      console.error('Resend API test failed:', error);
+      return false;
+    }
+
+    console.log('Resend API connection verified');
     return true;
   } catch (error) {
-    console.error('Email server connection failed:', error);
+    console.error('Resend API connection failed:', error);
     return false;
   }
 } 

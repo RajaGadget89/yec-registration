@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FormData, formSchema } from '../../components/RegistrationForm/FormSchema';
 import { generateYECBadge } from '../../lib/badgeGenerator';
-import { sendBadgeEmail } from '../../lib/emailService';
+import { sendEmail, sendBadgeEmail } from '../../lib/emailService';
+import { uploadBadgeToSupabase } from '../../lib/uploadBadgeToSupabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,8 +47,10 @@ export async function POST(request: NextRequest) {
       paymentSlip: formData.paymentSlip ? 'File uploaded' : 'No file',
     });
 
-    // Generate badge
+    // Generate badge and upload to Supabase
     let badgeBuffer: Buffer | null = null;
+    let badgeUrl: string | null = null;
+    
     try {
       const fullName = `${formData.title} ${formData.firstName} ${formData.lastName}`;
       
@@ -55,6 +58,35 @@ export async function POST(request: NextRequest) {
       const yecProvinceField = formSchema.find(field => field.id === 'yecProvince');
       const yecProvinceOption = yecProvinceField?.options?.find(opt => opt.value === formData.yecProvince);
       const yecProvinceDisplay = yecProvinceOption?.label || formData.yecProvince;
+
+      // Handle profile image - could be URL or base64 data (for backward compatibility)
+      let profileImageBase64: string | undefined;
+      
+      if (typeof formData.profileImage === 'string') {
+        // New format: URL from Supabase
+        // For badge generation, we need to fetch the image and convert to base64
+        try {
+          const response = await fetch(formData.profileImage);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const arrayBuffer = await response.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          profileImageBase64 = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+          console.log('Profile image fetched successfully from URL');
+        } catch (error) {
+          console.error('Error fetching profile image from URL:', error);
+          // Continue without profile image if fetch fails
+        }
+      } else if (formData.profileImage?.dataUrl) {
+        // Old format: base64 data (backward compatibility)
+        profileImageBase64 = formData.profileImage.dataUrl;
+        console.log('Using profile image from base64 data (backward compatibility)');
+      } else {
+        console.log('No profile image provided');
+      }
 
       const badgeData = {
         registrationId,
@@ -64,14 +96,22 @@ export async function POST(request: NextRequest) {
         yecProvince: yecProvinceDisplay,
         businessType: formData.businessType,
         businessTypeOther: formData.businessTypeOther,
-        profileImageBase64: formData.profileImage?.dataUrl || undefined
+        profileImageBase64
       };
 
+      // Generate badge
       badgeBuffer = await generateYECBadge(badgeData);
       console.log('Badge generated successfully');
+
+      // Upload badge to Supabase
+      if (badgeBuffer) {
+        const filename = `${registrationId}.png`;
+        badgeUrl = await uploadBadgeToSupabase(badgeBuffer, filename);
+        console.log('Badge uploaded to Supabase:', badgeUrl);
+      }
     } catch (error) {
-      console.error('Error generating badge:', error);
-      // Continue without badge if generation fails
+      console.error('Error in badge generation/upload:', error);
+      // Continue without badge if generation/upload fails
     }
 
     // Simulate processing time
@@ -83,31 +123,63 @@ export async function POST(request: NextRequest) {
       registrationId
     };
 
-    // Include badge as base64 if generated successfully
-    if (badgeBuffer) {
-      response.badgeBase64 = `data:image/png;base64,${badgeBuffer.toString('base64')}`;
+    // Send confirmation email with badge
+    let emailSent = false;
+    try {
+      const fullName = `${formData.title} ${formData.firstName} ${formData.lastName}`;
       
-      // Send email with badge attachment
-      try {
-        const fullName = `${formData.title} ${formData.firstName} ${formData.lastName}`;
-        const emailSent = await sendBadgeEmail(
+      if (badgeUrl) {
+        // Send email with badge image
+        emailSent = await sendBadgeEmail(
           formData.email,
           fullName,
-          badgeBuffer,
+          badgeUrl,
           registrationId
         );
-        
-        if (emailSent) {
-          console.log('Badge email sent successfully to:', formData.email);
-          response.emailSent = true;
-        } else {
-          console.error('Failed to send badge email to:', formData.email);
-          response.emailSent = false;
-        }
-      } catch (emailError) {
-        console.error('Error sending badge email:', emailError);
-        response.emailSent = false;
+      } else {
+        // Send basic confirmation email without badge
+        await sendEmail({
+          to: formData.email,
+          subject: 'YEC Registration Confirmation',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #1A237E;">YEC Day Registration Confirmation</h2>
+              
+              <p>Dear ${fullName},</p>
+              
+              <p>Thank you for registering for YEC Day! Your registration has been successfully received.</p>
+              
+              <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <strong>Registration ID:</strong> ${registrationId}
+              </div>
+              
+              <p><strong>Important:</strong> Please keep your badge and show it at the check-in counter on the day of the event.</p>
+              
+              <p>If you have any questions, please contact us at info@yecday.com</p>
+              
+              <p>Best regards,<br>
+              YEC Day Team</p>
+            </div>
+          `,
+        });
+        emailSent = true;
       }
+      
+      if (emailSent) {
+        console.log('Confirmation email sent successfully to:', formData.email);
+      } else {
+        console.error('Failed to send confirmation email to:', formData.email);
+      }
+    } catch (emailError) {
+      console.error('Error sending confirmation email:', emailError);
+      emailSent = false;
+    }
+    
+    response.emailSent = emailSent;
+
+    // Include badge URL in response if available
+    if (badgeUrl) {
+      response.badgeUrl = badgeUrl;
     }
 
     return NextResponse.json(response, { status: 200 });

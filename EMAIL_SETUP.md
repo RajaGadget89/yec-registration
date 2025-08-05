@@ -1,52 +1,40 @@
-# Email Configuration Setup
+# Email Configuration Setup - Resend
 
 ## Overview
-The YEC Registration System now includes automatic email functionality to send badges to users upon successful registration.
+The YEC Registration System now includes automatic email functionality using Resend to send badges to users upon successful registration.
 
 ## Environment Variables Required
 
 Create a `.env.local` file in your project root with the following variables:
 
 ```env
-# Email Configuration
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
+# Email Configuration - Resend
+RESEND_API_KEY=your-resend-api-key-here
 ```
 
-## Email Provider Setup
+## Resend Setup
 
-### Gmail Setup
-1. Enable 2-Factor Authentication on your Google account
-2. Generate an App Password:
-   - Go to Google Account settings
-   - Security → 2-Step Verification → App passwords
-   - Generate a new app password for "Mail"
-3. Use the generated password as `SMTP_PASS`
+### 1. Create Resend Account
+1. Go to [Resend.com](https://resend.com) and create an account
+2. Verify your email address
 
-### Outlook/Hotmail Setup
-```env
-SMTP_HOST=smtp-mail.outlook.com
-SMTP_PORT=587
-SMTP_USER=your-email@outlook.com
-SMTP_PASS=your-password
-```
+### 2. Get API Key
+1. Go to the [API Keys section](https://resend.com/api-keys)
+2. Create a new API key
+3. Copy the API key and add it to your `.env.local` file
 
-### Yahoo Setup
-```env
-SMTP_HOST=smtp.mail.yahoo.com
-SMTP_PORT=587
-SMTP_USER=your-email@yahoo.com
-SMTP_PASS=your-app-password
-```
+### 3. Verify Domain (Optional)
+1. Go to the [Domains section](https://resend.com/domains)
+2. Add and verify your domain (e.g., yec.in.th)
+3. Update the `from` email in `emailService.ts` to use your verified domain
 
-### Custom SMTP Server
-```env
-SMTP_HOST=your-smtp-server.com
-SMTP_PORT=587
-SMTP_USER=your-username
-SMTP_PASS=your-password
+### 4. Test Configuration
+Use the test function to verify your setup:
+```typescript
+import { testEmailConnection } from './app/lib/emailService';
+
+const isConnected = await testEmailConnection();
+console.log('Resend connection:', isConnected ? 'Success' : 'Failed');
 ```
 
 ## Email Features
@@ -58,7 +46,7 @@ SMTP_PASS=your-password
   - Registration ID
   - Instructions to show badge at check-in
   - Contact information
-- **Attachment**: `badge.png` - The generated YEC badge
+- **Note**: Badge attachment functionality may require additional setup with cloud storage
 
 ### Email Template
 The email includes both plain text and HTML versions:
@@ -81,15 +69,15 @@ YEC Day Team
 - Clear call-to-action
 - Contact information
 
-## Testing Email Configuration
+## Testing Resend Configuration
 
-You can test the email configuration by calling the test function:
+You can test the Resend configuration by calling the test function:
 
 ```typescript
 import { testEmailConnection } from './app/lib/emailService';
 
 const isConnected = await testEmailConnection();
-console.log('Email connection:', isConnected ? 'Success' : 'Failed');
+console.log('Resend connection:', isConnected ? 'Success' : 'Failed');
 ```
 
 ## Error Handling
@@ -102,30 +90,30 @@ The system includes comprehensive error handling:
 
 ## Security Considerations
 
-- Use App Passwords instead of regular passwords
-- Store credentials in environment variables
+- Store API key in environment variables
 - Never commit `.env.local` to version control
-- Use secure SMTP connections (TLS/SSL)
+- Use verified domains for better deliverability
 - Validate email addresses before sending
+- Monitor email delivery rates in Resend dashboard
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **Authentication Failed**
-   - Verify SMTP credentials
-   - Check if 2FA is enabled (for Gmail)
-   - Use App Password instead of regular password
+   - Verify RESEND_API_KEY is correct
+   - Check if API key has proper permissions
+   - Ensure API key is not expired
 
-2. **Connection Timeout**
-   - Check SMTP host and port
-   - Verify firewall settings
-   - Test with different email providers
+2. **Domain Not Verified**
+   - Verify your domain in Resend dashboard
+   - Check DNS records for domain verification
+   - Use a verified domain for better deliverability
 
 3. **Email Not Received**
    - Check spam/junk folder
    - Verify recipient email address
-   - Check email provider settings
+   - Check Resend dashboard for delivery status
 
 ### Debug Mode
 
@@ -140,8 +128,8 @@ This will provide detailed SMTP communication logs.
 
 For production deployment:
 
-1. Use a reliable email service (SendGrid, Mailgun, etc.)
-2. Set up proper DNS records (SPF, DKIM, DMARC)
-3. Monitor email delivery rates
+1. Use Resend's production API keys
+2. Set up proper DNS records (SPF, DKIM, DMARC) for your domain
+3. Monitor email delivery rates in Resend dashboard
 4. Implement email queuing for high-volume scenarios
-5. Set up email analytics and tracking 
+5. Set up email analytics and tracking through Resend 

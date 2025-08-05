@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, CanvasRenderingContext2D } from 'canvas';
+import { createCanvas, loadImage } from 'canvas';
 import QRCode from 'qrcode';
 
 // YEC Brand Colors from globals.css
