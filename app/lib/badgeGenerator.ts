@@ -282,8 +282,8 @@ async function drawMainContent(ctx: CanvasRenderingContext2D, badgeData: BadgeDa
   // Left side: Profile photo and user info
   await drawUserSection(ctx, badgeData, width, contentY);
   
-  // Right side: QR code
-  await drawQRCodeSection(ctx, badgeData, width, contentY);
+  // Bottom-right: QR code (moved from right side)
+  await drawQRCodeSection(ctx, badgeData, width, height);
 }
 
 async function drawUserSection(ctx: CanvasRenderingContext2D, badgeData: BadgeData, width: number, contentY: number): Promise<void> {
@@ -340,38 +340,37 @@ async function drawUserSection(ctx: CanvasRenderingContext2D, badgeData: BadgeDa
   // User information (to the right of photo)
   const infoX = photoX + photoSize + 40;
   const infoY = photoY + 15;
-  const lineHeight = 35;
+  const lineHeight = 55;
   
   ctx.textAlign = 'left';
   
-  // Full Name (emphasized and without prefix)
+  // Full Name (Line 1) - emphasized and without prefix
   const cleanName = removeNamePrefix(badgeData.fullName);
   ctx.fillStyle = YEC_COLORS.primary;
-  ctx.font = getThaiFont(28, 'bold');
+  ctx.font = getThaiFont(44, 'bold');
   drawThaiText(ctx, `${cleanName}`, infoX, infoY);
   
-  // Nickname (right after the name)
+  // Nickname (Line 2) - on a new line
   ctx.fillStyle = YEC_COLORS.accent;
-  ctx.font = getThaiFont(20);
-  const nameWidth = ctx.measureText(cleanName).width;
-  drawThaiText(ctx, ` (${badgeData.nickname})`, infoX + nameWidth + 10, infoY);
+  ctx.font = getThaiFont(36, 'bold');
+  drawThaiText(ctx, `(${badgeData.nickname})`, infoX, infoY + lineHeight);
   
-  // YEC Member Province
+  // YEC Member Province (Line 3)
   ctx.fillStyle = YEC_COLORS.darkBlue;
   ctx.font = getThaiFont(18, 'bold');
-  drawThaiText(ctx, `จังหวัดสมาชิก YEC: ${badgeData.yecProvince}`, infoX, infoY + lineHeight);
+  drawThaiText(ctx, `จังหวัดสมาชิก YEC: ${badgeData.yecProvince}`, infoX, infoY + lineHeight * 2);
   
-  // Business Type
+  // Business Type (Line 4)
   const businessTypeLabel = badgeData.businessType === 'other' && badgeData.businessTypeOther
     ? badgeData.businessTypeOther
     : BUSINESS_TYPE_LABELS[badgeData.businessType] || badgeData.businessType;
   
   ctx.fillStyle = YEC_COLORS.black;
   ctx.font = getThaiFont(18);
-  drawThaiText(ctx, `ประเภทกิจการ: ${businessTypeLabel}`, infoX, infoY + lineHeight * 2);
+  drawThaiText(ctx, `ประเภทกิจการ: ${businessTypeLabel}`, infoX, infoY + lineHeight * 3);
   
-  // Phone (full number, not masked)
-  drawThaiText(ctx, `โทร: ${badgeData.phone}`, infoX, infoY + lineHeight * 3);
+  // Phone (Line 5) - full number, not masked
+  drawThaiText(ctx, `โทร: ${badgeData.phone}`, infoX, infoY + lineHeight * 4);
 }
 
 function drawDefaultProfilePhoto(
@@ -392,10 +391,10 @@ function drawDefaultProfilePhoto(
   drawThaiText(ctx, '👤', x + size/2, y + size/2 + size/6);
 }
 
-async function drawQRCodeSection(ctx: CanvasRenderingContext2D, badgeData: BadgeData, width: number, contentY: number): Promise<void> {
+async function drawQRCodeSection(ctx: CanvasRenderingContext2D, badgeData: BadgeData, width: number, height: number): Promise<void> {
   const qrSize = 160;
-  const qrX = width - qrSize - 60;
-  const qrY = contentY + 25;
+  const qrX = width - qrSize - 40; // 40px padding from right
+  const qrY = height - qrSize - 90; // 40px padding from bottom, accounting for footer height
   
   // QR code data
   const qrData: QRCodeData = {
