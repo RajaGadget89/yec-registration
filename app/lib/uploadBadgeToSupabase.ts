@@ -1,20 +1,25 @@
 import { createClient } from '@supabase/supabase-js';
 import { validateFilename, ensureFileExtension, generateUniqueFilename } from './filenameUtils';
 
-// Create Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+/**
+ * Creates a Supabase client with environment variables
+ * @returns Supabase client instance
+ */
+function createSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceRoleKey) {
-  throw new Error('Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+  if (!supabaseUrl || !supabaseServiceRoleKey) {
+    throw new Error('Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
   }
-});
+
+  return createClient(supabaseUrl, supabaseServiceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+}
 
 /**
  * Uploads a badge image to Supabase Storage
@@ -23,6 +28,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
  * @returns Promise<string> - Public URL of the uploaded image
  */
 export async function uploadBadgeToSupabase(buffer: Buffer, filename: string): Promise<string> {
+  const supabase = createSupabaseClient();
   try {
     // Validate input parameters
     if (!buffer || buffer.length === 0) {
@@ -98,6 +104,8 @@ export async function uploadBadgeToSupabase(buffer: Buffer, filename: string): P
  * @returns Promise<boolean> - True if deletion was successful
  */
 export async function deleteBadgeFromSupabase(filename: string): Promise<boolean> {
+  const supabase = createSupabaseClient();
+  
   try {
     // Ensure filename has .png extension
     const finalFilename = filename.endsWith('.png') ? filename : `${filename}.png`;
@@ -131,6 +139,8 @@ export async function deleteBadgeFromSupabase(filename: string): Promise<boolean
  * @returns Promise<boolean> - True if badge exists
  */
 export async function badgeExistsInSupabase(filename: string): Promise<boolean> {
+  const supabase = createSupabaseClient();
+  
   try {
     // Ensure filename has .png extension
     const finalFilename = filename.endsWith('.png') ? filename : `${filename}.png`;
