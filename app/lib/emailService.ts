@@ -1,7 +1,5 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 interface EmailOptions {
   to: string;
   subject: string;
@@ -9,6 +7,8 @@ interface EmailOptions {
 }
 
 export async function sendEmail({ to, subject, html }: EmailOptions) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  
   try {
     const { error } = await resend.emails.send({
       from: 'YEC <info@rajagadget.live>', // เปลี่ยนได้ตามที่ verify ไว้ใน Resend
@@ -109,6 +109,8 @@ export async function sendBadgeEmail(
 
 // Test email configuration
 export async function testEmailConnection(): Promise<boolean> {
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  
   try {
     // Test by sending a simple email to verify the API key
     const { error } = await resend.emails.send({
