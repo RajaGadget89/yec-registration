@@ -1,5 +1,73 @@
-import { createCanvas, loadImage } from 'canvas';
+import { createCanvas, loadImage, registerFont, CanvasRenderingContext2D } from 'canvas';
 import QRCode from 'qrcode';
+import path from 'path';
+import fs from 'fs';
+
+// Register Thai-compatible font
+// Try multiple approaches to ensure Thai text renders properly
+let thaiFontRegistered = false;
+let activeFontFamily = 'Arial, sans-serif';
+
+console.log('=== FONT REGISTRATION START ===');
+
+try {
+  // Try to register Noto Sans Thai from the fonts directory
+  const fontPath = path.join(process.cwd(), 'fonts', 'NotoSansThai-Regular.ttf');
+  console.log('Looking for NotoSansThai font at:', fontPath);
+  
+  if (fs.existsSync(fontPath)) {
+    registerFont(fontPath, { family: 'NotoSansThai' });
+    thaiFontRegistered = true;
+    activeFontFamily = 'NotoSansThai';
+    console.log('✅ NotoSansThai font registered successfully from:', fontPath);
+  } else {
+    console.log('❌ NotoSansThai font file not found at:', fontPath);
+    console.log('📁 Available files in fonts directory:');
+    try {
+      const files = fs.readdirSync(path.join(process.cwd(), 'fonts'));
+      files.forEach(file => console.log('   -', file));
+    } catch {
+      console.log('   (fonts directory is empty or not accessible)');
+    }
+  }
+} catch (error) {
+  console.log('❌ Error registering NotoSansThai font:', error);
+}
+
+// Try to register other Thai fonts if NotoSansThai is not available
+if (!thaiFontRegistered) {
+  console.log('🔍 Trying system Thai fonts...');
+  const thaiFonts = [
+    { path: '/System/Library/Fonts/Supplemental/Thonburi.ttc', family: 'Thonburi' },
+    { path: '/System/Library/Fonts/Supplemental/Arial Unicode MS.ttf', family: 'Arial Unicode MS' },
+    { path: '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', family: 'DejaVu Sans' }
+  ];
+
+  for (const font of thaiFonts) {
+    console.log(`🔍 Checking for ${font.family} at: ${font.path}`);
+    if (fs.existsSync(font.path)) {
+      try {
+        registerFont(font.path, { family: font.family });
+        thaiFontRegistered = true;
+        activeFontFamily = font.family;
+        console.log(`✅ ${font.family} font registered successfully`);
+        break;
+      } catch (error) {
+        console.log(`❌ Error registering ${font.family} font:`, error);
+      }
+    } else {
+      console.log(`❌ ${font.family} font not found at: ${font.path}`);
+    }
+  }
+}
+
+if (!thaiFontRegistered) {
+  console.log('⚠️  No Thai fonts found, using fallback approach');
+  activeFontFamily = 'Arial, sans-serif';
+}
+
+console.log('🎯 Active font family for badge generation:', activeFontFamily);
+console.log('=== FONT REGISTRATION END ===');
 
 // YEC Brand Colors from globals.css
 const YEC_COLORS = {
@@ -9,7 +77,8 @@ const YEC_COLORS = {
   white: '#FFFFFF',
   black: '#171717',
   gray: '#6B7280',
-  lightGray: '#F3F4F6'
+  lightGray: '#F3F4F6',
+  darkBlue: '#0D47A1'    // Darker blue for better contrast
 };
 
 // Business type mapping from FormSchema
@@ -53,74 +122,190 @@ interface QRCodeData {
   phone: string;
 }
 
+// Helper function to get Thai-compatible font
+function getThaiFont(size: number, weight: string = 'normal'): string {
+  // Use the active font family that was successfully registered
+  return `${weight} ${size}px ${activeFontFamily}`;
+}
+
+// Helper function to safely render Thai text
+function drawThaiText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth?: number): void {
+  try {
+    // Set the font using the active font family
+    const currentFontSize = parseInt(ctx.font) || 16;
+    const currentWeight = ctx.font.includes('bold') ? 'bold' : 'normal';
+    ctx.font = getThaiFont(currentFontSize, currentWeight);
+    
+    // Log the font being used for debugging (only for first few calls to avoid spam)
+    if (Math.random() < 0.1) { // Log 10% of calls
+      console.log(`🎨 Drawing text "${text}" with font: ${ctx.font}`);
+    }
+    
+    ctx.fillText(text, x, y, maxWidth);
+  } catch (error) {
+    console.warn('⚠️  Error rendering Thai text, falling back to basic font:', error);
+    // Fallback to basic font
+    ctx.font = ctx.font.replace(/['"]/g, '').replace(/,\s*[^,]+$/, ', Arial, sans-serif');
+    ctx.fillText(text, x, y, maxWidth);
+  }
+}
+
+// Helper function to remove name prefix
+function removeNamePrefix(fullName: string): string {
+  const prefixes = ['นาย', 'นาง', 'นางสาว', 'ดร.', 'ผศ.', 'รศ.', 'ศ.'];
+  let cleanName = fullName;
+  
+  for (const prefix of prefixes) {
+    if (cleanName.startsWith(prefix + ' ')) {
+      cleanName = cleanName.substring(prefix.length + 1);
+      break;
+    }
+  }
+  
+  return cleanName;
+}
+
 export async function generateYECBadge(badgeData: BadgeData): Promise<Buffer> {
-  // Badge dimensions (ID card size)
-  const width = 600;
-  const height = 400;
+  // Badge dimensions (ID card size) - increased for better content spacing
+  const width = 750;
+  const height = 500;
   
   // Create canvas
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
   
+  // Log the active font at the start of badge generation
+  console.log('🚀 Starting badge generation with active font:', activeFontFamily);
+  
   // Set background
   ctx.fillStyle = YEC_COLORS.white;
   ctx.fillRect(0, 0, width, height);
   
-  // Add YEC branding header
-  drawHeader(ctx, width);
+  // Add header with logo and branding
+  await drawHeader(ctx, width);
   
-  // Add profile photo
-  await drawProfilePhoto(ctx, badgeData.profileImageBase64, width, height);
+  // Add main content area
+  await drawMainContent(ctx, badgeData, width, height);
   
-  // Add user information
-  drawUserInfo(ctx, badgeData, width, height);
-  
-  // Generate and add QR code
-  await drawQRCode(ctx, badgeData, width, height);
-  
-  // Add footer with YEC branding
+  // Add footer
   drawFooter(ctx, width, height);
   
+  console.log('✅ Badge generation completed successfully');
   return canvas.toBuffer('image/png');
 }
 
-function drawHeader(ctx: CanvasRenderingContext2D, width: number): void {
-  // YEC header background
-  const headerHeight = 60;
+async function drawHeader(ctx: CanvasRenderingContext2D, width: number): Promise<void> {
+  const headerHeight = 90;
+  
+  // Header background with gradient
   const gradient = ctx.createLinearGradient(0, 0, width, 0);
-  gradient.addColorStop(0, YEC_COLORS.primary);
-  gradient.addColorStop(1, YEC_COLORS.accent);
+  gradient.addColorStop(0, YEC_COLORS.darkBlue);
+  gradient.addColorStop(1, YEC_COLORS.primary);
   
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, headerHeight);
   
-  // YEC text
+  try {
+    // Load and draw YEC logo with white background for better readability
+    const logoPath = path.join(process.cwd(), 'public', 'assets', 'logo-full.png');
+    if (fs.existsSync(logoPath)) {
+      const logo = await loadImage(logoPath);
+      const logoWidth = 130;
+      const logoHeight = 55;
+      const logoX = 25;
+      const logoY = (headerHeight - logoHeight) / 2;
+      
+      // Draw white background circle for logo
+      ctx.fillStyle = YEC_COLORS.white;
+      ctx.beginPath();
+      ctx.arc(logoX + logoWidth/2, logoY + logoHeight/2, Math.max(logoWidth, logoHeight)/2 + 5, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      // Draw logo
+      ctx.drawImage(logo as any, logoX, logoY, logoWidth, logoHeight);
+      console.log('✅ YEC logo drawn successfully with white background');
+    } else {
+      console.log('⚠️  YEC logo not found, using text fallback');
+      // Fallback to text logo with white background
+      ctx.fillStyle = YEC_COLORS.white;
+      ctx.beginPath();
+      ctx.arc(90, 45, 35, 0, 2 * Math.PI);
+      ctx.fill();
+      
+      ctx.fillStyle = YEC_COLORS.primary;
+      ctx.font = getThaiFont(20, 'bold');
+      ctx.textAlign = 'center';
+      drawThaiText(ctx, 'YEC', 90, 52);
+    }
+  } catch (error) {
+    console.log('⚠️  Error loading YEC logo:', error);
+    // Fallback to text logo with white background
+    ctx.fillStyle = YEC_COLORS.white;
+    ctx.beginPath();
+    ctx.arc(90, 45, 35, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    ctx.fillStyle = YEC_COLORS.primary;
+    ctx.font = getThaiFont(20, 'bold');
+    ctx.textAlign = 'center';
+    drawThaiText(ctx, 'YEC', 90, 52);
+  }
+  
+  // Right side branding
   ctx.fillStyle = YEC_COLORS.white;
-  ctx.font = 'bold 24px Arial, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('YEC DAY 2024', width / 2, 35);
+  ctx.textAlign = 'right';
+  
+  // Main title
+  ctx.font = getThaiFont(26, 'bold');
+  drawThaiText(ctx, 'YEC DAY 2024', width - 25, 40);
   
   // Subtitle
-  ctx.font = '14px Arial, sans-serif';
-  ctx.fillText('Young Entrepreneurs Chamber', width / 2, 52);
+  ctx.font = getThaiFont(16);
+  drawThaiText(ctx, 'Young Entrepreneurs Chamber', width - 25, 62);
+  
+  // Reset text alignment
+  ctx.textAlign = 'left';
 }
 
-async function drawProfilePhoto(
-  ctx: CanvasRenderingContext2D, 
-  profileImageBase64: string | undefined, 
-  width: number, 
-  height: number
-): Promise<void> {
-  const photoSize = 120;
-  const photoX = 30;
-  const photoY = 80;
+async function drawMainContent(ctx: CanvasRenderingContext2D, badgeData: BadgeData, width: number, height: number): Promise<void> {
+  const contentY = 110;
+  const contentHeight = height - 160; // Leave space for header and footer
   
-  if (profileImageBase64) {
+  // Draw content background with subtle border
+  ctx.fillStyle = YEC_COLORS.lightGray;
+  ctx.fillRect(25, contentY, width - 50, contentHeight);
+  
+  // Draw white content area
+  ctx.fillStyle = YEC_COLORS.white;
+  ctx.fillRect(30, contentY + 5, width - 60, contentHeight - 10);
+  
+  // Left side: Profile photo and user info
+  await drawUserSection(ctx, badgeData, width, contentY);
+  
+  // Right side: QR code
+  await drawQRCodeSection(ctx, badgeData, width, contentY);
+}
+
+async function drawUserSection(ctx: CanvasRenderingContext2D, badgeData: BadgeData, width: number, contentY: number): Promise<void> {
+  const leftSectionX = 60;
+  const leftSectionY = contentY + 25;
+  
+  // Profile photo
+  const photoSize = 140;
+  const photoX = leftSectionX;
+  const photoY = leftSectionY;
+  
+  if (badgeData.profileImageBase64) {
     try {
       // Handle both data URLs and raw base64 strings
-      let base64Data = profileImageBase64;
-      if (profileImageBase64.startsWith('data:')) {
-        base64Data = profileImageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+      let base64Data = badgeData.profileImageBase64;
+      if (badgeData.profileImageBase64.startsWith('data:')) {
+        base64Data = badgeData.profileImageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+      }
+      
+      // Validate base64 data
+      if (!base64Data || base64Data.length === 0) {
+        throw new Error('Empty base64 data');
       }
       
       const image = await loadImage(Buffer.from(base64Data, 'base64'));
@@ -132,22 +317,61 @@ async function drawProfilePhoto(
       ctx.clip();
       
       // Draw image
-      ctx.drawImage(image, photoX, photoY, photoSize, photoSize);
+      ctx.drawImage(image as any, photoX, photoY, photoSize, photoSize);
       ctx.restore();
+      
+      console.log('✅ Profile image drawn successfully');
     } catch (error) {
-      console.error('Error loading profile image:', error);
+      console.error('❌ Error loading profile image:', error);
       drawDefaultProfilePhoto(ctx, photoX, photoY, photoSize);
     }
   } else {
+    console.log('📷 No profile image provided, drawing default');
     drawDefaultProfilePhoto(ctx, photoX, photoY, photoSize);
   }
   
   // Add border
   ctx.strokeStyle = YEC_COLORS.primary;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.arc(photoX + photoSize/2, photoY + photoSize/2, photoSize/2, 0, 2 * Math.PI);
   ctx.stroke();
+  
+  // User information (to the right of photo)
+  const infoX = photoX + photoSize + 40;
+  const infoY = photoY + 15;
+  const lineHeight = 35;
+  
+  ctx.textAlign = 'left';
+  
+  // Full Name (emphasized and without prefix)
+  const cleanName = removeNamePrefix(badgeData.fullName);
+  ctx.fillStyle = YEC_COLORS.primary;
+  ctx.font = getThaiFont(28, 'bold');
+  drawThaiText(ctx, `${cleanName}`, infoX, infoY);
+  
+  // Nickname (right after the name)
+  ctx.fillStyle = YEC_COLORS.accent;
+  ctx.font = getThaiFont(20);
+  const nameWidth = ctx.measureText(cleanName).width;
+  drawThaiText(ctx, ` (${badgeData.nickname})`, infoX + nameWidth + 10, infoY);
+  
+  // YEC Member Province
+  ctx.fillStyle = YEC_COLORS.darkBlue;
+  ctx.font = getThaiFont(18, 'bold');
+  drawThaiText(ctx, `จังหวัดสมาชิก YEC: ${badgeData.yecProvince}`, infoX, infoY + lineHeight);
+  
+  // Business Type
+  const businessTypeLabel = badgeData.businessType === 'other' && badgeData.businessTypeOther
+    ? badgeData.businessTypeOther
+    : BUSINESS_TYPE_LABELS[badgeData.businessType] || badgeData.businessType;
+  
+  ctx.fillStyle = YEC_COLORS.black;
+  ctx.font = getThaiFont(18);
+  drawThaiText(ctx, `ประเภทกิจการ: ${businessTypeLabel}`, infoX, infoY + lineHeight * 2);
+  
+  // Phone (full number, not masked)
+  drawThaiText(ctx, `โทร: ${badgeData.phone}`, infoX, infoY + lineHeight * 3);
 }
 
 function drawDefaultProfilePhoto(
@@ -164,54 +388,14 @@ function drawDefaultProfilePhoto(
   
   // Draw placeholder icon
   ctx.fillStyle = YEC_COLORS.gray;
-  ctx.font = `${size/3}px Arial, sans-serif`;
   ctx.textAlign = 'center';
-  ctx.fillText('👤', x + size/2, y + size/2 + size/6);
+  drawThaiText(ctx, '👤', x + size/2, y + size/2 + size/6);
 }
 
-function drawUserInfo(ctx: CanvasRenderingContext2D, badgeData: BadgeData, width: number, height: number): void {
-  const infoX = 180;
-  const infoY = 80;
-  const lineHeight = 25;
-  
-  ctx.textAlign = 'left';
-  
-  // Full Name
-  ctx.fillStyle = YEC_COLORS.primary;
-  ctx.font = 'bold 20px Arial, sans-serif';
-  ctx.fillText(`${badgeData.fullName}`, infoX, infoY);
-  
-  // Nickname
-  ctx.fillStyle = YEC_COLORS.accent;
-  ctx.font = '16px Arial, sans-serif';
-  ctx.fillText(`(${badgeData.nickname})`, infoX, infoY + lineHeight);
-  
-  // YEC Province
-  ctx.fillStyle = YEC_COLORS.black;
-  ctx.font = '14px Arial, sans-serif';
-  ctx.fillText(`จังหวัด: ${badgeData.yecProvince}`, infoX, infoY + lineHeight * 2);
-  
-  // Business Type
-  const businessTypeLabel = badgeData.businessType === 'other' && badgeData.businessTypeOther
-    ? badgeData.businessTypeOther
-    : BUSINESS_TYPE_LABELS[badgeData.businessType] || badgeData.businessType;
-  
-  ctx.fillText(`ประเภทกิจการ: ${businessTypeLabel}`, infoX, infoY + lineHeight * 3);
-  
-  // Phone (masked for privacy)
-  const maskedPhone = badgeData.phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1***$3');
-  ctx.fillText(`โทร: ${maskedPhone}`, infoX, infoY + lineHeight * 4);
-}
-
-async function drawQRCode(
-  ctx: CanvasRenderingContext2D, 
-  badgeData: BadgeData, 
-  width: number, 
-  height: number
-): Promise<void> {
-  const qrSize = 100;
-  const qrX = width - qrSize - 30;
-  const qrY = height - qrSize - 80;
+async function drawQRCodeSection(ctx: CanvasRenderingContext2D, badgeData: BadgeData, width: number, contentY: number): Promise<void> {
+  const qrSize = 160;
+  const qrX = width - qrSize - 60;
+  const qrY = contentY + 25;
   
   // QR code data
   const qrData: QRCodeData = {
@@ -221,10 +405,18 @@ async function drawQRCode(
   };
   
   try {
+    // Validate QR data
+    const qrDataString = JSON.stringify(qrData);
+    if (!qrDataString || qrDataString === '{}') {
+      throw new Error('Empty QR code data');
+    }
+    
+    console.log('📱 Generating QR code with data:', qrDataString);
+    
     // Generate QR code
-    const qrCodeDataURL = await QRCode.toDataURL(JSON.stringify(qrData), {
+    const qrCodeDataURL = await QRCode.toDataURL(qrDataString, {
       width: qrSize,
-      margin: 1,
+      margin: 3,
       color: {
         dark: YEC_COLORS.primary,
         light: YEC_COLORS.white
@@ -233,28 +425,29 @@ async function drawQRCode(
     
     // Load QR code image
     const qrImage = await loadImage(qrCodeDataURL);
-    ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+    ctx.drawImage(qrImage as any, qrX, qrY, qrSize, qrSize);
     
     // Add QR code label
     ctx.fillStyle = YEC_COLORS.gray;
-    ctx.font = '12px Arial, sans-serif';
+    ctx.font = getThaiFont(16);
     ctx.textAlign = 'center';
-    ctx.fillText('Scan for details', qrX + qrSize/2, qrY + qrSize + 15);
+    drawThaiText(ctx, 'Scan for details', qrX + qrSize/2, qrY + qrSize + 25);
     
+    console.log('✅ QR code drawn successfully');
   } catch (error) {
-    console.error('Error generating QR code:', error);
+    console.error('❌ Error generating QR code:', error);
     // Draw placeholder if QR generation fails
     ctx.fillStyle = YEC_COLORS.lightGray;
     ctx.fillRect(qrX, qrY, qrSize, qrSize);
     ctx.fillStyle = YEC_COLORS.gray;
-    ctx.font = '12px Arial, sans-serif';
+    ctx.font = getThaiFont(16);
     ctx.textAlign = 'center';
-    ctx.fillText('QR Code Error', qrX + qrSize/2, qrY + qrSize/2);
+    drawThaiText(ctx, 'QR Code Error', qrX + qrSize/2, qrY + qrSize/2);
   }
 }
 
 function drawFooter(ctx: CanvasRenderingContext2D, width: number, height: number): void {
-  const footerHeight = 40;
+  const footerHeight = 50;
   const footerY = height - footerHeight;
   
   // Footer background
@@ -267,9 +460,9 @@ function drawFooter(ctx: CanvasRenderingContext2D, width: number, height: number
   
   // Footer text
   ctx.fillStyle = YEC_COLORS.white;
-  ctx.font = '12px Arial, sans-serif';
+  ctx.font = getThaiFont(16, 'bold');
   ctx.textAlign = 'center';
-  ctx.fillText('Official YEC Registration Badge', width / 2, footerY + 25);
+  drawThaiText(ctx, 'Official YEC Registration Badge', width / 2, footerY + 32);
 }
 
 // Utility function to convert file to base64

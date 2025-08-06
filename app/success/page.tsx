@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import TopMenuBar from '../components/TopMenuBar';
 import Footer from '../components/Footer';
 
@@ -113,9 +114,11 @@ export default function SuccessPage() {
                 {badgeUrl && !isBadgeLoading && !badgeError && (
                   <>
                     <div className="flex justify-center">
-                      <img 
+                      <Image 
                         src={badgeUrl} 
                         alt="Your YEC Badge" 
+                        width={300}
+                        height={400}
                         className="max-w-full h-auto rounded-lg shadow-sm border"
                         style={{ maxWidth: '300px' }}
                       />
