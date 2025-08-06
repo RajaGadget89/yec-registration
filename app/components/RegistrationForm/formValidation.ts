@@ -88,10 +88,34 @@ export const validateField = (
   }
 
   // File validation
-  if (field.type === 'upload' && value instanceof File) {
-    const fileValidation = validateFile(value, field.validation);
-    if (!fileValidation.isValid) {
-      return fileValidation;
+  if (field.type === 'upload') {
+    if (value instanceof File) {
+      // New file being uploaded
+      const fileValidation = validateFile(value, field.validation);
+      if (!fileValidation.isValid) {
+        return fileValidation;
+      }
+    } else if (typeof value === 'string' && value.startsWith('http')) {
+      // File already uploaded to Supabase (URL)
+      return {
+        isValid: true,
+        message: null,
+        status: 'valid',
+      };
+    } else if (value && typeof value === 'object' && 'dataUrl' in value) {
+      // Old format: base64 data (backward compatibility)
+      return {
+        isValid: true,
+        message: null,
+        status: 'valid',
+      };
+    } else if (field.required && !value) {
+      // Required field is missing
+      return {
+        isValid: false,
+        message: `กรุณาอัปโหลด${field.label}`,
+        status: 'invalid',
+      };
     }
   }
 

@@ -177,9 +177,19 @@ export default function PreviewPage() {
           mainElement.style.opacity = '0';
         }
         
-        // Navigate to success page after fade
+        // Navigate to success page after fade with badge URL and email status if available
         setTimeout(() => {
-          router.push(`/success?id=${result.registrationId}`);
+          let successUrl = `/success?id=${result.registrationId}`;
+          
+          if (result.badgeUrl) {
+            successUrl += `&badgeUrl=${encodeURIComponent(result.badgeUrl)}`;
+          }
+          
+          if (result.emailSent !== undefined) {
+            successUrl += `&email=${result.emailSent}`;
+          }
+          
+          router.push(successUrl);
         }, 500);
       } else {
         const errorData = await response.json();
@@ -216,8 +226,34 @@ export default function PreviewPage() {
             </div>
           </div>
         );
+      } else if (typeof value === 'string' && value.startsWith('http')) {
+        // New format: URL from Supabase
+        return (
+          <div className="mt-2">
+            <div className="w-full h-48 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden flex items-center justify-center">
+              <Image
+                src={value}
+                alt={field.label}
+                width={200}
+                height={200}
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  console.error('Failed to load image from URL:', value);
+                  e.currentTarget.style.display = 'none';
+                  const errorDiv = document.createElement('div');
+                  errorDiv.className = 'flex items-center justify-center w-full h-full text-red-500 text-sm';
+                  errorDiv.innerHTML = 'ไม่สามารถโหลดรูปภาพได้';
+                  e.currentTarget.parentElement?.appendChild(errorDiv);
+                }}
+              />
+            </div>
+            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
+              <p className="text-xs text-gray-600 dark:text-gray-400">ไฟล์อัปโหลดแล้ว</p>
+            </div>
+          </div>
+        );
       } else if (value && typeof value === 'object' && 'name' in value) {
-        // Handle file metadata from localStorage
+        // Old format: file metadata from localStorage (backward compatibility)
         if ('dataUrl' in value) {
           // Show actual image if we have base64 data
           return (
