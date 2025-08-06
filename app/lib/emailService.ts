@@ -35,6 +35,22 @@ export async function sendBadgeEmail(
 ): Promise<boolean> {
   const subject = 'Your YEC Day Badge';
   
+  // Validate badge URL
+  if (!badgeUrl || badgeUrl.trim() === '') {
+    console.error('Invalid badge URL provided to sendBadgeEmail');
+    return false;
+  }
+  
+  // Test if badge URL is accessible
+  let badgeAccessible = false;
+  try {
+    const testResponse = await fetch(badgeUrl, { method: 'HEAD' });
+    badgeAccessible = testResponse.ok;
+    console.log('Badge URL accessibility test:', badgeAccessible ? 'SUCCESS' : 'FAILED');
+  } catch (error) {
+    console.warn('Could not test badge URL accessibility:', error);
+  }
+  
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #1A237E;">YEC Day Registration Confirmation</h2>
@@ -49,10 +65,19 @@ export async function sendBadgeEmail(
       
       <div style="text-align: center; margin: 30px 0;">
         <h3 style="color: #1A237E; margin-bottom: 15px;">Your YEC Badge</h3>
-        <img src="${badgeUrl}" alt="YEC Day Badge" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
-        <p style="margin-top: 15px; font-size: 14px; color: #666;">
-          <a href="${badgeUrl}" style="color: #4285C5; text-decoration: none;">Click here to download your badge</a>
-        </p>
+        ${badgeAccessible ? `
+          <img src="${badgeUrl}" alt="YEC Day Badge" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
+          <p style="margin-top: 15px; font-size: 14px; color: #666;">
+            <a href="${badgeUrl}" style="color: #4285C5; text-decoration: none;">Click here to download your badge</a>
+          </p>
+        ` : `
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; border: 2px dashed #ccc;">
+            <p style="color: #666; margin: 0;">Badge image temporarily unavailable</p>
+            <p style="margin-top: 10px; font-size: 14px;">
+              <a href="${badgeUrl}" style="color: #4285C5; text-decoration: none;">Click here to view your badge</a>
+            </p>
+          </div>
+        `}
       </div>
       
       <p><strong>Important:</strong> Please show this badge at the check-in gate on the day of the event.</p>
@@ -65,6 +90,9 @@ export async function sendBadgeEmail(
   `;
 
   try {
+    console.log('Sending badge email to:', userEmail);
+    console.log('Badge URL:', badgeUrl);
+    
     await sendEmail({
       to: userEmail,
       subject,

@@ -66,16 +66,28 @@ export async function POST(request: NextRequest) {
         // New format: URL from Supabase
         // For badge generation, we need to fetch the image and convert to base64
         try {
+          console.log('Fetching profile image from URL:', formData.profileImage);
           const response = await fetch(formData.profileImage);
           
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
           
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.startsWith('image/')) {
+            throw new Error(`Invalid content type: ${contentType}`);
+          }
+          
           const arrayBuffer = await response.arrayBuffer();
           const buffer = Buffer.from(arrayBuffer);
-          profileImageBase64 = `data:image/jpeg;base64,${buffer.toString('base64')}`;
-          console.log('Profile image fetched successfully from URL');
+          
+          // Validate buffer size (max 5MB)
+          if (buffer.length > 5 * 1024 * 1024) {
+            throw new Error('Image file too large (max 5MB)');
+          }
+          
+          profileImageBase64 = `data:${contentType};base64,${buffer.toString('base64')}`;
+          console.log('Profile image fetched successfully from URL, size:', buffer.length, 'bytes');
         } catch (error) {
           console.error('Error fetching profile image from URL:', error);
           // Continue without profile image if fetch fails
@@ -108,6 +120,23 @@ export async function POST(request: NextRequest) {
         const filename = `${registrationId}.png`;
         badgeUrl = await uploadBadgeToSupabase(badgeBuffer, filename);
         console.log('Badge uploaded to Supabase:', badgeUrl);
+        
+        // Validate the badge URL
+        if (!badgeUrl || badgeUrl.trim() === '') {
+          throw new Error('Badge URL is empty after upload');
+        }
+        
+        // Test if the URL is accessible
+        try {
+          const testResponse = await fetch(badgeUrl, { method: 'HEAD' });
+          if (!testResponse.ok) {
+            console.warn('Badge URL may not be accessible:', badgeUrl);
+          } else {
+            console.log('Badge URL is accessible');
+          }
+        } catch (error) {
+          console.warn('Could not verify badge URL accessibility:', error);
+        }
       }
     } catch (error) {
       console.error('Error in badge generation/upload:', error);
@@ -130,6 +159,7 @@ export async function POST(request: NextRequest) {
       
       if (badgeUrl) {
         // Send email with badge image
+        console.log('Sending badge email with URL:', badgeUrl);
         emailSent = await sendBadgeEmail(
           formData.email,
           fullName,
@@ -138,6 +168,7 @@ export async function POST(request: NextRequest) {
         );
       } else {
         // Send basic confirmation email without badge
+        console.log('Sending basic confirmation email (no badge URL)');
         await sendEmail({
           to: formData.email,
           subject: 'YEC Registration Confirmation',
