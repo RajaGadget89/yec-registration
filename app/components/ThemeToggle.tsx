@@ -3,7 +3,12 @@
 import React, { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 
-export default function ThemeToggle() {
+interface ThemeToggleProps {
+  isLandingPage?: boolean;
+  isScrolled?: boolean;
+}
+
+export default function ThemeToggle({ isLandingPage = false, isScrolled = false }: ThemeToggleProps) {
   const { theme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -19,7 +24,11 @@ export default function ThemeToggle() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center space-x-2 px-3 py-2 text-white hover:text-yec-accent transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded-lg min-h-[44px]"
+        className={`flex items-center space-x-2 px-3 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded-lg min-h-[44px] ${
+          isLandingPage && !isScrolled 
+            ? 'text-white hover:text-yec-accent' 
+            : 'text-yec-primary hover:text-yec-accent'
+        }`}
         aria-label="Toggle theme"
         aria-expanded={isOpen}
         aria-haspopup="true"

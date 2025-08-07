@@ -58,3 +58,14 @@ next-env.d.ts
 # GitHub Actions / CI
 coverage/
 *.tgz
+
+# =======================================
+# script
+reset-dev.sh
+backup.sh
+
+# ======================================= 
+# Documentation
+docs/
+documents/
+

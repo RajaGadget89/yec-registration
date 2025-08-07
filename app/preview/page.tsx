@@ -49,6 +49,9 @@ export default function PreviewPage() {
       });
 
       console.log('Form data loaded successfully:', validatedData); // Debug log
+      console.log('Hotel choice:', validatedData.hotelChoice); // Debug hotel choice
+      console.log('Room type:', validatedData.roomType); // Debug room type
+      console.log('External hotel name:', validatedData.external_hotel_name); // Debug external hotel
       setFormData(validatedData);
     } catch (err) {
       console.error('Error parsing stored form data:', err);
@@ -328,7 +331,6 @@ export default function PreviewPage() {
   // Group fields for better layout
   const personalFields = ['title', 'firstName', 'lastName', 'nickname', 'phone', 'lineId', 'email'];
   const businessFields = ['companyName', 'businessType'];
-  const accommodationFields = ['roomType'];
   const uploadFields = ['profileImage', 'chamberCard', 'paymentSlip'];
   const otherFields = ['yecProvince', 'travelType'];
 
@@ -340,14 +342,16 @@ export default function PreviewPage() {
 
   // Helper function to check if roommateInfo should be shown
   const shouldShowRoommateInfo = () => {
+    const hotelChoice = getFieldValue('hotelChoice');
     const roomType = getFieldValue('roomType');
-    return roomType === 'double';
+    return hotelChoice === 'in-quota' && roomType === 'double';
   };
 
   // Helper function to check if roommatePhone should be shown
   const shouldShowRoommatePhone = () => {
+    const hotelChoice = getFieldValue('hotelChoice');
     const roomType = getFieldValue('roomType');
-    return roomType === 'double';
+    return hotelChoice === 'in-quota' && roomType === 'double';
   };
 
   // Helper function to safely get field value
@@ -359,7 +363,7 @@ export default function PreviewPage() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
         <TopMenuBar />
-        <div className="pt-20 flex items-center justify-center min-h-screen">
+        <div className="pt-24 flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yec-primary mx-auto mb-4"></div>
             <p className="text-gray-600 dark:text-gray-300">กำลังโหลดข้อมูล...</p>
@@ -374,7 +378,7 @@ export default function PreviewPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       <TopMenuBar />
       
-      <main className="pt-20 pb-16">
+      <main className="pt-24 pb-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <FadeInStagger delay={100} className="text-center mb-8">
@@ -565,20 +569,51 @@ export default function PreviewPage() {
                       </h3>
                     </div>
                     <div className="space-y-5">
-                      {accommodationFields.map(fieldId => (
-                        <div key={fieldId} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
+                      {/* Hotel Choice - Always shown */}
+                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
+                              {getFieldLabel('hotelChoice')}
+                            </label>
+                            <div className="text-base font-medium text-gray-900 dark:text-white">
+                              {renderFieldValue('hotelChoice', getFieldValue('hotelChoice'))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Room Type - Only shown when hotelChoice is 'in-quota' */}
+                      {getFieldValue('hotelChoice') === 'in-quota' && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
-                                {getFieldLabel(fieldId)}
+                                {getFieldLabel('roomType')}
                               </label>
                               <div className="text-base font-medium text-gray-900 dark:text-white">
-                                {renderFieldValue(fieldId, getFieldValue(fieldId))}
+                                {renderFieldValue('roomType', getFieldValue('roomType'))}
                               </div>
                             </div>
                           </div>
                         </div>
-                      ))}
+                      )}
+
+                      {/* External Hotel Name - Only shown when hotelChoice is 'out-of-quota' */}
+                      {getFieldValue('hotelChoice') === 'out-of-quota' && (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
+                                {getFieldLabel('external_hotel_name')}
+                              </label>
+                              <div className="text-base font-medium text-gray-900 dark:text-white">
+                                {renderFieldValue('external_hotel_name', getFieldValue('external_hotel_name'))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       
                       {/* Conditionally show roommateInfo field */}
                       {shouldShowRoommateInfo() && (

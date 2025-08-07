@@ -41,9 +41,15 @@ export default function RegistrationForm() {
                 if (typeof mergedData[fieldId] === 'string' && mergedData[fieldId].startsWith('http')) {
                   // New format: URL from Supabase - keep as is
                   // The FormField component will handle displaying the image
+                  console.log(`Edit mode: Preserving Supabase URL for ${fieldId}:`, mergedData[fieldId]);
                 } else if (typeof mergedData[fieldId] === 'object' && 'name' in mergedData[fieldId]) {
                   // Old format: file metadata - keep for display purposes
                   // The FormField component will handle showing the file info
+                  console.log(`Edit mode: Preserving file metadata for ${fieldId}:`, mergedData[fieldId]);
+                } else {
+                  // Clear invalid data
+                  console.log(`Edit mode: Clearing invalid data for ${fieldId}:`, mergedData[fieldId]);
+                  mergedData[fieldId] = null;
                 }
               }
             });
@@ -230,33 +236,40 @@ export default function RegistrationForm() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {formSchema.map((field) => (
-              <div key={field.id} className={field.type === 'upload' ? 'md:col-span-2' : ''}>
-                <FormField
-                  field={field}
-                  value={formData[field.id]}
-                  onChange={(value) => handleFieldChange(field.id, value)}
-                  formData={formData}
-                  onExtraFieldChange={handleExtraFieldChange}
-                />
+            {formSchema.map((field) => {
+              // Check if field should be shown based on dependencies
+              if (field.dependsOn && formData[field.dependsOn.field] !== field.dependsOn.value) {
+                return null;
+              }
 
-                {/* Render roommate phone field separately for better layout */}
-                {field.id === 'roomType' && shouldShowExtraField(field, formData) && field.roommatePhoneField && (
-                  <div className="mt-4 pl-4 border-l-2 border-blue-200">
-                    <FormField
-                      field={{
-                        ...field.roommatePhoneField,
-                        required: field.roommatePhoneField.required ?? true
-                      }}
-                      value={formData[field.roommatePhoneField.id]}
-                      onChange={(value) => handleExtraFieldChange(field.roommatePhoneField!.id, value)}
-                      formData={formData}
-                      onExtraFieldChange={handleExtraFieldChange}
-                    />
-                  </div>
-                )}
-              </div>
-            ))}
+              return (
+                <div key={field.id} className={field.type === 'upload' ? 'md:col-span-2' : ''}>
+                  <FormField
+                    field={field}
+                    value={formData[field.id]}
+                    onChange={(value) => handleFieldChange(field.id, value)}
+                    formData={formData}
+                    onExtraFieldChange={handleExtraFieldChange}
+                  />
+
+                  {/* Render roommate phone field separately for better layout */}
+                  {field.id === 'roomType' && shouldShowExtraField(field, formData) && field.roommatePhoneField && (
+                    <div className="mt-4 pl-4 border-l-2 border-blue-200">
+                      <FormField
+                        field={{
+                          ...field.roommatePhoneField,
+                          required: field.roommatePhoneField.required ?? true
+                        }}
+                        value={formData[field.roommatePhoneField.id]}
+                        onChange={(value) => handleExtraFieldChange(field.roommatePhoneField!.id, value)}
+                        formData={formData}
+                        onExtraFieldChange={handleExtraFieldChange}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {/* Submit Button - Enhanced */}
