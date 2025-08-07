@@ -197,7 +197,16 @@ export default function PreviewPage() {
       } else {
         const errorData = await response.json();
         console.error('API error response:', errorData); // Debug log
-        throw new Error(errorData.message || 'เกิดข้อผิดพลาดในการส่งข้อมูล');
+        
+        // Provide more detailed error information
+        let errorMessage = errorData.message || 'เกิดข้อผิดพลาดในการส่งข้อมูล';
+        
+        // Add validation details if available
+        if (errorData.details && Array.isArray(errorData.details)) {
+          errorMessage += `\n\nรายละเอียด:\n${errorData.details.join('\n')}`;
+        }
+        
+        throw new Error(errorMessage);
       }
     } catch (err) {
       console.error('Submission error:', err);
