@@ -1,3 +1,6 @@
+// Export database types
+export type { Database, Registration, RegistrationInsert, RegistrationUpdate } from './database';
+
 // User and Registration Types
 export interface User {
   id: string;
