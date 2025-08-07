@@ -298,10 +298,24 @@ export const formSchema: FormField[] = [
     },
   },
   {
+    id: 'hotelChoice',
+    type: 'select',
+    label: 'ตัวเลือกโรงแรม',
+    required: true,
+    options: [
+      { value: 'in-quota', label: 'เลือกโรงแรมที่ผู้จัดงานจัดไว้ให้ (ในสิทธิ์)' },
+      { value: 'out-of-quota', label: 'เลือกโรงแรมเอง (นอกสิทธิ์)' },
+    ],
+  },
+  {
     id: 'roomType',
     type: 'select',
     label: 'ประเภทห้องพัก',
     required: true,
+    dependsOn: {
+      field: 'hotelChoice',
+      value: 'in-quota',
+    },
     options: [
       { value: 'single', label: 'พักเดี่ยว' },
       { value: 'double', label: 'พักคู่' },
@@ -335,6 +349,21 @@ export const formSchema: FormField[] = [
     },
   },
   {
+    id: 'external_hotel_name',
+    type: 'text',
+    label: 'ชื่อโรงแรมที่เลือกเอง',
+    required: true,
+    dependsOn: {
+      field: 'hotelChoice',
+      value: 'out-of-quota',
+    },
+    placeholder: 'กรุณากรอกชื่อโรงแรม',
+    validation: {
+      minLength: 1,
+      maxLength: 100,
+    },
+  },
+  {
     id: 'travelType',
     type: 'select',
     label: 'ประเภทการเดินทาง',
@@ -365,8 +394,10 @@ export const initialFormData: FormData = {
   businessType: '',
   businessTypeOther: '',
   profileImage: null,
+  hotelChoice: '',
   roomType: '',
   roommateInfo: '',
   roommatePhone: '',
+  external_hotel_name: '',
   travelType: '',
 }; 

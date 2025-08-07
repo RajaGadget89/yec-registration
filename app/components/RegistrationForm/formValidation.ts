@@ -89,7 +89,7 @@ export const validateField = (
 
   // File validation
   if (field.type === 'upload') {
-    if (value instanceof File) {
+    if (typeof window !== 'undefined' && value instanceof File) {
       // New file being uploaded
       const fileValidation = validateFile(value, field.validation);
       if (!fileValidation.isValid) {
@@ -139,6 +139,8 @@ export const validateField = (
       return validateRoommateInfo(value, formData);
     case 'roommatePhone':
       return validateRoommatePhone(value, formData);
+    case 'external_hotel_name':
+      return validateExternalHotelName(value, formData);
     default:
       return {
         isValid: true,
@@ -149,6 +151,15 @@ export const validateField = (
 };
 
 const validateFile = (file: File, validation?: any): ValidationResult => {
+  // Ensure we're in a browser environment
+  if (typeof window === 'undefined') {
+    return {
+      isValid: true,
+      message: null,
+      status: 'valid',
+    };
+  }
+
   // File type validation
   if (validation?.fileTypes && !validation.fileTypes.includes(file.type)) {
     return {
@@ -360,6 +371,39 @@ const validateRoommatePhone = (value: string, formData?: { [key: string]: any })
   };
 };
 
+const validateExternalHotelName = (value: string, formData?: { [key: string]: any }): ValidationResult => {
+  // Only validate if hotelChoice is 'out-of-quota'
+  if (formData?.hotelChoice !== 'out-of-quota') {
+    return {
+      isValid: true,
+      message: null,
+      status: 'valid',
+    };
+  }
+
+  if (!value || value.trim() === '') {
+    return {
+      isValid: false,
+      message: 'กรุณากรอกชื่อโรงแรมที่เลือกเอง',
+      status: 'invalid',
+    };
+  }
+
+  if (value.length > 100) {
+    return {
+      isValid: false,
+      message: 'ชื่อโรงแรมต้องมีไม่เกิน 100 ตัวอักษร',
+      status: 'invalid',
+    };
+  }
+
+  return {
+    isValid: true,
+    message: null,
+    status: 'valid',
+  };
+};
+
 export const validateForm = (formData: { [key: string]: any }, formSchema: FormField[]): {
   isValid: boolean;
   errors: { [key: string]: string };
@@ -368,6 +412,12 @@ export const validateForm = (formData: { [key: string]: any }, formSchema: FormF
   let isValid = true;
 
   formSchema.forEach((field) => {
+    // Check if field should be shown based on dependencies
+    if (field.dependsOn && formData[field.dependsOn.field] !== field.dependsOn.value) {
+      // Field is not shown, skip validation
+      return;
+    }
+
     const validation = validateField(field, formData[field.id], formData);
     if (!validation.isValid) {
       errors[field.id] = validation.message || '';
@@ -415,7 +465,7 @@ export const shouldShowExtraField = (field: FormField, formData: { [key: string]
     case 'businessType':
       return formData.businessType === 'other';
     case 'roomType':
-      return formData.roomType === 'double';
+      return formData.roomType === 'double' && formData.hotelChoice === 'in-quota';
     default:
       return false;
   }
@@ -428,9 +478,11 @@ export const shouldFieldBeRequired = (field: FormField, formData?: { [key: strin
     case 'businessTypeOther':
       return formData.businessType === 'other';
     case 'roommateInfo':
-      return formData.roomType === 'double';
+      return formData.roomType === 'double' && formData.hotelChoice === 'in-quota';
     case 'roommatePhone':
-      return formData.roomType === 'double';
+      return formData.roomType === 'double' && formData.hotelChoice === 'in-quota';
+    case 'external_hotel_name':
+      return formData.hotelChoice === 'out-of-quota';
     default:
       return false;
   }
@@ -471,6 +523,12 @@ export const calculateFormProgress = (formData: { [key: string]: any }, formSche
   let completedRequiredFields = 0;
 
   formSchema.forEach((field) => {
+    // Check if field should be shown based on dependencies
+    if (field.dependsOn && formData[field.dependsOn.field] !== field.dependsOn.value) {
+      // Field is not shown, skip counting
+      return;
+    }
+
     // Count main field if required
     if (field.required) {
       totalRequiredFields++;

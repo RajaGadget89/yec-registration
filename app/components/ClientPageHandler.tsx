@@ -1,0 +1,32 @@
+'use client';
+
+import { useEffect } from 'react';
+
+export default function ClientPageHandler() {
+  useEffect(() => {
+    // Handle scroll parameter from navigation
+    const urlParams = new URLSearchParams(window.location.search);
+    const scrollTarget = urlParams.get('scroll');
+    const isEditMode = urlParams.get('edit') === 'true';
+    
+    if (scrollTarget === 'form' || isEditMode) {
+      // Wait for page to load, then scroll to form section
+      setTimeout(() => {
+        const formSection = document.getElementById('form');
+        if (formSection) {
+          const headerHeight = 80; // Approximate header height
+          const targetPosition = formSection.offsetTop - headerHeight;
+          window.scrollTo({ top: targetPosition, behavior: 'smooth' });
+          
+          // Clean up URL parameters
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('scroll');
+          newUrl.searchParams.delete('edit');
+          window.history.replaceState({}, '', newUrl.toString());
+        }
+      }, 100);
+    }
+  }, []);
+
+  return null; // This component doesn't render anything
+} 

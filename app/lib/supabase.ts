@@ -1,0 +1,58 @@
+"use client";
+
+import { createClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// Define a basic Database type - you can extend this based on your actual schema
+interface Database {
+  public: {
+    Tables: {
+      [key: string]: any;
+    };
+    Views: {
+      [key: string]: any;
+    };
+    Functions: {
+      [key: string]: any;
+    };
+    Enums: {
+      [key: string]: any;
+    };
+  };
+}
+
+let supabaseClient: SupabaseClient<Database> | null = null;
+let supabaseServiceClient: SupabaseClient<Database> | null = null;
+
+export const getSupabaseClient = (): SupabaseClient<Database> => {
+  if (!supabaseClient) {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required');
+    }
+
+    supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey);
+  }
+  return supabaseClient;
+};
+
+export const getSupabaseServiceClient = (): SupabaseClient<Database> => {
+  if (!supabaseServiceClient) {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error('Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+    }
+
+    supabaseServiceClient = createClient<Database>(supabaseUrl, supabaseServiceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+  }
+  return supabaseServiceClient;
+}; 
