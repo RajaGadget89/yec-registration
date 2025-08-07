@@ -2,24 +2,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-// Define a basic Database type - you can extend this based on your actual schema
-interface Database {
-  public: {
-    Tables: {
-      [key: string]: any;
-    };
-    Views: {
-      [key: string]: any;
-    };
-    Functions: {
-      [key: string]: any;
-    };
-    Enums: {
-      [key: string]: any;
-    };
-  };
-}
+import type { Database } from "../types/database";
 
 let supabaseClient: SupabaseClient<Database> | null = null;
 let supabaseServiceClient: SupabaseClient<Database> | null = null;

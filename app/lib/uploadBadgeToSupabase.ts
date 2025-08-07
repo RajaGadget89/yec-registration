@@ -1,5 +1,5 @@
 import { validateFilename, ensureFileExtension, generateUniqueFilename } from './filenameUtils';
-import { getSupabaseServiceClient } from './supabase';
+import { getSupabaseServiceClient } from './supabase-server';
 
 /**
  * Uploads a badge image to Supabase Storage
