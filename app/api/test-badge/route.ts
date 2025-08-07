@@ -1,75 +1,79 @@
-import { NextResponse } from 'next/server';
 import { generateYECBadge } from '../../lib/badgeGenerator';
-
-export async function POST() {
-  try {
-    // Test badge data with Thai text
-    const testBadgeData = {
-      registrationId: 'YEC-TEST-123456789',
-      fullName: 'นาย สมชาย ใจดี',
-      nickname: 'ชาย',
-      phone: '0812345678',
-      yecProvince: 'กรุงเทพมหานคร',
-      businessType: 'technology',
-      businessTypeOther: undefined,
-      profileImageBase64: undefined // No profile image for test
-    };
-
-    console.log('=== BADGE GENERATION TEST START ===');
-    console.log('Test badge data:', testBadgeData);
-    console.log('Generating test badge with Thai text...');
-
-    // Generate badge
-    const badgeBuffer = await generateYECBadge(testBadgeData);
-    
-    if (!badgeBuffer || badgeBuffer.length === 0) {
-      throw new Error('Badge generation failed - empty buffer returned');
-    }
-
-    console.log('Test badge generated successfully!');
-    console.log('Badge size:', badgeBuffer.length, 'bytes');
-    console.log('=== BADGE GENERATION TEST END ===');
-
-    // Return the badge as a response
-      return new NextResponse(new Blob([Uint8Array.from(badgeBuffer)]), {
-      status: 200,
-      headers: {
-        'Content-Type': 'image/png',
-        'Content-Disposition': 'inline; filename="test-badge.png"',
-        'Cache-Control': 'no-cache'
-      }
-    });
-
-  } catch (error) {
-    console.error('=== BADGE GENERATION TEST ERROR ===');
-    console.error('Test badge generation error:', error);
-    
-    return NextResponse.json(
-      { 
-        error: 'Badge generation failed',
-        message: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      },
-      { status: 500 }
-    );
-  }
-}
+import { uploadBadgeToSupabase } from '../../lib/uploadBadgeToSupabase';
 
 export async function GET() {
-  return NextResponse.json(
-    { 
-      message: 'Test badge endpoint - use POST with test data to generate a badge',
-      available: true,
-      timestamp: new Date().toISOString(),
-      testData: {
-        registrationId: 'YEC-TEST-123456789',
-        fullName: 'นาย สมชาย ใจดี',
-        nickname: 'ชาย',
-        phone: '0812345678',
-        yecProvince: 'กรุงเทพมหานคร',
-        businessType: 'technology'
+  try {
+    console.log('Testing badge generation...');
+    
+    // Check environment variables
+    const envCheck = {
+      hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    };
+    
+    console.log('Environment check:', envCheck);
+    
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Badge service not configured',
+          message: 'Supabase environment variables are not set',
+          envCheck 
+        }), 
+        { 
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
+    // Test badge generation with sample data
+    const testBadgeData = {
+      registrationId: 'TEST-123456789',
+      fullName: 'นาย ทดสอบ ระบบ',
+      nickname: 'ทดสอบ',
+      phone: '0812345678',
+      yecProvince: 'กรุงเทพมหานคร',
+      businessType: 'เทคโนโลยี',
+      businessTypeOther: undefined,
+      profileImageBase64: undefined,
+    };
+    
+    console.log('Generating test badge with data:', testBadgeData);
+    
+    // Generate badge
+    const badgeBuffer = await generateYECBadge(testBadgeData);
+    console.log('Badge generated successfully, size:', badgeBuffer.length, 'bytes');
+    
+    // Upload badge
+    const filename = `test-badge-${Date.now()}.png`;
+    const badgeUrl = await uploadBadgeToSupabase(badgeBuffer, filename);
+    console.log('Badge uploaded successfully:', badgeUrl);
+    
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        message: 'Badge generation and upload test successful',
+        badgeUrl,
+        badgeSize: badgeBuffer.length,
+        envCheck
+      }), 
+      { 
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
       }
-    },
-    { status: 200 }
-  );
+    );
+  } catch (error) {
+    console.error('Badge test error:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Badge test failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      }), 
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+  }
 } 
