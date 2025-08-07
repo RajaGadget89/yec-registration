@@ -86,10 +86,33 @@ export default function RegistrationForm() {
   }, [formData]);
 
   const handleFieldChange = (fieldId: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [fieldId]: value,
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [fieldId]: value,
+      };
+
+      // Clear dependent fields when hotel choice changes
+      if (fieldId === 'hotelChoice') {
+        if (value === 'out-of-quota') {
+          // Clear room type and roommate fields when switching to out-of-quota
+          newData.roomType = '';
+          newData.roommateInfo = '';
+          newData.roommatePhone = '';
+        } else if (value === 'in-quota') {
+          // Clear external hotel name when switching to in-quota
+          newData.external_hotel_name = '';
+        }
+      }
+
+      // Clear roommate fields when room type changes from double to something else
+      if (fieldId === 'roomType' && value !== 'double') {
+        newData.roommateInfo = '';
+        newData.roommatePhone = '';
+      }
+
+      return newData;
+    });
   };
 
   const handleExtraFieldChange = (fieldId: string, value: any) => {
