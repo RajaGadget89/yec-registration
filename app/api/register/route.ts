@@ -20,8 +20,21 @@ export async function POST(request: NextRequest) {
     const requiredFields = [
       'title', 'firstName', 'lastName', 'nickname', 'phone', 
       'lineId', 'email', 'companyName', 'businessType', 
-      'profileImage', 'chamberCard', 'paymentSlip', 'yecProvince'
+      'profileImage', 'chamberCard', 'paymentSlip', 'yecProvince',
+      'hotelChoice'
     ];
+
+    // Conditional required fields based on hotel choice
+    if (formData.hotelChoice === 'in-quota') {
+      requiredFields.push('roomType');
+      
+      // If roomType is 'double', require roommate fields
+      if (formData.roomType === 'double') {
+        requiredFields.push('roommateInfo', 'roommatePhone');
+      }
+    } else if (formData.hotelChoice === 'out-of-quota') {
+      requiredFields.push('external_hotel_name');
+    }
 
     const missingFields = requiredFields.filter(field => !formData[field]);
     

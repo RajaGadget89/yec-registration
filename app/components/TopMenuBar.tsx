@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import ThemeToggle from './ThemeToggle';
 
@@ -48,7 +47,7 @@ export default function TopMenuBar() {
       // If on homepage, scroll to form section
       const formSection = document.getElementById('form');
       if (formSection) {
-        const headerHeight = 80; // Approximate header height
+        const headerHeight = 96; // Approximate header height (h-24 = 6rem = 96px)
         const targetPosition = formSection.offsetTop - headerHeight;
         window.scrollTo({ top: targetPosition, behavior: 'smooth' });
       }
@@ -62,34 +61,30 @@ export default function TopMenuBar() {
     <header 
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isLandingPage 
-          ? (isScrolled ? 'bg-yec-primary shadow-md' : 'bg-transparent')
-          : 'bg-yec-primary shadow-md'
+          ? (isScrolled ? 'bg-white shadow-md' : 'bg-transparent')
+          : 'bg-white shadow-md'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
+        <div className="flex justify-between items-center h-24">
           {/* Logo */}
           <div className="flex-shrink-0">
             {/* Desktop Logo */}
             <div className="hidden md:block">
-              <Image 
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
                 src="/assets/logo-full.png" 
                 alt="YEC Day Logo" 
-                width={180} 
-                height={60} 
-                className="h-12 w-auto"
-                priority
+                style={{ height: '92px', width: 'auto' }}
               />
             </div>
             {/* Mobile Logo */}
             <div className="md:hidden">
-              <Image 
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
                 src="/assets/logo-shield-only.png" 
                 alt="YEC Day Logo" 
-                width={56} 
-                height={56} 
-                className="h-12 w-auto"
-                priority
+                style={{ height: '92px', width: 'auto' }}
               />
             </div>
           </div>
@@ -100,33 +95,49 @@ export default function TopMenuBar() {
             <nav className="hidden md:flex space-x-8">
               <button 
                 onClick={handleHomeClick}
-                className="text-lg font-bold text-white hover:text-yec-accent transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1"
+                className={`text-lg font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1 ${
+                  isLandingPage && !isScrolled 
+                    ? 'text-white hover:text-yec-accent' 
+                    : 'text-yec-primary hover:text-yec-accent'
+                }`}
                 aria-label="Go to homepage with fresh refresh"
               >
                 Home
               </button>
               <button 
                 onClick={handleRegisterClick}
-                className="text-lg font-bold text-white hover:text-yec-accent transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1"
+                className={`text-lg font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1 ${
+                  isLandingPage && !isScrolled 
+                    ? 'text-white hover:text-yec-accent' 
+                    : 'text-yec-primary hover:text-yec-accent'
+                }`}
                 aria-label="Go to registration form section"
               >
                 Register
               </button>
               <a 
                 href="#about" 
-                className="text-lg font-bold text-white hover:text-yec-accent transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1"
+                className={`text-lg font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1 ${
+                  isLandingPage && !isScrolled 
+                    ? 'text-white hover:text-yec-accent' 
+                    : 'text-yec-primary hover:text-yec-accent'
+                }`}
               >
                 About
               </a>
             </nav>
 
             {/* Theme Toggle */}
-            <ThemeToggle />
+            <ThemeToggle isLandingPage={isLandingPage} isScrolled={isScrolled} />
 
             {/* Mobile Menu Button */}
             <div className="md:hidden">
               <button 
-                className="text-white hover:text-yec-accent transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded p-1"
+                className={`transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded p-1 ${
+                  isLandingPage && !isScrolled 
+                    ? 'text-white hover:text-yec-accent' 
+                    : 'text-yec-primary hover:text-yec-accent'
+                }`}
                 aria-label="Toggle mobile menu"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
