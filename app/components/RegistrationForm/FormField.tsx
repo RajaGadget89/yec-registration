@@ -244,11 +244,13 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
   // Handle file preview
   useEffect(() => {
     if (normalizedField.type === 'upload') {
-      if (value instanceof File) {
+      if (typeof window !== 'undefined' && value instanceof File) {
         // Handle new File objects
-        const url = URL.createObjectURL(value);
-        setPreviewUrl(url);
-        return () => URL.revokeObjectURL(url);
+        if (typeof window !== 'undefined') {
+          const url = URL.createObjectURL(value);
+          setPreviewUrl(url);
+          return () => URL.revokeObjectURL(url);
+        }
       } else if (value && typeof value === 'object' && 'dataUrl' in value) {
         // Handle base64 data URL from localStorage (old format)
         setPreviewUrl(value.dataUrl);
@@ -508,13 +510,13 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
                 </button>
               </div>
             )}
-            {value instanceof File && (
+            {typeof window !== 'undefined' && value instanceof File && (
               <p className="text-sm text-gray-600">
                 ไฟล์ที่เลือก: {value.name} ({(value.size / 1024 / 1024).toFixed(2)} MB)
               </p>
             )}
             {/* Show file info for metadata objects (from localStorage) */}
-            {value && typeof value === 'object' && 'name' in value && !(value instanceof File) && !('dataUrl' in value) && (
+            {value && typeof value === 'object' && 'name' in value && !(typeof window !== 'undefined' && value instanceof File) && !('dataUrl' in value) && (
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <div className="flex items-center space-x-2">
                   <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

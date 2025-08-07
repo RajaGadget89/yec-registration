@@ -115,7 +115,7 @@ export default function RegistrationForm() {
     try {
       // Handle File objects for upload fields
       const uploadFields = ['profileImage', 'chamberCard', 'paymentSlip'];
-      const filesToProcess = uploadFields.filter(fieldId => formData[fieldId] instanceof File);
+      const filesToProcess = uploadFields.filter(fieldId => typeof window !== 'undefined' && formData[fieldId] instanceof File);
 
       if (filesToProcess.length === 0) {
         // No new files to upload, save data immediately
