@@ -7,7 +7,7 @@ export default function BannerSection() {
     const target = document.getElementById("form");
     if (target) {
       const header = document.querySelector("header");
-      const headerHeight = header ? header.offsetHeight : 80;
+      const headerHeight = header ? header.offsetHeight : 96;
       const targetPosition = target.offsetTop - headerHeight;
       window.scrollTo({ top: targetPosition, behavior: "smooth" });
     }
@@ -56,7 +56,7 @@ export default function BannerSection() {
           role="list"
           aria-label="Event highlights and activities"
         >
-          {/* Networking Card */}
+          {/* Culture Card */}
           <article 
             className="group relative overflow-hidden bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 focus-within:ring-4 focus-within:ring-yec-accent focus-within:ring-opacity-50"
             role="listitem"
@@ -81,11 +81,11 @@ export default function BannerSection() {
             {/* Content */}
             <div className="p-6">
               <h3 className="text-2xl font-bold text-yec-primary mb-3 group-hover:text-yec-accent transition-colors duration-300">
-                <span className="inline-block animate-pulse" aria-hidden="true">🤝</span>
-                <span className="sr-only">Handshake emoji representing</span> Networking
+                <span className="inline-block animate-pulse" aria-hidden="true">🎭</span>
+                <span className="sr-only">Theater masks emoji representing</span> Culture
               </h3>
               <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">
-                Connect with industry leaders and fellow entrepreneurs in an engaging environment designed for meaningful relationships.
+                Immerse yourself in the rich cultural heritage and traditions while building meaningful relationships with diverse entrepreneurs and business leaders.
               </p>
               
               {/* Animated underline */}
@@ -96,7 +96,7 @@ export default function BannerSection() {
             </div>
           </article>
 
-          {/* Learning Card */}
+          {/* Connection Card */}
           <article 
             className="group relative overflow-hidden bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 focus-within:ring-4 focus-within:ring-yec-accent focus-within:ring-opacity-50"
             role="listitem"
@@ -121,11 +121,11 @@ export default function BannerSection() {
             {/* Content */}
             <div className="p-6">
               <h3 className="text-2xl font-bold text-yec-primary mb-3 group-hover:text-yec-accent transition-colors duration-300">
-                <span className="inline-block animate-bounce" aria-hidden="true">📚</span>
-                <span className="sr-only">Book emoji representing</span> Learning
+                <span className="inline-block animate-bounce" aria-hidden="true">🔗</span>
+                <span className="sr-only">Link emoji representing</span> Connection
               </h3>
               <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">
-                Gain valuable insights from expert speakers and interactive workshops that will accelerate your entrepreneurial journey.
+                Build strong professional relationships and connect with like-minded entrepreneurs who share your vision and passion for business success.
               </p>
               
               {/* Animated underline */}
@@ -136,7 +136,7 @@ export default function BannerSection() {
             </div>
           </article>
 
-          {/* Growth Card */}
+          {/* Collaboration Card */}
           <article 
             className="group relative overflow-hidden bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 focus-within:ring-4 focus-within:ring-yec-accent focus-within:ring-opacity-50"
             role="listitem"
@@ -146,7 +146,7 @@ export default function BannerSection() {
             <div className="relative h-48 overflow-hidden">
               <Image 
                 src="/assets/YEC-Growth.png" 
-                alt="Group of people on a wooden deck overlooking water, representing business growth and expansion" 
+                alt="Group of people on a wooden deck overlooking water, representing business collaboration and teamwork" 
                 fill
                 className="object-cover group-hover:scale-110 transition-transform duration-700"
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -161,11 +161,11 @@ export default function BannerSection() {
             {/* Content */}
             <div className="p-6">
               <h3 className="text-2xl font-bold text-yec-primary mb-3 group-hover:text-yec-accent transition-colors duration-300">
-                <span className="inline-block animate-ping" aria-hidden="true">🚀</span>
-                <span className="sr-only">Rocket emoji representing</span> Growth
+                <span className="inline-block animate-ping" aria-hidden="true">🤝</span>
+                <span className="sr-only">Handshake emoji representing</span> Collaboration
               </h3>
               <p className="text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors duration-300">
-                Discover new opportunities and strategies that will help your business scale and reach new heights of success.
+                Work together with fellow entrepreneurs to create innovative solutions and partnerships that drive mutual success and business growth.
               </p>
               
               {/* Animated underline */}
