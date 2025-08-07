@@ -1,20 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
 import { generateUniqueFilename, validateFilename, ensureFileExtension } from './filenameUtils';
-
-/**
- * Creates a Supabase client with environment variables
- * @returns Supabase client instance
- */
-function createSupabaseClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required');
-  }
-
-  return createClient(supabaseUrl, supabaseAnonKey);
-}
+import { getSupabaseClient } from './supabase';
 
 /**
  * Uploads a file to Supabase Storage
@@ -28,7 +13,7 @@ export async function uploadFileToSupabase(
   folder: string, 
   filename?: string
 ): Promise<string> {
-  const supabase = createSupabaseClient();
+  const supabase = getSupabaseClient();
   try {
     // Validate input parameters
     if (!file) {
@@ -121,7 +106,7 @@ export async function deleteFileFromSupabase(
   folder: string, 
   filename: string
 ): Promise<boolean> {
-  const supabase = createSupabaseClient();
+  const supabase = getSupabaseClient();
   
   try {
     const { error } = await supabase.storage
