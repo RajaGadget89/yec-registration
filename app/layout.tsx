@@ -25,7 +25,6 @@ export const metadata: Metadata = {
     apple: "/assets/favicon-192x192.png",
     shortcut: "/assets/favicon.ico",
   },
-  manifest: "/assets/site.webmanifest",
 };
 
 export const viewport: Viewport = {
