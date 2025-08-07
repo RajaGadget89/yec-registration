@@ -89,7 +89,7 @@ export const validateField = (
 
   // File validation
   if (field.type === 'upload') {
-    if (value instanceof File) {
+    if (typeof window !== 'undefined' && value instanceof File) {
       // New file being uploaded
       const fileValidation = validateFile(value, field.validation);
       if (!fileValidation.isValid) {
@@ -151,6 +151,15 @@ export const validateField = (
 };
 
 const validateFile = (file: File, validation?: any): ValidationResult => {
+  // Ensure we're in a browser environment
+  if (typeof window === 'undefined') {
+    return {
+      isValid: true,
+      message: null,
+      status: 'valid',
+    };
+  }
+
   // File type validation
   if (validation?.fileTypes && !validation.fileTypes.includes(file.type)) {
     return {

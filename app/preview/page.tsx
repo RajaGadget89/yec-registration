@@ -215,12 +215,12 @@ export default function PreviewPage() {
     
     // Handle File objects (upload fields)
     if (field?.type === 'upload') {
-      if (value instanceof File) {
+      if (typeof window !== 'undefined' && value instanceof File) {
         return (
           <div className="mt-2">
             <div className="w-full h-48 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden flex items-center justify-center">
               <Image
-                src={URL.createObjectURL(value)}
+                src={typeof window !== 'undefined' ? URL.createObjectURL(value) : ''}
                 alt={field.label}
                 width={200}
                 height={200}
