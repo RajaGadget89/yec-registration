@@ -39,7 +39,7 @@ export default function BannerSection() {
           aria-label="YEC Day event banner featuring Songkhla location, November 23rd 2025 date, and Burisriphu Hotel Hatyai venue"
         >
           <Image 
-            src="/assets/YEC DAY2 _cre.png" 
+            src="/assets/YEC-DAY2_cre.png" 
             alt="YEC Day Banner showing Songkhla event details for November 23rd 2025 at Burisriphu Hotel Hatyai" 
             fill
             className="object-contain"

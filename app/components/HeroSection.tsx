@@ -1,8 +1,42 @@
 "use client";
 
-import YouTubeBackground from "./YouTubeBackground";
+import { useState, useEffect } from "react";
+import DesktopVideo from "./DesktopVideo";
+import MobileVideo from "./MobileVideo";
 
 export default function HeroSection() {
+  const [isMobile, setIsMobile] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    const checkDevice = () => {
+      // Check if it's a mobile device using user agent
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+      
+      // Also check screen size as backup
+      const isSmallScreen = window.innerWidth < 1024;
+      
+      const shouldShowMobile = isMobileDevice || isSmallScreen;
+      setIsMobile(shouldShowMobile);
+      setIsLoaded(true);
+      
+      console.log('Device Detection:', {
+        userAgent: userAgent,
+        isMobileDevice,
+        screenWidth: window.innerWidth,
+        isSmallScreen,
+        shouldShowMobile
+      });
+    };
+
+    checkDevice();
+    
+    // Listen for window resize
+    window.addEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', checkDevice);
+  }, []);
+
   const handleScroll = () => {
     const target = document.getElementById("event-schedule");
     if (target) {
@@ -13,10 +47,30 @@ export default function HeroSection() {
     }
   };
 
+  // Show loading state while detecting device
+  if (!isLoaded) {
+    return (
+      <section className="relative w-full h-screen bg-black flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </section>
+    );
+  }
+
   return (
     <section className="relative w-full">
-      {/* Background video */}
-      <YouTubeBackground videoUrl="https://www.youtube.com/embed/wXHkqvzggPU?autoplay=1&mute=1&controls=1&loop=1&playlist=wXHkqvzggPU&modestbranding=1&showinfo=0&rel=0&playsinline=1&vq=hd1080&enablejsapi=1" />
+      {/* Responsive Background Videos */}
+      {isMobile ? (
+        /* Mobile Video (9:16) */
+        <MobileVideo videoUrl="https://www.youtube.com/embed/wXHkqvzggPU?autoplay=1&mute=1&controls=1&loop=1&playlist=wXHkqvzggPU&modestbranding=1&showinfo=0&rel=0&playsinline=1&vq=hd1080&enablejsapi=1" />
+      ) : (
+        /* Desktop Video (21:9) */
+        <DesktopVideo videoUrl="https://www.youtube.com/embed/JZ2ISKMv2ww?autoplay=1&mute=1&controls=1&loop=1&playlist=JZ2ISKMv2ww&modestbranding=1&showinfo=0&rel=0&playsinline=1&vq=hd1080&enablejsapi=1" />
+      )}
+      
+      {/* Debug Info - Remove in production */}
+      <div className="absolute top-4 left-4 z-50 bg-black/80 text-white p-2 rounded text-xs">
+        Device: {isMobile ? 'Mobile' : 'Desktop'} | Width: {typeof window !== 'undefined' ? window.innerWidth : 'N/A'}px
+      </div>
       
       {/* CTA Button */}
       <div
