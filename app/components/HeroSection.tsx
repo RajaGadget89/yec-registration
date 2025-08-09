@@ -16,7 +16,7 @@ export default function HeroSection() {
   return (
     <section className="relative w-full">
       {/* Background video */}
-      <YouTubeBackground videoUrl="https://www.youtube.com/embed/wXHkqvzggPU?autoplay=1&mute=1&controls=1&loop=1&playlist=wXHkqvzggPU&modestbranding=1&showinfo=0&rel=0&playsinline=1&vq=hd1080&enablejsapi=1" />
+      <YouTubeBackground videoUrl="https://www.youtube.com/embed/JZ2ISKMv2ww?autoplay=1&mute=1&controls=1&loop=1&playlist=JZ2ISKMv2ww&modestbranding=1&showinfo=0&rel=0&playsinline=1&vq=hd1080&enablejsapi=1" />
       
       {/* CTA Button */}
       <div
