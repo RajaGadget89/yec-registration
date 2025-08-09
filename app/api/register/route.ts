@@ -1,8 +1,8 @@
-import { generateYECBadge } from '../../lib/badgeGenerator';
-import { sendBadgeEmail } from '../../lib/emailService';
-import { uploadBadgeToSupabase } from '../../lib/uploadBadgeToSupabase';
+import { sendPendingReviewEmail } from '../../lib/emailService';
 import { getSupabaseServiceClient } from '../../lib/supabase-server';
 import { getThailandTimeISOString } from '../../lib/timezoneUtils';
+import { normalizeName } from '../../lib/textNormalize';
+import { NextResponse } from 'next/server';
 
 // Field mapping from frontend to database
 const mapFrontendToDatabase = (frontendData: any) => {
@@ -118,160 +118,9 @@ const validateRegistrationData = (data: any) => {
   return errors;
 };
 
-// Generate badge and upload to Supabase
-const generateAndUploadBadge = async (mappedData: any, frontendData: any) => {
-  try {
-    console.log('Starting badge generation...');
-    
-    // Get YEC province display name
-    const yecProvinceField = [
-      { value: 'krabi', label: 'กระบี่' },
-      { value: 'kanchanaburi', label: 'กาญจนบุรี' },
-      { value: 'kalasin', label: 'กาฬสินธุ์' },
-      { value: 'kamphaeng-phet', label: 'กำแพงเพชร' },
-      { value: 'bangkok', label: 'กรุงเทพมหานคร' },
-      { value: 'khon-kaen', label: 'ขอนแก่น' },
-      { value: 'chachoengsao', label: 'ฉะเชิงเทรา' },
-      { value: 'chai-nat', label: 'ชัยนาท' },
-      { value: 'chaiyaphum', label: 'ชัยภูมิ' },
-      { value: 'chanthaburi', label: 'จันทบุรี' },
-      { value: 'chiang-mai', label: 'เชียงใหม่' },
-      { value: 'chiang-rai', label: 'เชียงราย' },
-      { value: 'chon-buri', label: 'ชลบุรี' },
-      { value: 'chumphon', label: 'ชุมพร' },
-      { value: 'trang', label: 'ตรัง' },
-      { value: 'trat', label: 'ตราด' },
-      { value: 'tak', label: 'ตาก' },
-      { value: 'nan', label: 'น่าน' },
-      { value: 'narathiwat', label: 'นราธิวาส' },
-      { value: 'nonthaburi', label: 'นนทบุรี' },
-      { value: 'nakhon-nayok', label: 'นครนายก' },
-      { value: 'nakhon-pathom', label: 'นครปฐม' },
-      { value: 'nakhon-phanom', label: 'นครพนม' },
-      { value: 'nakhon-ratchasima', label: 'นครราชสีมา' },
-      { value: 'nakhon-sawan', label: 'นครสวรรค์' },
-      { value: 'nakhon-si-thammarat', label: 'นครศรีธรรมราช' },
-      { value: 'nong-bua-lamphu', label: 'หนองบัวลำภู' },
-      { value: 'nong-khai', label: 'หนองคาย' },
-      { value: 'pathum-thani', label: 'ปทุมธานี' },
-      { value: 'pattani', label: 'ปัตตานี' },
-      { value: 'phang-nga', label: 'พังงา' },
-      { value: 'phayao', label: 'พะเยา' },
-      { value: 'phetchabun', label: 'เพชรบูรณ์' },
-      { value: 'phetchaburi', label: 'เพชรบุรี' },
-      { value: 'phichit', label: 'พิจิตร' },
-      { value: 'phitsanulok', label: 'พิษณุโลก' },
-      { value: 'phra-nakhon-si-ayutthaya', label: 'พระนครศรีอยุธยา' },
-      { value: 'phrae', label: 'แพร่' },
-      { value: 'phuket', label: 'ภูเก็ต' },
-      { value: 'prachin-buri', label: 'ปราจีนบุรี' },
-      { value: 'prachuap-khiri-khan', label: 'ประจวบคีรีขันธ์' },
-      { value: 'ranong', label: 'ระนอง' },
-      { value: 'ratchaburi', label: 'ราชบุรี' },
-      { value: 'rayong', label: 'ระยอง' },
-      { value: 'roi-et', label: 'ร้อยเอ็ด' },
-      { value: 'lampang', label: 'ลำปาง' },
-      { value: 'lamphun', label: 'ลำพูน' },
-      { value: 'leoi', label: 'เลย' },
-      { value: 'lop-buri', label: 'ลพบุรี' },
-      { value: 'mae-hong-son', label: 'แม่ฮ่องสอน' },
-      { value: 'maha-sarakham', label: 'มหาสารคาม' },
-      { value: 'mukdahan', label: 'มุกดาหาร' },
-      { value: 'yasothon', label: 'ยโสธร' },
-      { value: 'yala', label: 'ยะลา' },
-      { value: 'sa-kaeo', label: 'สระแก้ว' },
-      { value: 'sakon-nakhon', label: 'สกลนคร' },
-      { value: 'samut-prakan', label: 'สมุทรปราการ' },
-      { value: 'samut-sakhon', label: 'สมุทรสาคร' },
-      { value: 'samut-songkhram', label: 'สมุทรสงคราม' },
-      { value: 'saraburi', label: 'สระบุรี' },
-      { value: 'satun', label: 'สตูล' },
-      { value: 'si-sa-ket', label: 'ศรีสะเกษ' },
-      { value: 'sing-buri', label: 'สิงห์บุรี' },
-      { value: 'songkhla', label: 'สงขลา' },
-      { value: 'sukhothai', label: 'สุโขทัย' },
-      { value: 'suphan-buri', label: 'สุพรรณบุรี' },
-      { value: 'surat-thani', label: 'สุราษฎร์ธานี' },
-      { value: 'surin', label: 'สุรินทร์' },
-      { value: 'ubon-ratchathani', label: 'อุบลราชธานี' },
-      { value: 'udon-thani', label: 'อุดรธานี' },
-      { value: 'uthai-thani', label: 'อุทัยธานี' },
-      { value: 'uttaradit', label: 'อุตรดิตถ์' },
-      { value: 'buri-ram', label: 'บุรีรัมย์' },
-      { value: 'ang-thong', label: 'อ่างทอง' },
-      { value: 'amnat-charoen', label: 'อำนาจเจริญ' },
-    ].find(province => province.value === mappedData.yec_province);
-    
-    const yecProvinceDisplay = yecProvinceField?.label || mappedData.yec_province;
-
-    // Handle profile image - could be URL or base64 data
-    let profileImageBase64: string | undefined;
-    
-    if (typeof frontendData.profileImage === 'string' && frontendData.profileImage.startsWith('http')) {
-      // New format: URL from Supabase
-      try {
-        console.log('Fetching profile image from URL:', frontendData.profileImage);
-        const response = await fetch(frontendData.profileImage);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.startsWith('image/')) {
-          throw new Error(`Invalid content type: ${contentType}`);
-        }
-        
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        
-        // Validate buffer size (max 5MB)
-        if (buffer.length > 5 * 1024 * 1024) {
-          throw new Error('Image file too large (max 5MB)');
-        }
-        
-        profileImageBase64 = `data:${contentType};base64,${buffer.toString('base64')}`;
-        console.log('Profile image fetched successfully from URL, size:', buffer.length, 'bytes');
-      } catch (error) {
-        console.error('Error fetching profile image from URL:', error);
-        // Continue without profile image if fetch fails
-      }
-    } else if (frontendData.profileImage?.dataUrl) {
-      // Old format: base64 data (backward compatibility)
-      profileImageBase64 = frontendData.profileImage.dataUrl;
-      console.log('Using profile image from base64 data (backward compatibility)');
-    }
-
-    const fullName = `${mappedData.title} ${mappedData.first_name} ${mappedData.last_name}`;
-    
-    const badgeData = {
-      registrationId: mappedData.registration_id,
-      fullName,
-      nickname: mappedData.nickname,
-      phone: mappedData.phone,
-      yecProvince: yecProvinceDisplay,
-      businessType: mappedData.business_type,
-      businessTypeOther: mappedData.business_type_other,
-      profileImageBase64
-    };
-
-    // Generate badge
-    const badgeBuffer = await generateYECBadge(badgeData);
-    console.log('Badge generated successfully');
-
-    // Upload badge to Supabase
-    const filename = `${mappedData.registration_id}.png`;
-    const badgeUrl = await uploadBadgeToSupabase(badgeBuffer, filename);
-    console.log('Badge uploaded to Supabase:', badgeUrl);
-    
-    return badgeUrl;
-  } catch (error) {
-    console.error('Error in badge generation/upload:', error);
-    throw error;
-  }
-};
-
 export async function POST(req: Request) {
+  let body: any;
+  
   try {
     // Log environment variables for debugging (without exposing sensitive data)
     console.log('Environment check:', {
@@ -280,101 +129,155 @@ export async function POST(req: Request) {
       hasResendKey: !!process.env.RESEND_API_KEY,
     });
     
-    const body = await req.json();
+    body = await req.json();
 
     // Validate data against database constraints
     const validationErrors = validateRegistrationData(body);
     
     if (validationErrors.length > 0) {
       console.error('Validation errors:', validationErrors);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Validation failed',
-          message: validationErrors.join(', '), // Frontend expects 'message' field
-          details: validationErrors 
-        }), 
+      return NextResponse.json(
         { 
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
+          success: false,
+          code: 'VALIDATION_ERROR',
+          message: validationErrors.join(', ')
+        }, 
+        { status: 400 }
       );
     }
 
     // Map frontend data to database format
     const mappedData = mapFrontendToDatabase(body);
 
-    // Generate badge and upload to Supabase
-    let badgeUrl: string | null = null;
-    try {
-      console.log('Starting badge generation process...');
-      badgeUrl = await generateAndUploadBadge(mappedData, body);
-      console.log('Badge generation completed successfully:', badgeUrl);
-    } catch (error) {
-      console.error('Badge generation failed:', error);
-      // Continue without badge if generation fails
-      badgeUrl = null;
-    }
+    // Debug log before duplicate check
+    console.info('register:incoming', { 
+      email: body.email, 
+      firstName: body.firstName, 
+      lastName: body.lastName 
+    });
 
-    // Construct insert payload with default status
+    // --- duplicate-by-name guard (BEGIN) ---
+    const firstNorm = normalizeName(body.firstName);
+    const lastNorm  = normalizeName(body.lastName);
+
+    const supabase = getSupabaseServiceClient();
+
+    // Case-insensitive equality via ILIKE (no wildcards) + AND
+    const { data: dupRows, error: dupErr } = await supabase
+      .from('registrations')
+      .select('id')
+      .ilike('first_name', firstNorm)
+      .ilike('last_name', lastNorm)
+      .limit(1);
+
+    if (dupErr) {
+      console.error('duplicate_by_name_query_error', dupErr);
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'DATABASE_ERROR',
+          message: 'เกิดข้อผิดพลาดในการตรวจสอบข้อมูล กรุณาลองใหม่อีกครั้ง'
+        },
+        { status: 500 }
+      );
+    } else if (dupRows && dupRows.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'DUPLICATE_NAME_MATCH',
+          message: 'มีข้อมูลอยู่ในระบบแล้ว โปรดติดต่อเจ้าหน้าที่ที่เบอร์ 080-224-0008 เพื่อยืนยันความถูกต้อง',
+          contact: '080-224-0008',
+        },
+        { status: 200 }
+      );
+    }
+    // --- duplicate-by-name guard (END) ---
+
+    // Get current timestamp for submission
+    const submittedAt = getThailandTimeISOString();
+
+    // Construct insert payload with pending status
     const insertPayload = {
       ...mappedData,
-      badge_url: badgeUrl,
+      badge_url: null, // No badge generated at this stage
       email_sent: false,
-      status: 'pending', // Add default status
+      status: 'waiting_for_review', // Set status to waiting_for_review
       ip_address: req.headers.get('x-forwarded-for') || null,
       user_agent: req.headers.get('user-agent') || null,
       form_data: body,
-      created_at: getThailandTimeISOString(), // Use Thailand timezone
+      created_at: submittedAt, // Use Thailand timezone
     };
 
-    const supabase = getSupabaseServiceClient();
-    const { error } = await supabase.from('registrations').insert([insertPayload]);
+    // Add console.info just before the insert
+    console.info('register:insert_attempt', { email: mappedData.email, phone: mappedData.phone });
+
+    const { error, data } = await supabase.from('registrations').insert([insertPayload]);
 
     if (error) {
       console.error('Database error:', error);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Database insertion failed',
-          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง', // Frontend expects 'message' field
-          details: error.message 
-        }), 
-        { 
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
+      
+      // Check for unique constraint violations
+      const pg = error as any;
+      const isUnique = pg?.code === '23505'
+        || /unique/i.test(pg?.message || '')
+        || /_email_key|_phone_key/i.test(pg?.constraint || '');
+
+      if (isUnique) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'DUPLICATE_EMAIL_OR_PHONE',
+            message:
+              'อีเมลหรือเบอร์โทรนี้ถูกใช้ไปแล้วสำหรับการสมัคร กรุณาใช้ข้อมูลอื่น หรือโทรหาเจ้าหน้าที่เพื่อยืนยันความถูกต้อง',
+            contact: '080-224-0008',
+          },
+          { status: 200 }
+        );
+      }
+
+      // Any other DB error -> structured JSON 500
+      console.error('register_insert_error_detail', {
+        code: (error as any)?.code,
+        message: (error as any)?.message,
+        detail: (error as any)?.detail,
+        hint: (error as any)?.hint,
+        constraint: (error as any)?.constraint,
+        schema: (error as any)?.schema,
+        table: (error as any)?.table,
+        column: (error as any)?.column,
+      });
+      console.error('register_insert_error', { message: pg?.message, code: pg?.code, detail: pg?.detail });
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'DATABASE_ERROR',
+          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง',
+        },
+        { status: 500 }
       );
     }
 
-    // Send confirmation email with badge
+    // Debug log after successful insert
+    const insertedId = (data as any)?.[0]?.id || mappedData.registration_id;
+    console.info('register:inserted', { id: insertedId });
+
+    // Send pending review email
     let emailSent = false;
-    if (badgeUrl) {
-      try {
-        const fullName = `${mappedData.title} ${mappedData.first_name} ${mappedData.last_name}`;
-        console.log('Sending badge email with URL:', badgeUrl);
-        console.log('Email details:', {
-          to: mappedData.email,
-          name: fullName,
-          registrationId: mappedData.registration_id
-        });
-        
-        emailSent = await sendBadgeEmail(
-          mappedData.email,
-          fullName,
-          badgeUrl,
-          mappedData.registration_id
-        );
-        
-        console.log('Email sending result:', emailSent);
-      } catch (emailError) {
-        console.error('Error sending confirmation email:', emailError);
-        emailSent = false;
-      }
-    } else {
-      console.log('No badge URL available, skipping email sending');
+    try {
+      // Debug log before sending email
+      console.info('register:email_pending', { to: mappedData.email });
+      
+      emailSent = await sendPendingReviewEmail({
+        to: mappedData.email,
+        firstName: mappedData.first_name,
+        lastName: mappedData.last_name,
+        submittedAt: submittedAt
+      });
+      
+      console.log('Pending review email sending result:', emailSent);
+    } catch (emailError) {
+      console.error('Error sending pending review email:', emailError);
+      emailSent = false;
     }
 
     // Update email_sent status in database
@@ -389,34 +292,20 @@ export async function POST(req: Request) {
         .eq('registration_id', mappedData.registration_id);
     }
 
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: 'Registration submitted successfully',
-        registrationId: mappedData.registration_id, // Frontend expects 'registrationId'
-        badgeUrl: badgeUrl, // Frontend expects 'badgeUrl'
-        emailSent: emailSent // Frontend expects 'emailSent'
-      }), 
-      { 
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-  } catch (err) {
-    console.error('Server error:', err);
-    return new Response(
-      JSON.stringify({ 
-        error: 'Server error',
-        message: 'เกิดข้อผิดพลาดในการประมวลผลข้อมูล กรุณาลองใหม่อีกครั้ง'
-      }), 
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
+    return NextResponse.json({ 
+      success: true,
+      message: 'Registration submitted successfully and is pending admin review',
+      registrationId: mappedData.registration_id, // Frontend expects 'registrationId'
+      badgeUrl: null, // No badge URL at this stage
+      emailSent: emailSent, // Frontend expects 'emailSent'
+      status: 'waiting_for_review' // Include status in response
+    }, { status: 200 });
+
+  } catch (e) {
+    console.error('register_api_uncaught', e);
+    return NextResponse.json(
+      { success: false, code: 'INTERNAL_ERROR', message: 'Server error. Please try again.' },
+      { status: 500 }
     );
   }
 }
