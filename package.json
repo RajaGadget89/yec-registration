@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run --config vitest.test.config.ts",
+    "test:watch": "vitest --config vitest.test.config.ts",
+    "test:coverage": "vitest --coverage --config vitest.test.config.ts",
+    "test:phase1": "vitest run tests/basic.spec.ts tests/api/register.submit-flow.spec.ts tests/api/register.duplicates-by-name.spec.ts tests/api/admin.approval-flow.spec.ts --config vitest.test.config.ts",
+    "test:api": "vitest run \"tests/api/**/*.spec.ts\" --config vitest.test.config.ts",
+    "test:all": "vitest run --config vitest.test.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.53.0",
@@ -28,11 +34,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^9.0.8",
+    "@vitest/coverage-v8": "^1.6.1",
     "bcryptjs": "^3.0.2",
     "eslint": "^9",
     "eslint-config-next": "15.4.5",
     "jsonwebtoken": "^9.0.2",
+    "node-mocks-http": "^1.17.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^1.6.1"
   }
 }
