@@ -3,20 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 8080",
+    "dev:e2e": "next dev -p 8080",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run --config vitest.test.config.ts",
-    "test:watch": "vitest --config vitest.test.config.ts",
-    "test:coverage": "vitest --coverage --config vitest.test.config.ts",
-    "test:phase1": "vitest run tests/basic.spec.ts tests/api/register.submit-flow.spec.ts tests/api/register.duplicates-by-name.spec.ts tests/api/admin.approval-flow.spec.ts --config vitest.test.config.ts",
-    "test:api": "vitest run \"tests/api/**/*.spec.ts\" --config vitest.test.config.ts",
-    "test:all": "vitest run --config vitest.test.config.ts"
+    "e2e:install": "npx playwright install",
+    "e2e": "playwright test"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.53.0",
     "canvas": "^3.1.2",
+    "lucide-react": "^0.539.0",
     "next": "15.4.5",
     "qrcode": "^1.5.3",
     "react": "19.1.0",
@@ -26,6 +25,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.40.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
@@ -34,14 +34,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^9.0.8",
-    "@vitest/coverage-v8": "^1.6.1",
     "bcryptjs": "^3.0.2",
+    "dotenv": "^16.6.1",
     "eslint": "^9",
     "eslint-config-next": "15.4.5",
     "jsonwebtoken": "^9.0.2",
-    "node-mocks-http": "^1.17.2",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "vitest": "^1.6.1"
+    "typescript": "^5"
   }
 }
