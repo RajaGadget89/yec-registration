@@ -3,27 +3,35 @@ name: Deploy to Vercel
 on:
   push:
     branches:
-      - main               # 🟣 Production branch: deploy ขึ้น production
-      - develop            # 🟢 Development branch: รวม feature หลายตัวก่อน release
-      - 'feature/**'       # ✨ Feature branches: เช่น feature/registration-form
-      - 'fix/**'           # 🐞 Bugfix branches: เช่น fix/login-error
-      - 'bugfix/**'        # 🛠 Alternative bugfix naming
-      - 'hotfix/**'        # 🔥 Critical fixes
-      - 'release/**'       # 📦 Release branches: เตรียม merge เข้าสู่ main
-      - 'experiment/**'    # 🧪 ทดลองฟีเจอร์ใหม่
-      - 'cli/**'           # 🤖 CI/CD testing
-      - 'test/**'          # 🧪 UI หรือ devtools testing
+      - main
+      - develop
+      - 'feature/**'
+      - 'fix/**'
+      - 'hotfix/**'
+      - 'release/**'
+      - 'experiment/**'
+      - 'ci/**'
+      - 'devtools/**'
   pull_request:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    # 👇 ให้ทุก step มองเห็น env เหมือนใน Vercel
+    env:
+      NODE_ENV: production
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+
     steps:
-      - name: 🧾 Checkout Code
+      - name: 🧱 Checkout Code
         uses: actions/checkout@v3
 
-      - name: 🟢 Setup Node.js
+      - name: 🔧 Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -31,7 +39,9 @@ jobs:
       - name: 📦 Install Dependencies
         run: npm install
 
-      - name: 🛠 Build Project
+      # 👇 สั่ง build (ถ้าเป็น PR จาก fork จะข้าม เพราะไม่มี secrets)
+      - name: 🏗️ Build Project
+        if: ${{ github.event_name == 'push' || !github.event.pull_request.head.repo.fork }}
         run: npm run build
 
       - name: 🚀 Deploy to Vercel
@@ -41,17 +51,5 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: ./
-          vercel-args: '--prod' # deploy production ถ้า push ไป main
+          vercel-args: '--prod'
 
-      # ✅ ใส่ ENV จาก Secrets ตอน build
-      # ถ้าเป็น PR จาก fork จะข้าม (GitHub ไม่จ่าย secrets ให้ fork)
-      - name: 🏗️ Build Project
-        if: ${{ github.event_name == 'push' || !github.event.pull_request.head.repo.fork }}
-        run: npm run build
-        env:
-          NODE_ENV: production
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
