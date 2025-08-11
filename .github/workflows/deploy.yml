@@ -43,3 +43,15 @@ jobs:
           working-directory: ./
           vercel-args: '--prod' # deploy production ถ้า push ไป main
 
+      # ✅ ใส่ ENV จาก Secrets ตอน build
+      # ถ้าเป็น PR จาก fork จะข้าม (GitHub ไม่จ่าย secrets ให้ fork)
+      - name: 🏗️ Build Project
+        if: ${{ github.event_name == 'push' || !github.event.pull_request.head.repo.fork }}
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
