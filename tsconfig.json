@@ -13,15 +13,22 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./*"]
-    }
+    "baseUrl": ".",
+    "types": ["node"],
+    "paths": { "@/*": ["./*"] },
+    "plugins": [{ "name": "next" }]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    ".next",
+    "tests",
+    "coverage",
+    "**/__tests__/**",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "vitest.config.*",
+    "playwright.config.*"
+  ]
 }
+
