@@ -48,7 +48,15 @@ function getAppUrl(): string {
   if (process.env.NODE_ENV === 'development') {
     return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8080';
   }
-  return process.env.NEXT_PUBLIC_APP_URL || '';
+  
+  // For production, require the environment variable
+  const productionUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!productionUrl) {
+    console.warn('NEXT_PUBLIC_APP_URL not set in production - using fallback');
+    return '';
+  }
+  
+  return productionUrl;
 }
 
 export const config: AppConfig = {
