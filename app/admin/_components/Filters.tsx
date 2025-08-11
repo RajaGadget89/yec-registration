@@ -2,11 +2,10 @@
 
 import { useState } from 'react';
 import { Search, Filter, Calendar, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 interface FiltersProps {
   provinces: string[];
-  onFiltersChange: (filters: FilterState) => void;
 }
 
 export interface FilterState {
@@ -17,8 +16,7 @@ export interface FilterState {
   dateTo: string;
 }
 
-export default function Filters({ provinces, onFiltersChange }: FiltersProps) {
-  const router = useRouter();
+export default function Filters({ provinces }: FiltersProps) {
   const searchParams = useSearchParams();
   
   const [filters, setFilters] = useState<FilterState>({
@@ -30,6 +28,7 @@ export default function Filters({ provinces, onFiltersChange }: FiltersProps) {
   });
 
   const [isExpanded, setIsExpanded] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const statusOptions = [
     { value: 'pending', label: 'Pending', color: 'bg-gray-500' },
@@ -61,9 +60,9 @@ export default function Filters({ provinces, onFiltersChange }: FiltersProps) {
     }
 
     const newUrl = params.toString() ? `?${params.toString()}` : '/admin';
-    router.push(newUrl, { scroll: false });
-
-    onFiltersChange(updatedFilters);
+    
+    // Force page refresh to trigger server-side data refetch
+    window.location.href = newUrl;
   };
 
   const clearFilters = () => {
@@ -75,8 +74,9 @@ export default function Filters({ provinces, onFiltersChange }: FiltersProps) {
       dateTo: '',
     };
     setFilters(clearedFilters);
-    router.push('/admin', { scroll: false });
-    onFiltersChange(clearedFilters);
+    
+    // Force page refresh to trigger server-side data refetch
+    window.location.href = '/admin';
   };
 
   const hasActiveFilters = filters.status.length > 0 || 
@@ -131,7 +131,31 @@ export default function Filters({ provinces, onFiltersChange }: FiltersProps) {
           type="text"
           placeholder="Search by ID, name, email, or company..."
           value={filters.search}
-          onChange={(e) => updateFilters({ search: e.target.value })}
+          onChange={(e) => {
+            const newSearchValue = e.target.value;
+            setFilters(prev => ({ ...prev, search: newSearchValue }));
+            
+            // Clear previous timeout
+            if (searchTimeout) {
+              clearTimeout(searchTimeout);
+            }
+            
+            // Set new timeout for debounced search
+            const timeoutId = setTimeout(() => {
+              updateFilters({ search: newSearchValue });
+            }, 500);
+            
+            setSearchTimeout(timeoutId);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              // Clear timeout and search immediately on Enter
+              if (searchTimeout) {
+                clearTimeout(searchTimeout);
+              }
+              updateFilters({ search: e.currentTarget.value });
+            }
+          }}
           className="w-full pl-12 pr-4 py-3 bg-white/70 dark:bg-gray-700/70 border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-2 focus:ring-yec-primary/50 focus:border-yec-primary/50 transition-all duration-300 backdrop-blur-sm drop-shadow-sm"
         />
       </div>

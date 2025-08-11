@@ -92,10 +92,34 @@ export async function getRegistrations(
     throw new Error(`Failed to fetch registrations: ${error.message}`);
   }
 
-  // Get status counts
-  const { data: statusCountsData, error: statusError } = await supabase
-    .from('registrations')
-    .select('status');
+  // Get status counts with the same filters applied
+  let statusCountsQuery = supabase.from('registrations').select('status');
+
+  // Apply the same filters to status counts query
+  if (filters.status.length > 0) {
+    statusCountsQuery = statusCountsQuery.in('status', filters.status);
+  }
+
+  if (filters.provinces.length > 0) {
+    statusCountsQuery = statusCountsQuery.in('yec_province', filters.provinces);
+  }
+
+  if (filters.search) {
+    const searchTerm = `%${filters.search}%`;
+    statusCountsQuery = statusCountsQuery.or(
+      `registration_id.ilike.${searchTerm},first_name.ilike.${searchTerm},last_name.ilike.${searchTerm},email.ilike.${searchTerm},company_name.ilike.${searchTerm}`
+    );
+  }
+
+  if (filters.dateFrom) {
+    statusCountsQuery = statusCountsQuery.gte('created_at', filters.dateFrom);
+  }
+
+  if (filters.dateTo) {
+    statusCountsQuery = statusCountsQuery.lte('created_at', filters.dateTo + 'T23:59:59');
+  }
+
+  const { data: statusCountsData, error: statusError } = await statusCountsQuery;
 
   if (statusError) {
     console.error('Error fetching status counts:', statusError);

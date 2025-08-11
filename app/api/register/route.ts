@@ -3,6 +3,7 @@ import { sendBadgeEmail } from '../../lib/emailService';
 import { uploadBadgeToSupabase } from '../../lib/uploadBadgeToSupabase';
 import { getSupabaseServiceClient } from '../../lib/supabase-server';
 import { getThailandTimeISOString } from '../../lib/timezoneUtils';
+import { EventService } from '../../lib/events/eventService';
 
 // Field mapping from frontend to database
 const mapFrontendToDatabase = (frontendData: any) => {
@@ -349,7 +350,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Send confirmation email with badge
+    // Send confirmation email with badge (legacy flow - kept for backward compatibility)
     let emailSent = false;
     if (badgeUrl) {
       try {
@@ -387,6 +388,24 @@ export async function POST(req: Request) {
           updated_at: getThailandTimeISOString() // Explicitly set updated_at to Thailand timezone
         })
         .eq('registration_id', mappedData.registration_id);
+    }
+
+    // Emit registration submitted event for centralized side-effects
+    try {
+      // Fetch the complete registration record for the event
+      const { data: registrationRecord } = await supabase
+        .from('registrations')
+        .select('*')
+        .eq('registration_id', mappedData.registration_id)
+        .single();
+
+      if (registrationRecord) {
+        await EventService.emitRegistrationSubmitted(registrationRecord);
+        console.log('Registration submitted event emitted successfully');
+      }
+    } catch (eventError) {
+      console.error('Error emitting registration submitted event:', eventError);
+      // Don't fail the registration if event emission fails
     }
 
     return new Response(

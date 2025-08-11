@@ -1,111 +1,62 @@
-import { cookies } from 'next/headers';
-import { isAdmin } from './admin-guard';
+// Re-export types and client-safe functions
+export type { AuthenticatedUser, AuthSession } from './auth-utils.server';
+export type { AuthenticatedUser as ClientAuthenticatedUser } from './auth-client';
+
+// Re-export client-safe functions
+export { getSupabaseAuth, getSupabaseBrowserClient, getClientUser } from './auth-client';
+
+// Re-export server functions for API routes and server components
+export {
+  getCurrentUser,
+  getCurrentUserFromRequest,
+  isAuthenticatedAdmin,
+  isAuthenticatedSuperAdmin,
+  isAuthenticated,
+  hasRole,
+  updateLastLogin,
+  upsertAdminUser,
+  serverLogout
+} from './auth-utils.server';
 
 /**
- * Interface for user data
+ * Check if running in production environment
  */
-export interface User {
-  id?: string;
-  email?: string;
-  created_at?: string;
-  updated_at?: string;
+export function isProd(): boolean {
+  return process.env.NODE_ENV === 'production';
 }
 
 /**
- * Gets the current user from cookies/session
- * This is a simplified approach for the current setup
- * @returns User object or null if not authenticated
+ * Get consistent cookie options for auth cookies
  */
-export async function getCurrentUser(): Promise<User | null> {
-  try {
-    const cookieStore = await cookies();
-    
-    // Check for various possible session cookies
-    const sessionCookie = cookieStore.get('sb-access-token')?.value ||
-                         cookieStore.get('supabase-auth-token')?.value ||
-                         cookieStore.get('auth-token')?.value ||
-                         cookieStore.get('admin-email')?.value ||
-                         cookieStore.get('dev-user-email')?.value;
-    
-    if (!sessionCookie) {
-      return null;
-    }
-    
-    // For now, we'll return a mock user for testing
-    // In a real implementation, you'd decode the JWT or query Supabase
-    return {
-      id: 'test-user-id',
-      email: sessionCookie, // Use the cookie value as email for now
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  } catch (error) {
-    console.error('Error getting current user:', error);
-    return null;
-  }
+export function cookieOptions(): {
+  httpOnly: boolean;
+  secure: boolean;
+  sameSite: 'lax';
+  path: string;
+  maxAge: number;
+} {
+  return {
+    httpOnly: true,
+    secure: isProd(),
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60, // 7 days
+  };
 }
 
 /**
- * Gets the current user from request headers (for API routes)
- * @param request - The request object
- * @returns User object or null if not authenticated
+ * Get app URL consistently from config
  */
-export async function getCurrentUserFromRequest(request: Request): Promise<User | null> {
-  try {
-    const cookieHeader = request.headers.get('cookie') || '';
-    let userEmail: string | null = null;
-
-    // Check for various possible session cookies
-    const cookieMatches = [
-      /sb-access-token=([^;]+)/,
-      /supabase-auth-token=([^;]+)/,
-      /auth-token=([^;]+)/,
-      /admin-email=([^;]+)/,
-      /dev-user-email=([^;]+)/
-    ];
-
-    for (const regex of cookieMatches) {
-      const match = cookieHeader.match(regex);
-      if (match) {
-        userEmail = decodeURIComponent(match[1]);
-        break;
-      }
-    }
-
-    if (!userEmail) {
-      return null;
-    }
-
-    return {
-      id: 'test-user-id',
-      email: userEmail,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  } catch (error) {
-    console.error('Error getting current user from request:', error);
-    return null;
-  }
+export function getAppUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8080';
 }
 
 /**
- * Checks if user is authenticated and is an admin
- * @returns true if user is authenticated and is an admin, false otherwise
+ * Check if email is in admin allowlist
  */
-export async function isAuthenticatedAdmin(): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user || !user.email) {
-    return false;
-  }
+export function isAdmin(email: string): boolean {
+  if (!email) return false;
   
-  return isAdmin(user.email);
-}
-
-/**
- * Checks if user is authenticated (has any valid session)
- * @returns true if user is authenticated, false otherwise
- */
-export async function isAuthenticated(): Promise<boolean> {
-  const user = await getCurrentUser();
-  return user !== null;
+  const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+  return adminEmails.includes(email.toLowerCase());
 }
