@@ -44,6 +44,9 @@ docker-compose.override.yml
 *.tmp
 *.bak
 *.log
+test*
+debug*
+playwright*
 
 # ========================================
 # TypeScript
@@ -68,4 +71,4 @@ backup.sh
 # Documentation
 docs/
 documents/
-
+tmp/

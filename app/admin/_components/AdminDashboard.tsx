@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Download, Activity } from 'lucide-react';
 import SummaryCards from './SummaryCards';
 import Filters, { FilterState } from './Filters';
@@ -28,7 +28,6 @@ export default function AdminDashboard({
   initialStatusCounts,
   initialProvinces,
 }: AdminDashboardProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   
   // Use state to store the data, but update it when props change
@@ -72,7 +71,9 @@ export default function AdminDashboard({
     });
 
     const newUrl = params.toString() ? `?${params.toString()}` : '/admin';
-    router.push(newUrl, { scroll: false });
+    
+    // Force page refresh to trigger server-side data refetch
+    window.location.href = newUrl;
   };
 
   const handlePageChange = (page: number) => {
@@ -83,27 +84,8 @@ export default function AdminDashboard({
     updateURL({ sortColumn: column, sortDirection: direction });
   };
 
-  const handleFiltersChange = (filters: FilterState) => {
-    const params: Record<string, string> = {};
-    
-    if (filters.status.length > 0) {
-      params.status = filters.status.join(',');
-    }
-    if (filters.provinces.length > 0) {
-      params.provinces = filters.provinces.join(',');
-    }
-    if (filters.search) {
-      params.search = filters.search;
-    }
-    if (filters.dateFrom) {
-      params.dateFrom = filters.dateFrom;
-    }
-    if (filters.dateTo) {
-      params.dateTo = filters.dateTo;
-    }
-
-    updateURL({ ...params, page: 1 }); // Reset to page 1 when filters change
-  };
+  // Note: handleFiltersChange is no longer needed since we're using page refreshes
+  // The server-side data fetching will handle filter changes
 
   const handleRowClick = (registration: Registration) => {
     setSelectedRegistration(registration);
@@ -224,7 +206,6 @@ export default function AdminDashboard({
       <div className="relative z-10">
         <Filters
           provinces={provinces}
-          onFiltersChange={handleFiltersChange}
         />
       </div>
 

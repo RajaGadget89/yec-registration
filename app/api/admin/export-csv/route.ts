@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { exportToCSV } from '../../../admin/actions';
-import { getCurrentUser } from '../../../lib/auth-utils';
+import { getCurrentUser } from '../../../lib/auth-utils.server';
 import { isAdmin } from '../../../lib/admin-guard';
 
 export async function GET(request: NextRequest) {

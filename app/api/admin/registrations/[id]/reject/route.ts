@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseServiceClient } from '../../../../../lib/supabase-server';
-import { getCurrentUserFromRequest } from '../../../../../lib/auth-utils';
+import { getCurrentUserFromRequest } from '../../../../../lib/auth-utils.server';
 import { isAdmin } from '../../../../../lib/admin-guard';
-import { sendEmail, sendTelegram, emailTemplates } from '../../../../../lib/notify';
+import { EventService } from '../../../../../lib/events/eventService';
 
 export async function POST(
   request: NextRequest,
@@ -33,61 +33,25 @@ export async function POST(
       );
     }
 
-    // Update status to rejected
-    const { error: updateError } = await supabase
-      .from('registrations')
-      .update({ 
-        status: 'rejected',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
-
-    if (updateError) {
-      console.error('Error updating registration:', updateError);
+    // Emit admin rejected event for centralized side-effects
+    try {
+      if (!user.email) {
+        throw new Error('Admin email is required');
+      }
+      await EventService.emitAdminRejected(registration, user.email);
+      console.log('Admin rejected event emitted successfully');
+    } catch (eventError) {
+      console.error('Error emitting admin rejected event:', eventError);
       return NextResponse.json(
-        { ok: false, error: 'Failed to update registration' },
+        { ok: false, error: 'Failed to process rejection' },
         { status: 500 }
       );
-    }
-
-    // Send email notification
-    const fullName = `${registration.title} ${registration.first_name} ${registration.last_name}`;
-    const { subject, html } = emailTemplates.rejected(fullName, registration.registration_id);
-    
-    let emailSent = false;
-    try {
-      emailSent = await sendEmail(registration.email, subject, html);
-    } catch (emailError) {
-      console.error('Error sending email:', emailError);
-    }
-
-    // Send Telegram notification (optional)
-    try {
-      const telegramMessage = `❌ Registration Rejected\n\nName: ${fullName}\nEmail: ${registration.email}\nRegistration ID: ${registration.registration_id}\nRejected by: ${user.email}`;
-      await sendTelegram(telegramMessage);
-    } catch (telegramError) {
-      console.error('Error sending Telegram notification:', telegramError);
-    }
-
-    // Try to log to admin_audit_logs (optional)
-    try {
-      await supabase.from('admin_audit_logs').insert({
-        admin_email: user.email,
-        action: 'reject',
-        registration_id: registration.registration_id,
-        before: registration,
-        after: { ...registration, status: 'rejected' },
-      });
-    } catch (auditError) {
-      // Silently skip if table doesn't exist
-      console.log('Admin audit logging not available:', auditError);
     }
 
     return NextResponse.json({
       ok: true,
       id: registration.id,
-      status: 'rejected',
-      emailSent
+      status: 'rejected'
     });
 
   } catch (error) {

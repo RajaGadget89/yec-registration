@@ -1,86 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isAdmin, getDevEmailFromCookies } from './app/lib/admin-guard';
 
 /**
  * Middleware to protect admin routes
- * Checks for authentication and admin access based on email allowlist
+ * Checks for admin-email cookie to authorize access
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Only protect admin routes
-  if (!pathname.startsWith('/admin') && !pathname.startsWith('/api/admin')) {
+  // Auth tracing
+  const AUTH_TRACE = process.env.AUTH_TRACE === '1' || process.env.NODE_ENV === 'development';
+  
+  // Exclude diagnostic paths from all auth checks
+  if (pathname.startsWith('/api/diag/')) {
+    if (AUTH_TRACE) {
+      console.log(`[auth-debug] middleware: allowing diagnostic path ${pathname}`);
+    }
+    return NextResponse.next();
+  }
+  
+  if (AUTH_TRACE) {
+    const cookieNames = Array.from(request.cookies.getAll()).map(c => c.name);
+    console.log(`[auth-debug] middleware: path=${pathname}, cookies=[${cookieNames.join(', ')}], origin=${request.headers.get('origin') || 'none'}`);
+  }
+  
+  // Allowlist paths that should bypass admin protection
+  const allowlistPaths = [
+    '/admin/login',
+    '/auth',
+    '/api',
+    '/_next',
+    '/favicon.ico',
+    '/robots.txt',
+    '/sitemap.xml'
+  ];
+  
+  // Check if path should be allowed
+  for (const allowedPath of allowlistPaths) {
+    if (pathname.startsWith(allowedPath)) {
+      if (AUTH_TRACE) {
+        console.log(`[auth-debug] middleware: allowing path (${allowedPath})`);
+      }
+      return NextResponse.next();
+    }
+  }
+  
+  // Check for static assets
+  if (/\.(ico|png|jpg|jpeg|gif|svg|css|js|map|woff|woff2|ttf|eot)$/.test(pathname)) {
+    if (AUTH_TRACE) {
+      console.log(`[auth-debug] middleware: allowing static asset`);
+    }
     return NextResponse.next();
   }
 
-  // Don't protect the 403 page or dev endpoints
-  if (pathname === '/403' || pathname.startsWith('/api/dev/')) {
-    return NextResponse.next();
-  }
+  // Check for admin-email cookie
+  const adminEmail = request.cookies.get('admin-email')?.value;
   
-  // Try to get user email from normal auth flow first
-  let userEmail = request.cookies.get('admin-email')?.value;
-  
-  // If no email found and we're in development, check for dev cookie
-  if (!userEmail && process.env.NODE_ENV !== 'production') {
-    const devEmail = getDevEmailFromCookies(request);
-    userEmail = devEmail || undefined;
-  }
-  
-  // If no email found, redirect to sign-in or show 403
-  if (!userEmail) {
-    // For API routes, return 403 JSON response
-    if (pathname.startsWith('/api/admin')) {
-      return new Response(
-        JSON.stringify({ error: 'forbidden' }),
-        { 
-          status: 403,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
+  if (adminEmail) {
+    // User is authenticated, allow access
+    const response = NextResponse.next();
+    response.headers.set('x-admin-guard', 'ok:admin-email');
+    
+    if (AUTH_TRACE) {
+      console.log(`[auth-debug] middleware: allowing access (admin-email present)`);
     }
     
-    // For admin pages, redirect to 403 page
-    const url = request.nextUrl.clone();
-    url.pathname = '/403';
-    return NextResponse.redirect(url);
+    return response;
+  }
+
+  // User is not authenticated, redirect to login
+  const response = NextResponse.redirect(
+    new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
+    307
+  );
+  response.headers.set('x-admin-guard', 'deny:no-admin-email');
+  
+  if (AUTH_TRACE) {
+    console.log(`[auth-debug] middleware: redirecting to login (no admin-email)`);
   }
   
-  // Check if user is admin
-  if (!isAdmin(userEmail)) {
-    // For API routes, return 403 JSON response
-    if (pathname.startsWith('/api/admin')) {
-      return new Response(
-        JSON.stringify({ error: 'forbidden' }),
-        { 
-          status: 403,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
-    }
-    
-    // For admin pages, redirect to 403 page
-    const url = request.nextUrl.clone();
-    url.pathname = '/403';
-    return NextResponse.redirect(url);
-  }
-  
-  // User is authenticated and is admin, allow access
-  return NextResponse.next();
+  return response;
 }
 
 /**
  * Configure which routes to run middleware on
  */
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
-    '/((?!_next/static|_next/image|favicon.ico|public).*)',
-  ],
+  matcher: ['/admin', '/admin/(.*)'],
 };

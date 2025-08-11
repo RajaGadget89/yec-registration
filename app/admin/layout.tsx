@@ -2,17 +2,21 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BarChart3, Home } from "lucide-react";
 import Footer from "../components/Footer";
+import AdminUserInfoClient from "./_components/AdminUserInfoClient";
+import { getCurrentUser } from "../lib/auth-utils.server";
 
 export const metadata: Metadata = {
   title: "Admin Dashboard - YEC Day Registration",
   description: "Admin dashboard for managing YEC Day registrations",
 };
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const user = await getCurrentUser();
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-yec-primary via-blue-600 to-blue-500 relative overflow-hidden">
       {/* Light overlay for better readability */}
@@ -23,7 +27,7 @@ export default function AdminLayout({
         {/* Top right light */}
         <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-blue-300/30 to-yec-accent/20 rounded-full blur-3xl"></div>
         {/* Bottom left light */}
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-yec-highlight/30 to-blue-300/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-br from-yec-highlight/30 to-blue-300/20 rounded-full blur-3xl"></div>
         {/* Center light */}
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-gradient-to-br from-blue-200/10 to-blue-300/10 rounded-full blur-3xl"></div>
         {/* Additional light elements */}
@@ -61,12 +65,9 @@ export default function AdminLayout({
               <span className="text-gray-500 dark:text-gray-400 font-medium">Dashboard</span>
             </div>
             
-            {/* Admin Status Indicator */}
+            {/* Admin User Info and Actions */}
             <div className="flex items-center space-x-3">
-              <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-yec-primary/10 to-yec-accent/10 border border-yec-primary/20 backdrop-blur-sm">
-                <div className="w-2 h-2 rounded-full bg-yec-accent animate-pulse"></div>
-                <span className="text-sm font-medium text-yec-primary">Admin Mode</span>
-              </div>
+              <AdminUserInfoClient user={user} />
             </div>
           </div>
         </div>
