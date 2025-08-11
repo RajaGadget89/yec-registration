@@ -5,6 +5,9 @@ import Footer from "../components/Footer";
 import AdminUserInfoClient from "./_components/AdminUserInfoClient";
 import { getCurrentUser } from "../lib/auth-utils.server";
 
+// Force dynamic rendering for admin routes that use cookies
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: "Admin Dashboard - YEC Day Registration",
   description: "Admin dashboard for managing YEC Day registrations",
