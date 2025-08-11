@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { Lock, Mail, AlertCircle, CheckCircle } from 'lucide-react';
 import { getSupabaseAuth } from '../../lib/auth-client';
 
+// Force dynamic rendering for login page
+export const dynamic = 'force-dynamic';
+
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
