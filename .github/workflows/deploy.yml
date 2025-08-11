@@ -18,7 +18,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    # ให้ทุก step เห็น ENV ที่ต้องใช้ (ไม่ตั้ง NODE_ENV ที่นี่)
+    # ENV ให้ทุก step มองเห็น (เหมือนใน Vercel)
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
@@ -35,7 +35,16 @@ jobs:
         with:
           node-version: 18
 
-      # ลง devDependencies ให้ครบ (กัน error typescript)
+      # ✅ จำเป็นสำหรับแพ็กเกจ canvas (แก้ error pixman/cairo)
+      - name: 🧰 Install system deps for canvas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
+            libpixman-1-dev
+
+      # ลง devDependencies ให้ครบ
       - name: 📦 Install Dependencies
         run: npm ci
         env:
