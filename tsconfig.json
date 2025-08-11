@@ -15,12 +15,8 @@
     "incremental": true,
     "baseUrl": ".",
     "types": ["node"],
-    "plugins": [
-      { "name": "next" }
-    ],
-    "paths": {
-      "@/*": ["./*"]
-    }
+    "paths": { "@/*": ["./*"] },
+    "plugins": [{ "name": "next" }]
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": [
@@ -33,4 +29,6 @@
     "**/*.spec.*",
     "vitest.config.*",
     "playwright.config.*"
+  ]
+}
 
