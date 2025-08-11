@@ -18,9 +18,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    # 👇 ให้ทุก step มองเห็น env เหมือนใน Vercel
+    # ให้ทุก step เห็น ENV ที่ต้องใช้ (ไม่ตั้ง NODE_ENV ที่นี่)
     env:
-      NODE_ENV: production
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -36,15 +35,20 @@ jobs:
         with:
           node-version: 18
 
+      # ลง devDependencies ให้ครบ (กัน error typescript)
       - name: 📦 Install Dependencies
-        run: npm install
+        run: npm ci
+        env:
+          NODE_ENV: development
+          NPM_CONFIG_PRODUCTION: "false"
 
-      # 👇 สั่ง build (ถ้าเป็น PR จาก fork จะข้าม เพราะไม่มี secrets)
+      # ถ้าเป็น PR จาก fork (ไม่ได้รับ secrets) จะข้าม build
       - name: 🏗️ Build Project
         if: ${{ github.event_name == 'push' || !github.event.pull_request.head.repo.fork }}
         run: npm run build
 
       - name: 🚀 Deploy to Vercel
+        if: ${{ github.event_name == 'push' }}
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
