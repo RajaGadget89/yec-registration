@@ -16,14 +16,21 @@
     "baseUrl": ".",
     "types": ["node"],
     "plugins": [
-      {
-        "name": "next"
-      }
+      { "name": "next" }
     ],
     "paths": {
       "@/*": ["./*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", ".next", "tests"]
-}
+  "exclude": [
+    "node_modules",
+    ".next",
+    "tests",
+    "coverage",
+    "**/__tests__/**",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "vitest.config.*",
+    "playwright.config.*"
+
