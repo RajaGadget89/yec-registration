@@ -7,6 +7,11 @@ export interface Database {
         Insert: RegistrationInsert;
         Update: RegistrationUpdate;
       };
+      admin_users: {
+        Row: AdminUser;
+        Insert: AdminUserInsert;
+        Update: AdminUserUpdate;
+      };
     };
     Views: {
       [key: string]: any;
@@ -119,4 +124,35 @@ export interface RegistrationUpdate {
   form_data?: any;
   created_at?: string;
   updated_at?: string;
+}
+
+// Admin user table types
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: 'admin' | 'super_admin';
+  created_at: string;
+  updated_at: string;
+  last_login_at: string | null;
+  is_active: boolean;
+}
+
+export interface AdminUserInsert {
+  id: string;
+  email: string;
+  role: 'admin' | 'super_admin';
+  created_at?: string;
+  updated_at?: string;
+  last_login_at?: string | null;
+  is_active?: boolean;
+}
+
+export interface AdminUserUpdate {
+  id?: string;
+  email?: string;
+  role?: 'admin' | 'super_admin';
+  created_at?: string;
+  updated_at?: string;
+  last_login_at?: string | null;
+  is_active?: boolean;
 } 

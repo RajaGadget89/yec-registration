@@ -49,14 +49,9 @@ export default function ResultsTable({
     );
   };
 
-  const columns = [
-    { key: 'status', label: 'Status', sortable: true },
-    { key: 'name', label: 'Name', sortable: true },
-    { key: 'yec_province', label: 'Province', sortable: true },
-    { key: 'created_at', label: 'Created At', sortable: true },
-    { key: 'email', label: 'Email', sortable: false },
-    { key: 'phone', label: 'Phone', sortable: false },
-  ];
+  // Column definitions for reference (used in table structure)
+  // Note: columns array is defined for documentation purposes
+  // but not currently used in the component logic
 
   const pageNumbers = Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
     const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
