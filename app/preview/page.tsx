@@ -16,6 +16,17 @@ export default function PreviewPage() {
   const [pdpaConsent, setPdpaConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modal, setModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    actions: Array<{
+      label: string;
+      href?: string;
+      onClick?: () => void;
+      primary?: boolean;
+    }>;
+  } | null>(null);
 
   // Load form data from localStorage on component mount
   useEffect(() => {
@@ -88,6 +99,60 @@ export default function PreviewPage() {
     
     const option = field.options.find(opt => opt.value === value);
     return option?.label || value;
+  };
+
+  // Helper function to focus on name fields (navigates to edit mode)
+  const focusNameFields = () => {
+    if (formData) {
+      try {
+        // Store edit data in sessionStorage
+        sessionStorage.setItem('yecEditData', JSON.stringify(formData));
+        
+        // Clear any existing localStorage data to prevent conflicts
+        localStorage.removeItem('yecRegistrationData');
+        
+        // Navigate to edit mode and focus on firstName field
+        router.push('/?edit=true#firstName');
+      } catch (err) {
+        console.error('Error navigating to edit mode:', err);
+        router.push('/?edit=true');
+      }
+    } else {
+      router.push('/');
+    }
+  };
+
+  // Helper function to focus on contact fields (email/phone)
+  const focusContactFields = () => {
+    if (formData) {
+      try {
+        // Store edit data in sessionStorage
+        sessionStorage.setItem('yecEditData', JSON.stringify(formData));
+        
+        // Clear any existing localStorage data to prevent conflicts
+        localStorage.removeItem('yecRegistrationData');
+        
+        // Navigate to edit mode and focus on email field
+        router.push('/?edit=true#email');
+        
+        // Fallback: if navigation doesn't work, try to focus directly
+        setTimeout(() => {
+          const emailField = document.getElementById('email');
+          const phoneField = document.getElementById('phone');
+          
+          if (emailField) {
+            emailField.focus();
+          } else if (phoneField) {
+            phoneField.focus();
+          }
+        }, 100);
+      } catch (err) {
+        console.error('Error navigating to edit mode:', err);
+        router.push('/?edit=true');
+      }
+    } else {
+      router.push('/');
+    }
   };
 
   // Handle edit button click
@@ -166,51 +231,139 @@ export default function PreviewPage() {
 
       console.log('API response status:', response.status); // Debug log
 
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Registration successful, result:', result); // Debug log
-        
-        // Clear localStorage after successful submission
-        localStorage.removeItem('yecRegistrationData');
-        
-        // Add fade transition effect
-        const mainElement = document.querySelector('main');
-        if (mainElement) {
-          mainElement.style.transition = 'opacity 0.5s ease-out';
-          mainElement.style.opacity = '0';
-        }
-        
-        // Navigate to success page after fade with badge URL and email status if available
-        setTimeout(() => {
-          let successUrl = `/success?id=${result.registrationId}`;
-          
-          if (result.badgeUrl) {
-            successUrl += `&badgeUrl=${encodeURIComponent(result.badgeUrl)}`;
-          }
-          
-          if (result.emailSent !== undefined) {
-            successUrl += `&email=${result.emailSent}`;
-          }
-          
-          router.push(successUrl);
-        }, 500);
-      } else {
-        const errorData = await response.json();
-        console.error('API error response:', errorData); // Debug log
-        
-        // Provide more detailed error information
-        let errorMessage = errorData.message || 'เกิดข้อผิดพลาดในการส่งข้อมูล';
-        
-        // Add validation details if available
-        if (errorData.details && Array.isArray(errorData.details)) {
-          errorMessage += `\n\nรายละเอียด:\n${errorData.details.join('\n')}`;
-        }
-        
-        throw new Error(errorMessage);
+      const raw = await response.text();           // get text first
+      let data: any = null;
+      try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+
+      if (!response.ok) {
+        // Non-200 but we now expect JSON; still handle if it's empty
+        const msg =
+          (data && data.message) ||
+          (raw && raw.trim()) ||
+          `Request failed (${response.status})`;
+
+        // Show user-friendly modal (no throw)
+        setModal({
+          isOpen: true,
+          title: 'เกิดข้อผิดพลาด',
+          message: msg,
+          actions: [
+            {
+              label: 'ตกลง',
+              onClick: () => setModal(null)
+            }
+          ]
+        });
+        setIsSubmitting(false);
+        return;
       }
+
+      // Business errors that come with 200 + success:false
+      if (data && data.success === false) {
+        if (data.code === 'DUPLICATE_NAME_MATCH') {
+          setModal({
+            isOpen: true,
+            title: 'พบข้อมูลผู้สมัคร',
+            message: `${data.message}${data.contact ? ` (${data.contact})` : ''}`,
+            actions: [
+              {
+                label: 'โทรหาเจ้าหน้าที่',
+                href: `tel:${data.contact || '0802240008'}`,
+                primary: true
+              },
+              {
+                label: 'แก้ไขชื่อ–นามสกุล',
+                onClick: () => {
+                  setModal(null);
+                  focusNameFields();
+                }
+              }
+            ]
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (data.code === 'DUPLICATE_EMAIL_OR_PHONE') {
+          setModal({
+            isOpen: true,
+            title: 'พบข้อมูลซ้ำ',
+            message: `${data.message}${data.contact ? ` (${data.contact})` : ''}`,
+            actions: [
+              {
+                label: 'โทรหาเจ้าหน้าที่',
+                href: `tel:${data.contact || '0802240008'}`,
+                primary: true
+              },
+              {
+                label: 'เปลี่ยนอีเมล/เบอร์โทร',
+                onClick: () => {
+                  setModal(null);
+                  focusContactFields();
+                }
+              }
+            ]
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Unknown business error -> friendly modal
+        setModal({
+          isOpen: true,
+          title: 'เกิดข้อผิดพลาด',
+          message: data.message || 'Operation failed',
+          actions: [
+            {
+              label: 'ตกลง',
+              onClick: () => setModal(null)
+            }
+          ]
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Success path
+      console.log('Registration successful, result:', data); // Debug log
+      
+      // Clear localStorage after successful submission
+      localStorage.removeItem('yecRegistrationData');
+      
+      // Add fade transition effect
+      const mainElement = document.querySelector('main');
+      if (mainElement) {
+        mainElement.style.transition = 'opacity 0.5s ease-out';
+        mainElement.style.opacity = '0';
+      }
+      
+      // Navigate to success page after fade with badge URL and email status if available
+      setTimeout(() => {
+        let successUrl = `/success?id=${data.registrationId}`;
+        
+        if (data.badgeUrl) {
+          successUrl += `&badgeUrl=${encodeURIComponent(data.badgeUrl)}`;
+        }
+        
+        if (data.emailSent !== undefined) {
+          successUrl += `&email=${data.emailSent}`;
+        }
+        
+        router.push(successUrl);
+      }, 500);
     } catch (err) {
       console.error('Submission error:', err);
-      setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการส่งข้อมูล');
+      setModal({
+        isOpen: true,
+        title: 'เกิดข้อผิดพลาด',
+        message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการส่งข้อมูล',
+        actions: [
+          {
+            label: 'ตกลง',
+            onClick: () => setModal(null)
+          }
+        ]
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -838,6 +991,50 @@ export default function PreviewPage() {
       </main>
 
       <Footer />
+
+      {/* Duplicate Name Match Modal */}
+      {modal && (
+        <Modal
+          isOpen={modal.isOpen}
+          onClose={() => setModal(null)}
+          title={modal.title}
+          className="max-w-md"
+        >
+          <div className="space-y-4">
+            <p className="text-gray-700 dark:text-gray-300">{modal.message}</p>
+            
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              {modal.actions.map((action, index) => (
+                <div key={index} className="flex-1">
+                  {action.href ? (
+                    <a
+                      href={action.href}
+                      className={`block w-full px-4 py-2 text-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 min-h-[44px] flex items-center justify-center ${
+                        action.primary
+                          ? 'bg-yec-primary hover:bg-yec-accent text-white focus:ring-yec-primary'
+                          : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 focus:ring-gray-500'
+                      }`}
+                    >
+                      {action.label}
+                    </a>
+                  ) : (
+                    <button
+                      onClick={action.onClick}
+                      className={`block w-full px-4 py-2 text-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 min-h-[44px] ${
+                        action.primary
+                          ? 'bg-yec-primary hover:bg-yec-accent text-white focus:ring-yec-primary'
+                          : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 focus:ring-gray-500'
+                      }`}
+                    >
+                      {action.label}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 } 
