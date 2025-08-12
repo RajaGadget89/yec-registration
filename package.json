@@ -9,12 +9,17 @@
     "start": "next start",
     "lint": "next lint",
     "e2e:install": "npx playwright install",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "test:audit": "playwright test -g '@audit' --reporter=line",
+    "test:audit:headed": "playwright test -g '@audit' --headed",
+    "test:audit:report": "playwright show-report"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.53.0",
     "canvas": "^3.1.2",
+    "date-fns": "^3",
+    "date-fns-tz": "^3",
     "lucide-react": "^0.539.0",
     "next": "15.4.5",
     "qrcode": "^1.5.3",

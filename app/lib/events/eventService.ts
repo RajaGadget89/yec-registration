@@ -12,9 +12,16 @@ export class EventService {
    */
   static async emitRegistrationSubmitted(
     registration: any,
-    adminEmail?: string
+    adminEmail?: string,
+    requestId?: string
   ): Promise<EventHandlerResult[]> {
     const event = EventFactory.createRegistrationSubmitted(registration, adminEmail);
+    
+    // If requestId is provided, set it in the event metadata for correlation
+    if (requestId) {
+      event.metadata = { ...event.metadata, requestId };
+    }
+    
     return await this.emitEvent(event);
   }
 
@@ -63,6 +70,57 @@ export class EventService {
     reason?: string
   ): Promise<EventHandlerResult[]> {
     const event = EventFactory.createAdminRejected(registration, adminEmail, reason);
+    return await this.emitEvent(event);
+  }
+
+  /**
+   * Emit a document re-uploaded event
+   */
+  static async emitDocumentReuploaded(
+    registration: any,
+    documentType: string,
+    userId?: string,
+    adminEmail?: string
+  ): Promise<EventHandlerResult[]> {
+    const event = EventFactory.createDocumentReuploaded(registration, documentType, userId, adminEmail);
+    return await this.emitEvent(event);
+  }
+
+  /**
+   * Emit a status changed event
+   */
+  static async emitStatusChanged(
+    registration: any,
+    beforeStatus: string,
+    afterStatus: string,
+    reason?: string,
+    actorRole: 'user' | 'admin' | 'system' = 'system',
+    adminEmail?: string
+  ): Promise<EventHandlerResult[]> {
+    const event = EventFactory.createStatusChanged(registration, beforeStatus, afterStatus, reason, actorRole, adminEmail);
+    return await this.emitEvent(event);
+  }
+
+  /**
+   * Emit a login submitted event
+   */
+  static async emitLoginSubmitted(
+    email: string,
+    userId?: string
+  ): Promise<EventHandlerResult[]> {
+    const event = EventFactory.createLoginSubmitted(email, userId);
+    return await this.emitEvent(event);
+  }
+
+  /**
+   * Emit a login succeeded event
+   */
+  static async emitLoginSucceeded(
+    email: string,
+    userId: string,
+    adminEmail?: string
+  ): Promise<EventHandlerResult[]> {
+    const event = EventFactory.createLoginSucceeded(email, userId, adminEmail);
     return await this.emitEvent(event);
   }
 

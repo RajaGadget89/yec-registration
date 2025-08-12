@@ -8,7 +8,11 @@ export type RegistrationEventType =
   | 'registration.batch_upserted'
   | 'admin.request_update'
   | 'admin.approved'
-  | 'admin.rejected';
+  | 'admin.rejected'
+  | 'document.reuploaded'
+  | 'status.changed'
+  | 'login.submitted'
+  | 'login.succeeded';
 
 /**
  * Base event interface
@@ -41,6 +45,33 @@ export interface AdminActionPayload {
   reason?: string;
 }
 
+export interface DocumentReuploadedPayload {
+  registration: Registration;
+  documentType: string; // 'profile_image', 'chamber_card', 'payment_slip'
+  userId?: string;
+  adminEmail?: string;
+}
+
+export interface StatusChangedPayload {
+  registration: Registration;
+  beforeStatus: string;
+  afterStatus: string;
+  reason?: string;
+  actorRole: 'user' | 'admin' | 'system';
+  adminEmail?: string;
+}
+
+export interface LoginSubmittedPayload {
+  email: string;
+  userId?: string;
+}
+
+export interface LoginSucceededPayload {
+  email: string;
+  userId: string;
+  adminEmail?: string;
+}
+
 /**
  * Specific event interfaces
  */
@@ -64,6 +95,22 @@ export interface AdminRejectedEvent extends DomainEvent<AdminActionPayload> {
   type: 'admin.rejected';
 }
 
+export interface DocumentReuploadedEvent extends DomainEvent<DocumentReuploadedPayload> {
+  type: 'document.reuploaded';
+}
+
+export interface StatusChangedEvent extends DomainEvent<StatusChangedPayload> {
+  type: 'status.changed';
+}
+
+export interface LoginSubmittedEvent extends DomainEvent<LoginSubmittedPayload> {
+  type: 'login.submitted';
+}
+
+export interface LoginSucceededEvent extends DomainEvent<LoginSucceededPayload> {
+  type: 'login.succeeded';
+}
+
 /**
  * Union type for all registration events
  */
@@ -72,7 +119,11 @@ export type RegistrationEvent =
   | RegistrationBatchUpsertedEvent
   | AdminRequestUpdateEvent
   | AdminApprovedEvent
-  | AdminRejectedEvent;
+  | AdminRejectedEvent
+  | DocumentReuploadedEvent
+  | StatusChangedEvent
+  | LoginSubmittedEvent
+  | LoginSucceededEvent;
 
 /**
  * Event handler interface
@@ -99,6 +150,10 @@ export const STATUS_TRANSITIONS: Record<RegistrationEventType, string> = {
   'admin.request_update': 'pending',
   'admin.approved': 'approved',
   'admin.rejected': 'rejected',
+  'document.reuploaded': 'waiting_for_review', // After re-upload, back to review
+  'status.changed': 'system', // This is handled dynamically
+  'login.submitted': 'system', // Login events don't change status
+  'login.succeeded': 'system', // Login events don't change status
 };
 
 /**
@@ -110,4 +165,8 @@ export const EMAIL_TEMPLATES: Record<RegistrationEventType, string> = {
   'admin.request_update': 'request_update',
   'admin.approved': 'approved',
   'admin.rejected': 'rejected',
+  'document.reuploaded': 'received', // Re-send confirmation after re-upload
+  'status.changed': 'system', // This is handled dynamically
+  'login.submitted': 'system', // Login events don't send emails
+  'login.succeeded': 'system', // Login events don't send emails
 };
