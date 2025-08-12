@@ -10,7 +10,7 @@
     "lint": "next lint",
     "e2e:install": "npx playwright install",
     "e2e": "playwright test",
-    "test:audit": "playwright test tests/e2e/audit*.e2e.spec.ts --reporter=line",
+    "test:audit": "playwright test tests/e2e/audit.e2e.spec.ts tests/e2e/audit-dashboard.e2e.spec.ts tests/e2e/audit-diag.e2e.spec.ts tests/e2e/audit-login.e2e.spec.ts tests/e2e/audit-schema-debug.e2e.spec.ts --reporter=line",
     "test:audit:headed": "playwright test tests/e2e/audit*.e2e.spec.ts --headed",
     "test:audit:report": "playwright show-report"
   },
