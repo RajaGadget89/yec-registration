@@ -3,6 +3,7 @@ import { StatusUpdateHandler } from './handlers/statusUpdateHandler';
 import { EmailNotificationHandler } from './handlers/emailNotificationHandler';
 import { TelegramNotificationHandler } from './handlers/telegramNotificationHandler';
 import { AuditLogHandler } from './handlers/auditLogHandler';
+import { AuditDomainHandler } from './handlers/auditDomainHandler';
 import { AUTH_TRACE, AUTH_NO_EVENTS, getCallerInfo } from './trace';
 
 /**
@@ -25,6 +26,7 @@ export class EventBus {
     const emailHandler = new EmailNotificationHandler();
     const telegramHandler = new TelegramNotificationHandler();
     const auditHandler = new AuditLogHandler();
+    const auditDomainHandler = new AuditDomainHandler();
 
     // Register handlers for all event types
     const eventTypes: RegistrationEvent['type'][] = [
@@ -33,6 +35,10 @@ export class EventBus {
       'admin.request_update',
       'admin.approved',
       'admin.rejected',
+      'document.reuploaded',
+      'status.changed',
+      'login.submitted',
+      'login.succeeded',
     ];
 
     eventTypes.forEach(eventType => {
@@ -40,6 +46,7 @@ export class EventBus {
       this.registerHandler(eventType, emailHandler);
       this.registerHandler(eventType, telegramHandler);
       this.registerHandler(eventType, auditHandler);
+      this.registerHandler(eventType, auditDomainHandler);
     });
   }
 

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAuth } from '../../../lib/auth-client';
 import { upsertAdminUser, updateLastLogin } from '../../../lib/auth-utils.server';
+import { withAuditLogging } from '../../../lib/audit/withAuditAccess';
+import { EventService } from '../../../lib/events/eventService';
 
-export async function POST(request: NextRequest) {
+// Ensure Node.js runtime for service role key access
+export const runtime = 'nodejs';
+
+export const POST = withAuditLogging(async (request: NextRequest) => {
   try {
     const { email, password } = await request.json();
 
@@ -36,6 +41,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Emit LoginSubmitted event only after successful authentication
+    try {
+      await EventService.emitLoginSubmitted(email);
+      console.log('Login submitted event emitted successfully');
+    } catch (eventError) {
+      console.error('Error emitting login submitted event:', eventError);
+      // Don't fail the login if event emission fails
+    }
+
     // Check if user exists in admin_users table
     const { data: adminUser, error: adminError } = await supabase
       .from('admin_users')
@@ -62,6 +76,19 @@ export async function POST(request: NextRequest) {
 
     // Update last login timestamp
     await updateLastLogin(data.user.id);
+
+    // Emit LoginSucceeded event
+    try {
+      await EventService.emitLoginSucceeded(
+        email,
+        data.user.id,
+        adminUser?.email || data.user.email
+      );
+      console.log('Login succeeded event emitted successfully');
+    } catch (eventError) {
+      console.error('Error emitting login succeeded event:', eventError);
+      // Don't fail the login if event emission fails
+    }
 
     // Create response with session data
     const response = NextResponse.json({
@@ -98,7 +125,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+}, {
+  resource: 'auth'
+});
 
 export async function GET() {
   return NextResponse.json(
