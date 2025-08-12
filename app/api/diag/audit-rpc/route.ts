@@ -16,7 +16,7 @@ async function handler(): Promise<NextResponse> {
   
   // Immediately call the real audit client
   await logEvent({
-    action: 'RPCProbe',
+    action: 'AuditRpcTest',
     resource: 'Diag',
     actor_role: 'system',
     result: 'success',
