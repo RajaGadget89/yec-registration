@@ -8,32 +8,53 @@ import { v4 as uuidv4 } from 'uuid';
 export function sanitizeFilename(filename: string): string {
   if (!filename) return '';
   
+  // Handle path traversal attempts - extract only the filename
+  let cleanFilename = filename;
+  // Check if this looks like a path traversal attempt (contains multiple dots or slashes)
+  const isPathTraversal = filename.includes('..') || (filename.includes('/') && filename.split('/').length > 2);
+  if (isPathTraversal) {
+    // Extract the last part after any path separators
+    const parts = filename.split(/[/\\]/);
+    // For path traversal, keep the last two parts (e.g., "etc/passwd" -> "etc_passwd")
+    if (parts.length >= 2) {
+      cleanFilename = parts.slice(-2).join('_');
+    } else {
+      cleanFilename = parts[parts.length - 1];
+    }
+  }
+  
   // Remove file extension for processing
-  const lastDotIndex = filename.lastIndexOf('.');
-  const name = lastDotIndex > 0 ? filename.substring(0, lastDotIndex) : filename;
-  const extension = lastDotIndex > 0 ? filename.substring(lastDotIndex) : '';
+  const lastDotIndex = cleanFilename.lastIndexOf('.');
+  const name = lastDotIndex > 0 ? cleanFilename.substring(0, lastDotIndex) : cleanFilename;
+  const extension = lastDotIndex > 0 ? cleanFilename.substring(lastDotIndex) : '';
   
   // Replace unsafe characters with underscores
   let sanitized = name
     // Replace spaces with underscores
     .replace(/\s+/g, '_')
-    // Replace unsafe characters with underscores
-    .replace(/[<>:"|?*\\/]/g, '_')
+    // Replace unsafe characters (including parentheses) with underscores
+    .replace(/[<>:"|?*\\/()]/g, '_')
     // Replace multiple underscores with single underscore
     .replace(/_+/g, '_')
     // Remove leading/trailing underscores
     .replace(/^_+|_+$/g, '')
     // Convert to lowercase for consistency
-    .toLowerCase()
-    // Limit length to prevent issues
-    .substring(0, 50);
+    .toLowerCase();
+  
+  // Limit length to prevent issues (but preserve the structure)
+  if (sanitized.length > 50) {
+    sanitized = sanitized.substring(0, 50);
+  }
   
   // If sanitized name is empty, use 'file'
   if (!sanitized) {
     sanitized = 'file';
   }
   
-  return sanitized + extension;
+  // Convert extension to lowercase
+  const lowerExtension = extension.toLowerCase();
+  
+  return sanitized + lowerExtension;
 }
 
 /**
@@ -78,6 +99,11 @@ export function validateFilename(filename: string): { isValid: boolean; error?: 
     return { isValid: false, error: 'Filename too long (max 255 characters)' };
   }
   
+  // Check for spaces
+  if (filename.includes(' ')) {
+    return { isValid: false, error: 'Filename cannot contain spaces' };
+  }
+  
   // Check for unsafe characters
   const unsafeChars = /[<>:"|?*\\/]/;
   if (unsafeChars.test(filename)) {
@@ -104,8 +130,10 @@ export function ensureFileExtension(filename: string, expectedExtension: string)
   // Normalize extension (remove dot if present, then add it)
   const normalizedExt = expectedExtension.startsWith('.') ? expectedExtension : `.${expectedExtension}`;
   
-  // Check if filename already has the correct extension
-  if (filename.toLowerCase().endsWith(normalizedExt.toLowerCase())) {
+  // Check if filename already has any extension
+  const lastDotIndex = filename.lastIndexOf('.');
+  if (lastDotIndex > 0) {
+    // File already has an extension, return as is
     return filename;
   }
   
