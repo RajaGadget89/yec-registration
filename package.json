@@ -10,7 +10,7 @@
     "lint": "next lint",
     "e2e:install": "npx playwright install",
     "e2e": "playwright test",
-    "test:audit": "./scripts/run-audit-tests-final.sh",
+    "test:audit": "npx playwright install --with-deps && npx playwright test tests/e2e/audit-diag.e2e.spec.ts --reporter=line",
     "test:audit:headed": "npx playwright install && npx playwright test --grep='@audit' --headed",
     "test:audit:report": "playwright show-report"
   },
