@@ -4,47 +4,104 @@ on:
   pull_request:
     branches: [ main, develop ]
   push:
-    branches: [ main, develop ]
+    branches: [ develop ]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  audit-tests:
+  changes:
     runs-on: ubuntu-latest
-    
+    outputs:
+      audit: ${{ steps.filter.outputs.audit }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Install Playwright browsers
-      run: npx playwright install --with-deps
-      
-    - name: Run audit tests
-      env:
-        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-        SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        PLAYWRIGHT_TEST: '1'
-      run: npm run test:audit
-      
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: playwright-report
-        path: playwright-report/
-        retention-days: 30
-        
-    - name: Upload test artifacts
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-artifacts
-        path: test-artifacts/
-        retention-days: 30
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            audit:
+              - 'app/lib/audit/**'
+              - 'app/admin/audit/**'
+              - 'app/admin/_components/**'
+              - 'tests/e2e/**'
+              - 'playwright.config.ts'
+              - 'app/lib/supabaseAdminAudit.ts'
+              - 'app/lib/audit-rest.ts'
+              - 'pre-cicd-check.sh'
+
+  audit_diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    # skip PR จาก fork (ไม่มี secrets)
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - name: Quick diag (@audit @diag)
+        env:
+          SUPABASE_URL: ${{ secrets.SB_STAGING_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SB_STAGING_SRV_KEY }}
+          SUPABASE_ENV: 'staging'
+          PLAYWRIGHT_TEST: '1'
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npx playwright test --grep "@audit @diag" --reporter=line
+      - name: Report status (diag)
+        if: always()
+        run: echo "audit_diag status => ${{ job.status }}"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-diag-traces
+          path: playwright-report
+          retention-days: 14
+
+  audit_full:
+    needs: [changes, audit_diag]
+    if: needs.changes.outputs.audit == 'true' && needs.audit_diag.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - name: Hardened pre-checks + full audit suite
+        env:
+          SUPABASE_URL: ${{ secrets.SB_STAGING_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SB_STAGING_SRV_KEY }}
+          SUPABASE_ENV: 'staging'
+          PLAYWRIGHT_TEST: '1'
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: |
+          chmod +x ./pre-cicd-check.sh
+          ./pre-cicd-check.sh
+      - name: Report status (full)
+        if: always()
+        run: echo "audit_full status => ${{ job.status }}"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-full-artifacts
+          path: |
+            playwright-report
+            test-artifacts/**
+          retention-days: 30
+      - if: success()
+        run: echo "Full audit passed ✅ (only ran because audit-related files changed)"
+
