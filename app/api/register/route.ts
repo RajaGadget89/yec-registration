@@ -4,6 +4,11 @@ import { uploadBadgeToSupabase } from '../../lib/uploadBadgeToSupabase';
 import { getSupabaseServiceClient } from '../../lib/supabase-server';
 import { getThailandTimeISOString } from '../../lib/timezoneUtils';
 import { EventService } from '../../lib/events/eventService';
+import { withAuditLogging } from '../../lib/audit/withAuditAccess';
+import { NextRequest, NextResponse } from 'next/server';
+
+// Ensure Node.js runtime for service role key access
+export const runtime = 'nodejs';
 
 // Field mapping from frontend to database
 const mapFrontendToDatabase = (frontendData: any) => {
@@ -272,7 +277,9 @@ const generateAndUploadBadge = async (mappedData: any, frontendData: any) => {
   }
 };
 
-export async function POST(req: Request) {
+async function handlePOST(req: NextRequest) {
+  console.log('[REGISTER_ROUTE] handlePOST called');
+  
   try {
     // Log environment variables for debugging (without exposing sensitive data)
     console.log('Environment check:', {
@@ -288,19 +295,11 @@ export async function POST(req: Request) {
     
     if (validationErrors.length > 0) {
       console.error('Validation errors:', validationErrors);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Validation failed',
-          message: validationErrors.join(', '), // Frontend expects 'message' field
-          details: validationErrors 
-        }), 
-        { 
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+          return NextResponse.json({ 
+      error: 'Validation failed',
+      message: validationErrors.join(', '), // Frontend expects 'message' field
+      details: validationErrors 
+    }, { status: 400 });
     }
 
     // Map frontend data to database format
@@ -335,19 +334,11 @@ export async function POST(req: Request) {
 
     if (error) {
       console.error('Database error:', error);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Database insertion failed',
-          message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง', // Frontend expects 'message' field
-          details: error.message 
-        }), 
-        { 
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      return NextResponse.json({ 
+        error: 'Database insertion failed',
+        message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง', // Frontend expects 'message' field
+        details: error.message 
+      }, { status: 500 });
     }
 
     // Send confirmation email with badge (legacy flow - kept for backward compatibility)
@@ -392,6 +383,20 @@ export async function POST(req: Request) {
 
     // Emit registration submitted event for centralized side-effects
     try {
+      // Capture request ID for event correlation
+      const requestId = req.headers.get('x-request-id') || 
+                       req.headers.get('x-correlation-id') || 
+                       `reg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Use the request ID as the correlation ID for consistency
+      const correlationId = requestId;
+      
+      // Debug logging for test environment
+      if (process.env.NODE_ENV === 'test' || process.env.PLAYWRIGHT_TEST) {
+        console.log(`[REGISTER_ROUTE] Request ID from headers: ${req.headers.get('x-request-id')}`);
+        console.log(`[REGISTER_ROUTE] Using correlation ID: ${correlationId}`);
+      }
+      
       // Fetch the complete registration record for the event
       const { data: registrationRecord } = await supabase
         .from('registrations')
@@ -400,42 +405,32 @@ export async function POST(req: Request) {
         .single();
 
       if (registrationRecord) {
-        await EventService.emitRegistrationSubmitted(registrationRecord);
-        console.log('Registration submitted event emitted successfully');
+        // Emit RegisterSubmitted event - the audit domain handler will emit RegistrationCreated and StatusChanged
+        await EventService.emitRegistrationSubmitted(registrationRecord, undefined, correlationId);
+        console.log('Registration submitted event emitted successfully with correlation ID:', correlationId);
       }
     } catch (eventError) {
-      console.error('Error emitting registration submitted event:', eventError);
+      console.error('Error emitting registration events:', eventError);
       // Don't fail the registration if event emission fails
     }
 
-    return new Response(
-      JSON.stringify({ 
-        success: true,
-        message: 'Registration submitted successfully',
-        registrationId: mappedData.registration_id, // Frontend expects 'registrationId'
-        badgeUrl: badgeUrl, // Frontend expects 'badgeUrl'
-        emailSent: emailSent // Frontend expects 'emailSent'
-      }), 
-      { 
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    return NextResponse.json({ 
+      success: true,
+      message: 'Registration submitted successfully',
+      registrationId: mappedData.registration_id, // Frontend expects 'registrationId'
+      badgeUrl: badgeUrl, // Frontend expects 'badgeUrl'
+      emailSent: emailSent // Frontend expects 'emailSent'
+    });
   } catch (err) {
     console.error('Server error:', err);
-    return new Response(
-      JSON.stringify({ 
-        error: 'Server error',
-        message: 'เกิดข้อผิดพลาดในการประมวลผลข้อมูล กรุณาลองใหม่อีกครั้ง'
-      }), 
-      { 
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    return NextResponse.json({ 
+      error: 'Server error',
+      message: 'เกิดข้อผิดพลาดในการประมวลผลข้อมูล กรุณาลองใหม่อีกครั้ง'
+    }, { status: 500 });
   }
 }
+
+// Export the wrapped handler
+export const POST = withAuditLogging(handlePOST, {
+  resource: 'registration'
+});

@@ -44,10 +44,14 @@ docker-compose.override.yml
 *.tmp
 *.bak
 *.log
-test*
 debug*
-playwright*
-
+playwright-report/
+blob-report/
+test-results/
+test-artifacts/
+playwright/
+/test-*.js
+/test-*.sh
 # ========================================
 # TypeScript
 next-env.d.ts
@@ -72,3 +76,4 @@ backup.sh
 docs/
 documents/
 tmp/
+scripts/

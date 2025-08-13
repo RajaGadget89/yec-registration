@@ -23,6 +23,29 @@ export interface Database {
       [key: string]: any;
     };
   };
+  audit: {
+    Tables: {
+      access_log: {
+        Row: AuditAccessLog;
+        Insert: AuditAccessLogInsert;
+        Update: never;
+      };
+      event_log: {
+        Row: AuditEventLog;
+        Insert: AuditEventLogInsert;
+        Update: never;
+      };
+    };
+    Views: {
+      [key: string]: any;
+    };
+    Functions: {
+      [key: string]: any;
+    };
+    Enums: {
+      [key: string]: any;
+    };
+  };
 }
 
 // Registration table types
@@ -155,4 +178,63 @@ export interface AdminUserUpdate {
   updated_at?: string;
   last_login_at?: string | null;
   is_active?: boolean;
+}
+
+// Audit log table types
+export interface AuditAccessLog {
+  id: number;
+  occurred_at_utc: string;
+  action: string;
+  method: string | null;
+  resource: string | null;
+  result: string;
+  request_id: string;
+  src_ip: string | null;
+  user_agent: string | null;
+  latency_ms: number | null;
+  meta: any | null;
+  created_at: string;
+}
+
+export interface AuditAccessLogInsert {
+  occurred_at_utc?: string;
+  action: string;
+  method?: string | null;
+  resource?: string | null;
+  result: string;
+  request_id: string;
+  src_ip?: string | null;
+  user_agent?: string | null;
+  latency_ms?: number | null;
+  meta?: any | null;
+  created_at?: string;
+}
+
+export interface AuditEventLog {
+  id: number;
+  occurred_at_utc: string;
+  action: string;
+  resource: string;
+  resource_id: string | null;
+  actor_id: string | null;
+  actor_role: 'user' | 'admin' | 'system';
+  result: string;
+  reason: string | null;
+  correlation_id: string;
+  meta: any | null;
+  created_at: string;
+}
+
+export interface AuditEventLogInsert {
+  occurred_at_utc?: string;
+  action: string;
+  resource: string;
+  resource_id?: string | null;
+  actor_id?: string | null;
+  actor_role: 'user' | 'admin' | 'system';
+  result: string;
+  reason?: string | null;
+  correlation_id: string;
+  meta?: any | null;
+  created_at?: string;
 } 
