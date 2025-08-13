@@ -3,8 +3,9 @@ import { getSupabaseServiceClient } from '../../../../../lib/supabase-server';
 import { getCurrentUserFromRequest } from '../../../../../lib/auth-utils.server';
 import { isAdmin } from '../../../../../lib/admin-guard';
 import { EventService } from '../../../../../lib/events/eventService';
+import { withAuditLogging } from '../../../../../lib/audit/withAuditAccess';
 
-export async function POST(
+async function handlePOST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
@@ -62,3 +63,8 @@ export async function POST(
     );
   }
 }
+
+// Export the wrapped handler
+export const POST = withAuditLogging(handlePOST, {
+  resource: 'admin/approve'
+});
