@@ -5,11 +5,15 @@
   "scripts": {
     "dev": "next dev -p 8080",
     "dev:e2e": "next dev -p 8080",
+    "dev:capped": "EMAIL_MODE=CAPPED EMAIL_CAP_MAX_PER_RUN=2 BLOCK_NON_ALLOWLIST=true next dev -p 8080",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "e2e:install": "npx playwright install",
     "e2e": "playwright test",
+    "test:e2e:api": "playwright test tests/e2e/dispatch-emails.e2e.spec.ts",
+    "test:e2e:capped": "PLAYWRIGHT_BASE_URL=http://localhost:8080 CRON_SECRET=local-secret EMAIL_MODE=CAPPED EMAIL_CAP_MAX_PER_RUN=2 BLOCK_NON_ALLOWLIST=true playwright test tests/e2e/dispatch-emails.capped.e2e.spec.ts",
+    "test:e2e:all": "playwright test",
     "test:audit": "npx playwright install --with-deps && npx playwright test tests/e2e/audit-diag.e2e.spec.ts --reporter=line",
     "test:audit:headed": "npx playwright install && npx playwright test --grep='@audit' --headed",
     "test:audit:report": "playwright show-report"
