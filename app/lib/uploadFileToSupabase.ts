@@ -1,5 +1,6 @@
 import { generateUniqueFilename, validateFilename, ensureFileExtension } from './filenameUtils';
 import { getSupabaseClient } from './supabase';
+import { validateFileForBucket, getBucketConfig } from './storage-bucket-setup';
 
 /**
  * Uploads a file to Supabase Storage
@@ -22,6 +23,12 @@ export async function uploadFileToSupabase(
 
     if (!folder || folder.trim() === '') {
       throw new Error('Folder is required');
+    }
+
+    // Validate file against bucket configuration
+    const bucketValidation = validateFileForBucket(file, folder);
+    if (!bucketValidation.valid) {
+      throw new Error(bucketValidation.error);
     }
 
     // Generate safe and unique filename

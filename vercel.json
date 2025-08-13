@@ -1,0 +1,6 @@
+{
+  "crons": [
+    { "path": "/api/admin/dispatch-emails", "schedule": "*/5 * * * *" }
+  ]
+}
+

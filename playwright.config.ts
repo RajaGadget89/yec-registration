@@ -20,7 +20,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:8080',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -66,13 +66,14 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'PLAYWRIGHT_TEST=1 npm run dev',
+    command: 'PORT=8080 DISPATCH_DRY_RUN=true npm run dev',
     url: 'http://localhost:8080',
-    reuseExistingServer: false,
-    timeout: 120 * 1000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
     env: {
       PLAYWRIGHT_TEST: '1',
-      NODE_ENV: 'test'
+      NODE_ENV: 'test',
+      DISPATCH_DRY_RUN: 'true'
     },
   },
 });

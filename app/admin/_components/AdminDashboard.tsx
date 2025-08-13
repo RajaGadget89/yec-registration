@@ -7,6 +7,7 @@ import SummaryCards from './SummaryCards';
 import Filters, { FilterState } from './Filters';
 import ResultsTable from './ResultsTable';
 import DetailsDrawer from './DetailsDrawer';
+import { EmailOutboxWidget } from './EmailOutboxWidget';
 import type { Registration } from '../../types/database';
 
 interface AdminDashboardProps {
@@ -200,6 +201,11 @@ export default function AdminDashboard({
           rejectedCount={statusCounts.rejected}
           filteredTotal={totalCount}
         />
+      </div>
+
+      {/* Email Outbox Widget */}
+      <div className="relative z-10">
+        <EmailOutboxWidget />
       </div>
 
       {/* Filters */}

@@ -125,32 +125,32 @@ export class EventService {
   }
 
   /**
-   * Emit a custom event (for advanced use cases)
+   * Emit a generic event
    */
-  static async emitEvent(event: RegistrationEvent): Promise<EventHandlerResult[]> {
-    // Validate the event before emitting
-    if (!EventFactory.validateEvent(event)) {
-      throw new Error(`Invalid event structure: ${event.type}`);
-    }
+  static async emit(event: any): Promise<EventHandlerResult[]> {
+    return await this.emitEvent(event);
+  }
 
-    console.log(`Emitting event: ${event.type} (${event.id})`);
-    
+  /**
+   * Emit an event and return results
+   */
+  private static async emitEvent(event: any): Promise<EventHandlerResult[]> {
     try {
+      console.log(`Emitting event: ${event.type}`, { 
+        correlationId: event.correlation_id,
+        resourceId: event.payload?.registration?.registration_id 
+      });
+      
       const results = await eventBus.emit(event);
       
-      // Log results
-      const successCount = results.filter(r => r.success).length;
-      const failureCount = results.filter(r => !r.success).length;
-      
-      console.log(`Event ${event.type} processed: ${successCount} successful, ${failureCount} failed`);
-      
-      if (failureCount > 0) {
-        console.warn('Some event handlers failed:', results.filter(r => !r.success));
-      }
+      console.log(`Event ${event.type} processed successfully`, {
+        resultsCount: results.length,
+        correlationId: event.correlation_id
+      });
       
       return results;
     } catch (error) {
-      console.error(`Failed to emit event ${event.type}:`, error);
+      console.error(`Error emitting event ${event.type}:`, error);
       throw error;
     }
   }
