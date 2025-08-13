@@ -556,3 +556,117 @@ export const calculateFormProgress = (formData: { [key: string]: any }, formSche
 
   return totalRequiredFields > 0 ? Math.round((completedRequiredFields / totalRequiredFields) * 100) : 0;
 }; 
+
+// Enhanced validation function to match database constraints
+export const validateRegistrationData = (data: any) => {
+  const errors: string[] = [];
+  
+  // Required fields validation (using frontend field names)
+  const requiredFields = [
+    'title', 'firstName', 'lastName', 'nickname',
+    'phone', 'lineId', 'email', 'companyName', 'businessType',
+    'yecProvince', 'hotelChoice', 'travelType'
+  ];
+
+  for (const field of requiredFields) {
+    if (!data[field]) {
+      errors.push(`Missing required field: ${field}`);
+    }
+  }
+
+  // Phone validation - must be 0XXXXXXXXX or +66XXXXXXXX
+  if (data.phone && !/^0[0-9]{9}$/.test(data.phone) && !/^\+66[0-9]{8}$/.test(data.phone)) {
+    errors.push('Phone must be in format 0XXXXXXXXX or +66XXXXXXXX');
+  }
+  
+  // Line ID validation - only letters, numbers, dots, underscores, and hyphens
+  if (data.lineId && !/^[a-zA-Z0-9._-]+$/.test(data.lineId)) {
+    errors.push('Line ID can only contain letters, numbers, dots, underscores, and hyphens');
+  }
+  
+  // Email validation
+  if (data.email && !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(data.email)) {
+    errors.push('Invalid email format');
+  }
+  
+  // Hotel choice validation
+  if (data.hotelChoice && !['in-quota', 'out-of-quota'].includes(data.hotelChoice)) {
+    errors.push('Hotel choice must be either "in-quota" or "out-of-quota"');
+  }
+  
+  // Travel type validation
+  if (data.travelType && !['private-car', 'van'].includes(data.travelType)) {
+    errors.push('Travel type must be either "private-car" or "van"');
+  }
+  
+  // Hotel choice logic validation
+  if (data.hotelChoice === 'out-of-quota' && !data.external_hotel_name) {
+    errors.push('External hotel name is required when choosing out-of-quota');
+  }
+  
+  if (data.hotelChoice === 'in-quota' && !data.roomType) {
+    errors.push('Room type is required when choosing in-quota');
+  }
+  
+  // Room type validation for in-quota
+  if (data.hotelChoice === 'in-quota' && data.roomType && !['single', 'double', 'suite', 'no-accommodation'].includes(data.roomType)) {
+    errors.push('Room type must be either "single", "double", "suite", or "no-accommodation"');
+  }
+  
+  // Roommate validation for double rooms (only when in-quota)
+  if (data.hotelChoice === 'in-quota' && data.roomType === 'double' && (!data.roommateInfo || !data.roommatePhone)) {
+    errors.push('Roommate information and phone are required for double rooms');
+  }
+  
+  return errors;
+};
+
+// Field mapping from frontend to database
+export const mapFrontendToDatabase = (frontendData: any) => {
+  // Clean up data based on hotel choice
+  const cleanedData = { ...frontendData };
+  
+  // If out-of-quota, clear room-related fields
+  if (frontendData.hotelChoice === 'out-of-quota') {
+    cleanedData.roomType = null;
+    cleanedData.roommateInfo = null;
+    cleanedData.roommatePhone = null;
+  }
+  
+  // If in-quota, clear external hotel name
+  if (frontendData.hotelChoice === 'in-quota') {
+    cleanedData.external_hotel_name = null;
+  }
+  
+  // If room type is not double, clear roommate fields
+  if (frontendData.roomType !== 'double') {
+    cleanedData.roommateInfo = null;
+    cleanedData.roommatePhone = null;
+  }
+  
+  console.log('Cleaned form data:', cleanedData);
+  
+  return {
+    registration_id: cleanedData.registration_id || `YEC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    title: cleanedData.title,
+    first_name: cleanedData.firstName,
+    last_name: cleanedData.lastName,
+    nickname: cleanedData.nickname,
+    phone: cleanedData.phone,
+    line_id: cleanedData.lineId,
+    email: cleanedData.email,
+    company_name: cleanedData.companyName,
+    business_type: cleanedData.businessType,
+    business_type_other: cleanedData.businessTypeOther || null,
+    yec_province: cleanedData.yecProvince,
+    hotel_choice: cleanedData.hotelChoice,
+    room_type: cleanedData.roomType || null,
+    roommate_info: cleanedData.roommateInfo || null,
+    roommate_phone: cleanedData.roommatePhone || null,
+    external_hotel_name: cleanedData.external_hotel_name || null,
+    travel_type: cleanedData.travelType,
+    profile_image_url: cleanedData.profileImage || null,
+    chamber_card_url: cleanedData.chamberCard || null,
+    payment_slip_url: cleanedData.paymentSlip || null,
+  };
+}; 

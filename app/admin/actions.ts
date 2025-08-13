@@ -1,4 +1,5 @@
 import { getSupabaseServiceClient } from '../lib/supabase-server';
+import { validateAdminAccess } from '../lib/admin-guard-server';
 import type { Registration } from '../types/database';
 
 export interface FilterState {
@@ -30,8 +31,17 @@ export interface QueryResult {
 
 export async function getRegistrations(
   filters: FilterState,
-  pagination: PaginationParams
+  pagination: PaginationParams,
+  request?: Request
 ): Promise<QueryResult> {
+  // Validate admin access if request is provided
+  if (request) {
+    const adminValidation = validateAdminAccess(request as any);
+    if (!adminValidation.valid) {
+      throw new Error(`Admin access required: ${adminValidation.error}`);
+    }
+  }
+  
   const supabase = getSupabaseServiceClient();
   
   let query = supabase.from('registrations').select('*', { count: 'exact' });

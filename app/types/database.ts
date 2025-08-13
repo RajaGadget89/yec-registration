@@ -12,6 +12,11 @@ export interface Database {
         Insert: AdminUserInsert;
         Update: AdminUserUpdate;
       };
+      event_settings: {
+        Row: EventSettings;
+        Insert: EventSettingsInsert;
+        Update: EventSettingsUpdate;
+      };
     };
     Views: {
       [key: string]: any;
@@ -75,7 +80,18 @@ export interface Registration {
   badge_url: string | null;
   email_sent: boolean;
   email_sent_at: string | null;
-  status: string;
+  // Phase 1: New status model
+  status: 'waiting_for_review' | 'waiting_for_update_payment' | 'waiting_for_update_info' | 'waiting_for_update_tcc' | 'approved' | 'rejected';
+  update_reason: 'payment' | 'info' | 'tcc' | null;
+  rejected_reason: string | null;
+  // Phase 1: 3-track checklist
+  payment_review_status: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  profile_review_status: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  tcc_review_status: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  // Phase 1: Pricing fields
+  price_applied: number | null;
+  currency: string;
+  selected_package_code: string | null;
   ip_address: string | null;
   user_agent: string | null;
   form_data: any;
@@ -108,7 +124,18 @@ export interface RegistrationInsert {
   badge_url?: string | null;
   email_sent?: boolean;
   email_sent_at?: string | null;
-  status?: string;
+  // Phase 1: New status model
+  status?: 'waiting_for_review' | 'waiting_for_update_payment' | 'waiting_for_update_info' | 'waiting_for_update_tcc' | 'approved' | 'rejected';
+  update_reason?: 'payment' | 'info' | 'tcc' | null;
+  rejected_reason?: string | null;
+  // Phase 1: 3-track checklist
+  payment_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  profile_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  tcc_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  // Phase 1: Pricing fields
+  price_applied?: number | null;
+  currency?: string;
+  selected_package_code?: string | null;
   ip_address?: string | null;
   user_agent?: string | null;
   form_data?: any;
@@ -141,7 +168,18 @@ export interface RegistrationUpdate {
   badge_url?: string | null;
   email_sent?: boolean;
   email_sent_at?: string | null;
-  status?: string;
+  // Phase 1: New status model
+  status?: 'waiting_for_review' | 'waiting_for_update_payment' | 'waiting_for_update_info' | 'waiting_for_update_tcc' | 'approved' | 'rejected';
+  update_reason?: 'payment' | 'info' | 'tcc' | null;
+  rejected_reason?: string | null;
+  // Phase 1: 3-track checklist
+  payment_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  profile_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  tcc_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  // Phase 1: Pricing fields
+  price_applied?: number | null;
+  currency?: string;
+  selected_package_code?: string | null;
   ip_address?: string | null;
   user_agent?: string | null;
   form_data?: any;
@@ -156,85 +194,117 @@ export interface AdminUser {
   role: 'admin' | 'super_admin';
   created_at: string;
   updated_at: string;
-  last_login_at: string | null;
-  is_active: boolean;
 }
 
 export interface AdminUserInsert {
-  id: string;
   email: string;
-  role: 'admin' | 'super_admin';
+  role?: 'admin' | 'super_admin';
   created_at?: string;
   updated_at?: string;
-  last_login_at?: string | null;
-  is_active?: boolean;
 }
 
 export interface AdminUserUpdate {
-  id?: string;
   email?: string;
   role?: 'admin' | 'super_admin';
   created_at?: string;
   updated_at?: string;
-  last_login_at?: string | null;
-  is_active?: boolean;
 }
 
-// Audit log table types
-export interface AuditAccessLog {
-  id: number;
-  occurred_at_utc: string;
-  action: string;
-  method: string | null;
-  resource: string | null;
-  result: string;
-  request_id: string;
-  src_ip: string | null;
-  user_agent: string | null;
-  latency_ms: number | null;
-  meta: any | null;
+// Event settings table types (Phase 1)
+export interface EventSettings {
+  id: string;
+  registration_deadline_utc: string;
+  early_bird_deadline_utc: string;
+  price_packages: PricePackage[];
+  eligibility_rules: EligibilityRules | null;
+  timezone: string;
   created_at: string;
+  updated_at: string;
+}
+
+export interface EventSettingsInsert {
+  registration_deadline_utc: string;
+  early_bird_deadline_utc: string;
+  price_packages: PricePackage[];
+  eligibility_rules?: EligibilityRules | null;
+  timezone?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EventSettingsUpdate {
+  registration_deadline_utc?: string;
+  early_bird_deadline_utc?: string;
+  price_packages?: PricePackage[];
+  eligibility_rules?: EligibilityRules | null;
+  timezone?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Price package types (Phase 1)
+export interface PricePackage {
+  code: string;
+  name: string;
+  currency: string;
+  early_bird_amount: number;
+  regular_amount: number;
+}
+
+// Eligibility rules types (Phase 1)
+export interface EligibilityRules {
+  blocked_emails: string[];
+  blocked_domains: string[];
+  blocked_keywords: string[];
+}
+
+// Audit table types
+export interface AuditAccessLog {
+  id: string;
+  timestamp: string;
+  user_email: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  endpoint: string;
+  method: string;
+  status_code: number;
+  response_time_ms: number;
+  correlation_id: string | null;
 }
 
 export interface AuditAccessLogInsert {
-  occurred_at_utc?: string;
-  action: string;
-  method?: string | null;
-  resource?: string | null;
-  result: string;
-  request_id: string;
-  src_ip?: string | null;
+  timestamp?: string;
+  user_email?: string | null;
+  ip_address?: string | null;
   user_agent?: string | null;
-  latency_ms?: number | null;
-  meta?: any | null;
-  created_at?: string;
+  endpoint: string;
+  method: string;
+  status_code: number;
+  response_time_ms: number;
+  correlation_id?: string | null;
 }
 
 export interface AuditEventLog {
-  id: number;
-  occurred_at_utc: string;
+  id: string;
+  timestamp: string;
   action: string;
   resource: string;
+  correlation_id: string | null;
   resource_id: string | null;
-  actor_id: string | null;
-  actor_role: 'user' | 'admin' | 'system';
+  actor_role: string | null;
   result: string;
   reason: string | null;
-  correlation_id: string;
-  meta: any | null;
-  created_at: string;
+  meta: any;
 }
 
 export interface AuditEventLogInsert {
-  occurred_at_utc?: string;
+  timestamp?: string;
   action: string;
   resource: string;
+  correlation_id?: string | null;
   resource_id?: string | null;
-  actor_id?: string | null;
-  actor_role: 'user' | 'admin' | 'system';
+  actor_role?: string | null;
   result: string;
   reason?: string | null;
-  correlation_id: string;
-  meta?: any | null;
-  created_at?: string;
+  meta?: any;
 } 
