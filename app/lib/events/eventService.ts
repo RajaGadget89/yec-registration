@@ -1,6 +1,6 @@
 import { eventBus } from './eventBus';
 import { EventFactory } from './eventFactory';
-import { RegistrationEvent, EventHandlerResult } from './types';
+import { EventHandlerResult } from './types';
 
 /**
  * Main event service for the registration system
@@ -12,14 +12,15 @@ export class EventService {
    */
   static async emitRegistrationSubmitted(
     registration: any,
-    adminEmail?: string,
+    priceApplied?: number,
+    selectedPackage?: string,
     requestId?: string
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createRegistrationSubmitted(registration, adminEmail);
+    const event = EventFactory.createRegistrationSubmitted(registration, priceApplied, selectedPackage);
     
-    // If requestId is provided, set it in the event metadata for correlation
+    // If requestId is provided, set it in the event correlation_id for correlation
     if (requestId) {
-      event.metadata = { ...event.metadata, requestId };
+      event.correlation_id = requestId;
     }
     
     return await this.emitEvent(event);
@@ -30,10 +31,9 @@ export class EventService {
    */
   static async emitRegistrationBatchUpserted(
     registrations: any[],
-    adminEmail: string,
-    updatedCount: number
+    adminEmail?: string
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createRegistrationBatchUpserted(registrations, adminEmail, updatedCount);
+    const event = EventFactory.createRegistrationBatchUpserted(registrations, adminEmail);
     return await this.emitEvent(event);
   }
 
@@ -43,9 +43,10 @@ export class EventService {
   static async emitAdminRequestUpdate(
     registration: any,
     adminEmail: string,
+    track: 'payment' | 'profile' | 'tcc',
     reason?: string
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createAdminRequestUpdate(registration, adminEmail, reason);
+    const event = EventFactory.createAdminRequestUpdate(registration, adminEmail, track, reason);
     return await this.emitEvent(event);
   }
 
@@ -54,10 +55,9 @@ export class EventService {
    */
   static async emitAdminApproved(
     registration: any,
-    adminEmail: string,
-    reason?: string
+    adminEmail: string
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createAdminApproved(registration, adminEmail, reason);
+    const event = EventFactory.createAdminApproved(registration, adminEmail);
     return await this.emitEvent(event);
   }
 
@@ -77,52 +77,14 @@ export class EventService {
    * Emit a document re-uploaded event
    */
   static async emitDocumentReuploaded(
-    registration: any,
-    documentType: string,
-    userId?: string,
-    adminEmail?: string
+    registration: any
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createDocumentReuploaded(registration, documentType, userId, adminEmail);
+    const event = EventFactory.createDocumentReuploaded(registration);
     return await this.emitEvent(event);
   }
 
-  /**
-   * Emit a status changed event
-   */
-  static async emitStatusChanged(
-    registration: any,
-    beforeStatus: string,
-    afterStatus: string,
-    reason?: string,
-    actorRole: 'user' | 'admin' | 'system' = 'system',
-    adminEmail?: string
-  ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createStatusChanged(registration, beforeStatus, afterStatus, reason, actorRole, adminEmail);
-    return await this.emitEvent(event);
-  }
-
-  /**
-   * Emit a login submitted event
-   */
-  static async emitLoginSubmitted(
-    email: string,
-    userId?: string
-  ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createLoginSubmitted(email, userId);
-    return await this.emitEvent(event);
-  }
-
-  /**
-   * Emit a login succeeded event
-   */
-  static async emitLoginSucceeded(
-    email: string,
-    userId: string,
-    adminEmail?: string
-  ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createLoginSucceeded(email, userId, adminEmail);
-    return await this.emitEvent(event);
-  }
+  // Note: StatusChanged, LoginSubmitted, and LoginSucceeded events are not supported in the new EventFactory
+  // These methods have been removed as they are not part of the current event system
 
   /**
    * Emit a generic event

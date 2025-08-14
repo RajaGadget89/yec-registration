@@ -23,6 +23,7 @@ export default function TopMenuBar() {
       window.addEventListener('scroll', handleScroll);
       return () => window.removeEventListener('scroll', handleScroll);
     }
+    return undefined;
   }, []);
 
   // Handle Home navigation with fresh refresh

@@ -1,6 +1,7 @@
 import { getSupabaseServiceClient } from '../lib/supabase-server';
 import { validateAdminAccess } from '../lib/admin-guard-server';
 import type { Registration } from '../types/database';
+import { NextRequest } from 'next/server';
 
 export interface FilterState {
   status: string[];
@@ -36,7 +37,7 @@ export async function getRegistrations(
 ): Promise<QueryResult> {
   // Validate admin access if request is provided
   if (request) {
-    const adminValidation = validateAdminAccess(request as any);
+    const adminValidation = validateAdminAccess(request as NextRequest);
     if (!adminValidation.valid) {
       throw new Error(`Admin access required: ${adminValidation.error}`);
     }

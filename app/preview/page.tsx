@@ -1004,8 +1004,8 @@ export default function PreviewPage() {
             <p className="text-gray-700 dark:text-gray-300">{modal.message}</p>
             
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              {modal.actions.map((action, index) => (
-                <div key={index} className="flex-1">
+              {modal.actions.map((action) => (
+                <div key={`modal-action-${action.label}`} className="flex-1">
                   {action.href ? (
                     <a
                       href={action.href}

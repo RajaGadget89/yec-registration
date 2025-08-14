@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { Badge } from '../../components/ui/badge';
 import { Loader2, Mail, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { toast } from 'sonner';
+// import { toast } from 'sonner'; // Removed - not available
 
 interface OutboxStats {
   total_pending: number;
@@ -42,7 +42,7 @@ export function EmailOutboxWidget() {
       setStats(data.stats);
     } catch (error) {
       console.error('Failed to fetch outbox stats:', error);
-      toast.error('Failed to load email outbox statistics');
+      console.error('Failed to load email outbox statistics');
     } finally {
       setLoading(false);
     }
@@ -72,17 +72,17 @@ export function EmailOutboxWidget() {
 
       // Show success/error messages
       if (data.result.sent > 0) {
-        toast.success(`Successfully sent ${data.result.sent} emails`);
+        console.log(`Successfully sent ${data.result.sent} emails`);
       }
       if (data.result.errors > 0) {
-        toast.error(`${data.result.errors} emails failed to send`);
+        console.error(`${data.result.errors} emails failed to send`);
       }
       if (data.result.sent === 0 && data.result.errors === 0) {
-        toast.info('No emails to dispatch');
+        console.log('No emails to dispatch');
       }
     } catch (error) {
       console.error('Failed to dispatch emails:', error);
-      toast.error('Failed to dispatch emails');
+      console.error('Failed to dispatch emails');
     } finally {
       setDispatching(false);
     }

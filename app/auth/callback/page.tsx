@@ -156,7 +156,7 @@ export default function AuthCallbackPage() {
         } else if (response.status === 403) {
           setErrorMessage('Access denied. You are not authorized to access the admin dashboard.');
         } else if (errorData && typeof errorData === 'object' && 'message' in errorData) {
-          setErrorMessage((errorData as any).message);
+          setErrorMessage((errorData as { message: string }).message);
         } else {
           setErrorMessage('Authentication failed. Please try again.');
         }

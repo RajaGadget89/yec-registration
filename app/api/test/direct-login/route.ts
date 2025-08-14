@@ -135,10 +135,11 @@ export async function GET(request: NextRequest) {
     // 10. Return the same response instance (don't create new response after cookies were set)
     return res;
 
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('[direct-login] unexpected error:', e);
+    const errorMessage = e instanceof Error ? e.message : 'Unexpected error during direct login';
     return NextResponse.json(
-      { ok: false, reason: 'UNEXPECTED_ERROR', message: e?.message || 'Unexpected error during direct login' },
+      { ok: false, reason: 'UNEXPECTED_ERROR', message: errorMessage },
       { status: 500 }
     );
   }

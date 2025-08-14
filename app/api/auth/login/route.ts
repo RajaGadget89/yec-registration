@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAuth } from '../../../lib/auth-client';
 import { upsertAdminUser, updateLastLogin } from '../../../lib/auth-utils.server';
 import { withAuditLogging } from '../../../lib/audit/withAuditAccess';
-import { EventService } from '../../../lib/events/eventService';
+// import { EventService } from '../../../lib/events/eventService'; // Removed - not used
 
 // Ensure Node.js runtime for service role key access
 export const runtime = 'nodejs';
@@ -41,14 +41,8 @@ export const POST = withAuditLogging(async (request: NextRequest) => {
       );
     }
 
-    // Emit LoginSubmitted event only after successful authentication
-    try {
-      await EventService.emitLoginSubmitted(email);
-      console.log('Login submitted event emitted successfully');
-    } catch (eventError) {
-      console.error('Error emitting login submitted event:', eventError);
-      // Don't fail the login if event emission fails
-    }
+    // Note: LoginSubmitted event is not supported in the current event system
+    // Event emission has been removed as it's not part of the current event system
 
     // Check if user exists in admin_users table
     const { data: adminUser, error: adminError } = await supabase
@@ -77,18 +71,8 @@ export const POST = withAuditLogging(async (request: NextRequest) => {
     // Update last login timestamp
     await updateLastLogin(data.user.id);
 
-    // Emit LoginSucceeded event
-    try {
-      await EventService.emitLoginSucceeded(
-        email,
-        data.user.id,
-        adminUser?.email || data.user.email
-      );
-      console.log('Login succeeded event emitted successfully');
-    } catch (eventError) {
-      console.error('Error emitting login succeeded event:', eventError);
-      // Don't fail the login if event emission fails
-    }
+    // Note: LoginSucceeded event is not supported in the current event system
+    // Event emission has been removed as it's not part of the current event system
 
     // Create response with session data
     const response = NextResponse.json({

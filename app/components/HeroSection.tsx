@@ -11,8 +11,8 @@ export default function HeroSection() {
   useEffect(() => {
     const checkDevice = () => {
       // Check if it's a mobile device using user agent
-      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+      const userAgent = navigator.userAgent || navigator.vendor || (window as Window & { opera?: string }).opera;
+      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test((userAgent ?? '').toLowerCase());
       
       // Also check screen size as backup
       const isSmallScreen = window.innerWidth < 1024;

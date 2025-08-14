@@ -45,22 +45,29 @@ export default function FadeInStagger({
 
   return (
     <div ref={containerRef} className={className}>
-      {React.Children.map(children, (child, index) => (
-        <div
-          key={index}
-          className={`transition-all duration-${duration} ease-out ${
-            visibleChildren.includes(index)
-              ? 'opacity-100 translate-y-0'
-              : 'opacity-0 translate-y-4'
-          }`}
-          style={{
-            transitionDelay: `${index * delay}ms`,
-            transitionDuration: `${duration}ms`
-          }}
-        >
-          {child}
-        </div>
-      ))}
+      {React.Children.map(children, (child, index) => {
+        // Create a stable key based on child content or position
+        const stableKey = React.isValidElement(child) && child.key 
+          ? child.key 
+          : `fade-in-child-${index}`;
+        
+        return (
+          <div
+            key={stableKey}
+            className={`transition-all duration-${duration} ease-out ${
+              visibleChildren.includes(index)
+                ? 'opacity-100 translate-y-0'
+                : 'opacity-0 translate-y-4'
+            }`}
+            style={{
+              transitionDelay: `${index * delay}ms`,
+              transitionDuration: `${duration}ms`
+            }}
+          >
+            {child}
+          </div>
+        );
+      })}
     </div>
   );
 } 

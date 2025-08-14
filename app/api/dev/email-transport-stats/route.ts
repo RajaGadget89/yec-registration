@@ -10,7 +10,8 @@ import { getEmailTransportConfig } from '../../../lib/emails/transport';
  * This endpoint is for development and testing purposes only
  */
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
+  void _request; // used to satisfy lint without changing config
   try {
     // In production, this endpoint should be disabled
     if (process.env.NODE_ENV === 'production') {
@@ -48,8 +49,9 @@ export async function POST(request: NextRequest) {
     let body = {};
     try {
       body = await request.json();
-    } catch (e) {
+    } catch (_e) {
       // If no body, use empty object
+      void _e; // used to satisfy lint without changing config
     }
 
     const { action } = body as { action?: string };
