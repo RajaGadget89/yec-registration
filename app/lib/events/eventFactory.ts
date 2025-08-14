@@ -57,8 +57,8 @@ export class EventFactory {
   static createAdminRequestUpdate(
     registration: Registration,
     adminEmail: string,
-    track: 'payment' | 'profile' | 'tcc',
-    reason?: string
+    dimension: 'payment' | 'profile' | 'tcc',
+    notes?: string
   ): RegistrationEvent {
     return {
       id: randomUUID(),
@@ -66,8 +66,8 @@ export class EventFactory {
       payload: {
         registration,
         admin_email: adminEmail,
-        track,
-        reason,
+        dimension,
+        notes,
       },
       timestamp: new Date().toISOString(),
       correlation_id: registration.registration_id,
@@ -137,8 +137,8 @@ export class EventFactory {
   static createAdminReviewTrackUpdated(
     registration: Registration,
     adminEmail: string,
-    track: 'payment' | 'profile' | 'tcc',
-    trackStatus: 'pending' | 'needs_update' | 'passed' | 'rejected'
+    dimension: 'payment' | 'profile' | 'tcc',
+    dimensionStatus: 'pending' | 'needs_update' | 'passed' | 'rejected'
   ): RegistrationEvent {
     return {
       id: randomUUID(),
@@ -146,8 +146,49 @@ export class EventFactory {
       payload: {
         registration,
         admin_email: adminEmail,
-        track,
-        track_status: trackStatus,
+        dimension,
+        dimension_status: dimensionStatus,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: registration.registration_id,
+    };
+  }
+
+  /**
+   * Create an admin mark pass event
+   */
+  static createAdminMarkPass(
+    registration: Registration,
+    adminEmail: string,
+    dimension: 'payment' | 'profile' | 'tcc'
+  ): RegistrationEvent {
+    return {
+      id: randomUUID(),
+      type: 'admin.mark_pass',
+      payload: {
+        registration,
+        admin_email: adminEmail,
+        dimension,
+        dimension_status: 'passed',
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: registration.registration_id,
+    };
+  }
+
+  /**
+   * Create a user resubmitted event
+   */
+  static createUserResubmitted(
+    registration: Registration,
+    updates: Record<string, any>
+  ): RegistrationEvent {
+    return {
+      id: randomUUID(),
+      type: 'user.resubmitted',
+      payload: {
+        registration,
+        updates,
       },
       timestamp: new Date().toISOString(),
       correlation_id: registration.registration_id,
