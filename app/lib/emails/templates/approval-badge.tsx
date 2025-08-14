@@ -6,10 +6,15 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = 'ผู้สมัคร',
   trackingCode,
   badgeUrl,
-  supportEmail: _supportEmail = 'info@yecday.com'
+  supportEmail: _supportEmail = 'info@yecday.com',
+  brandTokens
 }) => {
   void _supportEmail; // used to satisfy lint without changing config
   const { colors, spacing, button } = emailTheme;
+
+  // Use brand colors if provided, otherwise use default theme
+  const primaryColor = brandTokens?.primaryColor || colors.primary;
+  const secondaryColor = brandTokens?.secondaryColor || colors.accent;
 
   return (
     <div style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
@@ -43,75 +48,44 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
         
         <div style={{
           backgroundColor: colors.success + '20',
-          border: `2px solid ${colors.success}`,
+          border: `1px solid ${colors.success}`,
           borderRadius: '8px',
           padding: spacing.lg,
-          marginBottom: spacing.lg,
-          textAlign: 'center' as const
+          marginBottom: spacing.lg
         }}>
           <h3 style={{ 
             color: colors.success, 
-            fontSize: '20px', 
+            fontSize: '18px', 
+            marginBottom: spacing.sm 
+          }}>
+            สถานะการสมัคร
+          </h3>
+          <p style={{ 
+            fontSize: '16px', 
+            lineHeight: '1.6', 
             marginBottom: spacing.md 
           }}>
-            บัตรประจำตัว YEC Day ของคุณ
-          </h3>
-          
-          {badgeUrl ? (
-            <div style={{ marginBottom: spacing.md }}>
-              {/* Using <img> is required for email HTML. Next/Image is not applicable here. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src={badgeUrl} 
-                alt="YEC Day Badge" 
-                style={{
-                  maxWidth: '300px',
-                  width: '100%',
-                  height: 'auto',
-                  borderRadius: '8px',
-                  border: `2px solid ${colors.accent}`
-                }}
-              />
-            </div>
-          ) : (
-            <div style={{
-              backgroundColor: colors.gray[100],
-              padding: spacing.lg,
-              borderRadius: '8px',
-              marginBottom: spacing.md
-            }}>
-              <p style={{ 
-                color: colors.gray[600], 
-                margin: 0,
-                fontSize: '16px'
-              }}>
-                บัตรประจำตัวของคุณพร้อมใช้งาน
-              </p>
-            </div>
-          )}
-          
-          {badgeUrl && (
-            <a href={badgeUrl} style={{
-              ...button.primary,
-              fontSize: '16px',
-              padding: '12px 24px',
-              backgroundColor: colors.success
-            }}>
-              ดาวน์โหลดบัตรประจำตัว
-            </a>
-          )}
+            ✅ การสมัครได้รับการอนุมัติแล้ว
+          </p>
+          <p style={{ 
+            fontSize: '14px', 
+            color: colors.gray[600], 
+            margin: 0 
+          }}>
+            คุณสามารถเข้าร่วมงาน YEC Day ได้แล้ว
+          </p>
         </div>
         
         <div style={{
           backgroundColor: colors.gray[50],
-          border: `2px solid ${colors.accent}`,
+          border: `2px solid ${secondaryColor}`,
           borderRadius: '8px',
           padding: spacing.lg,
           marginBottom: spacing.lg,
           textAlign: 'center' as const
         }}>
           <h3 style={{ 
-            color: colors.primary, 
+            color: primaryColor, 
             fontSize: '18px', 
             marginBottom: spacing.sm 
           }}>
@@ -120,7 +94,7 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           <div style={{
             fontSize: '24px',
             fontWeight: 'bold',
-            color: colors.accent,
+            color: secondaryColor,
             fontFamily: 'monospace',
             letterSpacing: '2px'
           }}>
@@ -128,30 +102,79 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           </div>
         </div>
         
+        {badgeUrl && (
+          <div style={{ textAlign: 'center' as const, marginBottom: spacing.lg }}>
+            <div style={{
+              backgroundColor: colors.gray[50],
+              border: `2px solid ${secondaryColor}`,
+              borderRadius: '8px',
+              padding: spacing.lg,
+              marginBottom: spacing.md
+            }}>
+              <h3 style={{ 
+                color: primaryColor, 
+                fontSize: '18px', 
+                marginBottom: spacing.sm 
+              }}>
+                บัตรประจำตัว YEC Day ของคุณ
+              </h3>
+              <p style={{ 
+                fontSize: '14px', 
+                color: colors.gray[600], 
+                marginBottom: spacing.md 
+              }}>
+                บัตรประจำตัวของคุณพร้อมใช้งานแล้ว
+              </p>
+              <a href={badgeUrl} style={{
+                ...button.primary,
+                fontSize: '16px',
+                padding: '12px 24px'
+              }}>
+                ดาวน์โหลดบัตรประจำตัว
+              </a>
+            </div>
+          </div>
+        )}
+        
         <div style={{
           backgroundColor: colors.highlight + '20',
           border: `1px solid ${colors.highlight}`,
           borderRadius: '8px',
-          padding: spacing.md,
+          padding: spacing.lg,
           marginBottom: spacing.lg
         }}>
-          <h4 style={{ 
-            color: colors.primary, 
-            fontSize: '16px', 
+          <h3 style={{ 
+            color: colors.highlight, 
+            fontSize: '18px', 
             marginBottom: spacing.sm 
           }}>
-            สิ่งที่ต้องทำในวันงาน
-          </h4>
+            ข้อมูลเพิ่มเติม
+          </h3>
           <ul style={{ 
             margin: 0, 
             paddingLeft: spacing.lg,
             fontSize: '14px',
             lineHeight: '1.5'
           }}>
-            <li>นำบัตรประจำตัวมาแสดงที่ประตูเข้า</li>
-            <li>มาถึงก่อนเวลาเริ่มงาน 30 นาที</li>
-            <li>เตรียมเอกสารประกอบการลงทะเบียน (ถ้ามี)</li>
+            <li>เก็บบัตรประจำตัวไว้เพื่อเข้าร่วมงาน</li>
+            <li>ตรวจสอบรายละเอียดงานในอีเมลถัดไป</li>
+            <li>หากมีคำถาม ติดต่อเราได้ที่ {_supportEmail}</li>
           </ul>
+        </div>
+        
+        <div style={{
+          backgroundColor: colors.gray[100],
+          padding: spacing.lg,
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: colors.gray[700]
+        }}>
+          <p style={{ margin: 0 }}>
+            <strong>หากมีคำถาม:</strong> ติดต่อเราได้ที่ {_supportEmail}
+          </p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
+            ข้อมูลส่วนบุคคลของคุณจะถูกเก็บรักษาไว้ตามนโยบายการคุ้มครองข้อมูลส่วนบุคคล (PDPA)
+          </p>
         </div>
       </div>
 
@@ -183,80 +206,49 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           marginBottom: spacing.lg 
         }}>
           Congratulations! Your YEC Day registration has been approved. 
-          Your official badge is ready for use.
+          Your badge is ready for use.
         </p>
         
         <div style={{
           backgroundColor: colors.success + '20',
-          border: `2px solid ${colors.success}`,
+          border: `1px solid ${colors.success}`,
           borderRadius: '8px',
           padding: spacing.lg,
-          marginBottom: spacing.lg,
-          textAlign: 'center' as const
+          marginBottom: spacing.lg
         }}>
           <h3 style={{ 
             color: colors.success, 
-            fontSize: '20px', 
+            fontSize: '18px', 
+            marginBottom: spacing.sm 
+          }}>
+            Registration Status
+          </h3>
+          <p style={{ 
+            fontSize: '16px', 
+            lineHeight: '1.6', 
             marginBottom: spacing.md 
           }}>
-            Your YEC Day Badge
-          </h3>
-          
-          {badgeUrl ? (
-            <div style={{ marginBottom: spacing.md }}>
-              {/* Using <img> is required for email HTML. Next/Image is not applicable here. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img 
-                src={badgeUrl} 
-                alt="YEC Day Badge" 
-                style={{
-                  maxWidth: '300px',
-                  width: '100%',
-                  height: 'auto',
-                  borderRadius: '8px',
-                  border: `2px solid ${colors.accent}`
-                }}
-              />
-            </div>
-          ) : (
-            <div style={{
-              backgroundColor: colors.gray[100],
-              padding: spacing.lg,
-              borderRadius: '8px',
-              marginBottom: spacing.md
-            }}>
-              <p style={{ 
-                color: colors.gray[600], 
-                margin: 0,
-                fontSize: '16px'
-              }}>
-                Your badge is ready for use
-              </p>
-            </div>
-          )}
-          
-          {badgeUrl && (
-            <a href={badgeUrl} style={{
-              ...button.primary,
-              fontSize: '16px',
-              padding: '12px 24px',
-              backgroundColor: colors.success
-            }}>
-              Download Badge
-            </a>
-          )}
+            ✅ Registration approved
+          </p>
+          <p style={{ 
+            fontSize: '14px', 
+            color: colors.gray[600], 
+            margin: 0 
+          }}>
+            You can now attend YEC Day
+          </p>
         </div>
         
         <div style={{
           backgroundColor: colors.gray[50],
-          border: `2px solid ${colors.accent}`,
+          border: `2px solid ${secondaryColor}`,
           borderRadius: '8px',
           padding: spacing.lg,
           marginBottom: spacing.lg,
           textAlign: 'center' as const
         }}>
           <h3 style={{ 
-            color: colors.primary, 
+            color: primaryColor, 
             fontSize: '18px', 
             marginBottom: spacing.sm 
           }}>
@@ -265,7 +257,7 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           <div style={{
             fontSize: '24px',
             fontWeight: 'bold',
-            color: colors.accent,
+            color: secondaryColor,
             fontFamily: 'monospace',
             letterSpacing: '2px'
           }}>
@@ -273,29 +265,79 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           </div>
         </div>
         
+        {badgeUrl && (
+          <div style={{ textAlign: 'center' as const, marginBottom: spacing.lg }}>
+            <div style={{
+              backgroundColor: colors.gray[50],
+              border: `2px solid ${secondaryColor}`,
+              borderRadius: '8px',
+              padding: spacing.lg,
+              marginBottom: spacing.md
+            }}>
+              <h3 style={{ 
+                color: primaryColor, 
+                fontSize: '18px', 
+                marginBottom: spacing.sm 
+              }}>
+                Your YEC Day Badge
+              </h3>
+              <p style={{ 
+                fontSize: '14px', 
+                color: colors.gray[600], 
+                marginBottom: spacing.md 
+              }}>
+                Your badge is ready for download
+              </p>
+              <a href={badgeUrl} style={{
+                ...button.primary,
+                fontSize: '16px',
+                padding: '12px 24px'
+              }}>
+                Download Badge
+              </a>
+            </div>
+          </div>
+        )}
+        
         <div style={{
           backgroundColor: colors.highlight + '20',
           border: `1px solid ${colors.highlight}`,
           borderRadius: '8px',
-          padding: spacing.md
+          padding: spacing.lg,
+          marginBottom: spacing.lg
         }}>
-          <h4 style={{ 
-            color: colors.primary, 
-            fontSize: '16px', 
+          <h3 style={{ 
+            color: colors.highlight, 
+            fontSize: '18px', 
             marginBottom: spacing.sm 
           }}>
-            What to do on the event day
-          </h4>
+            Additional Information
+          </h3>
           <ul style={{ 
             margin: 0, 
             paddingLeft: spacing.lg,
             fontSize: '14px',
             lineHeight: '1.5'
           }}>
-            <li>Present your badge at the entrance</li>
-            <li>Arrive 30 minutes before the event starts</li>
-            <li>Bring any additional registration documents (if required)</li>
+            <li>Keep your badge for event entry</li>
+            <li>Check your email for event details</li>
+            <li>Contact us at {_supportEmail} if you have questions</li>
           </ul>
+        </div>
+        
+        <div style={{
+          backgroundColor: colors.gray[100],
+          padding: spacing.lg,
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: colors.gray[700]
+        }}>
+          <p style={{ margin: 0 }}>
+            <strong>Questions?</strong> Contact us at {_supportEmail}
+          </p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
+            Your personal information will be protected according to our Personal Data Protection Policy (PDPA)
+          </p>
         </div>
       </div>
     </div>

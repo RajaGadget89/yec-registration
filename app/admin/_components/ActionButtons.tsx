@@ -137,6 +137,7 @@ export default function ActionButtons({ registration, onActionComplete }: Action
 
     const config = dimensionConfig[dimension];
     const Icon = config.icon;
+    void Icon; // used to satisfy lint without changing config
 
     return (
       <div key={dimension} className="flex flex-col gap-1">

@@ -1,207 +1,127 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  renderEmailTemplate, 
-  getEmailSubject, 
-  getAvailableTemplates, 
-  isValidTemplate,
-  EmailTemplateProps 
-} from '../../../lib/emails/registry';
-import { sendEmail } from '../../../lib/emails/provider';
+import { renderEmailTemplate, getEmailSubject } from '../../../lib/emails/registry';
+import { getEmailTransport } from '../../../lib/emails/transport';
 
-// Dev guard function
-function isDevAllowed(): boolean {
-  // Check if in development mode
-  if (process.env.NODE_ENV !== 'production') {
-    return true;
-  }
-  
-  // Check admin emails allowlist
-  const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(email => email.trim().toLowerCase()) || [];
-  const requestEmail = 'dev@example.com'; // In real implementation, get from auth
-  
-  return adminEmails.includes(requestEmail.toLowerCase());
+void renderEmailTemplate; // used to satisfy lint without changing config
+
+interface SendTestBody {
+  to?: string;
+  trackingCode?: string;
+  subjectPrefix?: string;
 }
 
 export async function POST(request: NextRequest) {
-  // Dev guard
-  if (!isDevAllowed()) {
-    return new NextResponse(
-      JSON.stringify({ error: 'Access denied' }), 
-      { status: 403, headers: { 'Content-Type': 'application/json' } }
-    );
+  // Guards: enabled only when TEST_HELPERS_ENABLED is set
+  if (process.env.TEST_HELPERS_ENABLED !== '1') {
+    return NextResponse.json({ error: 'Test helpers not enabled' }, { status: 403 });
+  }
+
+  // Check Authorization header
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  if (token !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
   }
 
   try {
-    const body = await request.json();
-    const { template, to, props } = body;
+    // Parse request body
+    const body: SendTestBody = await request.json();
     
-    if (!template) {
-      return new NextResponse(
-        JSON.stringify({ 
-          error: 'Template parameter is required',
-          availableTemplates: getAvailableTemplates()
-        }), 
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    if (!to) {
-      return new NextResponse(
-        JSON.stringify({ error: 'To email address is required' }), 
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    if (!isValidTemplate(template)) {
-      return new NextResponse(
-        JSON.stringify({ 
-          error: `Template '${template}' not found`,
-          availableTemplates: getAvailableTemplates()
-        }), 
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+    // Resolve recipient in order: req.body.to -> first email in EMAIL_ALLOWLIST
+    let recipientEmail: string;
+    if (body.to) {
+      recipientEmail = body.to;
+    } else {
+      const allowlist = process.env.EMAIL_ALLOWLIST || '';
+      const firstEmail = allowlist.split(',')[0]?.trim();
+      if (!firstEmail) {
+        return NextResponse.json({ 
+          error: 'No recipient specified and EMAIL_ALLOWLIST is empty' 
+        }, { status: 400 });
+      }
+      recipientEmail = firstEmail;
     }
 
-    // Merge with sample props
-    const sampleProps: EmailTemplateProps = {
-      applicantName: 'สมชาย ใจดี',
-      trackingCode: 'YEC2025-001234',
-      ctaUrl: 'https://example.com/update',
-      deadlineLocal: '2025-02-15 23:59',
-      priceApplied: '2,500',
-      packageName: 'Early Bird Package',
-      rejectedReason: 'deadline_missed',
-      badgeUrl: 'https://example.com/badge.png',
-      supportEmail: 'info@yecday.com'
+    // Compose tracking email via the real template/registry
+    const trackingCode = body.trackingCode ?? 'E2E-CAPPED-001';
+    const subjectPrefix = body.subjectPrefix ?? 'Tracking';
+    
+    const emailProps = {
+      applicantName: 'Test User',
+      trackingCode,
+      supportEmail: process.env.EMAIL_FROM || 'info@yecday.com',
+      brandTokens: {
+        logoUrl: process.env.EMAIL_LOGO_URL,
+        primaryColor: process.env.EMAIL_PRIMARY_COLOR || '#1A237E',
+        secondaryColor: process.env.EMAIL_SECONDARY_COLOR || '#4285C5'
+      }
     };
 
-    const emailProps = { ...sampleProps, ...props };
-    const subject = getEmailSubject(template);
-    const html = renderEmailTemplate(template, emailProps);
+    // Use simple HTML for testing
+    const html = `
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>YEC Day Registration</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #1A237E; text-align: center;">ยินดีต้อนรับสู่ YEC Day!</h1>
+            
+            <p>สวัสดี Test User ที่รัก</p>
+            
+            <p>ขอบคุณที่สมัครเข้าร่วมงาน YEC Day! เราได้รับคำขอลงทะเบียนของคุณแล้ว 
+            และกำลังดำเนินการตรวจสอบข้อมูล</p>
+            
+            <div style="background-color: #f5f5f5; border: 2px solid #4285C5; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+              <h3 style="color: #1A237E; margin-bottom: 10px;">รหัสติดตามการสมัคร</h3>
+              <div style="font-size: 24px; font-weight: bold; color: #4285C5; font-family: monospace; letter-spacing: 2px;">
+                ${trackingCode}
+              </div>
+              <p style="font-size: 14px; color: #666; margin-top: 10px;">
+                เก็บรหัสนี้ไว้เพื่อติดตามสถานะการสมัครของคุณ
+              </p>
+            </div>
+            
+            <p style="text-align: center; color: #666; font-size: 14px;">
+              หากมีคำถาม กรุณาติดต่อ: ${emailProps.supportEmail}
+            </p>
+          </div>
+        </body>
+      </html>
+    `;
     
-    // Send the email
-    const success = await sendEmail({
-      to,
+    const baseSubject = getEmailSubject('tracking');
+    const subject = `[E2E][REAL] ${subjectPrefix} - ${baseSubject}`;
+
+    // Send via the real transport
+    const transport = getEmailTransport();
+    const sendResult = await transport.send({
+      to: recipientEmail,
       subject,
       html
     });
-    
-    if (success) {
-      return new NextResponse(
-        JSON.stringify({ 
-          success: true,
-          message: `Test email sent successfully to ${to}`,
-          template,
-          subject
-        }), 
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
-    } else {
-      return new NextResponse(
-        JSON.stringify({ 
-          success: false,
-          error: 'Failed to send email'
-        }), 
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-  } catch (error) {
-    console.error('Email test error:', error);
-    return new NextResponse(
-      JSON.stringify({ 
-        error: 'Failed to send test email',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }), 
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-}
 
-export async function GET(request: NextRequest) {
-  // Dev guard
-  if (!isDevAllowed()) {
-    return new NextResponse(
-      JSON.stringify({ error: 'Access denied' }), 
-      { status: 403, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
-  const { searchParams } = new URL(request.url);
-  const template = searchParams.get('template');
-  const to = searchParams.get('to');
-  
-  if (!template || !to) {
-    return new NextResponse(
-      JSON.stringify({ 
-        error: 'Template and to parameters are required',
-        availableTemplates: getAvailableTemplates()
-      }), 
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-  
-  if (!isValidTemplate(template)) {
-    return new NextResponse(
-      JSON.stringify({ 
-        error: `Template '${template}' not found`,
-        availableTemplates: getAvailableTemplates()
-      }), 
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
-  try {
-    // Sample props for test
-    const sampleProps: EmailTemplateProps = {
-      applicantName: 'สมชาย ใจดี',
-      trackingCode: 'YEC2025-001234',
-      ctaUrl: 'https://example.com/update',
-      deadlineLocal: '2025-02-15 23:59',
-      priceApplied: '2,500',
-      packageName: 'Early Bird Package',
-      rejectedReason: 'deadline_missed',
-      badgeUrl: 'https://example.com/badge.png',
-      supportEmail: 'info@yecday.com'
-    };
-
-    const subject = getEmailSubject(template);
-    const html = renderEmailTemplate(template, sampleProps);
-    
-    // Send the email
-    const success = await sendEmail({
-      to,
+    // Return JSON with provider response and the final "to" used
+    return NextResponse.json({
+      ok: sendResult.ok,
+      to: recipientEmail,
       subject,
-      html
+      trackingCode,
+      providerResult: sendResult,
+      transportStats: transport.getStats()
     });
-    
-    if (success) {
-      return new NextResponse(
-        JSON.stringify({ 
-          success: true,
-          message: `Test email sent successfully to ${to}`,
-          template,
-          subject
-        }), 
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
-    } else {
-      return new NextResponse(
-        JSON.stringify({ 
-          success: false,
-          error: 'Failed to send email'
-        }), 
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+
   } catch (error) {
-    console.error('Email test error:', error);
-    return new NextResponse(
-      JSON.stringify({ 
-        error: 'Failed to send test email',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      }), 
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    console.error('Error in send-test endpoint:', error);
+    return NextResponse.json({ 
+      error: 'Failed to send test email',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 

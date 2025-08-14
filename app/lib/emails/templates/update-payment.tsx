@@ -4,20 +4,29 @@ import { EmailTemplateProps } from '../registry';
 
 export const UpdatePaymentTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = 'ผู้สมัคร',
+  trackingCode,
   priceApplied = '0',
   packageName = 'Standard Package',
   ctaUrl,
-  supportEmail: _supportEmail = 'info@yecday.com'
+  supportEmail: _supportEmail = 'info@yecday.com',
+  brandTokens,
+  dimension,
+  notes
 }) => {
   void _supportEmail; // used to satisfy lint without changing config
+  void dimension; // used to satisfy lint without changing config
   const { colors, spacing, button } = emailTheme;
+
+  // Use brand colors if provided, otherwise use default theme
+  const primaryColor = brandTokens?.primaryColor || colors.primary;
+  const secondaryColor = brandTokens?.secondaryColor || colors.accent;
 
   return (
     <div style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
       {/* Thai Content */}
       <div style={{ marginBottom: spacing.xl }}>
         <h2 style={{ 
-          color: colors.primary, 
+          color: primaryColor, 
           fontSize: '24px', 
           marginBottom: spacing.md,
           textAlign: 'center' as const
@@ -75,6 +84,18 @@ export const UpdatePaymentTemplate: React.FC<EmailTemplateProps> = ({
             </div>
           )}
           
+          {notes && (
+            <div style={{
+              backgroundColor: colors.background,
+              padding: spacing.md,
+              borderRadius: '4px',
+              marginBottom: spacing.md,
+              borderLeft: `4px solid ${colors.warning}`
+            }}>
+              <strong>หมายเหตุ:</strong> {notes}
+            </div>
+          )}
+          
           <ul style={{ 
             margin: 0, 
             paddingLeft: spacing.lg,
@@ -89,14 +110,14 @@ export const UpdatePaymentTemplate: React.FC<EmailTemplateProps> = ({
         
         <div style={{
           backgroundColor: colors.gray[50],
-          border: `2px solid ${colors.accent}`,
+          border: `2px solid ${secondaryColor}`,
           borderRadius: '8px',
           padding: spacing.lg,
           marginBottom: spacing.lg,
           textAlign: 'center' as const
         }}>
           <h3 style={{ 
-            color: colors.primary, 
+            color: primaryColor, 
             fontSize: '18px', 
             marginBottom: spacing.sm 
           }}>
@@ -105,12 +126,11 @@ export const UpdatePaymentTemplate: React.FC<EmailTemplateProps> = ({
           <div style={{
             fontSize: '24px',
             fontWeight: 'bold',
-            color: colors.accent,
+            color: secondaryColor,
             fontFamily: 'monospace',
             letterSpacing: '2px'
           }}>
-            {/* trackingCode is not passed as a prop, so this will be empty */}
-            {/* If trackingCode was passed, it would be here */}
+            {trackingCode}
           </div>
         </div>
         
@@ -125,6 +145,21 @@ export const UpdatePaymentTemplate: React.FC<EmailTemplateProps> = ({
             </a>
           </div>
         )}
+        
+        <div style={{
+          backgroundColor: colors.gray[100],
+          padding: spacing.lg,
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: colors.gray[700]
+        }}>
+          <p style={{ margin: 0 }}>
+            <strong>หากมีคำถาม:</strong> ติดต่อเราได้ที่ {_supportEmail}
+          </p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
+            ข้อมูลส่วนบุคคลของคุณจะถูกเก็บรักษาไว้ตามนโยบายการคุ้มครองข้อมูลส่วนบุคคล (PDPA)
+          </p>
+        </div>
       </div>
 
       {/* English Content */}
@@ -133,7 +168,7 @@ export const UpdatePaymentTemplate: React.FC<EmailTemplateProps> = ({
         paddingTop: spacing.lg 
       }}>
         <h2 style={{ 
-          color: colors.primary, 
+          color: primaryColor, 
           fontSize: '24px', 
           marginBottom: spacing.md,
           textAlign: 'center' as const
@@ -191,6 +226,18 @@ export const UpdatePaymentTemplate: React.FC<EmailTemplateProps> = ({
             </div>
           )}
           
+          {notes && (
+            <div style={{
+              backgroundColor: colors.background,
+              padding: spacing.md,
+              borderRadius: '4px',
+              marginBottom: spacing.md,
+              borderLeft: `4px solid ${colors.warning}`
+            }}>
+              <strong>Notes:</strong> {notes}
+            </div>
+          )}
+          
           <ul style={{ 
             margin: 0, 
             paddingLeft: spacing.lg,
@@ -205,14 +252,14 @@ export const UpdatePaymentTemplate: React.FC<EmailTemplateProps> = ({
         
         <div style={{
           backgroundColor: colors.gray[50],
-          border: `2px solid ${colors.accent}`,
+          border: `2px solid ${secondaryColor}`,
           borderRadius: '8px',
           padding: spacing.lg,
           marginBottom: spacing.lg,
           textAlign: 'center' as const
         }}>
           <h3 style={{ 
-            color: colors.primary, 
+            color: primaryColor, 
             fontSize: '18px', 
             marginBottom: spacing.sm 
           }}>
@@ -221,12 +268,11 @@ export const UpdatePaymentTemplate: React.FC<EmailTemplateProps> = ({
           <div style={{
             fontSize: '24px',
             fontWeight: 'bold',
-            color: colors.accent,
+            color: secondaryColor,
             fontFamily: 'monospace',
             letterSpacing: '2px'
           }}>
-            {/* trackingCode is not passed as a prop, so this will be empty */}
-            {/* If trackingCode was passed, it would be here */}
+            {trackingCode}
           </div>
         </div>
         
@@ -241,6 +287,22 @@ export const UpdatePaymentTemplate: React.FC<EmailTemplateProps> = ({
             </a>
           </div>
         )}
+        
+        <div style={{
+          backgroundColor: colors.gray[100],
+          padding: spacing.lg,
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: colors.gray[700],
+          marginTop: spacing.lg
+        }}>
+          <p style={{ margin: 0 }}>
+            <strong>Questions?</strong> Contact us at {_supportEmail}
+          </p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
+            Your personal information will be protected according to our Personal Data Protection Policy (PDPA)
+          </p>
+        </div>
       </div>
     </div>
   );

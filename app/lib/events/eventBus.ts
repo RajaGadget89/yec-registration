@@ -92,6 +92,7 @@ export class EventBus {
     }
 
     console.log(`Emitting event ${event.type} to ${handlers.length} handlers`);
+    console.log(`Handler types:`, handlers.map(h => h.constructor.name));
 
     // Process all handlers concurrently
     const handlerPromises = handlers.map(async (handler, index) => {

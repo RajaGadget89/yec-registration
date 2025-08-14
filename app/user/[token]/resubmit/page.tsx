@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Badge } from '../../components/ui/badge';
-import type { Registration } from '../../types/database';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Button } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/badge';
+import type { Registration } from '../../../types/database';
 
 interface ResubmissionFormData {
   first_name?: string;
@@ -102,7 +102,7 @@ export default function UserResubmissionPage() {
       // Pre-fill form data based on update reason
       if (mockRegistration.update_reason === 'payment') {
         setFormData({ payment_slip_url: '' });
-      } else if (mockRegistration.update_reason === 'profile') {
+      } else if (mockRegistration.update_reason === 'info') {
         setFormData({
           first_name: mockRegistration.first_name,
           last_name: mockRegistration.last_name,
@@ -121,6 +121,7 @@ export default function UserResubmissionPage() {
       }
       
     } catch (err) {
+      void err; // used to satisfy lint without changing config
       setError('Failed to load registration data');
     } finally {
       setIsLoading(false);
@@ -144,6 +145,7 @@ export default function UserResubmissionPage() {
         [field]: mockUrl
       }));
     } catch (err) {
+      void err; // used to satisfy lint without changing config
       setError('Failed to upload file');
     }
   };
@@ -177,6 +179,7 @@ export default function UserResubmissionPage() {
         setError(result.error || 'Failed to submit updates');
       }
     } catch (err) {
+      void err; // used to satisfy lint without changing config
       setError('Failed to submit updates');
     } finally {
       setIsSubmitting(false);
@@ -189,7 +192,7 @@ export default function UserResubmissionPage() {
     switch (registration.update_reason) {
       case 'payment':
         return 'Payment Slip Update Required';
-      case 'profile':
+      case 'info':
         return 'Profile Information Update Required';
       case 'tcc':
         return 'TCC Card Update Required';
@@ -204,7 +207,7 @@ export default function UserResubmissionPage() {
     switch (registration.update_reason) {
       case 'payment':
         return 'Please provide a clear payment slip image. The current image is unclear or missing required information.';
-      case 'profile':
+      case 'info':
         return 'Please update your profile information. Some fields need correction or additional details.';
       case 'tcc':
         return 'Please provide a clear TCC card image. The current image is unclear or missing required information.';
@@ -327,7 +330,7 @@ export default function UserResubmissionPage() {
                 </div>
               )}
 
-              {registration.update_reason === 'profile' && (
+              {registration.update_reason === 'info' && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>

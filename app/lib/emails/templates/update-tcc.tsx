@@ -6,17 +6,25 @@ export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = 'ผู้สมัคร',
   trackingCode,
   ctaUrl,
-  supportEmail: _supportEmail = 'info@yecday.com'
+  supportEmail: _supportEmail = 'info@yecday.com',
+  brandTokens,
+  dimension,
+  notes
 }) => {
   void _supportEmail; // used to satisfy lint without changing config
+  void dimension; // used to satisfy lint without changing config
   const { colors, spacing, button } = emailTheme;
+
+  // Use brand colors if provided, otherwise use default theme
+  const primaryColor = brandTokens?.primaryColor || colors.primary;
+  const secondaryColor = brandTokens?.secondaryColor || colors.accent;
 
   return (
     <div style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
       {/* Thai Content */}
       <div style={{ marginBottom: spacing.xl }}>
         <h2 style={{ 
-          color: colors.primary, 
+          color: primaryColor, 
           fontSize: '24px', 
           marginBottom: spacing.md,
           textAlign: 'center' as const
@@ -63,6 +71,18 @@ export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
             กรุณาอัปโหลดรูปบัตร TCC ที่ถูกต้องและชัดเจน
           </p>
           
+          {notes && (
+            <div style={{
+              backgroundColor: colors.background,
+              padding: spacing.md,
+              borderRadius: '4px',
+              marginBottom: spacing.md,
+              borderLeft: `4px solid ${colors.warning}`
+            }}>
+              <strong>หมายเหตุ:</strong> {notes}
+            </div>
+          )}
+          
           <ul style={{ 
             margin: 0, 
             paddingLeft: spacing.lg,
@@ -71,21 +91,20 @@ export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
           }}>
             <li>ตรวจสอบให้แน่ใจว่าบัตร TCC ยังไม่หมดอายุ</li>
             <li>รูปภาพต้องแสดงรายละเอียดบัตรอย่างชัดเจน</li>
-            <li>ตรวจสอบว่าบัตรเป็นของท่านเองและถูกต้อง</li>
-            <li>ไฟล์ต้องเป็นรูปภาพที่อ่านได้ (JPG, PNG)</li>
+            <li>ไฟล์ต้องเป็นรูปภาพหรือ PDF ที่อ่านได้</li>
           </ul>
         </div>
         
         <div style={{
           backgroundColor: colors.gray[50],
-          border: `2px solid ${colors.accent}`,
+          border: `2px solid ${secondaryColor}`,
           borderRadius: '8px',
           padding: spacing.lg,
           marginBottom: spacing.lg,
           textAlign: 'center' as const
         }}>
           <h3 style={{ 
-            color: colors.primary, 
+            color: primaryColor, 
             fontSize: '18px', 
             marginBottom: spacing.sm 
           }}>
@@ -94,7 +113,7 @@ export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
           <div style={{
             fontSize: '24px',
             fontWeight: 'bold',
-            color: colors.accent,
+            color: secondaryColor,
             fontFamily: 'monospace',
             letterSpacing: '2px'
           }}>
@@ -113,6 +132,21 @@ export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
             </a>
           </div>
         )}
+        
+        <div style={{
+          backgroundColor: colors.gray[100],
+          padding: spacing.lg,
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: colors.gray[700]
+        }}>
+          <p style={{ margin: 0 }}>
+            <strong>หากมีคำถาม:</strong> ติดต่อเราได้ที่ {_supportEmail}
+          </p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
+            ข้อมูลส่วนบุคคลของคุณจะถูกเก็บรักษาไว้ตามนโยบายการคุ้มครองข้อมูลส่วนบุคคล (PDPA)
+          </p>
+        </div>
       </div>
 
       {/* English Content */}
@@ -121,7 +155,7 @@ export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
         paddingTop: spacing.lg 
       }}>
         <h2 style={{ 
-          color: colors.primary, 
+          color: primaryColor, 
           fontSize: '24px', 
           marginBottom: spacing.md,
           textAlign: 'center' as const
@@ -143,7 +177,7 @@ export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
           marginBottom: spacing.lg 
         }}>
           Thank you for registering for YEC Day! We have reviewed your registration 
-          and need you to update your TCC card image.
+          and need you to update your TCC card.
         </p>
         
         <div style={{
@@ -168,29 +202,40 @@ export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
             Please upload a correct and clear TCC card image
           </p>
           
+          {notes && (
+            <div style={{
+              backgroundColor: colors.background,
+              padding: spacing.md,
+              borderRadius: '4px',
+              marginBottom: spacing.md,
+              borderLeft: `4px solid ${colors.warning}`
+            }}>
+              <strong>Notes:</strong> {notes}
+            </div>
+          )}
+          
           <ul style={{ 
             margin: 0, 
             paddingLeft: spacing.lg,
             fontSize: '14px',
             lineHeight: '1.5'
           }}>
-            <li>Ensure your TCC card is not expired</li>
+            <li>Ensure the TCC card is not expired</li>
             <li>The image must clearly show card details</li>
-            <li>Verify the card belongs to you and is correct</li>
-            <li>File must be a readable image (JPG, PNG)</li>
+            <li>File must be a readable image or PDF</li>
           </ul>
         </div>
         
         <div style={{
           backgroundColor: colors.gray[50],
-          border: `2px solid ${colors.accent}`,
+          border: `2px solid ${secondaryColor}`,
           borderRadius: '8px',
           padding: spacing.lg,
           marginBottom: spacing.lg,
           textAlign: 'center' as const
         }}>
           <h3 style={{ 
-            color: colors.primary, 
+            color: primaryColor, 
             fontSize: '18px', 
             marginBottom: spacing.sm 
           }}>
@@ -199,7 +244,7 @@ export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
           <div style={{
             fontSize: '24px',
             fontWeight: 'bold',
-            color: colors.accent,
+            color: secondaryColor,
             fontFamily: 'monospace',
             letterSpacing: '2px'
           }}>
@@ -218,6 +263,22 @@ export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
             </a>
           </div>
         )}
+        
+        <div style={{
+          backgroundColor: colors.gray[100],
+          padding: spacing.lg,
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: colors.gray[700],
+          marginTop: spacing.lg
+        }}>
+          <p style={{ margin: 0 }}>
+            <strong>Questions?</strong> Contact us at {_supportEmail}
+          </p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
+            Your personal information will be protected according to our Personal Data Protection Policy (PDPA)
+          </p>
+        </div>
       </div>
     </div>
   );

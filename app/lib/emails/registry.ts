@@ -12,6 +12,14 @@ export interface EmailTemplateProps {
   rejectedReason?: 'deadline_missed' | 'ineligible_rule_match' | 'other';
   badgeUrl?: string;
   supportEmail?: string;
+  // New props for production-shaped emails
+  brandTokens?: {
+    logoUrl?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+  };
+  dimension?: 'payment' | 'profile' | 'tcc';
+  notes?: string;
 }
 
 // Re-export the safe rendering functions

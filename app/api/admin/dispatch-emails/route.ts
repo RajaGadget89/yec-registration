@@ -55,18 +55,21 @@ function isAuthorized(req: NextRequest): boolean {
 
 /**
  * Check if request is in dry-run mode
- * Respects EMAIL_MODE setting and doesn't override CAPPED/FULL modes with DISPATCH_DRY_RUN
+ * Respects EMAIL_MODE setting and DISPATCH_DRY_RUN environment variable
  */
 function isDryRun(req: NextRequest, body?: DispatchBody): boolean {
   const emailMode = process.env.EMAIL_MODE || 'DRY_RUN';
+  const dispatchDryRun = process.env.DISPATCH_DRY_RUN;
   
   // If EMAIL_MODE is DRY_RUN, always return true
   if (emailMode.toUpperCase() === 'DRY_RUN') {
     return true;
   }
   
-  // If EMAIL_MODE is CAPPED or FULL, only check explicit dry-run flags
-  // Don't override with DISPATCH_DRY_RUN environment variable
+  // If DISPATCH_DRY_RUN is set to 'true', force dry-run mode
+  if (dispatchDryRun === 'true') {
+    return true;
+  }
   
   // Check query parameter for GET requests
   const url = new URL(req.url);

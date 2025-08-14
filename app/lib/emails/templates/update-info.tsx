@@ -6,17 +6,25 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = 'ผู้สมัคร',
   trackingCode,
   ctaUrl,
-  supportEmail: _supportEmail = 'info@yecday.com'
+  supportEmail: _supportEmail = 'info@yecday.com',
+  brandTokens,
+  dimension,
+  notes
 }) => {
   void _supportEmail; // used to satisfy lint without changing config
+  void dimension; // used to satisfy lint without changing config
   const { colors, spacing, button } = emailTheme;
+
+  // Use brand colors if provided, otherwise use default theme
+  const primaryColor = brandTokens?.primaryColor || colors.primary;
+  const secondaryColor = brandTokens?.secondaryColor || colors.accent;
 
   return (
     <div style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
       {/* Thai Content */}
       <div style={{ marginBottom: spacing.xl }}>
         <h2 style={{ 
-          color: colors.primary, 
+          color: primaryColor, 
           fontSize: '24px', 
           marginBottom: spacing.md,
           textAlign: 'center' as const
@@ -60,8 +68,20 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
             lineHeight: '1.6', 
             marginBottom: spacing.md 
           }}>
-            กรุณาตรวจสอบและอัปเดตข้อมูลส่วนบุคคลของคุณ
+            กรุณาอัปเดตข้อมูลส่วนบุคคลของคุณให้ถูกต้องและครบถ้วน
           </p>
+          
+          {notes && (
+            <div style={{
+              backgroundColor: colors.background,
+              padding: spacing.md,
+              borderRadius: '4px',
+              marginBottom: spacing.md,
+              borderLeft: `4px solid ${colors.warning}`
+            }}>
+              <strong>หมายเหตุ:</strong> {notes}
+            </div>
+          )}
           
           <ul style={{ 
             margin: 0, 
@@ -69,23 +89,22 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
             fontSize: '14px',
             lineHeight: '1.5'
           }}>
-            <li>ตรวจสอบชื่อ-นามสกุลให้ถูกต้อง</li>
-            <li>อัปโหลดรูปภาพที่ชัดเจนและเหมาะสม</li>
-            <li>ตรวจสอบข้อมูลการติดต่อ (อีเมล, เบอร์โทร)</li>
-            <li>ตรวจสอบข้อมูลบริษัท/องค์กร</li>
+            <li>ตรวจสอบให้แน่ใจว่าข้อมูลส่วนบุคคลถูกต้อง</li>
+            <li>อัปเดตรูปภาพโปรไฟล์หากจำเป็น</li>
+            <li>ตรวจสอบข้อมูลการติดต่อให้ถูกต้อง</li>
           </ul>
         </div>
         
         <div style={{
           backgroundColor: colors.gray[50],
-          border: `2px solid ${colors.accent}`,
+          border: `2px solid ${secondaryColor}`,
           borderRadius: '8px',
           padding: spacing.lg,
           marginBottom: spacing.lg,
           textAlign: 'center' as const
         }}>
           <h3 style={{ 
-            color: colors.primary, 
+            color: primaryColor, 
             fontSize: '18px', 
             marginBottom: spacing.sm 
           }}>
@@ -94,7 +113,7 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
           <div style={{
             fontSize: '24px',
             fontWeight: 'bold',
-            color: colors.accent,
+            color: secondaryColor,
             fontFamily: 'monospace',
             letterSpacing: '2px'
           }}>
@@ -113,6 +132,21 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
             </a>
           </div>
         )}
+        
+        <div style={{
+          backgroundColor: colors.gray[100],
+          padding: spacing.lg,
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: colors.gray[700]
+        }}>
+          <p style={{ margin: 0 }}>
+            <strong>หากมีคำถาม:</strong> ติดต่อเราได้ที่ {_supportEmail}
+          </p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
+            ข้อมูลส่วนบุคคลของคุณจะถูกเก็บรักษาไว้ตามนโยบายการคุ้มครองข้อมูลส่วนบุคคล (PDPA)
+          </p>
+        </div>
       </div>
 
       {/* English Content */}
@@ -121,7 +155,7 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
         paddingTop: spacing.lg 
       }}>
         <h2 style={{ 
-          color: colors.primary, 
+          color: primaryColor, 
           fontSize: '24px', 
           marginBottom: spacing.md,
           textAlign: 'center' as const
@@ -165,8 +199,20 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
             lineHeight: '1.6', 
             marginBottom: spacing.md 
           }}>
-            Please review and update your personal information
+            Please update your personal information to be accurate and complete
           </p>
+          
+          {notes && (
+            <div style={{
+              backgroundColor: colors.background,
+              padding: spacing.md,
+              borderRadius: '4px',
+              marginBottom: spacing.md,
+              borderLeft: `4px solid ${colors.warning}`
+            }}>
+              <strong>Notes:</strong> {notes}
+            </div>
+          )}
           
           <ul style={{ 
             margin: 0, 
@@ -174,23 +220,22 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
             fontSize: '14px',
             lineHeight: '1.5'
           }}>
-            <li>Verify your full name is correct</li>
-            <li>Upload a clear and appropriate profile photo</li>
-            <li>Check your contact information (email, phone)</li>
-            <li>Verify your company/organization details</li>
+            <li>Ensure your personal information is correct</li>
+            <li>Update profile picture if necessary</li>
+            <li>Verify contact information is accurate</li>
           </ul>
         </div>
         
         <div style={{
           backgroundColor: colors.gray[50],
-          border: `2px solid ${colors.accent}`,
+          border: `2px solid ${secondaryColor}`,
           borderRadius: '8px',
           padding: spacing.lg,
           marginBottom: spacing.lg,
           textAlign: 'center' as const
         }}>
           <h3 style={{ 
-            color: colors.primary, 
+            color: primaryColor, 
             fontSize: '18px', 
             marginBottom: spacing.sm 
           }}>
@@ -199,7 +244,7 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
           <div style={{
             fontSize: '24px',
             fontWeight: 'bold',
-            color: colors.accent,
+            color: secondaryColor,
             fontFamily: 'monospace',
             letterSpacing: '2px'
           }}>
@@ -218,6 +263,22 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
             </a>
           </div>
         )}
+        
+        <div style={{
+          backgroundColor: colors.gray[100],
+          padding: spacing.lg,
+          borderRadius: '8px',
+          fontSize: '14px',
+          color: colors.gray[700],
+          marginTop: spacing.lg
+        }}>
+          <p style={{ margin: 0 }}>
+            <strong>Questions?</strong> Contact us at {_supportEmail}
+          </p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
+            Your personal information will be protected according to our Personal Data Protection Policy (PDPA)
+          </p>
+        </div>
       </div>
     </div>
   );

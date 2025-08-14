@@ -12,17 +12,38 @@ async function handlePOST(
 
     const supabase = getSupabaseServiceClient();
 
-    // Validate token and get registration
+    // Get client IP and user agent for audit logging
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                     request.headers.get('x-real-ip') || 
+                     'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+
+    // Validate token and get registration using enhanced validation
     const { data: tokenValidation, error: tokenError } = await supabase
-      .rpc('validate_deep_link_token', {
+      .rpc('validate_and_consume_deep_link_token', {
         token: token,
-        reg_id: body.registration_id // We'll need to extract this from token in production
+        reg_id: body.registration_id,
+        user_email: body.user_email || null,
+        ip_address: ipAddress,
+        user_agent: userAgent
       });
 
-    if (tokenError || !tokenValidation) {
+    if (tokenError) {
       console.error('Token validation error:', tokenError);
       return NextResponse.json(
-        { ok: false, error: 'Invalid or expired token' },
+        { ok: false, error: 'Token validation failed' },
+        { status: 500 }
+      );
+    }
+
+    if (!tokenValidation || !tokenValidation.valid) {
+      console.error('Invalid token:', tokenValidation);
+      return NextResponse.json(
+        { 
+          ok: false, 
+          error: 'Invalid or expired token',
+          reason: tokenValidation?.reason || 'unknown'
+        },
         { status: 401 }
       );
     }
@@ -51,6 +72,23 @@ async function handlePOST(
       );
     }
 
+    // Validate that the token dimension matches the registration update reason
+    const expectedDimension = registration.update_reason === 'payment' ? 'payment' :
+                             registration.update_reason === 'info' ? 'profile' :
+                             registration.update_reason === 'tcc' ? 'tcc' : null;
+
+    if (tokenValidation.dimension !== expectedDimension) {
+      console.error('Token dimension mismatch:', {
+        tokenDimension: tokenValidation.dimension,
+        expectedDimension,
+        registrationUpdateReason: registration.update_reason
+      });
+      return NextResponse.json(
+        { ok: false, error: 'Token dimension mismatch' },
+        { status: 400 }
+      );
+    }
+
     // Call domain function for user resubmission
     const { data: result, error: domainError } = await supabase
       .rpc('fn_user_resubmit', {
@@ -67,28 +105,22 @@ async function handlePOST(
     }
 
     if (!result || result.length === 0 || !result[0].success) {
+      console.error('Resubmission failed:', result);
       return NextResponse.json(
-        { ok: false, error: result?.[0]?.message || 'Failed to process resubmission' },
-        { status: 400 }
+        { ok: false, error: 'Resubmission processing failed' },
+        { status: 500 }
       );
     }
 
-    const resubmitResult = result[0];
-
-    // Emit user resubmitted event for centralized side-effects
-    try {
-      // This would be handled by the event system
-      console.log('User resubmitted event would be emitted here');
-    } catch (eventError) {
-      console.error('Error emitting user resubmitted event:', eventError);
-      // Don't fail the request if event emission fails
-    }
+    const resubmissionResult = result[0];
 
     return NextResponse.json({
       ok: true,
+      message: 'Resubmission processed successfully',
       registration_id: body.registration_id,
-      status: resubmitResult.new_status,
-      message: resubmitResult.message
+      status: resubmissionResult.status,
+      dimension: tokenValidation.dimension,
+      token_used_at: tokenValidation.used_at
     });
 
   } catch (error) {
@@ -100,7 +132,101 @@ async function handlePOST(
   }
 }
 
-// Export the wrapped handler
+async function handleGET(
+  request: NextRequest,
+  { params }: { params: { token: string } }
+) {
+  try {
+    const { token } = params;
+    const { searchParams } = new URL(request.url);
+    const registrationId = searchParams.get('registration_id');
+
+    if (!registrationId) {
+      return NextResponse.json(
+        { ok: false, error: 'Registration ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = getSupabaseServiceClient();
+
+    // Validate token without consuming it (for GET requests)
+    const { data: tokenValidation, error: tokenError } = await supabase
+      .rpc('validate_and_consume_deep_link_token', {
+        token: token,
+        reg_id: registrationId,
+        user_email: null,
+        ip_address: null,
+        user_agent: null
+      });
+
+    if (tokenError) {
+      console.error('Token validation error:', tokenError);
+      return NextResponse.json(
+        { ok: false, error: 'Token validation failed' },
+        { status: 500 }
+      );
+    }
+
+    if (!tokenValidation || !tokenValidation.valid) {
+      return NextResponse.json(
+        { 
+          ok: false, 
+          error: 'Invalid or expired token',
+          reason: tokenValidation?.reason || 'unknown'
+        },
+        { status: 401 }
+      );
+    }
+
+    // Get registration details
+    const { data: registration, error: fetchError } = await supabase
+      .from('registrations')
+      .select('*')
+      .eq('id', registrationId)
+      .single();
+
+    if (fetchError || !registration) {
+      console.error('Error fetching registration:', fetchError);
+      return NextResponse.json(
+        { ok: false, error: 'Registration not found' },
+        { status: 404 }
+      );
+    }
+
+    // Return registration details for the form
+    return NextResponse.json({
+      ok: true,
+      registration: {
+        id: registration.id,
+        first_name: registration.first_name,
+        last_name: registration.last_name,
+        email: registration.email,
+        tracking_code: registration.tracking_code,
+        status: registration.status,
+        update_reason: registration.update_reason,
+        dimension: tokenValidation.dimension
+      },
+      token_info: {
+        dimension: tokenValidation.dimension,
+        expires_at: tokenValidation.expires_at,
+        created_at: tokenValidation.created_at
+      }
+    });
+
+  } catch (error) {
+    console.error('Unexpected error in token validation:', error);
+    return NextResponse.json(
+      { ok: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 export const POST = withAuditLogging(handlePOST, {
-  resource: 'user/resubmit'
+  resource: 'user_resubmission'
+});
+
+export const GET = withAuditLogging(handleGET, {
+  resource: 'token_validation'
 });

@@ -4,6 +4,7 @@ import { getCurrentUserFromRequest } from '../../../../../lib/auth-utils.server'
 import { isAdmin } from '../../../../../lib/admin-guard';
 import { EventService } from '../../../../../lib/events/eventService';
 import { withAuditLogging } from '../../../../../lib/audit/withAuditAccess';
+import { eventDrivenEmailService } from '../../../../../lib/emails/enhancedEmailService';
 
 async function handlePOST(
   request: NextRequest,
@@ -45,12 +46,11 @@ async function handlePOST(
       );
     }
 
-    // Call domain function for requesting update
+    // Call domain function for request update
     const { data: result, error: domainError } = await supabase
       .rpc('fn_request_update', {
         reg_id: id,
         dimension: dimension,
-        reviewer_id: user.email || 'unknown',
         notes: notes || null
       });
 
@@ -63,13 +63,40 @@ async function handlePOST(
     }
 
     if (!result || result.length === 0 || !result[0].success) {
+      console.error('Request update failed:', result);
       return NextResponse.json(
-        { ok: false, error: result?.[0]?.message || 'Failed to request update' },
-        { status: 400 }
+        { ok: false, error: 'Request update processing failed' },
+        { status: 500 }
       );
     }
 
     const updateResult = result[0];
+
+    // Send email notification using enhanced email service
+    try {
+      const brandTokens = eventDrivenEmailService.getBrandTokens();
+      const emailResult = await eventDrivenEmailService.processEvent(
+        'review.request_update',
+        registration,
+        user.email,
+        dimension,
+        notes,
+        undefined, // no badge URL for update requests
+        undefined, // no rejection reason for update requests
+        brandTokens
+      );
+
+      if (emailResult) {
+        console.log('Update request email sent successfully:', {
+          to: emailResult.to,
+          template: emailResult.template,
+          ctaUrl: emailResult.ctaUrl
+        });
+      }
+    } catch (emailError) {
+      console.error('Error sending update request email:', emailError);
+      // Don't fail the request if email fails
+    }
 
     // Emit admin request update event for centralized side-effects
     try {
@@ -86,10 +113,10 @@ async function handlePOST(
     return NextResponse.json({
       ok: true,
       id: registration.id,
-      status: updateResult.new_status,
+      status: updateResult.status,
       dimension: dimension,
-      notes: notes || null,
-      message: updateResult.message
+      notes: notes,
+      message: `Update requested for ${dimension} dimension`
     });
 
   } catch (error) {
@@ -101,7 +128,6 @@ async function handlePOST(
   }
 }
 
-// Export the wrapped handler
 export const POST = withAuditLogging(handlePOST, {
-  resource: 'admin/request-update'
+  resource: 'admin_request_update'
 });

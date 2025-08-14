@@ -263,17 +263,19 @@ export async function dispatchEmailBatch(batchSize: number = 50, dryRun: boolean
  * Get mock emails for testing when database is not available
  */
 function getMockEmails(batchSize: number): EmailOutboxItem[] {
+  const allowlistedEmail = process.env.EMAIL_ALLOWLIST?.split(',')[0] || 'test@example.com';
+  
   return [
     { 
       id: '1', 
       template: 'tracking', 
-      to_email: 'raja.gadgets89@gmail.com', // Allowlisted
+      to_email: allowlistedEmail, // Allowlisted
       payload: { trackingCode: 'E2E-CAPPED-001' } 
     },
     { 
       id: '2', 
       template: 'tracking', 
-      to_email: 'raja.gadgets89@gmail.com', // Allowlisted (will be capped)
+      to_email: allowlistedEmail, // Allowlisted (will be capped)
       payload: { trackingCode: 'E2E-CAPPED-002' } 
     },
     { 
@@ -285,7 +287,7 @@ function getMockEmails(batchSize: number): EmailOutboxItem[] {
     { 
       id: '4', 
       template: 'tracking', 
-      to_email: 'test3@example.com', 
+      to_email: 'test3@example.com', // Non-allowlisted (will be blocked)
       payload: { trackingCode: 'TEST004' } 
     },
   ].slice(0, batchSize);
