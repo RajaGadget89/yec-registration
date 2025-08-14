@@ -91,6 +91,12 @@ export interface Registration {
   payment_review_status: 'pending' | 'needs_update' | 'passed' | 'rejected';
   profile_review_status: 'pending' | 'needs_update' | 'passed' | 'rejected';
   tcc_review_status: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  // Phase 1: Comprehensive review workflow
+  review_checklist: {
+    payment: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
+    profile: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
+    tcc: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
+  };
   // Phase 1: Pricing fields
   price_applied: number | null;
   currency: string;
@@ -179,6 +185,12 @@ export interface RegistrationUpdate {
   payment_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
   profile_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
   tcc_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  // Phase 1: Comprehensive review workflow
+  review_checklist?: {
+    payment: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
+    profile: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
+    tcc: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
+  };
   // Phase 1: Pricing fields
   price_applied?: number | null;
   currency?: string;

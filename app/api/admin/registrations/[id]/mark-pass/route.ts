@@ -18,7 +18,7 @@ async function handlePOST(
 
     const { id } = params;
     const body = await request.json();
-    const { dimension, notes } = body;
+    const { dimension } = body;
 
     // Validate dimension
     if (!dimension || !['payment', 'profile', 'tcc'].includes(dimension)) {
@@ -45,55 +45,76 @@ async function handlePOST(
       );
     }
 
-    // Call domain function for requesting update
-    const { data: result, error: domainError } = await supabase
-      .rpc('fn_request_update', {
-        reg_id: id,
-        dimension: dimension,
-        reviewer_id: user.email || 'unknown',
-        notes: notes || null
-      });
+    // Update the specific dimension to passed
+    const currentChecklist = registration.review_checklist || {
+      payment: { status: 'pending' },
+      profile: { status: 'pending' },
+      tcc: { status: 'pending' }
+    };
 
-    if (domainError) {
-      console.error('Domain function error:', domainError);
+    // Update the specific dimension
+    currentChecklist[dimension] = { status: 'passed' };
+
+    // Update registration with new checklist
+    const { data: updatedRegistration, error: updateError } = await supabase
+      .from('registrations')
+      .update({ 
+        review_checklist: currentChecklist,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating registration:', updateError);
       return NextResponse.json(
-        { ok: false, error: 'Failed to request update' },
+        { ok: false, error: 'Failed to mark dimension as passed' },
         { status: 500 }
       );
     }
 
-    if (!result || result.length === 0 || !result[0].success) {
-      return NextResponse.json(
-        { ok: false, error: result?.[0]?.message || 'Failed to request update' },
-        { status: 400 }
-      );
+    // Check if all dimensions are now passed (auto-approve)
+    const allPassed = (
+      currentChecklist.payment.status === 'passed' &&
+      currentChecklist.profile.status === 'passed' &&
+      currentChecklist.tcc.status === 'passed'
+    );
+
+    let finalStatus = updatedRegistration.status;
+    if (allPassed) {
+      // Auto-approve
+      const { data: approveResult, error: approveError } = await supabase
+        .rpc('fn_try_approve', { reg_id: id });
+
+      if (!approveError && approveResult && approveResult.length > 0 && approveResult[0].success) {
+        finalStatus = 'approved';
+      }
     }
 
-    const updateResult = result[0];
-
-    // Emit admin request update event for centralized side-effects
+    // Emit admin mark pass event for centralized side-effects
     try {
       if (!user.email) {
         throw new Error('Admin email is required');
       }
-      await EventService.emitAdminRequestUpdate(registration, user.email, dimension, notes);
-      console.log('Admin request update event emitted successfully');
+      await EventService.emitAdminMarkPass(registration, user.email, dimension);
+      console.log('Admin mark pass event emitted successfully');
     } catch (eventError) {
-      console.error('Error emitting admin request update event:', eventError);
+      console.error('Error emitting admin mark pass event:', eventError);
       // Don't fail the request if event emission fails
     }
 
     return NextResponse.json({
       ok: true,
       id: registration.id,
-      status: updateResult.new_status,
+      status: finalStatus,
       dimension: dimension,
-      notes: notes || null,
-      message: updateResult.message
+      all_passed: allPassed,
+      message: `Dimension ${dimension} marked as passed${allPassed ? ' - Registration auto-approved' : ''}`
     });
 
   } catch (error) {
-    console.error('Unexpected error in request update action:', error);
+    console.error('Unexpected error in mark pass action:', error);
     return NextResponse.json(
       { ok: false, error: 'Internal server error' },
       { status: 500 }
@@ -103,5 +124,5 @@ async function handlePOST(
 
 // Export the wrapped handler
 export const POST = withAuditLogging(handlePOST, {
-  resource: 'admin/request-update'
+  resource: 'admin/mark-pass'
 });
