@@ -43,10 +43,10 @@ export class EventService {
   static async emitAdminRequestUpdate(
     registration: any,
     adminEmail: string,
-    track: 'payment' | 'profile' | 'tcc',
-    reason?: string
+    dimension: 'payment' | 'profile' | 'tcc',
+    notes?: string
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createAdminRequestUpdate(registration, adminEmail, track, reason);
+    const event = EventFactory.createAdminRequestUpdate(registration, adminEmail, dimension, notes);
     return await this.emitEvent(event);
   }
 
@@ -80,6 +80,29 @@ export class EventService {
     registration: any
   ): Promise<EventHandlerResult[]> {
     const event = EventFactory.createDocumentReuploaded(registration);
+    return await this.emitEvent(event);
+  }
+
+  /**
+   * Emit an admin mark pass event
+   */
+  static async emitAdminMarkPass(
+    registration: any,
+    adminEmail: string,
+    dimension: 'payment' | 'profile' | 'tcc'
+  ): Promise<EventHandlerResult[]> {
+    const event = EventFactory.createAdminMarkPass(registration, adminEmail, dimension);
+    return await this.emitEvent(event);
+  }
+
+  /**
+   * Emit a user resubmitted event
+   */
+  static async emitUserResubmitted(
+    registration: any,
+    updates: Record<string, any>
+  ): Promise<EventHandlerResult[]> {
+    const event = EventFactory.createUserResubmitted(registration, updates);
     return await this.emitEvent(event);
   }
 

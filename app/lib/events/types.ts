@@ -7,8 +7,10 @@ export type RegistrationEventType =
   | 'registration.submitted'
   | 'registration.batch_upserted'
   | 'admin.request_update'
+  | 'admin.mark_pass'
   | 'admin.approved'
   | 'admin.rejected'
+  | 'user.resubmitted'
   | 'document.reuploaded'
   | 'status.changed'
   | 'login.submitted'
@@ -33,11 +35,13 @@ export interface DomainEvent<T = any> {
 export interface RegistrationEventPayload {
   registration: Registration;
   reason?: string;
-  track?: 'payment' | 'profile' | 'tcc';
-  track_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  dimension?: 'payment' | 'profile' | 'tcc';
+  dimension_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  notes?: string;
   admin_email?: string;
   price_applied?: number;
   selected_package?: string;
+  updates?: Record<string, any>;
 }
 
 /**
