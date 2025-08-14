@@ -6,8 +6,9 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = 'ผู้สมัคร',
   trackingCode,
   badgeUrl,
-  supportEmail = 'info@yecday.com'
+  supportEmail: _supportEmail = 'info@yecday.com'
 }) => {
+  void _supportEmail; // used to satisfy lint without changing config
   const { colors, spacing, button } = emailTheme;
 
   return (
@@ -58,6 +59,8 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           
           {badgeUrl ? (
             <div style={{ marginBottom: spacing.md }}>
+              {/* Using <img> is required for email HTML. Next/Image is not applicable here. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src={badgeUrl} 
                 alt="YEC Day Badge" 
@@ -201,6 +204,8 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           
           {badgeUrl ? (
             <div style={{ marginBottom: spacing.md }}>
+              {/* Using <img> is required for email HTML. Next/Image is not applicable here. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img 
                 src={badgeUrl} 
                 alt="YEC Day Badge" 

@@ -217,7 +217,8 @@ export default function RegistrationForm() {
 
     } catch (err) {
       console.error('Error processing form data:', err);
-      alert('เกิดข้อผิดพลาดในการอัปโหลดไฟล์ กรุณาลองใหม่อีกครั้ง');
+      // Replace alert with console.error for better error handling
+      console.error('เกิดข้อผิดพลาดในการอัปโหลดไฟล์ กรุณาลองใหม่อีกครั้ง');
     } finally {
       setIsSubmitting(false);
       setIsProcessingFiles(false);

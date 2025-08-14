@@ -1,5 +1,4 @@
 /** @jsxImportSource react */
-import React from 'react';
 import { renderEmailTemplate as renderTemplate, getEmailSubject as getSubject } from './render';
 
 // Common props for all email templates

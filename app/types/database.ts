@@ -19,13 +19,13 @@ export interface Database {
       };
     };
     Views: {
-      [key: string]: any;
+      [key: string]: unknown;
     };
     Functions: {
-      [key: string]: any;
+      [key: string]: unknown;
     };
     Enums: {
-      [key: string]: any;
+      [key: string]: unknown;
     };
   };
   audit: {
@@ -42,16 +42,19 @@ export interface Database {
       };
     };
     Views: {
-      [key: string]: any;
+      [key: string]: unknown;
     };
     Functions: {
-      [key: string]: any;
+      [key: string]: unknown;
     };
     Enums: {
-      [key: string]: any;
+      [key: string]: unknown;
     };
   };
 }
+
+// Form data type for registration
+type FormData = Record<string, unknown> | unknown[] | string | number | boolean | null;
 
 // Registration table types
 export interface Registration {
@@ -94,7 +97,7 @@ export interface Registration {
   selected_package_code: string | null;
   ip_address: string | null;
   user_agent: string | null;
-  form_data: any;
+  form_data: FormData;
   created_at: string;
   updated_at: string;
 }
@@ -138,7 +141,7 @@ export interface RegistrationInsert {
   selected_package_code?: string | null;
   ip_address?: string | null;
   user_agent?: string | null;
-  form_data?: any;
+  form_data?: FormData;
   created_at?: string;
   updated_at?: string;
 }
@@ -182,7 +185,7 @@ export interface RegistrationUpdate {
   selected_package_code?: string | null;
   ip_address?: string | null;
   user_agent?: string | null;
-  form_data?: any;
+  form_data?: FormData;
   created_at?: string;
   updated_at?: string;
 }

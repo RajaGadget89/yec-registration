@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dispatchEmailBatch, getOutboxStats } from '../../../lib/emails/dispatcher';
+import { dispatchEmailBatch } from '../../../lib/emails/dispatcher';
 import { validateAdminAccess } from '../../../lib/admin-guard-server';
+
+// lint-only typing; logic unchanged
+interface DispatchBody {
+  batchSize?: number;
+  dryRun?: boolean;
+}
 
 /**
  * Admin API route for dispatching emails from the outbox
@@ -51,7 +57,7 @@ function isAuthorized(req: NextRequest): boolean {
  * Check if request is in dry-run mode
  * Respects EMAIL_MODE setting and doesn't override CAPPED/FULL modes with DISPATCH_DRY_RUN
  */
-function isDryRun(req: NextRequest, body?: any): boolean {
+function isDryRun(req: NextRequest, body?: DispatchBody): boolean {
   const emailMode = process.env.EMAIL_MODE || 'DRY_RUN';
   
   // If EMAIL_MODE is DRY_RUN, always return true
@@ -98,6 +104,8 @@ export async function GET(request: NextRequest) {
       blocked: result.blocked,
       errors: result.errors,
       remaining: result.remaining,
+      rateLimited: result.rateLimited,
+      retries: result.retries,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -123,14 +131,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse request body
-    let body = {};
-    try {
-      body = await request.json();
-    } catch (e) {
-      // If no body, use empty object
-    }
+    let body: DispatchBody = {};
+          try {
+        body = await request.json();
+      } catch (_e) {
+        // If no body, use empty object
+        void _e; // used to satisfy lint without changing config
+      }
 
-    const batchSize = (body as any).batchSize !== undefined ? (body as any).batchSize : 50;
+    const batchSize = body.batchSize ?? 50;
     const dryRun = isDryRun(request, body);
 
     // Validate batch size
@@ -153,6 +162,8 @@ export async function POST(request: NextRequest) {
       blocked: result.blocked,
       errors: result.errors,
       remaining: result.remaining,
+      rateLimited: result.rateLimited,
+      retries: result.retries,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

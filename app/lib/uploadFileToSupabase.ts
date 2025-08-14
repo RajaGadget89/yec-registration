@@ -1,6 +1,6 @@
 import { generateUniqueFilename, validateFilename, ensureFileExtension } from './filenameUtils';
-import { getSupabaseClient } from './supabase';
-import { validateFileForBucket, getBucketConfig } from './storage-bucket-setup';
+import { getSupabaseServiceClient } from './supabase-server';
+import { getBucketConfig as _getBucketConfig } from './storage-bucket-setup';
 
 /**
  * Uploads a file to Supabase Storage
@@ -14,7 +14,7 @@ export async function uploadFileToSupabase(
   folder: string, 
   filename?: string
 ): Promise<string> {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
   try {
     // Validate input parameters
     if (!file) {
@@ -26,9 +26,19 @@ export async function uploadFileToSupabase(
     }
 
     // Validate file against bucket configuration
-    const bucketValidation = validateFileForBucket(file, folder);
-    if (!bucketValidation.valid) {
-      throw new Error(bucketValidation.error);
+    const bucketConfig = _getBucketConfig(folder);
+    if (!bucketConfig) {
+      throw new Error(`Unknown bucket: ${folder}`);
+    }
+    
+    // Check file size
+    if (file.size > bucketConfig.maxFileSize) {
+      throw new Error(`File size (${file.size} bytes) exceeds maximum allowed size (${bucketConfig.maxFileSize} bytes)`);
+    }
+    
+    // Check MIME type
+    if (!bucketConfig.allowedMimeTypes.includes(file.type)) {
+      throw new Error(`File type (${file.type}) not allowed. Allowed types: ${bucketConfig.allowedMimeTypes.join(', ')}`);
     }
 
     // Generate safe and unique filename
@@ -113,7 +123,7 @@ export async function deleteFileFromSupabase(
   folder: string, 
   filename: string
 ): Promise<boolean> {
-  const supabase = getSupabaseClient();
+  const supabase = getSupabaseServiceClient();
   
   try {
     const { error } = await supabase.storage

@@ -34,11 +34,11 @@ export async function POST(request: NextRequest) {
           get(name: string) {
             return cookieStore.get(name)?.value;
           },
-          set(name: string, value: string, options: any) {
+          set(name: string, value: string, options: Record<string, unknown>) {
             console.log('[test-auth-callback] Setting cookie:', name, '=', value.substring(0, 50) + '...');
             cookieStore.set(name, value, options);
           },
-          remove(name: string, options: any) {
+          remove(name: string, options: Record<string, unknown>) {
             console.log('[test-auth-callback] Removing cookie:', name);
             cookieStore.set(name, '', { ...options, maxAge: 0 });
           },

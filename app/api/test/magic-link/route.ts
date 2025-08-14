@@ -123,13 +123,14 @@ export async function GET(request: NextRequest) {
       email,
       redirectTo,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[magic-link] Unexpected error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unexpected error occurred';
     return NextResponse.json(
       { 
         ok: false, 
         reason: 'UNEXPECTED_ERROR', 
-        message: error?.message || 'Unexpected error occurred',
+        message: errorMessage,
         hint: 'Check Supabase service role key and network connectivity',
         redirectTo,
         email

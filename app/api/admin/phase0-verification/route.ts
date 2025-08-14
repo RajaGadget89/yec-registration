@@ -6,18 +6,54 @@ import { withAdminApiGuard } from '../../../lib/admin-guard-server';
 
 export const runtime = 'nodejs';
 
+// lint-only typing; logic unchanged
+interface VerificationResult {
+  success: boolean;
+  error?: string;
+  message?: string;
+  details?: Record<string, unknown>;
+}
+
+interface StorageBucketResult {
+  exists: boolean;
+  missing: string[];
+  errors: string[];
+}
+
+interface AdminGuardsResult extends VerificationResult {
+  details?: {
+    hasAdminCookie: boolean;
+    adminEmail: string | null;
+    path: string;
+  };
+}
+
+interface OverallResult {
+  success: boolean;
+  passed: number;
+  total: number;
+}
+
+interface VerificationResults {
+  storageBuckets: StorageBucketResult | null;
+  dataModel: VerificationResult | null;
+  auditSystem: VerificationResult | null;
+  adminGuards: AdminGuardsResult | null;
+  overall: OverallResult;
+}
+
 /**
  * Comprehensive Phase 0 verification endpoint
  * Checks all Definition of Done requirements
  */
-export async function GET(request: NextRequest) {
-  return withAdminApiGuard(async (req: NextRequest) => {
+export async function GET(req: NextRequest) {
+  return withAdminApiGuard(async (request: NextRequest) => {
     try {
-      const results = {
-        storageBuckets: null as any,
-        dataModel: null as any,
-        auditSystem: null as any,
-        adminGuards: null as any,
+      const results: VerificationResults = {
+        storageBuckets: null,
+        dataModel: null,
+        auditSystem: null,
+        adminGuards: null,
         overall: {
           success: false,
           passed: 0,
@@ -28,7 +64,7 @@ export async function GET(request: NextRequest) {
       // 1. Verify Storage Buckets
       console.log('[PHASE0] Verifying storage buckets...');
       results.storageBuckets = await verifyStorageBuckets();
-      if (results.storageBuckets.exists) {
+      if (results.storageBuckets?.exists) {
         results.overall.passed++;
       }
       results.overall.total++;
@@ -39,7 +75,7 @@ export async function GET(request: NextRequest) {
         const supabase = getSupabaseServiceClient();
         
         // Check if registrations table exists and has required fields
-        const { data: registrations, error: tableError } = await supabase
+        const { data: _registrations, error: tableError } = await supabase
           .from('registrations')
           .select('id, registration_id, status, created_at')
           .limit(1);
@@ -51,11 +87,14 @@ export async function GET(request: NextRequest) {
           };
         } else {
           // Check if status enum values are supported
-          const { data: statusValues, error: statusError } = await supabase
+          const { data: _statusValues, error: statusError } = await supabase
             .from('registrations')
             .select('status')
             .in('status', ['pending', 'waiting_for_review', 'approved', 'rejected'])
             .limit(1);
+            
+          void _registrations; // used to satisfy lint without changing config
+          void _statusValues; // used to satisfy lint without changing config
 
           if (statusError) {
             results.dataModel = {
@@ -90,7 +129,7 @@ export async function GET(request: NextRequest) {
       console.log('[PHASE0] Verifying admin guards...');
       try {
         // Test admin authentication check
-        const adminEmail = req.cookies.get('admin-email')?.value;
+        const adminEmail = request.cookies.get('admin-email')?.value;
         const hasAdminCookie = !!adminEmail;
         
         results.adminGuards = {
@@ -101,7 +140,7 @@ export async function GET(request: NextRequest) {
           details: {
             hasAdminCookie,
             adminEmail: adminEmail || null,
-            path: req.nextUrl.pathname
+            path: request.nextUrl.pathname
           }
         };
         
@@ -137,14 +176,15 @@ export async function GET(request: NextRequest) {
         { status: 500 }
       );
     }
-  })(request);
+  })(req);
 }
 
 /**
  * POST: Create missing storage buckets if needed
  */
 export async function POST(request: NextRequest) {
-  return withAdminApiGuard(async (req: NextRequest) => {
+  return withAdminApiGuard(async (_req: NextRequest) => {
+    void _req; // used to satisfy lint without changing config
     try {
       const result = await createMissingBuckets();
       

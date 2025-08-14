@@ -9,7 +9,8 @@ export const runtime = 'nodejs';
  * POST: Clean up test audit entries
  */
 export async function GET(request: NextRequest) {
-  return withAdminApiGuard(async (req: NextRequest) => {
+  return withAdminApiGuard(async (_req: NextRequest) => {
+    void _req; // used to satisfy lint without changing config
     try {
       const result = await verifyAuditSystem();
       
@@ -32,7 +33,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  return withAdminApiGuard(async (req: NextRequest) => {
+  return withAdminApiGuard(async (_req: NextRequest) => {
+    void _req; // used to satisfy lint without changing config
     try {
       await cleanupTestAuditEntries();
       
