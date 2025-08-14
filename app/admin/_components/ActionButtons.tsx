@@ -61,7 +61,7 @@ export default function ActionButtons({ registration, onActionComplete }: Action
       case 'reject':
         return registration.status === 'rejected';
       case 'request-update':
-        return registration.status === 'pending';
+        return registration.status === 'waiting_for_review';
       default:
         return false;
     }

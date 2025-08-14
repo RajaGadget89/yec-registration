@@ -54,8 +54,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
       <div className="space-y-8">
         {/* Loading skeleton for summary cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 animate-pulse">
+          {['card-1', 'card-2', 'card-3', 'card-4', 'card-5'].map((key) => (
+            <div key={key} className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 animate-pulse">
               <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
               <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded"></div>
             </div>
@@ -72,8 +72,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 animate-pulse">
           <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
           <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            {['row-1', 'row-2', 'row-3', 'row-4', 'row-5'].map((key) => (
+              <div key={key} className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
             ))}
           </div>
         </div>

@@ -4,7 +4,7 @@ import { BaseLayout } from './components/BaseLayout';
 import { TrackingTemplate } from './templates/tracking';
 import { UpdatePaymentTemplate } from './templates/update-payment';
 import { UpdateInfoTemplate } from './templates/update-info';
-import { UpdateTccTemplate } from './templates/update-tcc';
+import { UpdateTCCTemplate } from './templates/update-tcc';
 import { ApprovalBadgeTemplate } from './templates/approval-badge';
 import { RejectionTemplate } from './templates/rejection';
 
@@ -40,7 +40,7 @@ const emailTemplates = {
   'update-tcc': {
     renderer: (props: EmailTemplateProps) => (
       <BaseLayout supportEmail={props.supportEmail}>
-        <UpdateTccTemplate {...props} />
+        <UpdateTCCTemplate {...props} />
       </BaseLayout>
     ),
     subject: '[YEC Day] โปรดอัปเดตรูปบัตร TCC | Please Update Your TCC Card'
@@ -78,7 +78,7 @@ export function renderEmailTemplate(templateName: string, props: EmailTemplatePr
   }
   
   const element = template.renderer(props);
-  return render(element);
+  return render(element) as unknown as string;
 }
 
 /**
@@ -111,3 +111,5 @@ export function getAvailableTemplates(): string[] {
 export function isValidTemplate(templateName: string): boolean {
   return templateName in emailTemplates;
 }
+
+

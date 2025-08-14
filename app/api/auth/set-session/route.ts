@@ -127,10 +127,11 @@ export async function POST(req: Request) {
     // 8. Return the same res instance (do not create new response)
     return res;
 
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error('[set-session] error:', e);
+    const errorMessage = e instanceof Error ? e.message : 'Failed to set session';
     return NextResponse.json(
-      { ok: false, reason: 'UNEXPECTED_ERROR', message: e?.message || 'Failed to set session' },
+      { ok: false, reason: 'UNEXPECTED_ERROR', message: errorMessage },
       { status: 500 }
     );
   }

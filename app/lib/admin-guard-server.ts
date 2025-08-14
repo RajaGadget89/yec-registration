@@ -34,7 +34,7 @@ export function withAdminGuard<T extends any[], R>(
  * Admin guard wrapper specifically for API routes
  * Returns proper HTTP responses for unauthorized access
  */
-export function withAdminApiGuard<T extends any[], R>(
+export function withAdminApiGuard<T extends any[]>(
   handler: (req: NextRequest, ...args: T) => Promise<NextResponse>
 ) {
   return withAuditLogging(async (req: NextRequest, ...args: T): Promise<NextResponse> => {
@@ -85,10 +85,10 @@ export function withAdminApiGuard<T extends any[], R>(
  * Admin guard wrapper for server actions (non-API routes)
  * Throws errors that can be caught by the calling function
  */
-export function withAdminActionGuard<T extends any[], R>(
-  handler: (req: NextRequest, ...args: T) => Promise<R>
+export function withAdminActionGuard<T extends any[], _R>(
+  handler: (req: NextRequest, ...args: T) => Promise<_R>
 ) {
-  return async (req: NextRequest, ...args: T): Promise<R> => {
+  return async (req: NextRequest, ...args: T): Promise<_R> => {
     // Check admin authentication
     const adminEmail = req.cookies.get('admin-email')?.value;
     

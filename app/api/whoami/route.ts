@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { getServiceRoleClient } from '../../lib/supabase-server';
+import { WhoAmIResponse } from '../../types';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,12 @@ function pickTokens(req: NextRequest) {
   return readModernCookie(req) ?? readLegacyCookies(req) ?? { source: null };
 }
 
+interface AuthTokens {
+  access_token?: string;
+  refresh_token?: string;
+  source?: string;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const tokens = pickTokens(req);
@@ -79,10 +86,10 @@ export async function GET(req: NextRequest) {
     );
 
     // If we found tokens (modern or legacy), set them on the server client.
-    if ((tokens as any).access_token && (tokens as any).refresh_token) {
+    if ((tokens as AuthTokens).access_token && (tokens as AuthTokens).refresh_token) {
       await supabase.auth.setSession({
-        access_token: (tokens as any).access_token,
-        refresh_token: (tokens as any).refresh_token,
+        access_token: (tokens as AuthTokens).access_token ?? '',
+        refresh_token: (tokens as AuthTokens).refresh_token ?? '',
       });
     }
 
@@ -129,14 +136,24 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const body: any = {
-      email,
-      isAdmin,
-      source: (tokens as any).source ?? null,
+    const body: WhoAmIResponse = {
+      user: email ? {
+        id: user?.id || 'unknown',
+        email,
+        role: isAdmin ? 'admin' : 'user',
+        firstName: user?.user_metadata?.first_name,
+        lastName: user?.user_metadata?.last_name,
+      } : undefined,
+      session: user ? {
+        id: user.id,
+        expiresAt: new Date().toISOString(), // This would need to be extracted from the actual session
+      } : undefined,
+      isAuthenticated: Boolean(email),
     };
+
     if (process.env.NODE_ENV !== 'production') {
-      body.debug = {
-        hasTokens: Boolean((tokens as any).access_token && (tokens as any).refresh_token),
+      (body as WhoAmIResponse & { debug?: unknown }).debug = {
+        hasTokens: Boolean((tokens as AuthTokens).access_token && (tokens as AuthTokens).refresh_token),
         userError: userError?.message,
         devEmail: req.cookies.get('dev-user-email')?.value || null,
       };

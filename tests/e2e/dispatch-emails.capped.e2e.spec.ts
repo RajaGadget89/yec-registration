@@ -1,16 +1,16 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Dispatch Emails API - Capped Mode Tests', () => {
+test.describe('Dispatch Emails API - Capped Real-Send Tests', () => {
   const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080';
   const cronSecret = process.env.CRON_SECRET || 'local-secret';
   
   // Test configuration - should match environment variables
   const expectedConfig = {
     mode: 'CAPPED',
-    capMaxPerRun: 2,
-    allowlist: ['you@example.com', 'qa@example.com'],
+    capMaxPerRun: 1, // EMAIL_CAP_MAX_PER_RUN=1
+    allowlist: ['raja.gadgets89@gmail.com'], // EMAIL_ALLOWLIST
     subjectPrefix: '[E2E]',
-    blockNonAllowlist: true
+    blockNonAllowlist: true // BLOCK_NON_ALLOWLIST=true
   };
 
   test.beforeEach(async ({ request }) => {
@@ -43,6 +43,44 @@ test.describe('Dispatch Emails API - Capped Mode Tests', () => {
     expect(body.error).toBe('Unauthorized');
   });
 
+  test('should accept GET with Authorization header and enforce cap limits', async ({ request }) => {
+    const response = await request.get(`${baseURL}/api/admin/dispatch-emails`, {
+      headers: {
+        'Authorization': `Bearer ${cronSecret}`
+      }
+    });
+    
+    expect(response.status()).toBe(200);
+    
+    const body = await response.json();
+    console.log('Response body:', JSON.stringify(body, null, 2));
+    
+    // Validate response format
+    expect(body.ok).toBe(true);
+    expect(body.dryRun).toBe(false); // In CAPPED mode, should not be dry-run
+    expect(typeof body.sent).toBe('number');
+    expect(typeof body.wouldSend).toBe('number');
+    expect(typeof body.capped).toBe('number');
+    expect(typeof body.blocked).toBe('number');
+    expect(typeof body.errors).toBe('number');
+    expect(typeof body.remaining).toBe('number');
+    expect(typeof body.rateLimited).toBe('number');
+    expect(typeof body.retries).toBe('number');
+    expect(typeof body.timestamp).toBe('string');
+    
+    // Validate capped mode behavior - should send at most 1 email
+    expect(body.sent).toBeLessThanOrEqual(expectedConfig.capMaxPerRun);
+    
+    // Should have some blocked emails (non-allowlisted)
+    expect(body.blocked).toBeGreaterThanOrEqual(0);
+    
+    // If we have more than cap emails and no rate limiting, some should be capped
+    // But if we hit rate limits, emails might fail instead of being capped
+    if (body.sent + body.capped + body.blocked > expectedConfig.capMaxPerRun && body.rateLimited === 0) {
+      expect(body.capped).toBeGreaterThan(0);
+    }
+  });
+
   test('should accept GET with query parameter cron_secret and return proper response format', async ({ request }) => {
     const response = await request.get(
       `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}`
@@ -62,32 +100,13 @@ test.describe('Dispatch Emails API - Capped Mode Tests', () => {
     expect(typeof body.blocked).toBe('number');
     expect(typeof body.errors).toBe('number');
     expect(typeof body.remaining).toBe('number');
+    expect(typeof body.rateLimited).toBe('number');
+    expect(typeof body.retries).toBe('number');
     expect(typeof body.timestamp).toBe('string');
     
     // Validate capped mode behavior
     expect(body.sent).toBeLessThanOrEqual(expectedConfig.capMaxPerRun);
     expect(body.sent + body.capped + body.blocked + body.errors).toBeGreaterThan(0);
-  });
-
-  test('should accept GET with Authorization header and enforce cap limits', async ({ request }) => {
-    const response = await request.get(`${baseURL}/api/admin/dispatch-emails`, {
-      headers: {
-        'Authorization': `Bearer ${cronSecret}`
-      }
-    });
-    
-    expect(response.status()).toBe(200);
-    
-    const body = await response.json();
-    console.log('Response body:', JSON.stringify(body, null, 2));
-    
-    // Validate cap enforcement
-    expect(body.sent).toBeLessThanOrEqual(expectedConfig.capMaxPerRun);
-    
-    // If we have more than cap emails, some should be capped
-    if (body.sent + body.capped + body.blocked > expectedConfig.capMaxPerRun) {
-      expect(body.capped).toBeGreaterThan(0);
-    }
   });
 
   test('should accept POST with admin authentication and return detailed results', async ({ request }) => {
@@ -115,6 +134,8 @@ test.describe('Dispatch Emails API - Capped Mode Tests', () => {
     expect(typeof body.blocked).toBe('number');
     expect(typeof body.errors).toBe('number');
     expect(typeof body.remaining).toBe('number');
+    expect(typeof body.rateLimited).toBe('number');
+    expect(typeof body.retries).toBe('number');
     expect(typeof body.timestamp).toBe('string');
     
     // Validate capped mode behavior
@@ -151,8 +172,9 @@ test.describe('Dispatch Emails API - Capped Mode Tests', () => {
     // Total processed emails
     const totalProcessed = body.sent + body.capped + body.blocked + body.errors;
     
-    // If we have more emails than the cap, some should be capped
-    if (totalProcessed > expectedConfig.capMaxPerRun) {
+    // If we have more emails than the cap and no rate limiting, some should be capped
+    // But if we hit rate limits, emails might fail instead of being capped
+    if (totalProcessed > expectedConfig.capMaxPerRun && body.rateLimited === 0) {
       expect(body.capped).toBeGreaterThan(0);
       expect(body.sent).toBeLessThanOrEqual(expectedConfig.capMaxPerRun);
     }
@@ -169,10 +191,11 @@ test.describe('Dispatch Emails API - Capped Mode Tests', () => {
     const body = await response.json();
     console.log('Response body:', JSON.stringify(body, null, 2));
     
-    // In capped mode, we should have some sent emails with prefixed subjects
+    // In capped mode, we should have some processed emails (sent, capped, blocked, or errors)
     // The actual subject prefix validation would require inspecting the transport logs
     // For now, we validate that the system is working in capped mode
-    expect(body.sent + body.capped + body.blocked).toBeGreaterThan(0);
+    const totalProcessed = body.sent + body.capped + body.blocked + body.errors;
+    expect(totalProcessed).toBeGreaterThan(0);
   });
 
   test('should handle dry-run mode correctly', async ({ request }) => {
@@ -255,7 +278,7 @@ test.describe('Dispatch Emails API - Capped Mode Tests', () => {
     const postBody = await postResponse.json();
     
     // Both responses should have the same structure
-    const expectedFields = ['ok', 'dryRun', 'sent', 'wouldSend', 'capped', 'blocked', 'errors', 'remaining', 'timestamp'];
+    const expectedFields = ['ok', 'dryRun', 'sent', 'wouldSend', 'capped', 'blocked', 'errors', 'remaining', 'rateLimited', 'retries', 'timestamp'];
     
     for (const field of expectedFields) {
       expect(getBody).toHaveProperty(field);

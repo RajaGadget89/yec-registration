@@ -66,33 +66,34 @@ export class TelegramNotificationHandler implements EventHandler<RegistrationEve
   private async handleBatchUpserted(event: RegistrationEvent): Promise<void> {
     if (event.type !== 'registration.batch_upserted') return;
 
-    const { registrations, adminEmail, updatedCount } = event.payload;
+    const { registration, admin_email } = event.payload;
+    const registrations = [registration]; // Convert single registration to array for compatibility
     
     const message = `📦 Batch Registration Update\n\n` +
-      `Updated ${updatedCount} registrations\n` +
-      `Admin: ${adminEmail}\n` +
+      `Updated ${registrations.length} registrations\n` +
+      `Admin: ${admin_email || 'Unknown'}\n` +
       `Status: Set to waiting_for_review\n\n` +
       `First few registrations:\n` +
-      registrations.slice(0, 3).map(r => 
+      registrations.slice(0, 3).map((r: any) => 
         `• ${r.title} ${r.first_name} ${r.last_name} (${r.registration_id})`
       ).join('\n') +
       (registrations.length > 3 ? `\n... and ${registrations.length - 3} more` : '');
 
     await sendTelegram(message);
-    console.log(`Batch upsert Telegram notification sent for ${updatedCount} registrations`);
+    console.log(`Batch upsert Telegram notification sent for ${registrations.length} registrations`);
   }
 
   private async handleAdminRequestUpdate(event: RegistrationEvent): Promise<void> {
     if (event.type !== 'admin.request_update') return;
 
-    const { registration, adminEmail } = event.payload;
+    const { registration, admin_email } = event.payload;
     const fullName = `${registration.title} ${registration.first_name} ${registration.last_name}`;
     
     const message = `🔄 Update Requested\n\n` +
       `Name: ${fullName}\n` +
       `Email: ${registration.email}\n` +
       `Registration ID: ${registration.registration_id}\n` +
-      `Requested by: ${adminEmail}\n` +
+      `Requested by: ${admin_email || 'Unknown'}\n` +
       `Status: Set to pending`;
 
     await sendTelegram(message);
@@ -102,14 +103,14 @@ export class TelegramNotificationHandler implements EventHandler<RegistrationEve
   private async handleAdminApproved(event: RegistrationEvent): Promise<void> {
     if (event.type !== 'admin.approved') return;
 
-    const { registration, adminEmail } = event.payload;
+    const { registration, admin_email } = event.payload;
     const fullName = `${registration.title} ${registration.first_name} ${registration.last_name}`;
     
     const message = `✅ Registration Approved\n\n` +
       `Name: ${fullName}\n` +
       `Email: ${registration.email}\n` +
       `Registration ID: ${registration.registration_id}\n` +
-      `Approved by: ${adminEmail}\n` +
+      `Approved by: ${admin_email || 'Unknown'}\n` +
       `Status: Set to approved`;
 
     await sendTelegram(message);
@@ -119,14 +120,14 @@ export class TelegramNotificationHandler implements EventHandler<RegistrationEve
   private async handleAdminRejected(event: RegistrationEvent): Promise<void> {
     if (event.type !== 'admin.rejected') return;
 
-    const { registration, adminEmail, reason } = event.payload;
+    const { registration, admin_email, reason } = event.payload;
     const fullName = `${registration.title} ${registration.first_name} ${registration.last_name}`;
     
     const message = `❌ Registration Rejected\n\n` +
       `Name: ${fullName}\n` +
       `Email: ${registration.email}\n` +
       `Registration ID: ${registration.registration_id}\n` +
-      `Rejected by: ${adminEmail}\n` +
+      `Rejected by: ${admin_email || 'Unknown'}\n` +
       `Status: Set to rejected` +
       (reason ? `\nReason: ${reason}` : '');
 

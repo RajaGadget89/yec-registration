@@ -3,16 +3,20 @@
  * Provides safe, local-only capped-send mode for emails with allowlist and per-run cap functionality
  */
 
+import { Resend } from 'resend';
+
 export type SendResult = { 
   ok: boolean; 
   id?: string; 
-  reason?: 'capped' | 'blocked' | 'provider_error' | 'dry_run';
+  reason?: 'capped' | 'blocked' | 'provider_error' | 'dry_run' | 'rate_limited';
   sentCount?: number;
+  rateLimited?: number;
+  retries?: number;
 };
 
 export interface EmailTransport {
   send(input: { to: string; subject: string; html: string; text?: string }): Promise<SendResult>;
-  getStats(): { sent: number; capped: number; blocked: number; errors: number };
+  getStats(): { sent: number; capped: number; blocked: number; errors: number; rateLimited: number; retries: number };
   resetStats(): void;
 }
 
@@ -20,7 +24,7 @@ export interface EmailTransport {
  * Dry Run Transport - never calls provider
  */
 class DryRunTransport implements EmailTransport {
-  private stats = { sent: 0, capped: 0, blocked: 0, errors: 0 };
+  private stats = { sent: 0, capped: 0, blocked: 0, errors: 0, rateLimited: 0, retries: 0 };
 
   async send(input: { to: string; subject: string; html: string; text?: string }): Promise<SendResult> {
     console.log(`[DRY-RUN] Would send email to ${input.to}: ${input.subject}`);
@@ -33,21 +37,41 @@ class DryRunTransport implements EmailTransport {
   }
 
   resetStats() {
-    this.stats = { sent: 0, capped: 0, blocked: 0, errors: 0 };
+    this.stats = { sent: 0, capped: 0, blocked: 0, errors: 0, rateLimited: 0, retries: 0 };
   }
 }
 
 /**
- * Resend Transport - calls real provider
+ * Utility function to add jitter to backoff delays
+ */
+function addJitter(baseDelay: number, jitterMs: number = 100): number {
+  const jitter = Math.random() * jitterMs * 2 - jitterMs; // ±jitterMs
+  return Math.max(0, baseDelay + jitter);
+}
+
+/**
+ * Utility function to sleep for a given number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Resend Transport - calls real provider with throttle and retry logic
  */
 class ResendTransport implements EmailTransport {
-  private resend: any;
+  private resend: Resend;
   private fromEmail: string;
-  private stats = { sent: 0, capped: 0, blocked: 0, errors: 0 };
-  private sendLog: Array<{ to: string; subject: string; timestamp: string }> = [];
+  private stats = { sent: 0, capped: 0, blocked: 0, errors: 0, rateLimited: 0, retries: 0 };
+  private sendLog: Array<{ to: string; subject: string; timestamp: string; attempt: number; status: string }> = [];
+  private lastSendTime = 0;
+  
+  // Throttle and retry configuration
+  private throttleMs: number;
+  private maxRetries: number;
+  private baseBackoffMs: number;
 
   constructor() {
-    const { Resend } = require('resend');
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
       throw new Error('RESEND_API_KEY environment variable is required');
@@ -55,40 +79,130 @@ class ResendTransport implements EmailTransport {
     
     this.resend = new Resend(apiKey);
     this.fromEmail = process.env.EMAIL_FROM || 'YEC <info@rajagadget.live>';
+    
+    // Load throttle and retry configuration
+    this.throttleMs = parseInt(process.env.EMAIL_THROTTLE_MS || '500', 10);
+    this.maxRetries = parseInt(process.env.EMAIL_RETRY_ON_429 || '2', 10);
+    this.baseBackoffMs = parseInt(process.env.EMAIL_BASE_BACKOFF_MS || '500', 10);
+    
+    console.log(`[RESEND] Transport initialized with throttle=${this.throttleMs}ms, maxRetries=${this.maxRetries}, baseBackoff=${this.baseBackoffMs}ms`);
   }
 
   async send(input: { to: string; subject: string; html: string; text?: string }): Promise<SendResult> {
-    try {
-      const { error, data } = await this.resend.emails.send({
-        from: this.fromEmail,
-        to: input.to,
-        subject: input.subject,
-        html: input.html,
-        text: input.text,
-      });
-
-      if (error) {
-        console.error('Resend email sending error:', error);
-        this.stats.errors++;
-        return { ok: false, reason: 'provider_error' };
-      }
-
-      console.log('Email sent successfully via Resend to:', input.to);
-      this.stats.sent++;
-      
-      // Log the send for testing purposes
-      this.sendLog.push({
-        to: input.to,
-        subject: input.subject,
-        timestamp: new Date().toISOString()
-      });
-
-      return { ok: true, id: data?.id };
-    } catch (err) {
-      console.error('Unexpected error in Resend sendEmail:', err);
-      this.stats.errors++;
-      return { ok: false, reason: 'provider_error' };
+    // Apply throttle - wait if needed
+    const now = Date.now();
+    const timeSinceLastSend = now - this.lastSendTime;
+    if (timeSinceLastSend < this.throttleMs) {
+      const waitTime = this.throttleMs - timeSinceLastSend;
+      console.log(`[RESEND] Throttling: waiting ${waitTime}ms before sending to ${input.to}`);
+      await sleep(waitTime);
     }
+
+    let attempt = 0;
+    let rateLimited = 0;
+    let retries = 0;
+
+    while (attempt <= this.maxRetries) {
+      attempt++;
+      
+      try {
+        // Log send attempt (dev only)
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[RESEND] Sending to ${input.to} (attempt ${attempt}/${this.maxRetries + 1})`);
+        }
+
+        const { error, data } = await this.resend.emails.send({
+          from: this.fromEmail,
+          to: input.to,
+          subject: input.subject,
+          html: input.html,
+          text: input.text,
+        });
+
+        if (error) {
+          // Check if it's a rate limit error (429)
+          const errorAny = error as any;
+          const isRateLimit = errorAny.statusCode === 429 || 
+                             errorAny.status === 429 ||
+                             error.message?.includes('429') ||
+                             error.message?.includes('rate limit');
+          
+          if (isRateLimit) {
+            rateLimited++;
+            this.stats.rateLimited++;
+            
+            if (attempt <= this.maxRetries) {
+              const backoffDelay = addJitter(this.baseBackoffMs * attempt);
+              console.log(`[RESEND] Rate limited (429), retrying in ${Math.round(backoffDelay)}ms (attempt ${attempt}/${this.maxRetries + 1})`);
+              retries++;
+              this.stats.retries++;
+              await sleep(backoffDelay);
+              continue;
+            } else {
+              console.error('[RESEND] Max retries exceeded for rate limit:', error);
+              this.stats.errors++;
+              return { 
+                ok: false, 
+                reason: 'rate_limited',
+                rateLimited,
+                retries
+              };
+            }
+          } else {
+            // Non-rate-limit error
+            console.error('Resend email sending error:', error);
+            this.stats.errors++;
+            return { 
+              ok: false, 
+              reason: 'provider_error',
+              rateLimited,
+              retries
+            };
+          }
+        }
+
+        // Success
+        this.lastSendTime = Date.now();
+        console.log('Email sent successfully via Resend to:', input.to);
+        this.stats.sent++;
+        
+        // Log the send for testing purposes
+        this.sendLog.push({
+          to: input.to,
+          subject: input.subject,
+          timestamp: new Date().toISOString(),
+          attempt,
+          status: 'success'
+        });
+
+        return { 
+          ok: true, 
+          id: data?.id,
+          rateLimited,
+          retries
+        };
+        
+      } catch (err) {
+        // Network or unexpected errors
+        console.error('Unexpected error in Resend sendEmail:', err);
+        this.stats.errors++;
+        return { 
+          ok: false, 
+          reason: 'provider_error',
+          rateLimited,
+          retries
+        };
+      }
+    }
+
+    // Should never reach here, but just in case
+    this.stats.errors++;
+    return { 
+      ok: false, 
+      reason: 'provider_error',
+      rateLimited,
+      retries
+    };
   }
 
   getStats() {
@@ -96,8 +210,9 @@ class ResendTransport implements EmailTransport {
   }
 
   resetStats() {
-    this.stats = { sent: 0, capped: 0, blocked: 0, errors: 0 };
+    this.stats = { sent: 0, capped: 0, blocked: 0, errors: 0, rateLimited: 0, retries: 0 };
     this.sendLog = [];
+    this.lastSendTime = 0;
   }
 
   // Dev-only method to get send log for testing
@@ -116,7 +231,7 @@ class CappedTransport implements EmailTransport {
   private blockNonAllowlist: boolean;
   private subjectPrefix: string;
   private sentCount = 0;
-  private stats = { sent: 0, capped: 0, blocked: 0, errors: 0 };
+  private stats = { sent: 0, capped: 0, blocked: 0, errors: 0, rateLimited: 0, retries: 0 };
 
   constructor(wrappedTransport: EmailTransport) {
     this.wrappedTransport = wrappedTransport;
@@ -165,15 +280,32 @@ class CappedTransport implements EmailTransport {
       this.stats.errors++;
     }
     
+    // Aggregate rate limiting and retry stats from wrapped transport
+    if (result.rateLimited !== undefined) {
+      this.stats.rateLimited += result.rateLimited;
+    }
+    if (result.retries !== undefined) {
+      this.stats.retries += result.retries;
+    }
+    
     return result;
   }
 
   getStats() {
-    return { ...this.stats };
+    // Combine stats from wrapped transport
+    const wrappedStats = this.wrappedTransport.getStats();
+    return {
+      sent: this.stats.sent,
+      capped: this.stats.capped,
+      blocked: this.stats.blocked,
+      errors: this.stats.errors,
+      rateLimited: wrappedStats.rateLimited,
+      retries: wrappedStats.retries
+    };
   }
 
   resetStats() {
-    this.stats = { sent: 0, capped: 0, blocked: 0, errors: 0 };
+    this.stats = { sent: 0, capped: 0, blocked: 0, errors: 0, rateLimited: 0, retries: 0 };
     this.sentCount = 0;
     if ('resetStats' in this.wrappedTransport) {
       this.wrappedTransport.resetStats();

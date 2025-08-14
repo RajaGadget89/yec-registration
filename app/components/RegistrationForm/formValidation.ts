@@ -21,8 +21,8 @@ export const formatThaiPhoneNumber = (digits: string): string => {
 
 export const validateField = (
   field: FormField,
-  value: any,
-  formData?: { [key: string]: any }
+  value: unknown,
+  formData?: Record<string, unknown>
 ): ValidationResult => {
   // Check if field should be required based on conditions
   const isConditionallyRequired = shouldFieldBeRequired(field, formData);
@@ -121,26 +121,26 @@ export const validateField = (
 
   // Tel field validation
   if (field.type === 'tel') {
-    const error = validateThaiPhoneNumber(value);
+    const error = validateThaiPhoneNumber(value as string);
     if (error) return { status: 'invalid', message: error, isValid: false };
   }
 
   // Special field validations
   switch (field.id) {
     case 'phone':
-      return validatePhone(value);
+      return validatePhone(value as string);
     case 'email':
-      return validateEmail(value);
+      return validateEmail(value as string);
     case 'lineId':
-      return validateLineId(value);
+      return validateLineId(value as string);
     case 'businessTypeOther':
-      return validateBusinessTypeOther(value, formData);
+      return validateBusinessTypeOther(value as string, formData);
     case 'roommateInfo':
-      return validateRoommateInfo(value, formData);
+      return validateRoommateInfo(value as string, formData);
     case 'roommatePhone':
-      return validateRoommatePhone(value, formData);
+      return validateRoommatePhone(value as string, formData);
     case 'external_hotel_name':
-      return validateExternalHotelName(value, formData);
+      return validateExternalHotelName(value as string, formData);
     default:
       return {
         isValid: true,
@@ -271,7 +271,7 @@ const validateLineId = (value: string): ValidationResult => {
   };
 };
 
-const validateBusinessTypeOther = (value: string, formData?: { [key: string]: any }): ValidationResult => {
+const validateBusinessTypeOther = (value: string, formData?: Record<string, unknown>): ValidationResult => {
   // Only validate if businessType is 'other'
   if (formData?.businessType !== 'other') {
     return {
@@ -304,7 +304,7 @@ const validateBusinessTypeOther = (value: string, formData?: { [key: string]: an
   };
 };
 
-const validateRoommateInfo = (value: string, formData?: { [key: string]: any }): ValidationResult => {
+const validateRoommateInfo = (value: string, formData?: Record<string, unknown>): ValidationResult => {
   // Only validate if roomType is 'double'
   if (formData?.roomType !== 'double') {
     return {
@@ -337,7 +337,7 @@ const validateRoommateInfo = (value: string, formData?: { [key: string]: any }):
   };
 };
 
-const validateRoommatePhone = (value: string, formData?: { [key: string]: any }): ValidationResult => {
+const validateRoommatePhone = (value: string, formData?: Record<string, unknown>): ValidationResult => {
   // Only validate if roomType is 'double'
   if (formData?.roomType !== 'double') {
     return {
@@ -371,7 +371,7 @@ const validateRoommatePhone = (value: string, formData?: { [key: string]: any })
   };
 };
 
-const validateExternalHotelName = (value: string, formData?: { [key: string]: any }): ValidationResult => {
+const validateExternalHotelName = (value: string, formData?: Record<string, unknown>): ValidationResult => {
   // Only validate if hotelChoice is 'out-of-quota'
   if (formData?.hotelChoice !== 'out-of-quota') {
     return {
@@ -404,11 +404,11 @@ const validateExternalHotelName = (value: string, formData?: { [key: string]: an
   };
 };
 
-export const validateForm = (formData: { [key: string]: any }, formSchema: FormField[]): {
+export const validateForm = (formData: Record<string, unknown>, formSchema: FormField[]): {
   isValid: boolean;
-  errors: { [key: string]: string };
+  errors: Record<string, string>;
 } => {
-  const errors: { [key: string]: string } = {};
+  const errors: Record<string, string> = {};
   let isValid = true;
 
   formSchema.forEach((field) => {
@@ -460,7 +460,7 @@ export const validateForm = (formData: { [key: string]: any }, formSchema: FormF
   return { isValid, errors };
 };
 
-export const shouldShowExtraField = (field: FormField, formData: { [key: string]: any }): boolean => {
+export const shouldShowExtraField = (field: FormField, formData: Record<string, unknown>): boolean => {
   switch (field.id) {
     case 'businessType':
       return formData.businessType === 'other';
@@ -471,7 +471,7 @@ export const shouldShowExtraField = (field: FormField, formData: { [key: string]
   }
 };
 
-export const shouldFieldBeRequired = (field: FormField, formData?: { [key: string]: any }): boolean => {
+export const shouldFieldBeRequired = (field: FormField, formData?: Record<string, unknown>): boolean => {
   if (!formData) return false;
   
   switch (field.id) {
@@ -518,7 +518,7 @@ export const getFieldTextColor = (status: 'valid' | 'partial' | 'invalid'): stri
   }
 };
 
-export const calculateFormProgress = (formData: { [key: string]: any }, formSchema: FormField[]): number => {
+export const calculateFormProgress = (formData: Record<string, unknown>, formSchema: FormField[]): number => {
   let totalRequiredFields = 0;
   let completedRequiredFields = 0;
 

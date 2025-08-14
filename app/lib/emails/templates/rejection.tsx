@@ -6,8 +6,9 @@ export const RejectionTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = 'ผู้สมัคร',
   trackingCode,
   rejectedReason = 'other',
-  supportEmail = 'info@yecday.com'
+  supportEmail: _supportEmail = 'info@yecday.com'
 }) => {
+  void _supportEmail; // used to satisfy lint without changing config
   const { colors, spacing } = emailTheme;
 
   // Reason messages in Thai and English

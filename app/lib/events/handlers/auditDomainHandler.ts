@@ -10,8 +10,8 @@ import { maskEmail, extractSafeRegistrationData } from '../../audit/pii';
 export class AuditDomainHandler implements EventHandler<RegistrationEvent> {
   async handle(event: RegistrationEvent): Promise<void> {
     try {
-      // Try to get correlation ID from event metadata first, then fall back to request context
-      const correlationId = event.metadata?.requestId || getRequestId();
+      // Try to get correlation ID from event correlation_id first, then fall back to request context
+      const correlationId = event.correlation_id || getRequestId();
       
       // Debug logging for test environment
       if (process.env.NODE_ENV === 'test' || process.env.PLAYWRIGHT_TEST) {

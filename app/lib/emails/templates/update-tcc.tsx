@@ -2,12 +2,13 @@ import React from 'react';
 import { emailTheme } from '../theme';
 import { EmailTemplateProps } from '../registry';
 
-export const UpdateTccTemplate: React.FC<EmailTemplateProps> = ({
+export const UpdateTCCTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = 'ผู้สมัคร',
   trackingCode,
   ctaUrl,
-  supportEmail = 'info@yecday.com'
+  supportEmail: _supportEmail = 'info@yecday.com'
 }) => {
+  void _supportEmail; // used to satisfy lint without changing config
   const { colors, spacing, button } = emailTheme;
 
   return (

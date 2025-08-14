@@ -265,6 +265,7 @@ export default function FormField({ field, value, onChange, formData, onExtraFie
     } else {
       setPreviewUrl(null);
     }
+    return undefined;
   }, [normalizedField.type, value]);
 
   // Handle phone number formatting

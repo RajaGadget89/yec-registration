@@ -97,7 +97,7 @@ export default function AdminDashboard({
     // Update the registration in the local state
     setRegistrations(prev => prev.map(reg => 
       reg.registration_id === registrationId 
-        ? { ...reg, status: newStatus }
+        ? { ...reg, status: newStatus as Registration['status'] }
         : reg
     ));
 
@@ -106,8 +106,8 @@ export default function AdminDashboard({
       const newCounts = { ...prev };
       
       // Decrease the count for the old status
-      if (registrations.find(r => r.registration_id === registrationId)?.status === 'pending') {
-        newCounts.pending = Math.max(0, newCounts.pending - 1);
+      if (registrations.find(r => r.registration_id === registrationId)?.status === 'waiting_for_review') {
+        newCounts.waiting_for_review = Math.max(0, newCounts.waiting_for_review - 1);
       } else if (registrations.find(r => r.registration_id === registrationId)?.status === 'waiting_for_review') {
         newCounts.waiting_for_review = Math.max(0, newCounts.waiting_for_review - 1);
       } else if (registrations.find(r => r.registration_id === registrationId)?.status === 'approved') {
@@ -117,8 +117,8 @@ export default function AdminDashboard({
       }
 
       // Increase the count for the new status
-      if (newStatus === 'pending') {
-        newCounts.pending += 1;
+      if (newStatus === 'waiting_for_review') {
+        newCounts.waiting_for_review += 1;
       } else if (newStatus === 'waiting_for_review') {
         newCounts.waiting_for_review += 1;
       } else if (newStatus === 'approved') {
@@ -168,7 +168,8 @@ export default function AdminDashboard({
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting CSV:', error);
-      alert('Failed to export CSV. Please try again.');
+      // Replace alert with console.error for better error handling
+      console.error('Failed to export CSV. Please try again.');
     }
   };
 

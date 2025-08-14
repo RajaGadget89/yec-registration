@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { Shield, Activity, Search, Filter, Download } from 'lucide-react';
 import { getCurrentUser } from '../../lib/auth-utils.server';
-import { getAuditAccessLogs, getAuditEventLogs, type AuditFilters } from '../../lib/supabaseAdminAudit';
+import { getAuditAccessLogs, getAuditEventLogs, type AuditFilters, type AuditAccessLog, type AuditEventLog } from '../../lib/supabaseAdminAudit';
 import AuditTable from '../_components/AuditTable';
 import QuickFilters from '../_components/QuickFilters';
 
@@ -56,8 +56,8 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
   }
 
   // Fetch audit data with error handling
-  let accessLogs: any[] = [];
-  let eventLogs: any[] = [];
+  let accessLogs: AuditAccessLog[] = [];
+  let eventLogs: AuditEventLog[] = [];
   
   try {
     [accessLogs, eventLogs] = await Promise.all([
@@ -243,8 +243,8 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
               <div className="animate-pulse">
                 <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4"></div>
                 <div className="space-y-3">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                  {['skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4', 'skeleton-5'].map((key) => (
+                    <div key={key} className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
                   ))}
                 </div>
               </div>

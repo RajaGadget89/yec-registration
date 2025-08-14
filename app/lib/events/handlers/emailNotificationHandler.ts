@@ -69,7 +69,8 @@ export class EmailNotificationHandler implements EventHandler<RegistrationEvent>
   private async handleBatchUpserted(event: RegistrationEvent): Promise<void> {
     if (event.type !== 'registration.batch_upserted') return;
 
-    const { registrations } = event.payload;
+    const { registration } = event.payload;
+    const registrations = [registration]; // Convert single registration to array for compatibility
     
     // Send emails to all updated registrations
     for (const registration of registrations) {

@@ -5,9 +5,10 @@ import { EmailTemplateProps } from '../registry';
 export const TrackingTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = 'ผู้สมัคร',
   trackingCode,
-  supportEmail = 'info@yecday.com'
+  supportEmail: _supportEmail = 'info@yecday.com'
 }) => {
-  const { colors, spacing, button } = emailTheme;
+  void _supportEmail; // used to satisfy lint without changing config
+  const { colors, spacing } = emailTheme;
 
   return (
     <div style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>

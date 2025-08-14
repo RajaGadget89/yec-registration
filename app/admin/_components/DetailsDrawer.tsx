@@ -11,6 +11,9 @@ interface DetailsDrawerProps {
   onClose: () => void;
 }
 
+// lint-only typing; logic unchanged
+type JsonData = Record<string, unknown> | unknown[] | string | number | boolean | null;
+
 export default function DetailsDrawer({ registration, isOpen, onClose }: DetailsDrawerProps) {
   if (!registration) return null;
 
@@ -18,7 +21,7 @@ export default function DetailsDrawer({ registration, isOpen, onClose }: Details
     return formatDate(dateString, true);
   };
 
-  const formatJson = (data: any) => {
+  const formatJson = (data: JsonData) => {
     try {
       return JSON.stringify(data, null, 2);
     } catch {
@@ -29,6 +32,20 @@ export default function DetailsDrawer({ registration, isOpen, onClose }: Details
   const getFileUrl = (url: string | null) => {
     if (!url) return null;
     return url.startsWith('http') ? url : `https://${url}`;
+  };
+
+  // Map registration status to StatusBadge compatible status
+  const getStatusBadgeStatus = (status: Registration['status']) => {
+    switch (status) {
+      case 'waiting_for_review':
+        return 'waiting_for_review' as const;
+      case 'approved':
+        return 'approved' as const;
+      case 'rejected':
+        return 'rejected' as const;
+      default:
+        return 'pending' as const; // Default for other statuses
+    }
   };
 
   return (
@@ -71,7 +88,7 @@ export default function DetailsDrawer({ registration, isOpen, onClose }: Details
             {/* Status */}
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</span>
-              <StatusBadge status={registration.status as any} />
+              <StatusBadge status={getStatusBadgeStatus(registration.status)} />
             </div>
 
             {/* Basic Information */}

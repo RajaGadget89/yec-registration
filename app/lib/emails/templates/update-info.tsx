@@ -6,8 +6,9 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = 'ผู้สมัคร',
   trackingCode,
   ctaUrl,
-  supportEmail = 'info@yecday.com'
+  supportEmail: _supportEmail = 'info@yecday.com'
 }) => {
+  void _supportEmail; // used to satisfy lint without changing config
   const { colors, spacing, button } = emailTheme;
 
   return (
