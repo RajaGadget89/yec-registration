@@ -1,10 +1,10 @@
-import { EventHandler, RegistrationEvent, EMAIL_TEMPLATES } from '../types';
+import { EventHandler, RegistrationEvent } from '../types';
 import { hasEmailConfig } from '../../config';
-import { sendEmail, emailTemplates } from '../../notify';
+import { eventDrivenEmailService } from '../../emails/enhancedEmailService';
 
 /**
- * Handler for sending email notifications based on events
- * Uses centralized configuration and appropriate email templates
+ * Enhanced handler for sending email notifications based on events
+ * Uses the new enhanced email service with proper event→email mapping
  */
 export class EmailNotificationHandler implements EventHandler<RegistrationEvent> {
   async handle(event: RegistrationEvent): Promise<void> {
@@ -14,129 +14,106 @@ export class EmailNotificationHandler implements EventHandler<RegistrationEvent>
       return;
     }
 
-    const templateType = EMAIL_TEMPLATES[event.type];
-    if (!templateType) {
-      console.warn(`No email template defined for event type: ${event.type}`);
-      return;
-    }
-
     try {
+      const brandTokens = eventDrivenEmailService.getBrandTokens();
+      let result;
+
       switch (event.type) {
         case 'registration.submitted':
-          await this.handleRegistrationSubmitted(event);
-          break;
-
-        case 'registration.batch_upserted':
-          await this.handleBatchUpserted(event);
+          result = await eventDrivenEmailService.processEvent(
+            'registration.created',
+            event.payload.registration,
+            undefined, // no admin email for new registrations
+            undefined, // no dimension for new registrations
+            undefined, // no notes for new registrations
+            undefined, // no badge URL for new registrations
+            undefined, // no rejection reason for new registrations
+            brandTokens
+          );
           break;
 
         case 'admin.request_update':
-          await this.handleAdminRequestUpdate(event);
+          result = await eventDrivenEmailService.processEvent(
+            'review.request_update',
+            event.payload.registration,
+            event.payload.admin_email,
+            event.payload.dimension,
+            event.payload.notes,
+            undefined, // no badge URL for update requests
+            undefined, // no rejection reason for update requests
+            brandTokens
+          );
           break;
 
         case 'admin.approved':
-          await this.handleAdminApproved(event);
+          result = await eventDrivenEmailService.processEvent(
+            'review.approved',
+            event.payload.registration,
+            event.payload.admin_email,
+            undefined, // no dimension for approvals
+            undefined, // no notes for approvals
+            undefined, // no badge URL for approvals (will be generated separately)
+            undefined, // no rejection reason for approvals
+            brandTokens
+          );
           break;
 
         case 'admin.rejected':
-          await this.handleAdminRejected(event);
+          result = await eventDrivenEmailService.processEvent(
+            'review.rejected',
+            event.payload.registration,
+            event.payload.admin_email,
+            undefined, // no dimension for rejections
+            undefined, // no notes for rejections
+            undefined, // no badge URL for rejections
+            event.payload.reason as 'deadline_missed' | 'ineligible_rule_match' | 'other',
+            brandTokens
+          );
           break;
 
+        case 'registration.batch_upserted':
+          // For batch updates, send tracking email to notify of changes
+          result = await eventDrivenEmailService.processEvent(
+            'registration.created',
+            event.payload.registration,
+            undefined, // no admin email for batch updates
+            undefined, // no dimension for batch updates
+            undefined, // no notes for batch updates
+            undefined, // no badge URL for batch updates
+            undefined, // no rejection reason for batch updates
+            brandTokens
+          );
+          break;
+
+        case 'admin.mark_pass':
+          // When admin marks a dimension as passed, check if all are passed for auto-approval
+          // This will be handled by the database trigger, but we can log it
+          console.log(`Admin marked ${event.payload.dimension} as passed for registration ${event.payload.registration.id}`);
+          return;
+
+        case 'user.resubmitted':
+          // When user resubmits, we don't send an email immediately
+          // The system will process the resubmission and potentially trigger approval
+          console.log(`User resubmitted for registration ${event.payload.registration.id}`);
+          return;
+
         default:
-          console.warn(`Unhandled event type in EmailNotificationHandler: ${(event as any).type}`);
+          console.warn(`No email template defined for event type: ${event.type}`);
+          return;
+      }
+
+      if (result) {
+        console.log(`Email sent successfully for event ${event.type}:`, {
+          to: result.to,
+          template: result.template,
+          trackingCode: result.trackingCode,
+          ctaUrl: result.ctaUrl
+        });
       }
     } catch (error) {
       console.error('EmailNotificationHandler error:', error);
-      throw error;
+      // Don't throw error to prevent event processing from failing
+      // Email failures should not break the main workflow
     }
-  }
-
-  private async handleRegistrationSubmitted(event: RegistrationEvent): Promise<void> {
-    if (event.type !== 'registration.submitted') return;
-
-    const { registration } = event.payload;
-    const fullName = `${registration.title} ${registration.first_name} ${registration.last_name}`;
-
-    // For submitted registrations, we send the "received" email
-    // This would typically be the badge email that's already sent in the registration flow
-    // So we might skip this or send a different confirmation
-    console.log(`Registration submitted email would be sent to ${registration.email} for ${fullName}`);
-    
-    // Note: The actual badge email is sent in the registration API route
-    // This handler could send a follow-up confirmation if needed
-  }
-
-  private async handleBatchUpserted(event: RegistrationEvent): Promise<void> {
-    if (event.type !== 'registration.batch_upserted') return;
-
-    const { registration } = event.payload;
-    const registrations = [registration]; // Convert single registration to array for compatibility
-    
-    // Send emails to all updated registrations
-    for (const registration of registrations) {
-      const fullName = `${registration.title} ${registration.first_name} ${registration.last_name}`;
-      
-      // Send a notification that their registration has been updated
-      const subject = 'YEC Day — Registration Updated';
-      const html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1A237E;">YEC Day — Registration Updated / อัปเดตการลงทะเบียนแล้ว</h2>
-          
-          <p>Dear ${fullName} / สวัสดี ${fullName},</p>
-          
-          <p>Your YEC Day registration has been updated and is now under review.</p>
-          <p>การลงทะเบียน YEC Day ของคุณได้รับการอัปเดตและอยู่ระหว่างการตรวจสอบ</p>
-          
-          <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <strong>Registration ID / รหัสลงทะเบียน:</strong> ${registration.registration_id}
-          </div>
-          
-          <p>You will be notified once the review is complete.</p>
-          <p>คุณจะได้รับการแจ้งเตือนเมื่อการตรวจสอบเสร็จสิ้น</p>
-          
-          <p>Best regards / ขอแสดงความนับถือ,<br>
-          YEC Day Team</p>
-        </div>
-      `;
-
-      await sendEmail(registration.email, subject, html);
-      console.log(`Batch update email sent to ${registration.email}`);
-    }
-  }
-
-  private async handleAdminRequestUpdate(event: RegistrationEvent): Promise<void> {
-    if (event.type !== 'admin.request_update') return;
-
-    const { registration } = event.payload;
-    const fullName = `${registration.title} ${registration.first_name} ${registration.last_name}`;
-    
-    const { subject, html } = emailTemplates.requestUpdate(fullName, registration.registration_id);
-    await sendEmail(registration.email, subject, html);
-    
-    console.log(`Request update email sent to ${registration.email}`);
-  }
-
-  private async handleAdminApproved(event: RegistrationEvent): Promise<void> {
-    if (event.type !== 'admin.approved') return;
-
-    const { registration } = event.payload;
-    const fullName = `${registration.title} ${registration.first_name} ${registration.last_name}`;
-    
-    const { subject, html } = emailTemplates.approved(fullName, registration.registration_id);
-    await sendEmail(registration.email, subject, html);
-    
-    console.log(`Approval email sent to ${registration.email}`);
-  }
-
-  private async handleAdminRejected(event: RegistrationEvent): Promise<void> {
-    if (event.type !== 'admin.rejected') return;
-
-    const { registration } = event.payload;
-    const fullName = `${registration.title} ${registration.first_name} ${registration.last_name}`;
-    
-    const { subject, html } = emailTemplates.rejected(fullName, registration.registration_id);
-    await sendEmail(registration.email, subject, html);
-    
-    console.log(`Rejection email sent to ${registration.email}`);
   }
 }
