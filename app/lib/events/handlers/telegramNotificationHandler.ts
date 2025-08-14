@@ -1,6 +1,6 @@
 import { EventHandler, RegistrationEvent } from '../types';
 import { hasTelegramConfig } from '../../config';
-import { sendTelegram } from '../../notify';
+import { TelegramService } from '../../telegramService';
 
 /**
  * Handler for sending Telegram notifications based on events
@@ -9,9 +9,16 @@ import { sendTelegram } from '../../notify';
 export class TelegramNotificationHandler implements EventHandler<RegistrationEvent> {
   async handle(event: RegistrationEvent): Promise<void> {
     // Check if Telegram configuration is available
-    if (!hasTelegramConfig()) {
-      console.warn('Telegram configuration not available, skipping Telegram notification');
+    // Allow test mode even without credentials
+    const isTestMode = process.env.NODE_ENV === 'test' || process.env.TEST_HELPERS_ENABLED === '1';
+    
+    if (!hasTelegramConfig() && !isTestMode) {
+      console.warn('Telegram configuration not available and not in test mode, skipping Telegram notification');
       return;
+    }
+
+    if (isTestMode) {
+      console.log('[TELEGRAM-HANDLER] Running in test mode, proceeding with notification');
     }
 
     try {
@@ -48,19 +55,36 @@ export class TelegramNotificationHandler implements EventHandler<RegistrationEve
   private async handleRegistrationSubmitted(event: RegistrationEvent): Promise<void> {
     if (event.type !== 'registration.submitted') return;
 
+    console.log('[TELEGRAM-HANDLER] Processing registration.submitted event...');
+
     const { registration } = event.payload;
     const fullName = `${registration.title} ${registration.first_name} ${registration.last_name}`;
     
-    const message = `🆕 New Registration Submitted\n\n` +
-      `Name: ${fullName}\n` +
-      `Email: ${registration.email}\n` +
-      `Registration ID: ${registration.registration_id}\n` +
-      `Province: ${registration.yec_province}\n` +
-      `Company: ${registration.company_name}\n` +
-      `Business Type: ${registration.business_type}`;
-
-    await sendTelegram(message);
-    console.log(`Registration submitted Telegram notification sent`);
+    console.log('[TELEGRAM-HANDLER] Registration data:', {
+      fullName,
+      email: registration.email,
+      registrationId: registration.registration_id,
+      province: registration.yec_province,
+      companyName: registration.company_name,
+      businessType: registration.business_type
+    });
+    
+    console.log('[TELEGRAM-HANDLER] About to get TelegramService instance...');
+    const telegramService = TelegramService.getInstance();
+    console.log('[TELEGRAM-HANDLER] TelegramService instance created');
+    
+    console.log('[TELEGRAM-HANDLER] About to call notifyNewRegistration...');
+    const result = await telegramService.notifyNewRegistration({
+      fullName,
+      email: registration.email,
+      registrationId: registration.registration_id,
+      province: registration.yec_province,
+      companyName: registration.company_name,
+      businessType: registration.business_type
+    });
+    
+    console.log(`[TELEGRAM-HANDLER] Registration submitted Telegram notification sent, result: ${result}`);
+    console.log('[TELEGRAM-HANDLER] Method completed successfully');
   }
 
   private async handleBatchUpserted(event: RegistrationEvent): Promise<void> {
@@ -79,6 +103,8 @@ export class TelegramNotificationHandler implements EventHandler<RegistrationEve
       ).join('\n') +
       (registrations.length > 3 ? `\n... and ${registrations.length - 3} more` : '');
 
+    // Use the legacy sendTelegram for now (can be updated later)
+    const { sendTelegram } = await import('../../notify');
     await sendTelegram(message);
     console.log(`Batch upsert Telegram notification sent for ${registrations.length} registrations`);
   }
@@ -96,6 +122,8 @@ export class TelegramNotificationHandler implements EventHandler<RegistrationEve
       `Requested by: ${admin_email || 'Unknown'}\n` +
       `Status: Set to pending`;
 
+    // Use the legacy sendTelegram for now (can be updated later)
+    const { sendTelegram } = await import('../../notify');
     await sendTelegram(message);
     console.log(`Request update Telegram notification sent`);
   }
@@ -113,6 +141,8 @@ export class TelegramNotificationHandler implements EventHandler<RegistrationEve
       `Approved by: ${admin_email || 'Unknown'}\n` +
       `Status: Set to approved`;
 
+    // Use the legacy sendTelegram for now (can be updated later)
+    const { sendTelegram } = await import('../../notify');
     await sendTelegram(message);
     console.log(`Approval Telegram notification sent`);
   }
@@ -131,6 +161,8 @@ export class TelegramNotificationHandler implements EventHandler<RegistrationEve
       `Status: Set to rejected` +
       (reason ? `\nReason: ${reason}` : '');
 
+    // Use the legacy sendTelegram for now (can be updated later)
+    const { sendTelegram } = await import('../../notify');
     await sendTelegram(message);
     console.log(`Rejection Telegram notification sent`);
   }

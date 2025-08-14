@@ -37,6 +37,8 @@ export interface RegistrationEventPayload {
   reason?: string;
   dimension?: 'payment' | 'profile' | 'tcc';
   dimension_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  track?: 'payment' | 'profile' | 'tcc';
+  track_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
   notes?: string;
   admin_email?: string;
   price_applied?: number;
@@ -110,8 +112,10 @@ export const STATUS_TRANSITIONS: Record<RegistrationEventType, string> = {
   'registration.submitted': 'waiting_for_review',
   'registration.batch_upserted': 'waiting_for_review',
   'admin.request_update': 'system', // Handled dynamically based on track
+  'admin.mark_pass': 'system', // Handled by trigger function
   'admin.approved': 'approved',
   'admin.rejected': 'rejected',
+  'user.resubmitted': 'system', // Handled by trigger function
   'document.reuploaded': 'waiting_for_review', // After re-upload, back to review
   'status.changed': 'system', // This is handled dynamically
   'login.submitted': 'system', // Login events don't change status
@@ -141,8 +145,10 @@ export const TRACK_STATUS_TRANSITIONS: Record<string, string> = {
 export const EMAIL_TEMPLATES: Record<RegistrationEventType, string> = {
   'registration.submitted': 'tracking_code',
   'admin.request_update': 'request_update', // Will be determined by track
+  'admin.mark_pass': 'system', // No email for mark pass
   'admin.approved': 'approval_badge',
   'admin.rejected': 'rejection',
+  'user.resubmitted': 'system', // No email for resubmission
   'document.reuploaded': 'tracking_code',
   'status.changed': 'system', // Handled dynamically
   'login.submitted': 'system', // No email for login

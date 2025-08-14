@@ -79,7 +79,8 @@ export class StatusUpdateHandler implements EventHandler<RegistrationEvent> {
         case 'admin.review_track_updated':
           // Track updates are handled by database triggers
           // This handler just logs the event
-          console.log(`Track ${event.payload.track} updated to ${event.payload.track_status} for registration ${event.payload.registration.registration_id}`);
+          const trackPayload = event.payload as any; // Type assertion for track update event
+          console.log(`Track ${trackPayload.track} updated to ${trackPayload.track_status} for registration ${event.payload.registration.registration_id}`);
           break;
 
         case 'auto_reject.sweep_completed':
