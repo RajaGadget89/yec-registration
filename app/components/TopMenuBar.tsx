@@ -69,7 +69,7 @@ export default function TopMenuBar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-24">
           {/* Logo */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 mr-8">
             {/* Desktop Logo */}
             <div className="hidden md:block">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -91,7 +91,7 @@ export default function TopMenuBar() {
           </div>
 
           {/* Navigation and Theme Toggle */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
             {/* Navigation */}
             <nav className="hidden md:flex space-x-8">
               <button 

@@ -61,7 +61,7 @@ function getAppUrl(): string {
 
 export const config: AppConfig = {
   supabase: {
-    url: getRequiredEnvVar('SUPABASE_URL'),
+    url: getRequiredEnvVar('NEXT_PUBLIC_SUPABASE_URL'),
     serviceRoleKey: getRequiredEnvVar('SUPABASE_SERVICE_ROLE_KEY'),
   },
   
