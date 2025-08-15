@@ -5,6 +5,12 @@ on:
   push:
     branches: [ main ]
 
+# ✅ ให้ GITHUB_TOKEN เขียนคอมเมนต์/PR ได้
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   # === Preview (PR) ===
   deploy:
@@ -55,23 +61,31 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: ./
-          # ไม่ใส่ --prod = Preview
+
+      # ✅ คอมเมนต์ URL บน PR (ถ้า token ยังเขียนไม่ได้ จะไม่ทำให้ job ล้ม)
       - name: 💬 Comment Preview URL on PR
         if: ${{ github.event_name == 'pull_request' && steps.vercel.outputs['preview-url'] }}
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const url = process.env.URL
-            const body = `✅ **Vercel Preview:** ${url}\n\n_(posted by CI)_`
+            const url = process.env.URL;
+            const body = `✅ **Vercel Preview:** ${url}\n\n_(posted by CI)_`;
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               body
-            })
+            });
         env:
           URL: ${{ steps.vercel.outputs['preview-url'] }}
+
+      # 📝 Fallback: เขียน URL ลง Job Summary เผื่อคอมเมนต์ไม่ได้
+      - name: 📄 Write Preview URL to summary
+        if: ${{ steps.vercel.outputs['preview-url'] }}
+        run: |
+          echo "✅ **Vercel Preview:** ${{ steps.vercel.outputs['preview-url'] }}" >> $GITHUB_STEP_SUMMARY
 
   # === Production (merge → main เท่านั้น) ===
   deploy_prod:
