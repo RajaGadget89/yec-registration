@@ -1,19 +1,17 @@
 name: Deploy to Vercel
 
 on:
-  # สร้าง Preview สำหรับ PR (ไม่ยิงโปรดักชัน)
   pull_request: {}
-  # ยิงโปรดักชันเมื่อมี push เข้า main (เกิดจาก Merge PR เท่านั้น)
   push:
     branches: [ main ]
 
 jobs:
-  # === Preview (ยังใช้ชื่อ job = deploy เพื่อให้ตรงกับ ruleset เดิม) ===
+  # === Preview (PR) ===
   deploy:
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository  # กัน PR จาก fork ที่ไม่มีสิทธิ์ใช้ secrets
+      github.event.pull_request.head.repo.full_name == github.repository
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
@@ -50,20 +48,36 @@ jobs:
         run: npm run build
 
       - name: 🔍 Deploy Preview to Vercel (no prod)
+        id: vercel
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           working-directory: ./
-          # ไม่ใส่ --prod = Preview env
-          # vercel-action จะคอมเมนต์ Preview URL ไว้ใน PR ให้ตรวจได้
+          # ไม่ใส่ --prod = Preview
+      - name: 💬 Comment Preview URL on PR
+        if: ${{ github.event_name == 'pull_request' && steps.vercel.outputs['preview-url'] }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const url = process.env.URL
+            const body = `✅ **Vercel Preview:** ${url}\n\n_(posted by CI)_`
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            })
+        env:
+          URL: ${{ steps.vercel.outputs['preview-url'] }}
 
-  # === Production (ยิงเมื่อ merge → main เท่านั้น) ===
+  # === Production (merge → main เท่านั้น) ===
   deploy_prod:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main') }}
-    environment: production         # ถ้าคุณสร้าง Environment ไว้ จะมี gate อนุมัติก่อนยิงจริง
+    environment: production
     timeout-minutes: 20
     concurrency:
       group: prod-${{ github.ref }}
@@ -81,12 +95,10 @@ jobs:
     steps:
       - name: 🧱 Checkout Code
         uses: actions/checkout@v3
-
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
-
       - name: 🧰 Install system deps for canvas
         run: |
           sudo apt-get update
@@ -94,16 +106,13 @@ jobs:
             build-essential \
             libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
             libpixman-1-dev
-
       - name: 📦 Install Dependencies
         run: npm ci
         env:
           NODE_ENV: development
           NPM_CONFIG_PRODUCTION: "false"
-
       - name: 🏗️ Build Project
         run: npm run build
-
       - name: 🚀 Deploy to Vercel (PROD on main)
         uses: amondnet/vercel-action@v25
         with:
