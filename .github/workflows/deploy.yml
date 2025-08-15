@@ -1,31 +1,28 @@
 name: Deploy to Vercel
 
 on:
+  # สร้าง Preview สำหรับ PR (ไม่ยิงโปรดักชัน)
+  pull_request: {}
+  # ยิงโปรดักชันเมื่อมี push เข้า main (เกิดจาก Merge PR เท่านั้น)
   push:
-    branches:
-      - main
-      - develop
-      - 'feature/**'
-      - 'fix/**'
-      - 'hotfix/**'
-      - 'release/**'
-      - 'experiment/**'
-      - 'ci/**'
-      - 'devtools/**'
-  pull_request:
+    branches: [ main ]
 
 jobs:
+  # === Preview (ยังใช้ชื่อ job = deploy เพื่อให้ตรงกับ ruleset เดิม) ===
   deploy:
     runs-on: ubuntu-latest
-
-    # ENV ให้ทุก step มองเห็น (เหมือนใน Vercel)
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository  # กัน PR จาก fork ที่ไม่มีสิทธิ์ใช้ secrets
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-
+    concurrency:
+      group: preview-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: 🧱 Checkout Code
         uses: actions/checkout@v3
@@ -35,7 +32,6 @@ jobs:
         with:
           node-version: 18
 
-      # ✅ จำเป็นสำหรับแพ็กเกจ canvas (แก้ error pixman/cairo)
       - name: 🧰 Install system deps for canvas
         run: |
           sudo apt-get update
@@ -44,20 +40,71 @@ jobs:
             libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
             libpixman-1-dev
 
-      # ลง devDependencies ให้ครบ
       - name: 📦 Install Dependencies
         run: npm ci
         env:
           NODE_ENV: development
           NPM_CONFIG_PRODUCTION: "false"
 
-      # ถ้าเป็น PR จาก fork (ไม่ได้รับ secrets) จะข้าม build
       - name: 🏗️ Build Project
-        if: ${{ github.event_name == 'push' || !github.event.pull_request.head.repo.fork }}
         run: npm run build
 
-      - name: 🚀 Deploy to Vercel
-        if: ${{ github.event_name == 'push' }}
+      - name: 🔍 Deploy Preview to Vercel (no prod)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./
+          # ไม่ใส่ --prod = Preview env
+          # vercel-action จะคอมเมนต์ Preview URL ไว้ใน PR ให้ตรวจได้
+
+  # === Production (ยิงเมื่อ merge → main เท่านั้น) ===
+  deploy_prod:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/main') }}
+    environment: production         # ถ้าคุณสร้าง Environment ไว้ จะมี gate อนุมัติก่อนยิงจริง
+    timeout-minutes: 20
+    concurrency:
+      group: prod-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      deployments: write
+      id-token: write
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+    steps:
+      - name: 🧱 Checkout Code
+        uses: actions/checkout@v3
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: 🧰 Install system deps for canvas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
+            libpixman-1-dev
+
+      - name: 📦 Install Dependencies
+        run: npm ci
+        env:
+          NODE_ENV: development
+          NPM_CONFIG_PRODUCTION: "false"
+
+      - name: 🏗️ Build Project
+        run: npm run build
+
+      - name: 🚀 Deploy to Vercel (PROD on main)
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
