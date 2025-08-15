@@ -41,6 +41,13 @@ export const REQUIRED_BUCKETS: StorageBucketConfig[] = [
     allowedMimeTypes: ['image/png'],
     maxFileSize: 2 * 1024 * 1024, // 2MB
     description: 'Generated YEC badges - public access for display'
+  },
+  {
+    name: 'yec-assets',
+    public: true,
+    allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'],
+    maxFileSize: 2 * 1024 * 1024, // 2MB
+    description: 'YEC brand assets (logos, icons) - public access for email templates'
   }
 ];
 

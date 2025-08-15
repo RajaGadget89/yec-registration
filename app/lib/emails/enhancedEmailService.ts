@@ -84,7 +84,7 @@ export async function sendTrackingEmail(
     brandTokens
   };
 
-  const html = renderEmailTemplate('tracking', props);
+  const html = await renderEmailTemplate('tracking', props);
   const subject = getEmailSubject('tracking');
 
   const result = await transport.send({
@@ -150,7 +150,7 @@ export async function sendUpdateRequestEmail(
     })
   };
 
-  const html = renderEmailTemplate(template, props);
+  const html = await renderEmailTemplate(template, props);
   const subject = getEmailSubject(template);
 
   const result = await transport.send({
@@ -189,7 +189,7 @@ export async function sendApprovalEmail(
     brandTokens
   };
 
-  const html = renderEmailTemplate('approval-badge', props);
+  const html = await renderEmailTemplate('approval-badge', props);
   const subject = getEmailSubject('approval-badge');
 
   const result = await transport.send({
@@ -228,7 +228,7 @@ export async function sendRejectionEmail(
     brandTokens
   };
 
-  const html = renderEmailTemplate('rejection', props);
+  const html = await renderEmailTemplate('rejection', props);
   const subject = getEmailSubject('rejection');
 
   const result = await transport.send({

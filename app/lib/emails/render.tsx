@@ -71,14 +71,28 @@ const emailTemplates = {
  * @param props Template props
  * @returns HTML string
  */
-export function renderEmailTemplate(templateName: string, props: EmailTemplateProps): string {
+export async function renderEmailTemplate(templateName: string, props: EmailTemplateProps): Promise<string> {
   const template = emailTemplates[templateName as keyof typeof emailTemplates];
   if (!template) {
     throw new Error(`Email template '${templateName}' not found`);
   }
   
   const element = template.renderer(props);
-  return render(element) as unknown as string;
+  const rendered = await render(element);
+  
+  console.log('[EMAIL-RENDER] Render result type:', typeof rendered);
+  console.log('[EMAIL-RENDER] Render result keys:', rendered && typeof rendered === 'object' ? Object.keys(rendered) : 'N/A');
+  console.log('[EMAIL-RENDER] Render result:', rendered);
+  
+  // Ensure we return a string
+  if (typeof rendered === 'string') {
+    return rendered;
+  } else if (rendered && typeof rendered === 'object' && 'html' in rendered) {
+    return (rendered as any).html as string;
+  } else {
+    console.error('Unexpected render result type:', typeof rendered, rendered);
+    throw new Error(`Email template rendering failed: unexpected result type ${typeof rendered}`);
+  }
 }
 
 /**
