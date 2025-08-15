@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { formSchema, initialFormData, FormData } from './FormSchema';
+import { formSchema, initialFormData, FormData as FormDataType } from './FormSchema';
 import { validateForm, shouldShowExtraField, calculateFormProgress } from './formValidation';
 import FormField from './FormField';
-import { uploadFileToSupabase } from '../../lib/uploadFileToSupabase';
 
 export default function RegistrationForm() {
-  const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [formData, setFormData] = useState<FormDataType>(initialFormData);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -177,8 +176,23 @@ export default function RegistrationForm() {
             folder = 'payment-slips';
           }
 
-          // Upload file to Supabase
-          const fileUrl = await uploadFileToSupabase(file, folder);
+          // Upload file to Supabase via API route
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('folder', folder);
+          
+          const uploadResponse = await fetch('/api/upload-file', {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.error || 'Failed to upload file');
+          }
+          
+          const uploadResult = await uploadResponse.json();
+          const fileUrl = uploadResult.fileUrl;
           uploadedFiles[fieldId] = fileUrl;
           
           processedFiles++;

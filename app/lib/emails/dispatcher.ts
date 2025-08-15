@@ -145,7 +145,7 @@ export async function dispatchEmailBatch(batchSize: number = 50, dryRun: boolean
       let subject: string;
       
       try {
-        html = renderEmailTemplate(email.template, email.payload);
+        html = await renderEmailTemplate(email.template, email.payload);
         subject = getEmailSubject(email.template);
       } catch (templateError) {
         console.warn(`[DISPATCH] Template rendering failed for ${email.id}, using fallback HTML:`, templateError);

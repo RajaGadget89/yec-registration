@@ -9,7 +9,7 @@ export const TrackingTemplate: React.FC<EmailTemplateProps> = ({
   brandTokens
 }) => {
   void _supportEmail; // used to satisfy lint without changing config
-  const { colors, spacing } = emailTheme;
+  const { colors } = emailTheme;
 
   // Use brand colors if provided, otherwise use default theme
   const primaryColor = brandTokens?.primaryColor || colors.primary;
@@ -17,213 +17,118 @@ export const TrackingTemplate: React.FC<EmailTemplateProps> = ({
 
   return (
     <div style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
-      {/* Thai Content */}
-      <div style={{ marginBottom: spacing.xl }}>
+      {/* Compact Welcome Section */}
+      <div style={{ marginBottom: '20px' }}>
         <h2 style={{ 
           color: primaryColor, 
-          fontSize: '24px', 
-          marginBottom: spacing.md,
+          fontSize: '20px', 
+          marginBottom: '12px',
           textAlign: 'center' as const
         }}>
-          ยินดีต้อนรับสู่ YEC Day!
+          ยินดีต้อนรับสู่ YEC Day! | Welcome to YEC Day!
         </h2>
         
         <p style={{ 
-          fontSize: '16px', 
-          lineHeight: '1.6', 
-          marginBottom: spacing.md 
+          fontSize: '14px', 
+          lineHeight: '1.4', 
+          marginBottom: '8px',
+          color: colors.gray[700]
         }}>
-          สวัสดี {applicantName} ที่รัก
+          สวัสดี {applicantName} ที่รัก | Dear {applicantName},
         </p>
         
         <p style={{ 
-          fontSize: '16px', 
-          lineHeight: '1.6', 
-          marginBottom: spacing.lg 
-        }}>
-          ขอบคุณที่สมัครเข้าร่วมงาน YEC Day! เราได้รับคำขอลงทะเบียนของคุณแล้ว 
-          และกำลังดำเนินการตรวจสอบข้อมูล
-        </p>
-        
-        <div style={{
-          backgroundColor: colors.gray[50],
-          border: `2px solid ${secondaryColor}`,
-          borderRadius: '8px',
-          padding: spacing.lg,
-          marginBottom: spacing.lg,
-          textAlign: 'center' as const
-        }}>
-          <h3 style={{ 
-            color: primaryColor, 
-            fontSize: '18px', 
-            marginBottom: spacing.sm 
-          }}>
-            รหัสติดตามการสมัคร
-          </h3>
-          <div style={{
-            fontSize: '24px',
-            fontWeight: 'bold',
-            color: secondaryColor,
-            fontFamily: 'monospace',
-            letterSpacing: '2px'
-          }}>
-            {trackingCode}
-          </div>
-          <p style={{ 
-            fontSize: '14px', 
-            color: colors.gray[600], 
-            marginTop: spacing.sm 
-          }}>
-            เก็บรหัสนี้ไว้เพื่อติดตามสถานะการสมัครของคุณ
-          </p>
-        </div>
-        
-        <div style={{
-          backgroundColor: colors.highlight + '20',
-          border: `1px solid ${colors.highlight}`,
-          borderRadius: '8px',
-          padding: spacing.lg,
-          marginBottom: spacing.lg
-        }}>
-          <h3 style={{ 
-            color: colors.highlight, 
-            fontSize: '18px', 
-            marginBottom: spacing.sm 
-          }}>
-            ขั้นตอนต่อไป
-          </h3>
-          <ul style={{ 
-            margin: 0, 
-            paddingLeft: spacing.lg,
-            fontSize: '14px',
-            lineHeight: '1.5'
-          }}>
-            <li>ทีมงานจะตรวจสอบข้อมูลการสมัครของคุณ</li>
-            <li>คุณจะได้รับการแจ้งเตือนเมื่อการตรวจสอบเสร็จสิ้น</li>
-            <li>หากต้องการข้อมูลเพิ่มเติม เราจะติดต่อคุณ</li>
-          </ul>
-        </div>
-        
-        <div style={{
-          backgroundColor: colors.gray[100],
-          padding: spacing.lg,
-          borderRadius: '8px',
-          fontSize: '14px',
+          fontSize: '14px', 
+          lineHeight: '1.4', 
+          marginBottom: '16px',
           color: colors.gray[700]
         }}>
-          <p style={{ margin: 0 }}>
-            <strong>หากมีคำถาม:</strong> ติดต่อเราได้ที่ {_supportEmail}
-          </p>
-          <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
-            ข้อมูลส่วนบุคคลของคุณจะถูกเก็บรักษาไว้ตามนโยบายการคุ้มครองข้อมูลส่วนบุคคล (PDPA)
-          </p>
-        </div>
+          ขอบคุณที่สมัครเข้าร่วมงาน YEC Day! เราได้รับคำขอลงทะเบียนของคุณแล้ว และกำลังดำเนินการตรวจสอบข้อมูล | 
+          Thank you for registering for YEC Day! We have received your registration request and are processing your information.
+        </p>
       </div>
-
-      {/* English Content */}
-      <div style={{ 
-        borderTop: `2px solid ${colors.gray[200]}`, 
-        paddingTop: spacing.lg 
+      
+      {/* Tracking Code Section - Compact */}
+      <div style={{
+        backgroundColor: colors.gray[50],
+        border: `2px solid ${secondaryColor}`,
+        borderRadius: '8px',
+        padding: '16px',
+        marginBottom: '16px',
+        textAlign: 'center' as const
       }}>
-        <h2 style={{ 
+        <h3 style={{ 
           color: primaryColor, 
-          fontSize: '24px', 
-          marginBottom: spacing.md,
-          textAlign: 'center' as const
-        }}>
-          Welcome to YEC Day!
-        </h2>
-        
-        <p style={{ 
           fontSize: '16px', 
-          lineHeight: '1.6', 
-          marginBottom: spacing.md 
+          marginBottom: '8px'
         }}>
-          Dear {applicantName},
-        </p>
-        
+          รหัสติดตามการสมัคร | Registration Tracking Code
+        </h3>
+        <div style={{
+          fontSize: '20px',
+          fontWeight: 'bold',
+          color: secondaryColor,
+          fontFamily: 'monospace',
+          letterSpacing: '1px',
+          marginBottom: '8px'
+        }}>
+          {trackingCode}
+        </div>
         <p style={{ 
-          fontSize: '16px', 
-          lineHeight: '1.6', 
-          marginBottom: spacing.lg 
+          fontSize: '12px', 
+          color: colors.gray[600], 
+          margin: 0
         }}>
-          Thank you for registering for YEC Day! We have received your registration 
-          request and are currently processing your information.
+          เก็บรหัสนี้ไว้เพื่อติดตามสถานะการสมัครของคุณ | Keep this code to track your registration status
         </p>
-        
-        <div style={{
-          backgroundColor: colors.gray[50],
-          border: `2px solid ${secondaryColor}`,
-          borderRadius: '8px',
-          padding: spacing.lg,
-          marginBottom: spacing.lg,
-          textAlign: 'center' as const
+      </div>
+      
+      {/* Next Steps Section - Compact */}
+      <div style={{
+        backgroundColor: colors.highlight + '15',
+        border: `1px solid ${colors.highlight}`,
+        borderRadius: '8px',
+        padding: '16px',
+        marginBottom: '16px'
+      }}>
+        <h3 style={{ 
+          color: colors.highlight, 
+          fontSize: '16px', 
+          marginBottom: '8px'
         }}>
-          <h3 style={{ 
-            color: primaryColor, 
-            fontSize: '18px', 
-            marginBottom: spacing.sm 
-          }}>
-            Registration Tracking Code
-          </h3>
-          <div style={{
-            fontSize: '24px',
-            fontWeight: 'bold',
-            color: secondaryColor,
-            fontFamily: 'monospace',
-            letterSpacing: '2px'
-          }}>
-            {trackingCode}
-          </div>
-          <p style={{ 
-            fontSize: '14px', 
-            color: colors.gray[600], 
-            marginTop: spacing.sm 
-          }}>
-            Keep this code to track your registration status
-          </p>
-        </div>
-        
-        <div style={{
-          backgroundColor: colors.highlight + '20',
-          border: `1px solid ${colors.highlight}`,
-          borderRadius: '8px',
-          padding: spacing.lg,
-          marginBottom: spacing.lg
-        }}>
-          <h3 style={{ 
-            color: colors.highlight, 
-            fontSize: '18px', 
-            marginBottom: spacing.sm 
-          }}>
-            Next Steps
-          </h3>
-          <ul style={{ 
-            margin: 0, 
-            paddingLeft: spacing.lg,
-            fontSize: '14px',
-            lineHeight: '1.5'
-          }}>
-            <li>Our team will review your registration information</li>
-            <li>You will be notified once the review is complete</li>
-            <li>If additional information is needed, we will contact you</li>
-          </ul>
-        </div>
-        
-        <div style={{
-          backgroundColor: colors.gray[100],
-          padding: spacing.lg,
-          borderRadius: '8px',
-          fontSize: '14px',
+          ขั้นตอนต่อไป | Next Steps
+        </h3>
+        <ul style={{ 
+          margin: 0, 
+          paddingLeft: '20px',
+          fontSize: '13px',
+          lineHeight: '1.4',
           color: colors.gray[700]
         }}>
-          <p style={{ margin: 0 }}>
-            <strong>Questions?</strong> Contact us at {_supportEmail}
-          </p>
-          <p style={{ margin: '8px 0 0 0', fontSize: '12px' }}>
-            Your personal information will be protected according to our Personal Data Protection Policy (PDPA)
-          </p>
-        </div>
+          <li style={{ marginBottom: '4px' }}>
+            ทีมงานจะตรวจสอบข้อมูลการสมัครของคุณ | Our team will review your registration information
+          </li>
+          <li style={{ marginBottom: '4px' }}>
+            คุณจะได้รับการแจ้งเตือนเมื่อการตรวจสอบเสร็จสิ้น | You will be notified once the review is complete
+          </li>
+          <li style={{ marginBottom: '0' }}>
+            หากต้องการข้อมูลเพิ่มเติม เราจะติดต่อคุณ | If additional information is needed, we will contact you
+          </li>
+        </ul>
+      </div>
+      
+      {/* Contact Section - Compact */}
+      <div style={{
+        backgroundColor: colors.gray[100],
+        padding: '12px',
+        borderRadius: '6px',
+        fontSize: '12px',
+        color: colors.gray[700],
+        textAlign: 'center' as const
+      }}>
+        <p style={{ margin: 0 }}>
+          <strong>หากมีคำถาม | Questions?</strong> ติดต่อเราได้ที่ | Contact us at {_supportEmail}
+        </p>
       </div>
     </div>
   );

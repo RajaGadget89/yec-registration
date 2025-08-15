@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
   };
 
   try {
-    const html = renderEmailTemplate(template, sampleProps);
+    const html = await renderEmailTemplate(template, sampleProps);
     
     return new NextResponse(html, {
       status: 200,
