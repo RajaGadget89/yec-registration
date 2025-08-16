@@ -1,4 +1,3 @@
-# .github/workflows/e2e-dispatch-emails.yml
 name: E2E Dispatch Emails Tests
 
 on:
@@ -15,7 +14,6 @@ jobs:
   dispatch_emails:
     name: dispatch_emails
     runs-on: ubuntu-latest
-    # Prevent running from forks without access to secrets
     if: |
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
@@ -96,6 +94,4 @@ jobs:
           name: test-artifacts-dispatch-emails
           path: test-artifacts/
           retention-days: 14
-
-
 

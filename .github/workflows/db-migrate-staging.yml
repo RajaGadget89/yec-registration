@@ -4,38 +4,64 @@ on:
   workflow_dispatch: {}
   pull_request:
     types: [opened, synchronize, reopened]
-    paths:
-      - 'supabase/migrations/**'
-      - 'supabase/seed.sql'
-      - '.github/workflows/db-migrate-staging.yml'
   push:
     branches: [main, develop]
-    paths:
-      - 'supabase/migrations/**'
-      - 'supabase/seed.sql'
 
 concurrency:
   group: db-staging-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test_on_shadow:
-    name: Test migrations on Shadow DB
+  detect_changes:
+    name: Detect DB changes
     runs-on: ubuntu-latest
-    env: { SUPABASE_TELEMETRY_DISABLED: "1" }
+    outputs:
+      db_changed: ${{ steps.filter.outputs.db }}
     steps:
       - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            db:
+              - 'supabase/migrations/**'
+              - 'supabase/seed.sql'
+              - '.github/workflows/db-migrate-staging.yml'
+
+  test_on_shadow:
+    name: Test migrations on Shadow DB
+    needs: detect_changes
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      # no-op ทางผ่านเมื่อไม่มีการแก้ DB (เพื่อให้ check นี้ "ผ่าน" ไม่ค้าง Pending)
+      - name: No DB changes → fast-pass
+        if: needs.detect_changes.outputs.db_changed != 'true'
+        run: echo "No supabase changes; skipping heavy DB tests but reporting success."
+
+      # รันจริงเมื่อมีการแก้ DB
       - name: Install psql client
+        if: needs.detect_changes.outputs.db_changed == 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
+
       - uses: supabase/setup-cli@v1
-        with: { version: latest }
+        if: needs.detect_changes.outputs.db_changed == 'true'
+        with:
+          version: latest
+
       - name: Start local Supabase stack (shadow)
+        if: needs.detect_changes.outputs.db_changed == 'true'
         run: |
           supabase start
           supabase status
+
       - name: Apply migrations to shadow
+        if: needs.detect_changes.outputs.db_changed == 'true'
         env:
           SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
         shell: bash
@@ -46,15 +72,17 @@ jobs:
 
   push_to_staging:
     name: Push migrations to Staging (via DB URL)
-    needs: [test_on_shadow]
+    needs: [detect_changes, test_on_shadow]
+    if: needs.detect_changes.outputs.db_changed == 'true'
     runs-on: ubuntu-latest
     env:
       SUPABASE_TELEMETRY_DISABLED: "1"
-      STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}   # ต้องมี
+      STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
-        with: { version: latest }
+        with:
+          version: latest
       - name: Push → Staging (no prompt)
         shell: bash
         run: |
