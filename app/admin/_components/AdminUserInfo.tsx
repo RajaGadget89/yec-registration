@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { LogOut, User, Shield, Crown } from 'lucide-react';
-import { getSupabaseAuth } from '../../lib/auth-client';
-import type { AuthenticatedUser } from '../../lib/auth-client';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { LogOut, User, Shield, Crown } from "lucide-react";
+import { getSupabaseAuth } from "../../lib/auth-client";
+import type { AuthenticatedUser } from "../../lib/auth-client";
 
 export default function AdminUserInfo() {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
@@ -16,17 +16,19 @@ export default function AdminUserInfo() {
     const checkAuth = async () => {
       try {
         const supabase = getSupabaseAuth();
-        
+
         // Get current session
-        const { data: { session } } = await supabase.auth.getSession();
-        
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
         if (session?.user) {
           // Get user from admin_users table
           const { data: adminUser, error } = await supabase
-            .from('admin_users')
-            .select('*')
-            .eq('id', session.user.id)
-            .eq('is_active', true)
+            .from("admin_users")
+            .select("*")
+            .eq("id", session.user.id)
+            .eq("is_active", true)
             .single();
 
           if (!error && adminUser) {
@@ -36,12 +38,12 @@ export default function AdminUserInfo() {
               role: adminUser.role,
               created_at: adminUser.created_at,
               last_login_at: adminUser.last_login_at,
-              is_active: adminUser.is_active
+              is_active: adminUser.is_active,
             });
           }
         }
       } catch (error) {
-        console.error('Error checking auth:', error);
+        console.error("Error checking auth:", error);
       } finally {
         setIsLoading(false);
       }
@@ -51,33 +53,33 @@ export default function AdminUserInfo() {
 
     // Listen for auth changes
     const supabase = getSupabaseAuth();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          router.push('/admin/login');
-        } else if (session?.user) {
-          // Re-check user data
-          const { data: adminUser, error } = await supabase
-            .from('admin_users')
-            .select('*')
-            .eq('id', session.user.id)
-            .eq('is_active', true)
-            .single();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_OUT") {
+        setUser(null);
+        router.push("/admin/login");
+      } else if (session?.user) {
+        // Re-check user data
+        const { data: adminUser, error } = await supabase
+          .from("admin_users")
+          .select("*")
+          .eq("id", session.user.id)
+          .eq("is_active", true)
+          .single();
 
-          if (!error && adminUser) {
-            setUser({
-              id: adminUser.id,
-              email: adminUser.email,
-              role: adminUser.role,
-              created_at: adminUser.created_at,
-              last_login_at: adminUser.last_login_at,
-              is_active: adminUser.is_active
-            });
-          }
+        if (!error && adminUser) {
+          setUser({
+            id: adminUser.id,
+            email: adminUser.email,
+            role: adminUser.role,
+            created_at: adminUser.created_at,
+            last_login_at: adminUser.last_login_at,
+            is_active: adminUser.is_active,
+          });
         }
       }
-    );
+    });
 
     return () => subscription.unsubscribe();
   }, [router]);
@@ -87,13 +89,13 @@ export default function AdminUserInfo() {
     try {
       const supabase = getSupabaseAuth();
       await supabase.auth.signOut();
-      
+
       // Also call logout API to clear cookies
-      await fetch('/api/auth/logout', { method: 'POST' });
-      
-      router.push('/admin/login');
+      await fetch("/api/auth/logout", { method: "POST" });
+
+      router.push("/admin/login");
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       setIsLoggingOut(false);
     }
   };
@@ -102,7 +104,9 @@ export default function AdminUserInfo() {
     return (
       <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700 backdrop-blur-sm">
         <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></div>
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Loading...</span>
+        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+          Loading...
+        </span>
       </div>
     );
   }
@@ -111,7 +115,9 @@ export default function AdminUserInfo() {
     return (
       <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-100 dark:bg-red-900/20 border border-red-200 dark:border-red-800 backdrop-blur-sm">
         <div className="w-2 h-2 rounded-full bg-red-500"></div>
-        <span className="text-sm font-medium text-red-700 dark:text-red-300">Not Authenticated</span>
+        <span className="text-sm font-medium text-red-700 dark:text-red-300">
+          Not Authenticated
+        </span>
       </div>
     );
   }
@@ -122,13 +128,13 @@ export default function AdminUserInfo() {
       <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-yec-primary/10 to-yec-accent/10 border border-yec-primary/20 backdrop-blur-sm">
         <div className="w-2 h-2 rounded-full bg-yec-accent animate-pulse"></div>
         <div className="flex items-center space-x-1">
-          {user.role === 'super_admin' ? (
+          {user.role === "super_admin" ? (
             <Crown className="h-3 w-3 text-yellow-600" />
           ) : (
             <Shield className="h-3 w-3 text-yec-primary" />
           )}
           <span className="text-sm font-medium text-yec-primary">
-            {user.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+            {user.role === "super_admin" ? "Super Admin" : "Admin"}
           </span>
         </div>
       </div>
@@ -150,7 +156,7 @@ export default function AdminUserInfo() {
       >
         <LogOut className="h-3 w-3 text-red-600" />
         <span className="text-sm font-medium text-red-700 dark:text-red-300 hidden sm:inline">
-          {isLoggingOut ? 'Signing out...' : 'Sign out'}
+          {isLoggingOut ? "Signing out..." : "Sign out"}
         </span>
       </button>
     </div>

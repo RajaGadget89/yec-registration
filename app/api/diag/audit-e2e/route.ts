@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
-import { withAuditLogging } from '../../../lib/audit/withAuditAccess';
-import { logEvent } from '../../../lib/audit/auditClient';
-import { getRequestId } from '../../../lib/audit/requestContext';
+import { NextResponse } from "next/server";
+import { withAuditLogging } from "../../../lib/audit/withAuditAccess";
+import { logEvent } from "../../../lib/audit/auditClient";
+import { getRequestId } from "../../../lib/audit/requestContext";
 
 // Ensure Node runtime
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 /**
  * Diagnostic endpoint for E2E audit testing
@@ -13,15 +13,15 @@ export const runtime = 'nodejs';
 async function handler(): Promise<NextResponse> {
   // Read the request-id from the AsyncLocalStorage context (or generate if missing)
   const requestId = getRequestId();
-  
+
   // Immediately call the real audit client
   await logEvent({
-    action: 'E2EProbe',
-    resource: 'Diag',
-    actor_role: 'system',
-    result: 'success',
+    action: "E2EProbe",
+    resource: "Diag",
+    actor_role: "system",
+    result: "success",
     correlation_id: requestId,
-    meta: { from: 'audit-e2e' }
+    meta: { from: "audit-e2e" },
   });
 
   // Return 200 JSON response

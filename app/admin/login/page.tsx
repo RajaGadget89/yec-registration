@@ -1,24 +1,24 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Lock, Mail, AlertCircle, CheckCircle } from 'lucide-react';
-import { getSupabaseAuth } from '../../lib/auth-client';
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Lock, Mail, AlertCircle, CheckCircle } from "lucide-react";
+import { getSupabaseAuth } from "../../lib/auth-client";
 
 // Force dynamic rendering for login page
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   // Handle magic link redirect with hash tokens - let server handle it
   useEffect(() => {
     // Check for error messages in URL
     const urlParams = new URLSearchParams(window.location.search);
-    const errorParam = urlParams.get('error');
+    const errorParam = urlParams.get("error");
     if (errorParam) {
       setError(decodeURIComponent(errorParam));
     }
@@ -28,28 +28,31 @@ export default function AdminLoginPage() {
     e.preventDefault();
     // For security, we only use magic link authentication
     // Password authentication is disabled
-    setError('Password authentication is disabled for security. Please use "Send Magic Link" instead.');
+    setError(
+      'Password authentication is disabled for security. Please use "Send Magic Link" instead.',
+    );
     return;
   };
 
   const handleMagicLink = async () => {
     setIsLoading(true);
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
 
     try {
       const supabase = getSupabaseAuth();
-      
+
       // Get the next parameter from the current URL
       const urlParams = new URLSearchParams(window.location.search);
-      const nextParam = urlParams.get('next');
-      
+      const nextParam = urlParams.get("next");
+
       // Build redirect URL with next parameter if present
-      const baseRedirectUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8080';
-      const redirectUrl = nextParam 
+      const baseRedirectUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
+      const redirectUrl = nextParam
         ? `${baseRedirectUrl}/auth/callback?next=${encodeURIComponent(nextParam)}`
         : `${baseRedirectUrl}/auth/callback`;
-      
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -62,9 +65,9 @@ export default function AdminLoginPage() {
         return;
       }
 
-      setSuccess('Magic link sent! Check your email.');
+      setSuccess("Magic link sent! Check your email.");
     } catch {
-      setError('An unexpected error occurred. Please try again.');
+      setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -82,7 +85,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link 
+          <Link
             href="/"
             className="inline-flex items-center space-x-2 text-white hover:text-yec-accent transition-all duration-300 hover:scale-105 group mb-4"
           >
@@ -100,7 +103,10 @@ export default function AdminLoginPage() {
           <form onSubmit={handleLogin} className="space-y-6">
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
                 Email Address
               </label>
               <div className="relative">
@@ -122,8 +128,12 @@ export default function AdminLoginPage() {
 
             {/* Password Field - Disabled for Security */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password <span className="text-gray-500 text-xs">(Disabled)</span>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Password{" "}
+                <span className="text-gray-500 text-xs">(Disabled)</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -142,7 +152,9 @@ export default function AdminLoginPage() {
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">For security, only magic link authentication is enabled.</p>
+              <p className="text-xs text-gray-500 mt-1">
+                For security, only magic link authentication is enabled.
+              </p>
             </div>
 
             {/* Error/Success Messages */}
@@ -176,7 +188,7 @@ export default function AdminLoginPage() {
               disabled={isLoading || !email}
               className="w-full bg-gradient-to-r from-yec-primary to-yec-accent text-white py-3 px-4 rounded-lg font-medium hover:from-yec-accent hover:to-yec-primary transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {isLoading ? 'Sending...' : 'Send Magic Link'}
+              {isLoading ? "Sending..." : "Send Magic Link"}
             </button>
           </form>
 

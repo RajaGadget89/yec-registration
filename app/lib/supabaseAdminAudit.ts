@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
 /**
  * Server-only Supabase client for audit operations
@@ -10,17 +10,19 @@ export function getSupabaseAdminAudit() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase environment variables for audit operations');
+    throw new Error(
+      "Missing Supabase environment variables for audit operations",
+    );
   }
 
   return createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
+      persistSession: false,
     },
     db: {
-      schema: 'audit' // Explicitly set the schema to audit
-    }
+      schema: "audit", // Explicitly set the schema to audit
+    },
   });
 }
 
@@ -63,49 +65,54 @@ export interface AuditFilters {
 /**
  * Query audit access logs with filters
  */
-export async function getAuditAccessLogs(filters: AuditFilters, limit: number = 100) {
+export async function getAuditAccessLogs(
+  filters: AuditFilters,
+  limit: number = 100,
+) {
   try {
     const supabase = getSupabaseAdminAudit();
-    
+
     // Use the schema-specific client to query audit tables
     let query = supabase
-      .from('access_log') // Remove the schema prefix since we set it in the client
-      .select('id, occurred_at_utc, action, resource, result, request_id, latency_ms, src_ip, user_agent')
-      .order('occurred_at_utc', { ascending: false })
+      .from("access_log") // Remove the schema prefix since we set it in the client
+      .select(
+        "id, occurred_at_utc, action, resource, result, request_id, latency_ms, src_ip, user_agent",
+      )
+      .order("occurred_at_utc", { ascending: false })
       .limit(limit);
 
     // Apply filters
     if (filters.request_id) {
-      query = query.eq('request_id', filters.request_id);
+      query = query.eq("request_id", filters.request_id);
     }
-    
+
     if (filters.action) {
-      query = query.ilike('action', `%${filters.action}%`);
+      query = query.ilike("action", `%${filters.action}%`);
     }
-    
+
     if (filters.resource) {
-      query = query.ilike('resource', `%${filters.resource}%`);
+      query = query.ilike("resource", `%${filters.resource}%`);
     }
-    
+
     if (filters.date_from) {
-      query = query.gte('occurred_at_utc', filters.date_from);
+      query = query.gte("occurred_at_utc", filters.date_from);
     }
-    
+
     if (filters.date_to) {
-      query = query.lte('occurred_at_utc', filters.date_to);
+      query = query.lte("occurred_at_utc", filters.date_to);
     }
 
     const { data, error } = await query;
-    
+
     if (error) {
-      console.error('Error fetching audit access logs:', error);
+      console.error("Error fetching audit access logs:", error);
       // Return empty array instead of throwing error for better UX
       return [];
     }
 
     return data as AuditAccessLog[];
   } catch (error) {
-    console.error('Unexpected error in getAuditAccessLogs:', error);
+    console.error("Unexpected error in getAuditAccessLogs:", error);
     // Return empty array instead of throwing error for better UX
     return [];
   }
@@ -114,48 +121,51 @@ export async function getAuditAccessLogs(filters: AuditFilters, limit: number = 
 /**
  * Query audit event logs with filters
  */
-export async function getAuditEventLogs(filters: AuditFilters, limit: number = 100) {
+export async function getAuditEventLogs(
+  filters: AuditFilters,
+  limit: number = 100,
+) {
   try {
     const supabase = getSupabaseAdminAudit();
-    
+
     let query = supabase
-      .from('event_log') // Remove the schema prefix since we set it in the client
-      .select('id, occurred_at_utc, action, resource, result, correlation_id')
-      .order('occurred_at_utc', { ascending: false })
+      .from("event_log") // Remove the schema prefix since we set it in the client
+      .select("id, occurred_at_utc, action, resource, result, correlation_id")
+      .order("occurred_at_utc", { ascending: false })
       .limit(limit);
 
     // Apply filters
     if (filters.correlation_id) {
-      query = query.eq('correlation_id', filters.correlation_id);
+      query = query.eq("correlation_id", filters.correlation_id);
     }
-    
+
     if (filters.action) {
-      query = query.ilike('action', `%${filters.action}%`);
+      query = query.ilike("action", `%${filters.action}%`);
     }
-    
+
     if (filters.resource) {
-      query = query.ilike('resource', `%${filters.resource}%`);
+      query = query.ilike("resource", `%${filters.resource}%`);
     }
-    
+
     if (filters.date_from) {
-      query = query.gte('occurred_at_utc', filters.date_from);
+      query = query.gte("occurred_at_utc", filters.date_from);
     }
-    
+
     if (filters.date_to) {
-      query = query.lte('occurred_at_utc', filters.date_to);
+      query = query.lte("occurred_at_utc", filters.date_to);
     }
 
     const { data, error } = await query;
-    
+
     if (error) {
-      console.error('Error fetching audit event logs:', error);
+      console.error("Error fetching audit event logs:", error);
       // Return empty array instead of throwing error for better UX
       return [];
     }
 
     return data as AuditEventLog[];
   } catch (error) {
-    console.error('Unexpected error in getAuditEventLogs:', error);
+    console.error("Unexpected error in getAuditEventLogs:", error);
     // Return empty array instead of throwing error for better UX
     return [];
   }

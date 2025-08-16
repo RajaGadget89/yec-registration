@@ -22,13 +22,21 @@ export class TelegramService {
   private isTestMode: boolean;
 
   private constructor() {
-    this.isTestMode = process.env.NODE_ENV === 'test' || process.env.TEST_HELPERS_ENABLED === '1';
-    console.log('[TELEGRAM-SERVICE] Constructor called, isTestMode:', this.isTestMode);
-    console.log('[TELEGRAM-SERVICE] Environment:', {
+    this.isTestMode =
+      process.env.NODE_ENV === "test" ||
+      process.env.TEST_HELPERS_ENABLED === "1";
+    console.log(
+      "[TELEGRAM-SERVICE] Constructor called, isTestMode:",
+      this.isTestMode,
+    );
+    console.log("[TELEGRAM-SERVICE] Environment:", {
       NODE_ENV: process.env.NODE_ENV,
-      TEST_HELPERS_ENABLED: process.env.TEST_HELPERS_ENABLED
+      TEST_HELPERS_ENABLED: process.env.TEST_HELPERS_ENABLED,
     });
-    console.log('[TELEGRAM-SERVICE] Global telegramOutbox length:', global.telegramOutbox.length);
+    console.log(
+      "[TELEGRAM-SERVICE] Global telegramOutbox length:",
+      global.telegramOutbox.length,
+    );
   }
 
   static getInstance(): TelegramService {
@@ -49,7 +57,8 @@ export class TelegramService {
     companyName: string;
     businessType: string;
   }): Promise<boolean> {
-    const message = `🆕 New Registration Submitted\n\n` +
+    const message =
+      `🆕 New Registration Submitted\n\n` +
       `Name: ${payload.fullName}\n` +
       `Email: ${payload.email}\n` +
       `Registration ID: ${payload.registrationId}\n` +
@@ -65,18 +74,18 @@ export class TelegramService {
       // Always attempt real send if credentials are available
       const botToken = process.env.TELEGRAM_BOT_TOKEN;
       const chatId = process.env.TELEGRAM_CHAT_ID;
-      
+
       if (botToken && chatId) {
         const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
         const response = await fetch(url, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             chat_id: chatId,
             text: message,
-            parse_mode: 'HTML',
+            parse_mode: "HTML",
           }),
         });
 
@@ -85,47 +94,61 @@ export class TelegramService {
           if (result.ok) {
             success = true;
             messageId = result.result?.message_id?.toString();
-            console.log('Telegram notification sent successfully');
+            console.log("Telegram notification sent successfully");
           } else {
-            console.error('Telegram API returned error:', result);
+            console.error("Telegram API returned error:", result);
           }
         } else {
-          console.error('Telegram API error:', response.status, response.statusText);
+          console.error(
+            "Telegram API error:",
+            response.status,
+            response.statusText,
+          );
         }
       } else {
-        console.warn('TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured, skipping real send');
+        console.warn(
+          "TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured, skipping real send",
+        );
       }
 
       // In test mode, always capture the payload
-      console.log('[TELEGRAM-SERVICE] isTestMode check:', this.isTestMode);
+      console.log("[TELEGRAM-SERVICE] isTestMode check:", this.isTestMode);
       if (this.isTestMode) {
-        console.log('[TELEGRAM-SERVICE] Capturing payload in test mode...');
-        console.log('[TELEGRAM-SERVICE] Before push - Global telegramOutbox length:', global.telegramOutbox.length);
+        console.log("[TELEGRAM-SERVICE] Capturing payload in test mode...");
+        console.log(
+          "[TELEGRAM-SERVICE] Before push - Global telegramOutbox length:",
+          global.telegramOutbox.length,
+        );
         global.telegramOutbox.push({
           text: message,
           timestamp,
           messageId,
-          success
+          success,
         });
-        console.log('[TELEGRAM-SERVICE] After push - Global telegramOutbox length:', global.telegramOutbox.length);
-        console.log('[TELEGRAM-SERVICE] Telegram payload captured in test mode');
+        console.log(
+          "[TELEGRAM-SERVICE] After push - Global telegramOutbox length:",
+          global.telegramOutbox.length,
+        );
+        console.log(
+          "[TELEGRAM-SERVICE] Telegram payload captured in test mode",
+        );
       } else {
-        console.log('[TELEGRAM-SERVICE] Not in test mode, skipping capture');
+        console.log("[TELEGRAM-SERVICE] Not in test mode, skipping capture");
       }
 
       return success;
     } catch (error) {
-      console.error('Unexpected error in Telegram notification:', error);
-      
+      console.error("Unexpected error in Telegram notification:", error);
+
       // In test mode, capture failed attempts too
       if (this.isTestMode) {
         global.telegramOutbox.push({
           text: message,
           timestamp,
-          success: false
+          success: false,
         });
       }
-      
+
       return false;
     }
   }
@@ -142,7 +165,10 @@ export class TelegramService {
     if (!this.isTestMode) {
       return [];
     }
-    console.log('[TELEGRAM-SERVICE] getOutbox called, global telegramOutbox length:', global.telegramOutbox.length);
+    console.log(
+      "[TELEGRAM-SERVICE] getOutbox called, global telegramOutbox length:",
+      global.telegramOutbox.length,
+    );
     return [...global.telegramOutbox];
   }
 
@@ -152,7 +178,7 @@ export class TelegramService {
   clearOutbox(): void {
     if (this.isTestMode) {
       global.telegramOutbox = [];
-      console.log('[TELEGRAM-SERVICE] Outbox cleared');
+      console.log("[TELEGRAM-SERVICE] Outbox cleared");
     }
   }
 

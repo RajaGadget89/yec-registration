@@ -1,8 +1,8 @@
-import 'server-only';
-import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from '../types/database';
-import type { AdminUser } from '../types/database';
+import "server-only";
+import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../types/database";
+import type { AdminUser } from "../types/database";
 
 /**
  * Interface for authenticated user data
@@ -10,7 +10,7 @@ import type { AdminUser } from '../types/database';
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  role: 'admin' | 'super_admin';
+  role: "admin" | "super_admin";
   created_at: string;
   last_login_at: string | null;
   is_active: boolean;
@@ -33,14 +33,14 @@ function getSupabaseClient() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase environment variables');
+    throw new Error("Missing Supabase environment variables");
   }
 
   return createClient<Database>(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   });
 }
 
@@ -55,14 +55,14 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 
     // First, try to get session from Supabase cookies
     const session = await supabase.auth.getSession();
-    
+
     if (session.data.session) {
       // Get user from admin_users table using Supabase session
       const { data: adminUser, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('id', session.data.session.user.id)
-        .eq('is_active', true)
+        .from("admin_users")
+        .select("*")
+        .eq("id", session.data.session.user.id)
+        .eq("is_active", true)
         .single();
 
       if (!error && adminUser) {
@@ -72,20 +72,20 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
           role: adminUser.role,
           created_at: adminUser.created_at,
           last_login_at: adminUser.last_login_at,
-          is_active: adminUser.is_active
+          is_active: adminUser.is_active,
         };
       }
     }
 
     // Fallback: Check for custom admin-email cookie (for our auth system)
-    const adminEmail = cookieStore.get('admin-email')?.value;
+    const adminEmail = cookieStore.get("admin-email")?.value;
     if (adminEmail) {
       // Get user from admin_users table using email
       const { data: adminUser, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('email', adminEmail)
-        .eq('is_active', true)
+        .from("admin_users")
+        .select("*")
+        .eq("email", adminEmail)
+        .eq("is_active", true)
         .single();
 
       if (!error && adminUser) {
@@ -95,14 +95,14 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
           role: adminUser.role,
           created_at: adminUser.created_at,
           last_login_at: adminUser.last_login_at,
-          is_active: adminUser.is_active
+          is_active: adminUser.is_active,
         };
       }
     }
 
     return null;
   } catch (error) {
-    console.error('Error getting current user:', error);
+    console.error("Error getting current user:", error);
     return null;
   }
 }
@@ -112,31 +112,36 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
  * @param request - The request object
  * @returns AuthenticatedUser object or null if not authenticated
  */
-export async function getCurrentUserFromRequest(request: Request): Promise<AuthenticatedUser | null> {
+export async function getCurrentUserFromRequest(
+  request: Request,
+): Promise<AuthenticatedUser | null> {
   try {
     const supabase = getSupabaseClient();
-    
+
     // Extract session from request headers
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
       return null;
     }
 
     const token = authHeader.substring(7);
-    
+
     // Verify the token and get user
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
+
     if (error || !user) {
       return null;
     }
 
     // Get user from admin_users table
     const { data: adminUser, error: adminError } = await supabase
-      .from('admin_users')
-      .select('*')
-      .eq('id', user.id)
-      .eq('is_active', true)
+      .from("admin_users")
+      .select("*")
+      .eq("id", user.id)
+      .eq("is_active", true)
       .single();
 
     if (adminError || !adminUser) {
@@ -149,10 +154,10 @@ export async function getCurrentUserFromRequest(request: Request): Promise<Authe
       role: adminUser.role,
       created_at: adminUser.created_at,
       last_login_at: adminUser.last_login_at,
-      is_active: adminUser.is_active
+      is_active: adminUser.is_active,
     };
   } catch (error) {
-    console.error('Error getting current user from request:', error);
+    console.error("Error getting current user from request:", error);
     return null;
   }
 }
@@ -172,7 +177,7 @@ export async function isAuthenticatedAdmin(): Promise<boolean> {
  */
 export async function isAuthenticatedSuperAdmin(): Promise<boolean> {
   const user = await getCurrentUser();
-  return user !== null && user.role === 'super_admin' && user.is_active;
+  return user !== null && user.role === "super_admin" && user.is_active;
 }
 
 /**
@@ -189,18 +194,20 @@ export async function isAuthenticated(): Promise<boolean> {
  * @param requiredRole - The role required for access
  * @returns true if user has the required role, false otherwise
  */
-export async function hasRole(requiredRole: 'admin' | 'super_admin'): Promise<boolean> {
+export async function hasRole(
+  requiredRole: "admin" | "super_admin",
+): Promise<boolean> {
   const user = await getCurrentUser();
   if (!user || !user.is_active) {
     return false;
   }
 
-  if (requiredRole === 'super_admin') {
-    return user.role === 'super_admin';
+  if (requiredRole === "super_admin") {
+    return user.role === "super_admin";
   }
 
   // admin role can access admin-level resources
-  return user.role === 'admin' || user.role === 'super_admin';
+  return user.role === "admin" || user.role === "super_admin";
 }
 
 /**
@@ -211,14 +218,14 @@ export async function updateLastLogin(userId: string): Promise<void> {
   try {
     const supabase = getSupabaseClient();
     await supabase
-      .from('admin_users')
-      .update({ 
+      .from("admin_users")
+      .update({
         last_login_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', userId);
+      .eq("id", userId);
   } catch (error) {
-    console.error('Error updating last login:', error);
+    console.error("Error updating last login:", error);
   }
 }
 
@@ -230,33 +237,33 @@ export async function updateLastLogin(userId: string): Promise<void> {
 export async function upsertAdminUser(userData: {
   id: string;
   email: string;
-  role: 'admin' | 'super_admin';
+  role: "admin" | "super_admin";
 }): Promise<AdminUser | null> {
   try {
     const supabase = getSupabaseClient();
     const now = new Date().toISOString();
 
     const { data, error } = await supabase
-      .from('admin_users')
+      .from("admin_users")
       .upsert({
         id: userData.id,
         email: userData.email,
         role: userData.role,
         created_at: now,
         updated_at: now,
-        is_active: true
+        is_active: true,
       })
       .select()
       .single();
 
     if (error) {
-      console.error('Error upserting admin user:', error);
+      console.error("Error upserting admin user:", error);
       return null;
     }
 
     return data;
   } catch (error) {
-    console.error('Error upserting admin user:', error);
+    console.error("Error upserting admin user:", error);
     return null;
   }
 }
@@ -269,30 +276,33 @@ export async function upsertAdminUser(userData: {
 export async function serverLogout(): Promise<Response> {
   try {
     const supabase = getSupabaseClient();
-    
+
     // Sign out from Supabase
     const { error } = await supabase.auth.signOut();
-    
+
     if (error) {
-      console.error('Server logout error:', error);
-      throw new Error('Failed to logout from Supabase');
+      console.error("Server logout error:", error);
+      throw new Error("Failed to logout from Supabase");
     }
 
     // Create response with cleared cookies
     const response = new Response(null, { status: 302 });
-    
+
     // Clear all authentication cookies
-    response.headers.set('Set-Cookie', [
-      'admin-email=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
-      'sb-access-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
-      'sb-refresh-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
-      'sb-auth-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0',
-      'dev-user-email=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'
-    ].join(', '));
+    response.headers.set(
+      "Set-Cookie",
+      [
+        "admin-email=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+        "sb-access-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+        "sb-refresh-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+        "sb-auth-token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+        "dev-user-email=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0",
+      ].join(", "),
+    );
 
     return response;
   } catch (error) {
-    console.error('Server logout error:', error);
+    console.error("Server logout error:", error);
     throw error;
   }
 }

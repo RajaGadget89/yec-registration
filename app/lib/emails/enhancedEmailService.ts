@@ -4,10 +4,14 @@
  * and secure deep-link tokens for the comprehensive review workflow
  */
 
-import { getSupabaseServiceClient } from '../supabase-server';
-import { renderEmailTemplate, getEmailSubject, EmailTemplateProps } from './registry';
-import { getEmailTransport } from './transport';
-import { Registration } from '../../types/database';
+import { getSupabaseServiceClient } from "../supabase-server";
+import {
+  renderEmailTemplate,
+  getEmailSubject,
+  EmailTemplateProps,
+} from "./registry";
+import { getEmailTransport } from "./transport";
+import { Registration } from "../../types/database";
 
 export interface EmailSendResult {
   ok: boolean;
@@ -32,29 +36,32 @@ export interface DeepLinkTokenResult {
  */
 export async function generateDeepLinkToken(
   registrationId: string,
-  dimension: 'payment' | 'profile' | 'tcc',
+  dimension: "payment" | "profile" | "tcc",
   adminEmail: string,
-  ttlSeconds: number = 86400 // 24 hours
+  ttlSeconds: number = 86400, // 24 hours
 ): Promise<DeepLinkTokenResult> {
   const supabase = getSupabaseServiceClient();
-  
-  const { data: token, error } = await supabase.rpc('generate_secure_deep_link_token', {
-    reg_id: registrationId,
-    dimension: dimension,
-    admin_email: adminEmail,
-    ttl_seconds: ttlSeconds
-  });
+
+  const { data: token, error } = await supabase.rpc(
+    "generate_secure_deep_link_token",
+    {
+      reg_id: registrationId,
+      dimension: dimension,
+      admin_email: adminEmail,
+      ttl_seconds: ttlSeconds,
+    },
+  );
 
   if (error) {
     throw new Error(`Failed to generate deep link token: ${error.message}`);
   }
 
   if (!token) {
-    throw new Error('No token generated');
+    throw new Error("No token generated");
   }
 
   // Build CTA URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8080';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
   const ctaUrl = `${baseUrl}/user/${token}/resubmit`;
 
   // Get expiration time
@@ -63,7 +70,7 @@ export async function generateDeepLinkToken(
   return {
     token,
     ctaUrl,
-    expiresAt
+    expiresAt,
   };
 }
 
@@ -72,34 +79,35 @@ export async function generateDeepLinkToken(
  */
 export async function sendTrackingEmail(
   registration: Registration,
-  brandTokens?: EmailTemplateProps['brandTokens']
+  brandTokens?: EmailTemplateProps["brandTokens"],
 ): Promise<EmailSendResult> {
   const transport = getEmailTransport();
-  const applicantName = `${registration.first_name} ${registration.last_name}`.trim();
-  
+  const applicantName =
+    `${registration.first_name} ${registration.last_name}`.trim();
+
   const props: EmailTemplateProps = {
     applicantName,
     trackingCode: registration.registration_id,
-    supportEmail: process.env.EMAIL_FROM || 'info@yecday.com',
-    brandTokens
+    supportEmail: process.env.EMAIL_FROM || "info@yecday.com",
+    brandTokens,
   };
 
-  const html = await renderEmailTemplate('tracking', props);
-  const subject = getEmailSubject('tracking');
+  const html = await renderEmailTemplate("tracking", props);
+  const subject = getEmailSubject("tracking");
 
   const result = await transport.send({
     to: registration.email,
     subject,
-    html
+    html,
   });
 
   return {
     ok: result.ok,
-    template: 'tracking',
+    template: "tracking",
     to: registration.email,
     subject,
     trackingCode: registration.registration_id,
-    transportResult: result
+    transportResult: result,
   };
 }
 
@@ -108,28 +116,33 @@ export async function sendTrackingEmail(
  */
 export async function sendUpdateRequestEmail(
   registration: Registration,
-  dimension: 'payment' | 'profile' | 'tcc',
+  dimension: "payment" | "profile" | "tcc",
   adminEmail: string,
   notes?: string,
-  brandTokens?: EmailTemplateProps['brandTokens']
+  brandTokens?: EmailTemplateProps["brandTokens"],
 ): Promise<EmailSendResult> {
   const transport = getEmailTransport();
-  const applicantName = `${registration.first_name} ${registration.last_name}`.trim();
-  
+  const applicantName =
+    `${registration.first_name} ${registration.last_name}`.trim();
+
   // Generate deep-link token
-  const tokenResult = await generateDeepLinkToken(registration.id.toString(), dimension, adminEmail);
-  
+  const tokenResult = await generateDeepLinkToken(
+    registration.id.toString(),
+    dimension,
+    adminEmail,
+  );
+
   // Determine template based on dimension
   let template: string;
   switch (dimension) {
-    case 'payment':
-      template = 'update-payment';
+    case "payment":
+      template = "update-payment";
       break;
-    case 'profile':
-      template = 'update-info';
+    case "profile":
+      template = "update-info";
       break;
-    case 'tcc':
-      template = 'update-tcc';
+    case "tcc":
+      template = "update-tcc";
       break;
     default:
       throw new Error(`Invalid dimension: ${dimension}`);
@@ -141,13 +154,13 @@ export async function sendUpdateRequestEmail(
     ctaUrl: tokenResult.ctaUrl,
     dimension,
     notes,
-    supportEmail: process.env.EMAIL_FROM || 'info@yecday.com',
+    supportEmail: process.env.EMAIL_FROM || "info@yecday.com",
     brandTokens,
     // Add payment-specific props for payment template
-    ...(dimension === 'payment' && {
-      priceApplied: registration.price_applied?.toString() || '0',
-      packageName: registration.selected_package_code || 'Standard Package'
-    })
+    ...(dimension === "payment" && {
+      priceApplied: registration.price_applied?.toString() || "0",
+      packageName: registration.selected_package_code || "Standard Package",
+    }),
   };
 
   const html = await renderEmailTemplate(template, props);
@@ -156,7 +169,7 @@ export async function sendUpdateRequestEmail(
   const result = await transport.send({
     to: registration.email,
     subject,
-    html
+    html,
   });
 
   return {
@@ -166,7 +179,7 @@ export async function sendUpdateRequestEmail(
     subject,
     trackingCode: registration.registration_id,
     ctaUrl: tokenResult.ctaUrl,
-    transportResult: result
+    transportResult: result,
   };
 }
 
@@ -176,36 +189,37 @@ export async function sendUpdateRequestEmail(
 export async function sendApprovalEmail(
   registration: Registration,
   badgeUrl?: string,
-  brandTokens?: EmailTemplateProps['brandTokens']
+  brandTokens?: EmailTemplateProps["brandTokens"],
 ): Promise<EmailSendResult> {
   const transport = getEmailTransport();
-  const applicantName = `${registration.first_name} ${registration.last_name}`.trim();
-  
+  const applicantName =
+    `${registration.first_name} ${registration.last_name}`.trim();
+
   const props: EmailTemplateProps = {
     applicantName,
     trackingCode: registration.registration_id,
-    badgeUrl: badgeUrl || '',
-    supportEmail: process.env.EMAIL_FROM || 'info@yecday.com',
-    brandTokens
+    badgeUrl: badgeUrl || "",
+    supportEmail: process.env.EMAIL_FROM || "info@yecday.com",
+    brandTokens,
   };
 
-  const html = await renderEmailTemplate('approval-badge', props);
-  const subject = getEmailSubject('approval-badge');
+  const html = await renderEmailTemplate("approval-badge", props);
+  const subject = getEmailSubject("approval-badge");
 
   const result = await transport.send({
     to: registration.email,
     subject,
-    html
+    html,
   });
 
   return {
     ok: result.ok,
-    template: 'approval-badge',
+    template: "approval-badge",
     to: registration.email,
     subject,
     trackingCode: registration.registration_id,
     badgeUrl,
-    transportResult: result
+    transportResult: result,
   };
 }
 
@@ -214,36 +228,37 @@ export async function sendApprovalEmail(
  */
 export async function sendRejectionEmail(
   registration: Registration,
-  rejectedReason: 'deadline_missed' | 'ineligible_rule_match' | 'other',
-  brandTokens?: EmailTemplateProps['brandTokens']
+  rejectedReason: "deadline_missed" | "ineligible_rule_match" | "other",
+  brandTokens?: EmailTemplateProps["brandTokens"],
 ): Promise<EmailSendResult> {
   const transport = getEmailTransport();
-  const applicantName = `${registration.first_name} ${registration.last_name}`.trim();
-  
+  const applicantName =
+    `${registration.first_name} ${registration.last_name}`.trim();
+
   const props: EmailTemplateProps = {
     applicantName,
     trackingCode: registration.registration_id,
     rejectedReason,
-    supportEmail: process.env.EMAIL_FROM || 'info@yecday.com',
-    brandTokens
+    supportEmail: process.env.EMAIL_FROM || "info@yecday.com",
+    brandTokens,
   };
 
-  const html = await renderEmailTemplate('rejection', props);
-  const subject = getEmailSubject('rejection');
+  const html = await renderEmailTemplate("rejection", props);
+  const subject = getEmailSubject("rejection");
 
   const result = await transport.send({
     to: registration.email,
     subject,
-    html
+    html,
   });
 
   return {
     ok: result.ok,
-    template: 'rejection',
+    template: "rejection",
     to: registration.email,
     subject,
     trackingCode: registration.registration_id,
-    transportResult: result
+    transportResult: result,
   };
 }
 
@@ -269,15 +284,15 @@ export class EventDrivenEmailService {
     eventType: string,
     registration: Registration,
     adminEmail?: string,
-    dimension?: 'payment' | 'profile' | 'tcc',
+    dimension?: "payment" | "profile" | "tcc",
     notes?: string,
     badgeUrl?: string,
-    rejectedReason?: 'deadline_missed' | 'ineligible_rule_match' | 'other',
-    brandTokens?: EmailTemplateProps['brandTokens']
+    rejectedReason?: "deadline_missed" | "ineligible_rule_match" | "other",
+    brandTokens?: EmailTemplateProps["brandTokens"],
   ): Promise<EmailSendResult | null> {
     // Create event ID for idempotency
     const eventId = `${eventType}-${registration.id}-${Date.now()}`;
-    
+
     if (this.processedEvents.has(eventId)) {
       console.log(`Event ${eventId} already processed, skipping`);
       return null;
@@ -287,41 +302,55 @@ export class EventDrivenEmailService {
       let result: EmailSendResult;
 
       switch (eventType) {
-        case 'registration.created':
+        case "registration.created":
           result = await sendTrackingEmail(registration, brandTokens);
           break;
 
-        case 'review.request_update':
+        case "review.request_update":
           if (!adminEmail || !dimension) {
-            throw new Error('Admin email and dimension required for update request');
+            throw new Error(
+              "Admin email and dimension required for update request",
+            );
           }
-          result = await sendUpdateRequestEmail(registration, dimension, adminEmail, notes, brandTokens);
+          result = await sendUpdateRequestEmail(
+            registration,
+            dimension,
+            adminEmail,
+            notes,
+            brandTokens,
+          );
           break;
 
-        case 'review.auto_approved':
-        case 'review.approved':
+        case "review.auto_approved":
+        case "review.approved":
           result = await sendApprovalEmail(registration, badgeUrl, brandTokens);
           break;
 
-        case 'review.rejected':
+        case "review.rejected":
           if (!rejectedReason) {
-            throw new Error('Rejection reason required for rejection email');
+            throw new Error("Rejection reason required for rejection email");
           }
-          result = await sendRejectionEmail(registration, rejectedReason, brandTokens);
+          result = await sendRejectionEmail(
+            registration,
+            rejectedReason,
+            brandTokens,
+          );
           break;
 
         default:
-          console.warn(`No email template defined for event type: ${eventType}`);
+          console.warn(
+            `No email template defined for event type: ${eventType}`,
+          );
           return null;
       }
 
       // Mark event as processed
       this.processedEvents.add(eventId);
-      
+
       console.log(`Email sent for event ${eventType}:`, {
         to: result.to,
         template: result.template,
-        trackingCode: result.trackingCode
+        trackingCode: result.trackingCode,
       });
 
       return result;
@@ -334,11 +363,11 @@ export class EventDrivenEmailService {
   /**
    * Get brand tokens for email templates
    */
-  getBrandTokens(): EmailTemplateProps['brandTokens'] {
+  getBrandTokens(): EmailTemplateProps["brandTokens"] {
     return {
       logoUrl: process.env.EMAIL_LOGO_URL,
-      primaryColor: process.env.EMAIL_PRIMARY_COLOR || '#1A237E',
-      secondaryColor: process.env.EMAIL_SECONDARY_COLOR || '#4285C5'
+      primaryColor: process.env.EMAIL_PRIMARY_COLOR || "#1A237E",
+      secondaryColor: process.env.EMAIL_SECONDARY_COLOR || "#4285C5",
     };
   }
 
