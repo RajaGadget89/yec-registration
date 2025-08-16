@@ -8,15 +8,16 @@
  * Example: john.doe@example.com -> jo**@example.com
  */
 export function maskEmail(email: string): string {
-  if (!email || !email.includes('@')) {
-    return '***@***';
+  if (!email || !email.includes("@")) {
+    return "***@***";
   }
-  
-  const [localPart, domain] = email.split('@');
-  const maskedLocal = localPart.length > 2 
-    ? localPart.substring(0, 2) + '*'.repeat(localPart.length - 2)
-    : '**';
-  
+
+  const [localPart, domain] = email.split("@");
+  const maskedLocal =
+    localPart.length > 2
+      ? localPart.substring(0, 2) + "*".repeat(localPart.length - 2)
+      : "**";
+
   return `${maskedLocal}@${domain}`;
 }
 
@@ -26,18 +27,26 @@ export function maskEmail(email: string): string {
  */
 export function maskPhone(phone: string): string {
   if (!phone || phone.length < 4) {
-    return '***';
+    return "***";
   }
-  
-  if (phone.startsWith('+66')) {
-    return '+66' + '*'.repeat(phone.length - 4) + phone.substring(phone.length - 2);
+
+  if (phone.startsWith("+66")) {
+    return (
+      "+66" + "*".repeat(phone.length - 4) + phone.substring(phone.length - 2)
+    );
   }
-  
-  if (phone.startsWith('0')) {
-    return '0' + '*'.repeat(phone.length - 3) + phone.substring(phone.length - 2);
+
+  if (phone.startsWith("0")) {
+    return (
+      "0" + "*".repeat(phone.length - 3) + phone.substring(phone.length - 2)
+    );
   }
-  
-  return phone.substring(0, 2) + '*'.repeat(phone.length - 4) + phone.substring(phone.length - 2);
+
+  return (
+    phone.substring(0, 2) +
+    "*".repeat(phone.length - 4) +
+    phone.substring(phone.length - 2)
+  );
 }
 
 /**
@@ -46,26 +55,28 @@ export function maskPhone(phone: string): string {
  */
 export function maskPIIInObject(obj: Record<string, any>): Record<string, any> {
   const masked = { ...obj };
-  
+
   for (const [key, value] of Object.entries(masked)) {
-    if (typeof value === 'string') {
-      if (key.toLowerCase().includes('email')) {
+    if (typeof value === "string") {
+      if (key.toLowerCase().includes("email")) {
         masked[key] = maskEmail(value);
-      } else if (key.toLowerCase().includes('phone')) {
+      } else if (key.toLowerCase().includes("phone")) {
         masked[key] = maskPhone(value);
       }
-    } else if (typeof value === 'object' && value !== null) {
+    } else if (typeof value === "object" && value !== null) {
       masked[key] = maskPIIInObject(value);
     }
   }
-  
+
   return masked;
 }
 
 /**
  * Extract safe registration data for audit logging
  */
-export function extractSafeRegistrationData(registration: any): Record<string, any> {
+export function extractSafeRegistrationData(
+  registration: any,
+): Record<string, any> {
   return {
     registration_id: registration.registration_id,
     status: registration.status,
@@ -76,7 +87,6 @@ export function extractSafeRegistrationData(registration: any): Record<string, a
     email_masked: maskEmail(registration.email),
     phone_masked: maskPhone(registration.phone),
     created_at: registration.created_at,
-    updated_at: registration.updated_at
+    updated_at: registration.updated_at,
   };
 }
-

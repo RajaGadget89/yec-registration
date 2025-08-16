@@ -13,7 +13,9 @@ export const getSupabaseClient = (): SupabaseClient<Database> => {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required');
+      throw new Error(
+        "Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are required",
+      );
     }
 
     supabaseClient = createClient<Database>(supabaseUrl, supabaseAnonKey);
@@ -27,15 +29,21 @@ export const getSupabaseServiceClient = (): SupabaseClient<Database> => {
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseServiceRoleKey) {
-      throw new Error('Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required');
+      throw new Error(
+        "Missing Supabase environment variables: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required",
+      );
     }
 
-    supabaseServiceClient = createClient<Database>(supabaseUrl, supabaseServiceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
+    supabaseServiceClient = createClient<Database>(
+      supabaseUrl,
+      supabaseServiceRoleKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      },
+    );
   }
   return supabaseServiceClient;
-}; 
+};

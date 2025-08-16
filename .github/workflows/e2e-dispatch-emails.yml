@@ -1,0 +1,101 @@
+# .github/workflows/e2e-dispatch-emails.yml
+name: E2E Dispatch Emails Tests
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dispatch_emails:
+    name: dispatch_emails
+    runs-on: ubuntu-latest
+    # Prevent running from forks without access to secrets
+    if: |
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 18.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: 🧰 Install system deps for canvas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
+            libpixman-1-dev
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers & OS deps
+        run: npx playwright install --with-deps
+
+      - name: Preflight — show repo tree & verify tests
+        run: |
+          echo "Node: $(node -v)"
+          npx playwright --version || true
+          echo "---- repo tree (top) ----"
+          ls -la
+          echo "---- list test files ----"
+          git ls-files | grep -E 'tests/.+\.spec\.(ts|js)' || true
+          echo "---- check dispatch-emails spec exists ----"
+          if [ -f "tests/e2e/dispatch-emails.e2e.spec.ts" ]; then
+            echo "FOUND tests/e2e/dispatch-emails.e2e.spec.ts"
+          else
+            echo "NOT FOUND tests/e2e/dispatch-emails.e2e.spec.ts"
+            exit 1
+          fi
+
+      - name: Run dispatch-emails e2e tests
+        id: run_tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ENV: 'staging'
+          NEXT_TELEMETRY_DISABLED: '1'
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          DISPATCH_DRY_RUN: 'true'
+          PLAYWRIGHT_BASE_URL: 'http://localhost:8080'
+        run: |
+          set -e
+          echo ">> Running dispatch-emails e2e tests"
+          npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line
+
+      - name: Prepare artifact directories
+        if: always()
+        run: |
+          mkdir -p playwright-report
+          mkdir -p test-artifacts
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-dispatch-emails
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-dispatch-emails
+          path: test-artifacts/
+          retention-days: 14
+
+
+

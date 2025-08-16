@@ -1,8 +1,15 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Search, Filter, Calendar, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { useState } from "react";
+import {
+  Search,
+  Filter,
+  Calendar,
+  X,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 interface FiltersProps {
   provinces: string[];
@@ -18,49 +25,55 @@ export interface FilterState {
 
 export default function Filters({ provinces }: FiltersProps) {
   const searchParams = useSearchParams();
-  
+
   const [filters, setFilters] = useState<FilterState>({
-    status: searchParams.get('status')?.split(',').filter(Boolean) || [],
-    provinces: searchParams.get('provinces')?.split(',').filter(Boolean) || [],
-    search: searchParams.get('search') || '',
-    dateFrom: searchParams.get('dateFrom') || '',
-    dateTo: searchParams.get('dateTo') || '',
+    status: searchParams.get("status")?.split(",").filter(Boolean) || [],
+    provinces: searchParams.get("provinces")?.split(",").filter(Boolean) || [],
+    search: searchParams.get("search") || "",
+    dateFrom: searchParams.get("dateFrom") || "",
+    dateTo: searchParams.get("dateTo") || "",
   });
 
   const [isExpanded, setIsExpanded] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
+    null,
+  );
 
   const statusOptions = [
-    { value: 'pending', label: 'Pending', color: 'bg-gray-500' },
-    { value: 'waiting_for_review', label: 'Waiting for Review', color: 'bg-yellow-500' },
-    { value: 'approved', label: 'Approved', color: 'bg-green-500' },
-    { value: 'rejected', label: 'Rejected', color: 'bg-red-500' },
+    { value: "pending", label: "Pending", color: "bg-gray-500" },
+    {
+      value: "waiting_for_review",
+      label: "Waiting for Review",
+      color: "bg-yellow-500",
+    },
+    { value: "approved", label: "Approved", color: "bg-green-500" },
+    { value: "rejected", label: "Rejected", color: "bg-red-500" },
   ];
 
   const updateFilters = (newFilters: Partial<FilterState>) => {
     const updatedFilters = { ...filters, ...newFilters };
     setFilters(updatedFilters);
-    
+
     // Update URL
     const params = new URLSearchParams();
     if (updatedFilters.status.length > 0) {
-      params.set('status', updatedFilters.status.join(','));
+      params.set("status", updatedFilters.status.join(","));
     }
     if (updatedFilters.provinces.length > 0) {
-      params.set('provinces', updatedFilters.provinces.join(','));
+      params.set("provinces", updatedFilters.provinces.join(","));
     }
     if (updatedFilters.search) {
-      params.set('search', updatedFilters.search);
+      params.set("search", updatedFilters.search);
     }
     if (updatedFilters.dateFrom) {
-      params.set('dateFrom', updatedFilters.dateFrom);
+      params.set("dateFrom", updatedFilters.dateFrom);
     }
     if (updatedFilters.dateTo) {
-      params.set('dateTo', updatedFilters.dateTo);
+      params.set("dateTo", updatedFilters.dateTo);
     }
 
-    const newUrl = params.toString() ? `?${params.toString()}` : '/admin';
-    
+    const newUrl = params.toString() ? `?${params.toString()}` : "/admin";
+
     // Force page refresh to trigger server-side data refetch
     window.location.href = newUrl;
   };
@@ -69,27 +82,31 @@ export default function Filters({ provinces }: FiltersProps) {
     const clearedFilters = {
       status: [],
       provinces: [],
-      search: '',
-      dateFrom: '',
-      dateTo: '',
+      search: "",
+      dateFrom: "",
+      dateTo: "",
     };
     setFilters(clearedFilters);
-    
+
     // Force page refresh to trigger server-side data refetch
-    window.location.href = '/admin';
+    window.location.href = "/admin";
   };
 
-  const hasActiveFilters = filters.status.length > 0 || 
-    filters.provinces.length > 0 || 
-    filters.search || 
-    filters.dateFrom || 
+  const hasActiveFilters =
+    filters.status.length > 0 ||
+    filters.provinces.length > 0 ||
+    filters.search ||
+    filters.dateFrom ||
     filters.dateTo;
 
   return (
-    <div className="card-modern dark:card-modern-dark rounded-2xl p-6 mb-8 animate-fade-in-up backdrop-blur-sm bg-white/90 dark:bg-gray-800/90 border border-white/20 dark:border-gray-700/20 relative" style={{ animationDelay: '500ms' }}>
+    <div
+      className="card-modern dark:card-modern-dark rounded-2xl p-6 mb-8 animate-fade-in-up backdrop-blur-sm bg-white/90 dark:bg-gray-800/90 border border-white/20 dark:border-gray-700/20 relative"
+      style={{ animationDelay: "500ms" }}
+    >
       {/* Light overlay for better readability */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 to-blue-100/10 rounded-2xl"></div>
-      
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6 relative z-10">
         <div className="flex items-center space-x-3">
@@ -100,7 +117,7 @@ export default function Filters({ provinces }: FiltersProps) {
             Filters
           </h2>
         </div>
-        
+
         <div className="flex items-center space-x-3">
           {hasActiveFilters && (
             <button
@@ -111,12 +128,16 @@ export default function Filters({ provinces }: FiltersProps) {
               Clear All
             </button>
           )}
-          
+
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-yec-primary hover:text-yec-accent transition-all duration-300 hover:bg-yec-primary/10 rounded-xl backdrop-blur-sm"
           >
-            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            {isExpanded ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
             Advanced filters
           </button>
         </div>
@@ -133,22 +154,22 @@ export default function Filters({ provinces }: FiltersProps) {
           value={filters.search}
           onChange={(e) => {
             const newSearchValue = e.target.value;
-            setFilters(prev => ({ ...prev, search: newSearchValue }));
-            
+            setFilters((prev) => ({ ...prev, search: newSearchValue }));
+
             // Clear previous timeout
             if (searchTimeout) {
               clearTimeout(searchTimeout);
             }
-            
+
             // Set new timeout for debounced search
             const timeoutId = setTimeout(() => {
               updateFilters({ search: newSearchValue });
             }, 500);
-            
+
             setSearchTimeout(timeoutId);
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (e.key === "Enter") {
               // Clear timeout and search immediately on Enter
               if (searchTimeout) {
                 clearTimeout(searchTimeout);
@@ -170,20 +191,25 @@ export default function Filters({ provinces }: FiltersProps) {
             </label>
             <div className="space-y-2">
               {statusOptions.map((status) => (
-                <label key={status.value} className="flex items-center space-x-3 cursor-pointer group">
+                <label
+                  key={status.value}
+                  className="flex items-center space-x-3 cursor-pointer group"
+                >
                   <input
                     type="checkbox"
                     checked={filters.status.includes(status.value)}
                     onChange={(e) => {
                       const newStatus = e.target.checked
                         ? [...filters.status, status.value]
-                        : filters.status.filter(s => s !== status.value);
+                        : filters.status.filter((s) => s !== status.value);
                       updateFilters({ status: newStatus });
                     }}
                     className="w-4 h-4 text-yec-primary bg-white border-gray-300 rounded focus:ring-yec-primary/50 focus:ring-2"
                   />
                   <div className="flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${status.color}`}></div>
+                    <div
+                      className={`w-2 h-2 rounded-full ${status.color}`}
+                    ></div>
                     <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
                       {status.label}
                     </span>
@@ -200,20 +226,23 @@ export default function Filters({ provinces }: FiltersProps) {
             </label>
             <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
               {provinces.map((province) => (
-                <label key={province} className="flex items-center space-x-3 cursor-pointer group">
+                <label
+                  key={province}
+                  className="flex items-center space-x-3 cursor-pointer group"
+                >
                   <input
                     type="checkbox"
                     checked={filters.provinces.includes(province)}
                     onChange={(e) => {
                       const newProvinces = e.target.checked
                         ? [...filters.provinces, province]
-                        : filters.provinces.filter(p => p !== province);
+                        : filters.provinces.filter((p) => p !== province);
                       updateFilters({ provinces: newProvinces });
                     }}
                     className="w-4 h-4 text-yec-primary bg-white border-gray-300 rounded focus:ring-yec-primary/50 focus:ring-2"
                   />
                   <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors capitalize">
-                    {province.replace(/-/g, ' ')}
+                    {province.replace(/-/g, " ")}
                   </span>
                 </label>
               ))}
@@ -227,19 +256,25 @@ export default function Filters({ provinces }: FiltersProps) {
             </label>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">From</label>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  From
+                </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="date"
                     value={filters.dateFrom}
-                    onChange={(e) => updateFilters({ dateFrom: e.target.value })}
+                    onChange={(e) =>
+                      updateFilters({ dateFrom: e.target.value })
+                    }
                     className="w-full pl-10 pr-4 py-2 bg-white/70 dark:bg-gray-700/70 border border-gray-200/50 dark:border-gray-600/50 rounded-xl focus:ring-2 focus:ring-yec-primary/50 focus:border-yec-primary/50 transition-all duration-300 backdrop-blur-sm"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">To</label>
+                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+                  To
+                </label>
                 <div className="relative">
                   <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
@@ -259,10 +294,17 @@ export default function Filters({ provinces }: FiltersProps) {
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-200/50 dark:border-gray-600/50 relative z-10">
           {filters.status.map((status) => (
-            <span key={status} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100/80 text-blue-800 dark:bg-blue-900/80 dark:text-blue-200 backdrop-blur-sm">
-              {statusOptions.find(s => s.value === status)?.label || status}
+            <span
+              key={status}
+              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100/80 text-blue-800 dark:bg-blue-900/80 dark:text-blue-200 backdrop-blur-sm"
+            >
+              {statusOptions.find((s) => s.value === status)?.label || status}
               <button
-                onClick={() => updateFilters({ status: filters.status.filter(s => s !== status) })}
+                onClick={() =>
+                  updateFilters({
+                    status: filters.status.filter((s) => s !== status),
+                  })
+                }
                 className="ml-2 hover:bg-blue-200/80 dark:hover:bg-blue-800/80 rounded-full p-0.5"
               >
                 <X className="h-3 w-3" />
@@ -270,10 +312,17 @@ export default function Filters({ provinces }: FiltersProps) {
             </span>
           ))}
           {filters.provinces.map((province) => (
-            <span key={province} className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100/80 text-green-800 dark:bg-green-900/80 dark:text-green-200 backdrop-blur-sm">
-              {province.replace(/-/g, ' ')}
+            <span
+              key={province}
+              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100/80 text-green-800 dark:bg-green-900/80 dark:text-green-200 backdrop-blur-sm"
+            >
+              {province.replace(/-/g, " ")}
               <button
-                onClick={() => updateFilters({ provinces: filters.provinces.filter(p => p !== province) })}
+                onClick={() =>
+                  updateFilters({
+                    provinces: filters.provinces.filter((p) => p !== province),
+                  })
+                }
                 className="ml-2 hover:bg-green-200/80 dark:hover:bg-green-800/80 rounded-full p-0.5"
               >
                 <X className="h-3 w-3" />
@@ -284,7 +333,7 @@ export default function Filters({ provinces }: FiltersProps) {
             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100/80 text-yellow-800 dark:bg-yellow-900/80 dark:text-yellow-200 backdrop-blur-sm">
               Search: {filters.search}
               <button
-                onClick={() => updateFilters({ search: '' })}
+                onClick={() => updateFilters({ search: "" })}
                 className="ml-2 hover:bg-yellow-200/80 dark:hover:bg-yellow-800/80 rounded-full p-0.5"
               >
                 <X className="h-3 w-3" />
