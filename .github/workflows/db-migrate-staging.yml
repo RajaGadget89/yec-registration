@@ -1,0 +1,52 @@
+name: DB — Migrate to Staging
+
+on:
+  pull_request:
+    paths: [ 'supabase/migrations/**', 'supabase/seed.sql' ]
+  push:
+    branches: [ develop ]
+    paths: [ 'supabase/migrations/**', 'supabase/seed.sql' ]
+
+concurrency:
+  group: db-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test_on_shadow:
+    name: Test migrations on Shadow DB
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: [ '5432:5432' ]
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=10s
+          --health-timeout=5s --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+      - name: Apply migrations to shadow
+        env:
+          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: |
+          supabase db reset --db-url "$SHADOW_DB_URL" --force
+          if [ -f supabase/seed.sql ]; then psql "$SHADOW_DB_URL" -f supabase/seed.sql; fi
+
+  push_to_staging:
+    name: Push migrations to Staging
+    needs: [ test_on_shadow ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+      - name: Login & link (staging)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref ${{ secrets.SB_STAGING_REF }}
+      - name: Push → Staging
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push
+
