@@ -1,266 +1,223 @@
-# Comprehensive Authentication Testing
+# E2E Test Suite - YEC Registration System
 
-This directory contains comprehensive Playwright tests for the YEC Registration authentication system, specifically focusing on the magic link authentication flow and cookie management issues.
+## Overview
 
-## Problem Solved
+This E2E test suite simulates real user/admin flows with **exactly one manual cycle** (no cron). The tests cover complete registration workflows and validate email dispatch functionality with secure, controlled testing.
 
-The original issue was with the `next.config.ts` CORS headers causing authentication problems. The CORS headers for `/api/auth/callback` were removed because:
+## Test Coverage
 
-1. **Same-Origin Requests**: The callback API is called from the same origin (`localhost:8080`), so CORS headers are unnecessary
-2. **Cookie Issues**: CORS headers were interfering with cookie setting during authentication
-3. **Browser Compatibility**: Different browsers handle CORS headers differently, causing inconsistent behavior
+### Workflow Tests
 
-## Test Structure
+#### 1. Happy Path (`workflow.happy-path.spec.ts`)
+- **Flow**: Public Form → `waiting_for_review` → PASS all → `approved`
+- **Actions**: 
+  - Fill registration form with required fields
+  - Upload 3 images (profile, TCC card, payment slip)
+  - Navigate through Preview → PDPA → Submit
+  - Admin review: mark all dimensions PASS → Approve
+  - Manual email dispatch call
+- **Expected**: Final status `approved` with proper email counters
 
-### Files Created
+#### 2. Update Loop - Payment (`workflow.update-loop.payment.spec.ts`)
+- **Flow**: Registration → Request Update (payment) → Deep-link → Resubmit → `approved`
+- **Actions**:
+  - Create registration (same as happy path)
+  - Admin requests payment update → status to `waiting_for_update_payment`
+  - Fetch deep-link via test helper endpoint
+  - User resubmits via deep-link with new payment slip
+  - Admin approves remaining dimensions
+  - Manual email dispatch call
+- **Expected**: Final status `approved` with proper email counters
+- **Note**: Skipped in capped real-send mode to maintain single email send
 
-1. **`auth-comprehensive.spec.ts`** - Main test suite covering all authentication scenarios
-2. **`mock-auth-handler.ts`** - Mock authentication handler for reliable testing
-3. **`run-auth-tests.sh`** - Test runner script for comprehensive testing
-4. **`auth-test-config.ts`** - Playwright configuration for authentication tests
-5. **`README.md`** - This documentation file
+### Dispatch Tests
 
-### Test Categories
+#### 3. Single Cycle Capped (`dispatch.single-cycle.capped.spec.ts`)
+- **Purpose**: Perform exactly one real email send with cap enforcement
+- **Mode**: Only runs when `DISPATCH_DRY_RUN=false` and `EMAIL_MODE=CAPPED`
+- **Expected**: `sent=1`, `blocked≈2`, `capped≥1` (per report schema)
 
-#### 1. Magic Link Authentication Flow
-- Complete magic link flow from login to dashboard
-- Invalid token handling
-- Missing token scenarios
+## Environment Configuration
 
-#### 2. Cookie Management
-- Authentication cookie setting
-- Cookie properties validation (httpOnly, secure, etc.)
-- Cookie clearing on logout
+### Required Environment Variables
 
-#### 3. Admin Dashboard Access Control
-- Unauthenticated access redirection
-- Authenticated access validation
-- Non-admin user access denial
+```bash
+# Base configuration
+PLAYWRIGHT_BASE_URL=http://localhost:8080
+CRON_SECRET=local-secret
+DISPATCH_DRY_RUN=true
 
-#### 4. Error Handling
-- Network error handling
-- Server error responses
-- Malformed response handling
-- Missing token scenarios
+# For capped real-send mode
+EMAIL_MODE=CAPPED
+EMAIL_CAP_MAX_PER_RUN=1
+EMAIL_THROTTLE_MS=500
+EMAIL_RETRY_ON_429=1
+BLOCK_NON_ALLOWLIST=true
+EMAIL_ALLOWLIST=raja.gadgets89@gmail.com
+```
 
-#### 5. Cross-Browser Compatibility
-- Chrome/Chromium testing
-- Firefox testing
-- Safari/WebKit testing
+### Test Modes
 
-#### 6. Performance and Loading States
-- Loading state validation
-- Timeout handling
+#### Dry-Run Mode (Default)
+- **Safety**: 100% safe - no real emails sent
+- **Counters**: `dryRun=true`, `sent=0`, `wouldSend ≥ 2`
+- **Use Case**: Development and CI/CD testing
 
-#### 7. Security Tests
-- Token exposure prevention
-- Secure cookie settings
+#### Capped Real-Send Mode
+- **Safety**: Controlled - exactly 1 email sent to allowlisted address
+- **Counters**: `sent=1`, `blocked≈2`, `capped≥1`
+- **Use Case**: Production email validation
 
-## Running the Tests
+## Running Tests
 
 ### Prerequisites
 
-1. **Install Playwright** (if not already installed):
+1. **Start the application**:
    ```bash
-   npm install -D @playwright/test
-   npx playwright install
+   PORT=8080 npm run dev
    ```
 
-2. **Start the application**:
+2. **Install Playwright** (if not already installed):
    ```bash
-   npm run dev
+   npm run e2e:install
    ```
 
-### Quick Test Run
+### Test Commands
 
-Run all authentication tests:
+#### Option A: Dry-Run Tests (Recommended)
 ```bash
-npx playwright test tests/e2e/auth-comprehensive.spec.ts
+# Run all workflow tests in dry-run mode
+npm run test:e2e:dryrun
 ```
 
-### Comprehensive Test Run
-
-Use the test runner script for full testing across all browsers:
+#### Option B: Single Real-Send Test
 ```bash
-./tests/e2e/run-auth-tests.sh
+# Start app with capped email mode
+PORT=8080 EMAIL_MODE=CAPPED EMAIL_CAP_MAX_PER_RUN=1 \
+BLOCK_NON_ALLOWLIST=true EMAIL_ALLOWLIST=raja.gadgets89@gmail.com \
+DISPATCH_DRY_RUN=false npm run dev
+
+# Run single capped dispatch test
+npm run test:e2e:capped:one
 ```
 
-This script will:
-- Test all browsers (Chrome, Firefox, Safari)
-- Generate detailed reports
-- Create a summary of results
-- Save all results to timestamped directories
-
-### Individual Test Suites
-
-Run specific test categories:
-
+#### Option C: All Tests
 ```bash
-# Magic Link Flow Tests
-npx playwright test tests/e2e/auth-comprehensive.spec.ts --grep "Magic Link Authentication Flow"
-
-# Cookie Management Tests
-npx playwright test tests/e2e/auth-comprehensive.spec.ts --grep "Cookie Management"
-
-# Access Control Tests
-npx playwright test tests/e2e/auth-comprehensive.spec.ts --grep "Admin Dashboard Access Control"
-
-# Error Handling Tests
-npx playwright test tests/e2e/auth-comprehensive.spec.ts --grep "Error Handling"
-
-# Security Tests
-npx playwright test tests/e2e/auth-comprehensive.spec.ts --grep "Security Tests"
+# Run all E2E tests (includes existing tests)
+npm run test:e2e:all
 ```
 
-### Browser-Specific Testing
+## Test Structure
 
-Test specific browsers:
-
-```bash
-# Chrome only
-npx playwright test tests/e2e/auth-comprehensive.spec.ts --project=chromium
-
-# Firefox only
-npx playwright test tests/e2e/auth-comprehensive.spec.ts --project=firefox
-
-# Safari only
-npx playwright test tests/e2e/auth-comprehensive.spec.ts --project=webkit
+### Fixtures
+```
+tests/fixtures/
+├── payment-slip.png    # Test payment slip image
+├── profile.jpg         # Test profile image
+└── tcc.jpg            # Test TCC card image
 ```
 
-## Test Results
-
-### Output Locations
-
-- **HTML Reports**: `test-results/[browser]/report.html`
-- **JSON Results**: `test-results/results.json`
-- **Screenshots**: `test-results/[browser]/screenshots/`
-- **Videos**: `test-results/[browser]/videos/`
-- **Traces**: `test-results/[browser]/traces/`
-
-### Viewing Results
-
-1. **HTML Reports**: Open in browser for detailed test results
-2. **Screenshots**: View failed test screenshots
-3. **Videos**: Watch test execution videos for debugging
-4. **Traces**: Use Playwright Trace Viewer for step-by-step analysis
-
-## Mock Authentication System
-
-The tests use a mock authentication handler (`mock-auth-handler.ts`) that:
-
-- **Simulates Supabase Authentication**: Without requiring actual Supabase calls
-- **Provides Consistent Testing**: Same behavior across all test runs
-- **Supports Multiple Users**: Admin and non-admin user scenarios
-- **Handles Error Cases**: Network failures, server errors, etc.
-
-### Mock User Configuration
-
-```typescript
-// Admin user (default)
-email: 'raja.gadgets89@gmail.com'
-role: 'admin'
-
-// Non-admin user
-email: 'user@example.com'
-role: 'user'
+### Utilities
+```
+tests/e2e/utils/
+├── env.ts             # Environment variable handling
+└── dispatch.ts        # Email dispatch utilities
 ```
 
-## Key Fixes Applied
+### Test Helper Endpoint
+```
+app/api/test/latest-deeplink/route.ts
+```
+- **Purpose**: Fetch most recent deep-link token for testing
+- **Security**: Guarded with `NODE_ENV === 'test'` and `CRON_SECRET`
+- **Returns**: `{ token, dimension, created_at, registration_id }`
 
-### 1. Removed Problematic CORS Headers
+## Expected Results
 
-**Before** (`next.config.ts`):
-```typescript
+### Dry-Run Mode
+```json
 {
-  source: '/api/auth/callback',
-  headers: [
-    { key: 'Access-Control-Allow-Credentials', value: 'true' },
-    { key: 'Access-Control-Allow-Origin', value: 'http://localhost:8080' },
-    // ... more CORS headers
-  ],
+  "ok": true,
+  "dryRun": true,
+  "sent": 0,
+  "wouldSend": 3,
+  "capped": 0,
+  "blocked": 0,
+  "errors": 0,
+  "remaining": 1,
+  "rateLimited": 0,
+  "retries": 0,
+  "timestamp": "2025-01-27T12:00:00.000Z"
 }
 ```
 
-**After**:
-```typescript
-// CORS headers removed - not needed for same-origin requests
-```
-
-### 2. Maintained Cache Control Headers
-
-Kept the cache control headers for `/auth/callback` page:
-```typescript
+### Capped Real-Send Mode
+```json
 {
-  source: '/auth/callback',
-  headers: [
-    { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate, max-age=0' },
-    { key: 'Pragma', value: 'no-cache' },
-    { key: 'Expires', value: '0' },
-  ],
+  "ok": true,
+  "dryRun": false,
+  "sent": 1,
+  "wouldSend": 0,
+  "capped": 1,
+  "blocked": 2,
+  "errors": 0,
+  "remaining": 0,
+  "rateLimited": 0,
+  "retries": 0,
+  "timestamp": "2025-01-27T12:00:00.000Z"
 }
 ```
+
+## Safety Features
+
+### Email Safety
+- **Cap Enforcement**: Maximum 1 email per test run
+- **Allowlist Protection**: Only authorized addresses receive emails
+- **Throttle Protection**: 500ms delay between sends
+- **Retry Protection**: Automatic retry with backoff for rate limits
+
+### Test Safety
+- **Environment Guards**: Tests only run in test environment
+- **CRON_SECRET Protection**: All API calls require proper authentication
+- **Skip Logic**: Update loop test skipped in capped mode
+- **Dry-Run Default**: Default mode prevents accidental email sends
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Application Not Running**:
-   - Ensure `npm run dev` is running on port 8080
-   - Check if the application is accessible at `http://localhost:8080`
+1. **Test Helper Endpoint 403**
+   - Ensure `NODE_ENV=test` or `TEST_HELPERS_ENABLED=1`
+   - Verify `CRON_SECRET` is set correctly
 
-2. **Test Timeouts**:
-   - Increase timeout in `auth-test-config.ts`
-   - Check application performance
+2. **Email Dispatch 401**
+   - Check `CRON_SECRET` environment variable
+   - Verify Authorization header format
 
-3. **Mock Authentication Issues**:
-   - Verify mock user configuration in `mock-auth-handler.ts`
-   - Check token generation logic
+3. **Test Images Not Found**
+   - Ensure test fixtures exist in `tests/fixtures/`
+   - Check file paths in test specifications
 
-4. **Browser-Specific Issues**:
-   - Run tests on individual browsers to isolate issues
-   - Check browser console for errors
+4. **Deep-Link Token Not Found**
+   - Ensure registration was created successfully
+   - Check audit events table for `review.request_update` events
 
 ### Debug Mode
 
-Run tests in debug mode:
+Enable debug logging by setting environment variables:
 ```bash
-npx playwright test tests/e2e/auth-comprehensive.spec.ts --debug
+DEBUG=playwright:* npm run test:e2e:dryrun
 ```
 
-This will:
-- Open browser in debug mode
-- Allow step-by-step execution
-- Show detailed logging
+## Integration
 
-## Continuous Integration
+### CI/CD Pipeline
+The E2E tests are designed to run in CI/CD environments:
+- **Dry-run mode** for automated testing
+- **Capped mode** for production validation
+- **Parallel execution** support via Playwright
 
-For CI/CD pipelines, use:
-
-```bash
-# Install dependencies
-npm ci
-
-# Install Playwright browsers
-npx playwright install --with-deps
-
-# Run tests
-npx playwright test tests/e2e/auth-comprehensive.spec.ts --reporter=html
-```
-
-## Contributing
-
-When adding new tests:
-
-1. **Follow the existing pattern** in `auth-comprehensive.spec.ts`
-2. **Use the mock handler** for consistent testing
-3. **Add appropriate error handling** for edge cases
-4. **Test across all browsers** for compatibility
-5. **Update this README** with new test information
-
-## Next Steps
-
-1. **Run the comprehensive test suite** to validate the fix
-2. **Monitor for any remaining issues** in different browsers
-3. **Add more edge case tests** as needed
-4. **Consider adding performance tests** for authentication flow
-5. **Document any new authentication features** with corresponding tests
+### Cross-Reference
+- **`tests/REPORT_EMAIL_DISPATCH_LOCAL.md`**: Detailed test report with examples
+- **`docs/SESSION_TRACKING_SYSTEM.md`**: Project documentation and runbook
+- **`app/api/admin/dispatch-emails/route.ts`**: Email dispatch endpoint implementation

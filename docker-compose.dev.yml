@@ -17,4 +17,17 @@ services:
       - NODE_ENV=development
       - HOSTNAME=0.0.0.0
       - PORT=8080
+      # Email Configuration
+      - EMAIL_MODE=CAPPED
+      - EMAIL_CAP_MAX_PER_RUN=1
+      - BLOCK_NON_ALLOWLIST=true
+      - EMAIL_ALLOWLIST=raja.gadgets89@gmail.com
+      - DISPATCH_DRY_RUN=false
+      - EMAIL_THROTTLE_MS=500
+      - EMAIL_RETRY_ON_429=1
+      - FROM_EMAIL=info@yecday.com
+      - REPLY_TO_EMAIL=info@yecday.com
+      # Test helpers
+      - TEST_HELPERS_ENABLED=1
+      - CRON_SECRET=local-secret
     restart: unless-stopped

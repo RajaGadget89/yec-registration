@@ -1,129 +1,96 @@
-import { Registration } from '../../types/database';
+import { Registration } from "../../types/database";
 
 /**
  * Domain event types for registration lifecycle
  */
-export type RegistrationEventType = 
-  | 'registration.submitted'
-  | 'registration.batch_upserted'
-  | 'admin.request_update'
-  | 'admin.approved'
-  | 'admin.rejected'
-  | 'document.reuploaded'
-  | 'status.changed'
-  | 'login.submitted'
-  | 'login.succeeded';
+export type RegistrationEventType =
+  | "registration.submitted"
+  | "registration.batch_upserted"
+  | "admin.request_update"
+  | "admin.mark_pass"
+  | "admin.approved"
+  | "admin.rejected"
+  | "user.resubmitted"
+  | "document.reuploaded"
+  | "status.changed"
+  | "login.submitted"
+  | "login.succeeded"
+  | "admin.review_track_updated"
+  | "auto_reject.sweep_completed";
 
 /**
  * Base event interface
  */
 export interface DomainEvent<T = any> {
   id: string;
-  type: RegistrationEventType;
+  type: string;
   payload: T;
   timestamp: string;
-  metadata?: Record<string, any>;
+  correlation_id?: string;
 }
 
 /**
- * Event payloads for each event type
+ * Registration event payload
  */
-export interface RegistrationSubmittedPayload {
+export interface RegistrationEventPayload {
   registration: Registration;
-  adminEmail?: string; // For batch operations
+  reason?: string;
+  dimension?: "payment" | "profile" | "tcc";
+  dimension_status?: "pending" | "needs_update" | "passed" | "rejected";
+  track?: "payment" | "profile" | "tcc";
+  track_status?: "pending" | "needs_update" | "passed" | "rejected";
+  notes?: string;
+  admin_email?: string;
+  price_applied?: number;
+  selected_package?: string;
+  updates?: Record<string, any>;
 }
 
-export interface RegistrationBatchUpsertedPayload {
+/**
+ * Registration event
+ */
+export interface RegistrationEvent
+  extends DomainEvent<RegistrationEventPayload> {
+  type: RegistrationEventType;
+}
+
+/**
+ * Batch registration event payload
+ */
+export interface BatchRegistrationEventPayload {
   registrations: Registration[];
-  adminEmail: string;
-  updatedCount: number;
-}
-
-export interface AdminActionPayload {
-  registration: Registration;
-  adminEmail: string;
-  reason?: string;
-}
-
-export interface DocumentReuploadedPayload {
-  registration: Registration;
-  documentType: string; // 'profile_image', 'chamber_card', 'payment_slip'
-  userId?: string;
-  adminEmail?: string;
-}
-
-export interface StatusChangedPayload {
-  registration: Registration;
-  beforeStatus: string;
-  afterStatus: string;
-  reason?: string;
-  actorRole: 'user' | 'admin' | 'system';
-  adminEmail?: string;
-}
-
-export interface LoginSubmittedPayload {
-  email: string;
-  userId?: string;
-}
-
-export interface LoginSucceededPayload {
-  email: string;
-  userId: string;
-  adminEmail?: string;
+  admin_email?: string;
 }
 
 /**
- * Specific event interfaces
+ * Batch registration event
  */
-export interface RegistrationSubmittedEvent extends DomainEvent<RegistrationSubmittedPayload> {
-  type: 'registration.submitted';
-}
-
-export interface RegistrationBatchUpsertedEvent extends DomainEvent<RegistrationBatchUpsertedPayload> {
-  type: 'registration.batch_upserted';
-}
-
-export interface AdminRequestUpdateEvent extends DomainEvent<AdminActionPayload> {
-  type: 'admin.request_update';
-}
-
-export interface AdminApprovedEvent extends DomainEvent<AdminActionPayload> {
-  type: 'admin.approved';
-}
-
-export interface AdminRejectedEvent extends DomainEvent<AdminActionPayload> {
-  type: 'admin.rejected';
-}
-
-export interface DocumentReuploadedEvent extends DomainEvent<DocumentReuploadedPayload> {
-  type: 'document.reuploaded';
-}
-
-export interface StatusChangedEvent extends DomainEvent<StatusChangedPayload> {
-  type: 'status.changed';
-}
-
-export interface LoginSubmittedEvent extends DomainEvent<LoginSubmittedPayload> {
-  type: 'login.submitted';
-}
-
-export interface LoginSucceededEvent extends DomainEvent<LoginSucceededPayload> {
-  type: 'login.succeeded';
+export interface BatchRegistrationEvent
+  extends DomainEvent<BatchRegistrationEventPayload> {
+  type: "registration.batch_upserted";
 }
 
 /**
- * Union type for all registration events
+ * Auto-reject sweep event payload
  */
-export type RegistrationEvent = 
-  | RegistrationSubmittedEvent
-  | RegistrationBatchUpsertedEvent
-  | AdminRequestUpdateEvent
-  | AdminApprovedEvent
-  | AdminRejectedEvent
-  | DocumentReuploadedEvent
-  | StatusChangedEvent
-  | LoginSubmittedEvent
-  | LoginSucceededEvent;
+export interface AutoRejectSweepEventPayload {
+  rejected_registrations: Array<{
+    registration_id: string;
+    reason: "deadline_missed" | "ineligible_rule_match";
+    email: string;
+    first_name: string;
+    last_name: string;
+  }>;
+  sweep_timestamp: string;
+}
+
+/**
+ * Auto-reject sweep event
+ */
+export interface AutoRejectSweepEvent
+  extends DomainEvent<AutoRejectSweepEventPayload> {
+  type: "auto_reject.sweep_completed";
+}
 
 /**
  * Event handler interface
@@ -142,31 +109,195 @@ export interface EventHandlerResult {
 }
 
 /**
- * Status transition rules based on Master Context
+ * Status transition rules based on Phase 1 Authoritative Model
  */
 export const STATUS_TRANSITIONS: Record<RegistrationEventType, string> = {
-  'registration.submitted': 'waiting_for_review',
-  'registration.batch_upserted': 'waiting_for_review',
-  'admin.request_update': 'pending',
-  'admin.approved': 'approved',
-  'admin.rejected': 'rejected',
-  'document.reuploaded': 'waiting_for_review', // After re-upload, back to review
-  'status.changed': 'system', // This is handled dynamically
-  'login.submitted': 'system', // Login events don't change status
-  'login.succeeded': 'system', // Login events don't change status
+  "registration.submitted": "waiting_for_review",
+  "registration.batch_upserted": "waiting_for_review",
+  "admin.request_update": "system", // Handled dynamically based on track
+  "admin.mark_pass": "system", // Handled by trigger function
+  "admin.approved": "approved",
+  "admin.rejected": "rejected",
+  "user.resubmitted": "system", // Handled by trigger function
+  "document.reuploaded": "waiting_for_review", // After re-upload, back to review
+  "status.changed": "system", // This is handled dynamically
+  "login.submitted": "system", // Login events don't change status
+  "login.succeeded": "system", // Login events don't change status
+  "admin.review_track_updated": "system", // Handled by trigger function
+  "auto_reject.sweep_completed": "system", // Handled by sweep function
 };
 
 /**
- * Email template mapping
+ * Track-specific status transitions for admin review updates
+ */
+export const TRACK_STATUS_TRANSITIONS: Record<string, string> = {
+  "payment.needs_update": "waiting_for_update_payment",
+  "profile.needs_update": "waiting_for_update_info",
+  "tcc.needs_update": "waiting_for_update_tcc",
+  "payment.passed": "system", // Check if all tracks passed
+  "profile.passed": "system", // Check if all tracks passed
+  "tcc.passed": "system", // Check if all tracks passed
+  "payment.rejected": "rejected",
+  "profile.rejected": "rejected",
+  "tcc.rejected": "rejected",
+};
+
+/**
+ * Email template mapping for Phase 1
  */
 export const EMAIL_TEMPLATES: Record<RegistrationEventType, string> = {
-  'registration.submitted': 'received',
-  'registration.batch_upserted': 'received',
-  'admin.request_update': 'request_update',
-  'admin.approved': 'approved',
-  'admin.rejected': 'rejected',
-  'document.reuploaded': 'received', // Re-send confirmation after re-upload
-  'status.changed': 'system', // This is handled dynamically
-  'login.submitted': 'system', // Login events don't send emails
-  'login.succeeded': 'system', // Login events don't send emails
+  "registration.submitted": "tracking_code",
+  "admin.request_update": "request_update", // Will be determined by track
+  "admin.mark_pass": "system", // No email for mark pass
+  "admin.approved": "approval_badge",
+  "admin.rejected": "rejection",
+  "user.resubmitted": "system", // No email for resubmission
+  "document.reuploaded": "tracking_code",
+  "status.changed": "system", // Handled dynamically
+  "login.submitted": "system", // No email for login
+  "login.succeeded": "system", // No email for login
+  "registration.batch_upserted": "tracking_code",
+  "admin.review_track_updated": "system", // No email for track updates
+  "auto_reject.sweep_completed": "rejection", // Auto-rejection email
 };
+
+/**
+ * Track-specific email templates
+ */
+export const TRACK_EMAIL_TEMPLATES: Record<string, string> = {
+  "payment.needs_update": "request_update_payment",
+  "profile.needs_update": "request_update_info",
+  "tcc.needs_update": "request_update_tcc",
+};
+
+/**
+ * Event factory for creating events
+ */
+export class EventFactory {
+  static createRegistrationSubmitted(
+    registration: Registration,
+    priceApplied?: number,
+    selectedPackage?: string,
+  ): RegistrationEvent {
+    return {
+      id: crypto.randomUUID(),
+      type: "registration.submitted",
+      payload: {
+        registration,
+        price_applied: priceApplied,
+        selected_package: selectedPackage,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: registration.registration_id,
+    };
+  }
+
+  static createAdminRequestUpdate(
+    registration: Registration,
+    adminEmail: string,
+    track: "payment" | "profile" | "tcc",
+    reason?: string,
+  ): RegistrationEvent {
+    return {
+      id: crypto.randomUUID(),
+      type: "admin.request_update",
+      payload: {
+        registration,
+        admin_email: adminEmail,
+        track,
+        reason,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: registration.registration_id,
+    };
+  }
+
+  static createAdminApproved(
+    registration: Registration,
+    adminEmail: string,
+  ): RegistrationEvent {
+    return {
+      id: crypto.randomUUID(),
+      type: "admin.approved",
+      payload: {
+        registration,
+        admin_email: adminEmail,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: registration.registration_id,
+    };
+  }
+
+  static createAdminRejected(
+    registration: Registration,
+    adminEmail: string,
+    reason?: string,
+  ): RegistrationEvent {
+    return {
+      id: crypto.randomUUID(),
+      type: "admin.rejected",
+      payload: {
+        registration,
+        admin_email: adminEmail,
+        reason,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: registration.registration_id,
+    };
+  }
+
+  static createDocumentReuploaded(
+    registration: Registration,
+  ): RegistrationEvent {
+    return {
+      id: crypto.randomUUID(),
+      type: "document.reuploaded",
+      payload: {
+        registration,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: registration.registration_id,
+    };
+  }
+
+  static createAdminReviewTrackUpdated(
+    registration: Registration,
+    adminEmail: string,
+    track: "payment" | "profile" | "tcc",
+    trackStatus: "pending" | "needs_update" | "passed" | "rejected",
+  ): RegistrationEvent {
+    return {
+      id: crypto.randomUUID(),
+      type: "admin.review_track_updated",
+      payload: {
+        registration,
+        admin_email: adminEmail,
+        track,
+        track_status: trackStatus,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: registration.registration_id,
+    };
+  }
+
+  static createAutoRejectSweepCompleted(
+    rejectedRegistrations: Array<{
+      registration_id: string;
+      reason: "deadline_missed" | "ineligible_rule_match";
+      email: string;
+      first_name: string;
+      last_name: string;
+    }>,
+  ): AutoRejectSweepEvent {
+    return {
+      id: crypto.randomUUID(),
+      type: "auto_reject.sweep_completed",
+      payload: {
+        rejected_registrations: rejectedRegistrations,
+        sweep_timestamp: new Date().toISOString(),
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: `sweep_${Date.now()}`,
+    };
+  }
+}

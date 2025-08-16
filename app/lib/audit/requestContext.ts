@@ -1,5 +1,5 @@
-import { AsyncLocalStorage } from 'async_hooks';
-import { randomUUID } from 'crypto';
+import { AsyncLocalStorage } from "async_hooks";
+import { randomUUID } from "crypto";
 
 /**
  * Request context interface
@@ -33,7 +33,7 @@ export function getRequestId(): string {
  */
 export function withRequestContext<T>(
   context: RequestContext,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
 ): Promise<T> {
   return requestContextStorage.run(context, fn);
 }
@@ -43,12 +43,12 @@ export function withRequestContext<T>(
  */
 export function createRequestContext(request: any): RequestContext {
   // Extract request ID from headers or generate new one
-  const requestId = request.headers.get('x-request-id') || 
-                   request.headers.get('x-correlation-id') || 
-                   randomUUID();
-  
+  const requestId =
+    request.headers.get("x-request-id") ||
+    request.headers.get("x-correlation-id") ||
+    randomUUID();
+
   return {
-    requestId
+    requestId,
   };
 }
-

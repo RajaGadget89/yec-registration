@@ -1,23 +1,10 @@
-import { randomUUID } from 'crypto';
-import { 
-  RegistrationEvent, 
-  RegistrationSubmittedEvent,
-  RegistrationBatchUpsertedEvent,
-  AdminRequestUpdateEvent,
-  AdminApprovedEvent,
-  AdminRejectedEvent,
-  DocumentReuploadedEvent,
-  StatusChangedEvent,
-  LoginSubmittedEvent,
-  LoginSucceededEvent,
-  RegistrationSubmittedPayload,
-  RegistrationBatchUpsertedPayload,
-  AdminActionPayload,
-  DocumentReuploadedPayload,
-  StatusChangedPayload,
-  LoginSubmittedPayload,
-  LoginSucceededPayload
-} from './types';
+import { randomUUID } from "crypto";
+import {
+  RegistrationEvent,
+  BatchRegistrationEvent,
+  AutoRejectSweepEvent,
+} from "./types";
+import { Registration } from "../../types/database";
 
 /**
  * Factory for creating domain events
@@ -28,21 +15,20 @@ export class EventFactory {
    * Create a registration submitted event
    */
   static createRegistrationSubmitted(
-    registration: any,
-    adminEmail?: string
-  ): RegistrationSubmittedEvent {
+    registration: Registration,
+    priceApplied?: number,
+    selectedPackage?: string,
+  ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'registration.submitted',
+      type: "registration.submitted",
       payload: {
         registration,
-        adminEmail
+        price_applied: priceApplied,
+        selected_package: selectedPackage,
       },
       timestamp: new Date().toISOString(),
-      metadata: {
-        source: 'registration-api',
-        version: '1.0'
-      }
+      correlation_id: registration.registration_id,
     };
   }
 
@@ -50,24 +36,18 @@ export class EventFactory {
    * Create a registration batch upserted event
    */
   static createRegistrationBatchUpserted(
-    registrations: any[],
-    adminEmail: string,
-    updatedCount: number
-  ): RegistrationBatchUpsertedEvent {
+    registrations: Registration[],
+    adminEmail?: string,
+  ): BatchRegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'registration.batch_upserted',
+      type: "registration.batch_upserted",
       payload: {
         registrations,
-        adminEmail,
-        updatedCount
+        admin_email: adminEmail,
       },
       timestamp: new Date().toISOString(),
-      metadata: {
-        source: 'admin-api',
-        version: '1.0',
-        batchSize: registrations.length
-      }
+      correlation_id: `batch_${Date.now()}`,
     };
   }
 
@@ -75,24 +55,22 @@ export class EventFactory {
    * Create an admin request update event
    */
   static createAdminRequestUpdate(
-    registration: any,
+    registration: Registration,
     adminEmail: string,
-    reason?: string
-  ): AdminRequestUpdateEvent {
+    dimension: "payment" | "profile" | "tcc",
+    notes?: string,
+  ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'admin.request_update',
+      type: "admin.request_update",
       payload: {
         registration,
-        adminEmail,
-        reason
+        admin_email: adminEmail,
+        dimension,
+        notes,
       },
       timestamp: new Date().toISOString(),
-      metadata: {
-        source: 'admin-api',
-        version: '1.0',
-        action: 'sendback'
-      }
+      correlation_id: registration.registration_id,
     };
   }
 
@@ -100,24 +78,18 @@ export class EventFactory {
    * Create an admin approved event
    */
   static createAdminApproved(
-    registration: any,
+    registration: Registration,
     adminEmail: string,
-    reason?: string
-  ): AdminApprovedEvent {
+  ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'admin.approved',
+      type: "admin.approved",
       payload: {
         registration,
-        adminEmail,
-        reason
+        admin_email: adminEmail,
       },
       timestamp: new Date().toISOString(),
-      metadata: {
-        source: 'admin-api',
-        version: '1.0',
-        action: 'approve'
-      }
+      correlation_id: registration.registration_id,
     };
   }
 
@@ -125,24 +97,20 @@ export class EventFactory {
    * Create an admin rejected event
    */
   static createAdminRejected(
-    registration: any,
+    registration: Registration,
     adminEmail: string,
-    reason?: string
-  ): AdminRejectedEvent {
+    reason?: string,
+  ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'admin.rejected',
+      type: "admin.rejected",
       payload: {
         registration,
-        adminEmail,
-        reason
+        admin_email: adminEmail,
+        reason,
       },
       timestamp: new Date().toISOString(),
-      metadata: {
-        source: 'admin-api',
-        version: '1.0',
-        action: 'reject'
-      }
+      correlation_id: registration.registration_id,
     };
   }
 
@@ -150,164 +118,104 @@ export class EventFactory {
    * Create a document re-uploaded event
    */
   static createDocumentReuploaded(
-    registration: any,
-    documentType: string,
-    userId?: string,
-    adminEmail?: string
-  ): DocumentReuploadedEvent {
+    registration: Registration,
+  ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'document.reuploaded',
+      type: "document.reuploaded",
       payload: {
         registration,
-        documentType,
-        userId,
-        adminEmail
       },
       timestamp: new Date().toISOString(),
-      metadata: {
-        source: 'registration-api',
-        version: '1.0',
-        documentType
-      }
+      correlation_id: registration.registration_id,
     };
   }
 
   /**
-   * Create a status changed event
+   * Create an admin review track updated event
    */
-  static createStatusChanged(
-    registration: any,
-    beforeStatus: string,
-    afterStatus: string,
-    reason?: string,
-    actorRole: 'user' | 'admin' | 'system' = 'system',
-    adminEmail?: string
-  ): StatusChangedEvent {
+  static createAdminReviewTrackUpdated(
+    registration: Registration,
+    adminEmail: string,
+    dimension: "payment" | "profile" | "tcc",
+    dimensionStatus: "pending" | "needs_update" | "passed" | "rejected",
+  ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'status.changed',
+      type: "admin.review_track_updated",
       payload: {
         registration,
-        beforeStatus,
-        afterStatus,
-        reason,
-        actorRole,
-        adminEmail
+        admin_email: adminEmail,
+        dimension,
+        dimension_status: dimensionStatus,
       },
       timestamp: new Date().toISOString(),
-      metadata: {
-        source: 'system',
-        version: '1.0',
-        actorRole
-      }
+      correlation_id: registration.registration_id,
     };
   }
 
   /**
-   * Create a login submitted event
+   * Create an admin mark pass event
    */
-  static createLoginSubmitted(
-    email: string,
-    userId?: string
-  ): LoginSubmittedEvent {
+  static createAdminMarkPass(
+    registration: Registration,
+    adminEmail: string,
+    dimension: "payment" | "profile" | "tcc",
+  ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'login.submitted',
+      type: "admin.mark_pass",
       payload: {
-        email,
-        userId
+        registration,
+        admin_email: adminEmail,
+        dimension,
+        dimension_status: "passed",
       },
       timestamp: new Date().toISOString(),
-      metadata: {
-        source: 'auth-api',
-        version: '1.0'
-      }
+      correlation_id: registration.registration_id,
     };
   }
 
   /**
-   * Create a login succeeded event
+   * Create a user resubmitted event
    */
-  static createLoginSucceeded(
-    email: string,
-    userId: string,
-    adminEmail?: string
-  ): LoginSucceededEvent {
+  static createUserResubmitted(
+    registration: Registration,
+    updates: Record<string, any>,
+  ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'login.succeeded',
+      type: "user.resubmitted",
       payload: {
-        email,
-        userId,
-        adminEmail
+        registration,
+        updates,
       },
       timestamp: new Date().toISOString(),
-      metadata: {
-        source: 'auth-api',
-        version: '1.0'
-      }
+      correlation_id: registration.registration_id,
     };
   }
 
   /**
-   * Validate event structure
+   * Create an auto-reject sweep completed event
    */
-  static validateEvent(event: RegistrationEvent): boolean {
-    // Basic validation
-    if (!event.id || !event.type || !event.payload || !event.timestamp) {
-      return false;
-    }
-
-    // Type-specific validation
-    switch (event.type) {
-      case 'registration.submitted':
-        return this.validateRegistrationSubmittedPayload(event.payload as RegistrationSubmittedPayload);
-      case 'registration.batch_upserted':
-        return this.validateRegistrationBatchUpsertedPayload(event.payload as RegistrationBatchUpsertedPayload);
-      case 'admin.request_update':
-      case 'admin.approved':
-      case 'admin.rejected':
-        return this.validateAdminActionPayload(event.payload as AdminActionPayload);
-      case 'document.reuploaded':
-        return this.validateDocumentReuploadedPayload(event.payload as DocumentReuploadedPayload);
-      case 'status.changed':
-        return this.validateStatusChangedPayload(event.payload as StatusChangedPayload);
-      case 'login.submitted':
-        return this.validateLoginSubmittedPayload(event.payload as LoginSubmittedPayload);
-      case 'login.succeeded':
-        return this.validateLoginSucceededPayload(event.payload as LoginSucceededPayload);
-      default:
-        return false;
-    }
-  }
-
-  private static validateRegistrationSubmittedPayload(payload: RegistrationSubmittedPayload): boolean {
-    return !!(payload.registration && payload.registration.registration_id);
-  }
-
-  private static validateRegistrationBatchUpsertedPayload(payload: RegistrationBatchUpsertedPayload): boolean {
-    return !!(payload.registrations && Array.isArray(payload.registrations) && payload.adminEmail && typeof payload.updatedCount === 'number');
-  }
-
-  private static validateAdminActionPayload(payload: AdminActionPayload): boolean {
-    return !!(payload.registration && payload.registration.registration_id && payload.adminEmail);
-  }
-
-  private static validateDocumentReuploadedPayload(payload: DocumentReuploadedPayload): boolean {
-    return !!(payload.registration && payload.registration.registration_id && payload.documentType);
-  }
-
-  private static validateStatusChangedPayload(payload: StatusChangedPayload): boolean {
-    return !!(payload.registration && payload.registration.registration_id && 
-              payload.beforeStatus && payload.afterStatus && payload.actorRole);
-  }
-
-  private static validateLoginSubmittedPayload(payload: LoginSubmittedPayload): boolean {
-    return !!(payload.email && payload.email.includes('@'));
-  }
-
-  private static validateLoginSucceededPayload(payload: LoginSucceededPayload): boolean {
-    return !!(payload.email && payload.email.includes('@') && payload.userId);
+  static createAutoRejectSweepCompleted(
+    rejectedRegistrations: Array<{
+      registration_id: string;
+      reason: "deadline_missed" | "ineligible_rule_match";
+      email: string;
+      first_name: string;
+      last_name: string;
+    }>,
+  ): AutoRejectSweepEvent {
+    return {
+      id: randomUUID(),
+      type: "auto_reject.sweep_completed",
+      payload: {
+        rejected_registrations: rejectedRegistrations,
+        sweep_timestamp: new Date().toISOString(),
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: `sweep_${Date.now()}`,
+    };
   }
 }

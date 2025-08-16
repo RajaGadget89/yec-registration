@@ -73,7 +73,7 @@ backup.sh
 
 # ======================================= 
 # Documentation
-docs/
+# docs/
 documents/
 tmp/
 scripts/

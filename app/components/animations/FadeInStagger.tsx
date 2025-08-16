@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 
 interface FadeInStaggerProps {
   children: React.ReactNode;
@@ -9,11 +9,11 @@ interface FadeInStaggerProps {
   className?: string;
 }
 
-export default function FadeInStagger({ 
-  children, 
-  delay = 50, 
+export default function FadeInStagger({
+  children,
+  delay = 50,
   duration = 500,
-  className = '' 
+  className = "",
 }: FadeInStaggerProps) {
   const [visibleChildren, setVisibleChildren] = useState<number[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -26,14 +26,14 @@ export default function FadeInStagger({
             const childrenArray = React.Children.toArray(children);
             childrenArray.forEach((_, index) => {
               setTimeout(() => {
-                setVisibleChildren(prev => [...prev, index]);
+                setVisibleChildren((prev) => [...prev, index]);
               }, index * delay);
             });
             observer.disconnect();
           }
         });
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
 
     if (containerRef.current) {
@@ -45,22 +45,30 @@ export default function FadeInStagger({
 
   return (
     <div ref={containerRef} className={className}>
-      {React.Children.map(children, (child, index) => (
-        <div
-          key={index}
-          className={`transition-all duration-${duration} ease-out ${
-            visibleChildren.includes(index)
-              ? 'opacity-100 translate-y-0'
-              : 'opacity-0 translate-y-4'
-          }`}
-          style={{
-            transitionDelay: `${index * delay}ms`,
-            transitionDuration: `${duration}ms`
-          }}
-        >
-          {child}
-        </div>
-      ))}
+      {React.Children.map(children, (child, index) => {
+        // Create a stable key based on child content or position
+        const stableKey =
+          React.isValidElement(child) && child.key
+            ? child.key
+            : `fade-in-child-${index}`;
+
+        return (
+          <div
+            key={stableKey}
+            className={`transition-all duration-${duration} ease-out ${
+              visibleChildren.includes(index)
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 translate-y-4"
+            }`}
+            style={{
+              transitionDelay: `${index * delay}ms`,
+              transitionDuration: `${duration}ms`,
+            }}
+          >
+            {child}
+          </div>
+        );
+      })}
     </div>
   );
-} 
+}

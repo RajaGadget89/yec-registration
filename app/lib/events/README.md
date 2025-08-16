@@ -49,7 +49,7 @@ Each event is processed by four handlers:
 ### Emitting Events
 
 ```typescript
-import { EventService } from './lib/events/eventService';
+import { EventService } from "./lib/events/eventService";
 
 // Emit registration submitted event
 await EventService.emitRegistrationSubmitted(registration);
@@ -94,15 +94,17 @@ npm test tests/api/event-system.spec.ts
 The system replaces direct side-effect code in API routes:
 
 **Before:**
+
 ```typescript
 // In API route
-await supabase.update({ status: 'approved' });
+await supabase.update({ status: "approved" });
 await sendEmail(user.email, subject, html);
 await sendTelegram(message);
 await logAudit(action);
 ```
 
 **After:**
+
 ```typescript
 // In API route
 await EventService.emitAdminApproved(registration, adminEmail);
