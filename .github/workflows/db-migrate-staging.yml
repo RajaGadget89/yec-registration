@@ -34,11 +34,10 @@ jobs:
 
       - uses: supabase/setup-cli@v1
         with:
-          version: latest   # ใช้ CLI ล่าสุด อ่าน config.toml ได้แน่นอน
+          version: latest
 
       - name: Start local Supabase stack (shadow)
         run: |
-          # สตาร์ทสแต็ก local (มี Postgres + extensions ที่จำเป็น)
           supabase start
           supabase status
 
@@ -48,9 +47,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # reset + apply migrations ลง shadow (non-interactive)
-          yes | supabase db reset --db-url "$SHADOW_DB_URL"
-          # seed (ถ้ามี)
+          # ส่ง y ครั้งเดียวเพื่อคอนเฟิร์ม reset (เลี่ยง Broken pipe)
+          printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
+          # seed ถ้ามี
           if [ -f supabase/seed.sql ]; then psql "$SHADOW_DB_URL" -f supabase/seed.sql; fi
 
   push_to_staging:
@@ -70,8 +69,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SB_STAGING_REF: ${{ secrets.SB_STAGING_REF }}
-          # (ถ้ามีปัญหา link ให้เพิ่ม secret นี้ แล้วจะใช้ fallback อัตโนมัติ)
-          # STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+          # STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}  # (ถ้ามีปัญหา link ให้เพิ่ม secret นี้)
         shell: bash
         run: |
           set -euo pipefail
