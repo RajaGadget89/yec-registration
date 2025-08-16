@@ -22,34 +22,26 @@ jobs:
   test_on_shadow:
     name: Test migrations on Shadow DB
     runs-on: ubuntu-latest
-    env:
-      SUPABASE_TELEMETRY_DISABLED: "1"
+    env: { SUPABASE_TELEMETRY_DISABLED: "1" }
     steps:
       - uses: actions/checkout@v4
-
       - name: Install psql client
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-
       - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
+        with: { version: latest }
       - name: Start local Supabase stack (shadow)
         run: |
           supabase start
           supabase status
-
       - name: Apply migrations to shadow
         env:
           SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
         shell: bash
         run: |
           set -euo pipefail
-          # ส่ง y ครั้งเดียวเพื่อคอนเฟิร์ม reset (เลี่ยง Broken pipe)
           printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
-          # seed ถ้ามี
           if [ -f supabase/seed.sql ]; then psql "$SHADOW_DB_URL" -f supabase/seed.sql; fi
 
   push_to_staging:
@@ -58,31 +50,35 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SUPABASE_TELEMETRY_DISABLED: "1"
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SB_STAGING_REF:        ${{ secrets.SB_STAGING_REF }}
+      STAGING_DB_PASSWORD:   ${{ secrets.STAGING_DB_PASSWORD }}   # ใหม่
+      STAGING_DB_URL:        ${{ secrets.STAGING_DB_URL }}        # (สำรอง)
     steps:
       - uses: actions/checkout@v4
-
       - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Push → Staging (link or DB URL fallback)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SB_STAGING_REF: ${{ secrets.SB_STAGING_REF }}
-          # STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}  # (ถ้ามีปัญหา link ให้เพิ่ม secret นี้)
+        with: { version: latest }
+      - name: Push → Staging (link with password, or DB URL fallback)
         shell: bash
         run: |
           set -euo pipefail
-          echo "Trying: supabase link → supabase db push"
-          if supabase link --project-ref "$SB_STAGING_REF"; then
-            supabase db push
-            exit 0
+          if [[ -n "${STAGING_DB_PASSWORD:-}" ]]; then
+            echo "Trying: supabase link (with --password) → supabase db push"
+            if supabase link --project-ref "$SB_STAGING_REF" --password "$STAGING_DB_PASSWORD"; then
+              supabase db push
+              exit 0
+            fi
+            echo "Link failed."
+          else
+            echo "STAGING_DB_PASSWORD not set; skipping link."
           fi
-          echo "Link failed. Checking STAGING_DB_URL fallback..."
+
+          echo "Checking STAGING_DB_URL fallback..."
           if [[ -n "${STAGING_DB_URL:-}" ]]; then
             supabase db push --db-url "$STAGING_DB_URL"
             exit 0
           fi
+
           echo "No STAGING_DB_URL provided and link failed." >&2
           exit 1
 
