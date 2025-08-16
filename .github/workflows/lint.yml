@@ -1,0 +1,38 @@
+name: Lint, ESLint, Check format, Prettier
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - run: npm ci
+
+      # ใช้สคริปต์จาก package.json เพื่อให้ local = CI
+      - name: ESLint (strict; no warnings)
+        run: npm run lint:strict
+
+      # Prettier: non-blocking บน PR เพื่อไม่ขวางงาน
+      - name: Prettier check (PR, non-blocking)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          echo "Running Prettier check on app code (non-blocking for PR)."
+          npx prettier -c "{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}" \
+            || echo "::warning::Prettier found formatting issues. Run 'npm run format' locally."
+
+      # บังคับจริงเมื่อไม่ใช่ PR (เช่น push เข้า main)
+      - name: Prettier check (blocking on non-PR)
+        if: github.event_name != 'pull_request'
+        run: |
+          npx prettier -c "{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}"
+

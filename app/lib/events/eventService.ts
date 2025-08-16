@@ -1,6 +1,6 @@
-import { eventBus } from './eventBus';
-import { EventFactory } from './eventFactory';
-import { RegistrationEvent, EventHandlerResult } from './types';
+import { eventBus } from "./eventBus";
+import { EventFactory } from "./eventFactory";
+import { EventHandlerResult } from "./types";
 
 /**
  * Main event service for the registration system
@@ -12,16 +12,21 @@ export class EventService {
    */
   static async emitRegistrationSubmitted(
     registration: any,
-    adminEmail?: string,
-    requestId?: string
+    priceApplied?: number,
+    selectedPackage?: string,
+    requestId?: string,
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createRegistrationSubmitted(registration, adminEmail);
-    
-    // If requestId is provided, set it in the event metadata for correlation
+    const event = EventFactory.createRegistrationSubmitted(
+      registration,
+      priceApplied,
+      selectedPackage,
+    );
+
+    // If requestId is provided, set it in the event correlation_id for correlation
     if (requestId) {
-      event.metadata = { ...event.metadata, requestId };
+      event.correlation_id = requestId;
     }
-    
+
     return await this.emitEvent(event);
   }
 
@@ -30,10 +35,12 @@ export class EventService {
    */
   static async emitRegistrationBatchUpserted(
     registrations: any[],
-    adminEmail: string,
-    updatedCount: number
+    adminEmail?: string,
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createRegistrationBatchUpserted(registrations, adminEmail, updatedCount);
+    const event = EventFactory.createRegistrationBatchUpserted(
+      registrations,
+      adminEmail,
+    );
     return await this.emitEvent(event);
   }
 
@@ -43,9 +50,15 @@ export class EventService {
   static async emitAdminRequestUpdate(
     registration: any,
     adminEmail: string,
-    reason?: string
+    dimension: "payment" | "profile" | "tcc",
+    notes?: string,
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createAdminRequestUpdate(registration, adminEmail, reason);
+    const event = EventFactory.createAdminRequestUpdate(
+      registration,
+      adminEmail,
+      dimension,
+      notes,
+    );
     return await this.emitEvent(event);
   }
 
@@ -55,9 +68,8 @@ export class EventService {
   static async emitAdminApproved(
     registration: any,
     adminEmail: string,
-    reason?: string
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createAdminApproved(registration, adminEmail, reason);
+    const event = EventFactory.createAdminApproved(registration, adminEmail);
     return await this.emitEvent(event);
   }
 
@@ -67,9 +79,13 @@ export class EventService {
   static async emitAdminRejected(
     registration: any,
     adminEmail: string,
-    reason?: string
+    reason?: string,
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createAdminRejected(registration, adminEmail, reason);
+    const event = EventFactory.createAdminRejected(
+      registration,
+      adminEmail,
+      reason,
+    );
     return await this.emitEvent(event);
   }
 
@@ -78,79 +94,68 @@ export class EventService {
    */
   static async emitDocumentReuploaded(
     registration: any,
-    documentType: string,
-    userId?: string,
-    adminEmail?: string
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createDocumentReuploaded(registration, documentType, userId, adminEmail);
+    const event = EventFactory.createDocumentReuploaded(registration);
     return await this.emitEvent(event);
   }
 
   /**
-   * Emit a status changed event
+   * Emit an admin mark pass event
    */
-  static async emitStatusChanged(
+  static async emitAdminMarkPass(
     registration: any,
-    beforeStatus: string,
-    afterStatus: string,
-    reason?: string,
-    actorRole: 'user' | 'admin' | 'system' = 'system',
-    adminEmail?: string
+    adminEmail: string,
+    dimension: "payment" | "profile" | "tcc",
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createStatusChanged(registration, beforeStatus, afterStatus, reason, actorRole, adminEmail);
+    const event = EventFactory.createAdminMarkPass(
+      registration,
+      adminEmail,
+      dimension,
+    );
     return await this.emitEvent(event);
   }
 
   /**
-   * Emit a login submitted event
+   * Emit a user resubmitted event
    */
-  static async emitLoginSubmitted(
-    email: string,
-    userId?: string
+  static async emitUserResubmitted(
+    registration: any,
+    updates: Record<string, any>,
   ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createLoginSubmitted(email, userId);
+    const event = EventFactory.createUserResubmitted(registration, updates);
+    return await this.emitEvent(event);
+  }
+
+  // Note: StatusChanged, LoginSubmitted, and LoginSucceeded events are not supported in the new EventFactory
+  // These methods have been removed as they are not part of the current event system
+
+  /**
+   * Emit a generic event
+   */
+  static async emit(event: any): Promise<EventHandlerResult[]> {
     return await this.emitEvent(event);
   }
 
   /**
-   * Emit a login succeeded event
+   * Emit an event and return results
    */
-  static async emitLoginSucceeded(
-    email: string,
-    userId: string,
-    adminEmail?: string
-  ): Promise<EventHandlerResult[]> {
-    const event = EventFactory.createLoginSucceeded(email, userId, adminEmail);
-    return await this.emitEvent(event);
-  }
-
-  /**
-   * Emit a custom event (for advanced use cases)
-   */
-  static async emitEvent(event: RegistrationEvent): Promise<EventHandlerResult[]> {
-    // Validate the event before emitting
-    if (!EventFactory.validateEvent(event)) {
-      throw new Error(`Invalid event structure: ${event.type}`);
-    }
-
-    console.log(`Emitting event: ${event.type} (${event.id})`);
-    
+  private static async emitEvent(event: any): Promise<EventHandlerResult[]> {
     try {
+      console.log(`Emitting event: ${event.type}`, {
+        correlationId: event.correlation_id,
+        resourceId: event.payload?.registration?.registration_id,
+      });
+
       const results = await eventBus.emit(event);
-      
-      // Log results
-      const successCount = results.filter(r => r.success).length;
-      const failureCount = results.filter(r => !r.success).length;
-      
-      console.log(`Event ${event.type} processed: ${successCount} successful, ${failureCount} failed`);
-      
-      if (failureCount > 0) {
-        console.warn('Some event handlers failed:', results.filter(r => !r.success));
-      }
-      
+
+      console.log(`Event ${event.type} processed successfully`, {
+        resultsCount: results.length,
+        correlationId: event.correlation_id,
+      });
+
       return results;
     } catch (error) {
-      console.error(`Failed to emit event ${event.type}:`, error);
+      console.error(`Error emitting event ${event.type}:`, error);
       throw error;
     }
   }

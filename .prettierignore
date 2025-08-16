@@ -1,0 +1,7 @@
+# Ignore tests from Prettier on CI to avoid parsing JSX inside .ts
+tests/**
+# Optional: ignore various config and generated files
+coverage/**
+dist/**
+node_modules/**
+.vscode/**

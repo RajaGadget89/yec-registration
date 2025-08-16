@@ -1,7 +1,7 @@
-import { createServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
-import type { Database } from '../types/database';
+import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
+import type { Database } from "../types/database";
 
 /**
  * Get Supabase server client with cookie-based session management
@@ -13,7 +13,7 @@ export function getServerSupabase(req: NextRequest, res: NextResponse) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables');
+    throw new Error("Missing Supabase environment variables");
   }
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -25,7 +25,7 @@ export function getServerSupabase(req: NextRequest, res: NextResponse) {
         res.cookies.set(name, value, options);
       },
       remove(name: string, options: any) {
-        res.cookies.set(name, '', { ...options, maxAge: 0 });
+        res.cookies.set(name, "", { ...options, maxAge: 0 });
       },
     },
   });
@@ -43,7 +43,7 @@ export function getMiddlewareSupabase(req: NextRequest) {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables');
+    throw new Error("Missing Supabase environment variables");
   }
 
   const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -73,14 +73,14 @@ export function getSupabaseServiceClient() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase environment variables');
+    throw new Error("Missing Supabase environment variables");
   }
 
   return createClient<Database>(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false
-    }
+      persistSession: false,
+    },
   });
 }
 
@@ -94,12 +94,12 @@ export function getServiceRoleClient() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase environment variables');
+    throw new Error("Missing Supabase environment variables");
   }
 
   return createClient<Database>(supabaseUrl, supabaseServiceKey, {
     auth: {
-      persistSession: false
-    }
+      persistSession: false,
+    },
   });
-} 
+}

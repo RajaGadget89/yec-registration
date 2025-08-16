@@ -1,9 +1,13 @@
 // Re-export types and client-safe functions
-export type { AuthenticatedUser, AuthSession } from './auth-utils.server';
-export type { AuthenticatedUser as ClientAuthenticatedUser } from './auth-client';
+export type { AuthenticatedUser, AuthSession } from "./auth-utils.server";
+export type { AuthenticatedUser as ClientAuthenticatedUser } from "./auth-client";
 
 // Re-export client-safe functions
-export { getSupabaseAuth, getSupabaseBrowserClient, getClientUser } from './auth-client';
+export {
+  getSupabaseAuth,
+  getSupabaseBrowserClient,
+  getClientUser,
+} from "./auth-client";
 
 // Re-export server functions for API routes and server components
 export {
@@ -15,14 +19,14 @@ export {
   hasRole,
   updateLastLogin,
   upsertAdminUser,
-  serverLogout
-} from './auth-utils.server';
+  serverLogout,
+} from "./auth-utils.server";
 
 /**
  * Check if running in production environment
  */
 export function isProd(): boolean {
-  return process.env.NODE_ENV === 'production';
+  return process.env.NODE_ENV === "production";
 }
 
 /**
@@ -31,15 +35,15 @@ export function isProd(): boolean {
 export function cookieOptions(): {
   httpOnly: boolean;
   secure: boolean;
-  sameSite: 'lax';
+  sameSite: "lax";
   path: string;
   maxAge: number;
 } {
   return {
     httpOnly: true,
     secure: isProd(),
-    sameSite: 'lax',
-    path: '/',
+    sameSite: "lax",
+    path: "/",
     maxAge: 7 * 24 * 60 * 60, // 7 days
   };
 }
@@ -48,7 +52,7 @@ export function cookieOptions(): {
  * Get app URL consistently from config
  */
 export function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8080';
+  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
 }
 
 /**
@@ -56,7 +60,9 @@ export function getAppUrl(): string {
  */
 export function isAdmin(email: string): boolean {
   if (!email) return false;
-  
-  const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+
+  const adminEmails =
+    process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
+    [];
   return adminEmails.includes(email.toLowerCase());
 }
