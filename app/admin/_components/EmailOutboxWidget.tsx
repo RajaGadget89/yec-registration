@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Button } from '../../components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
-import { Badge } from '../../components/ui/badge';
-import { Loader2, Mail, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Button } from "../../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
+import { Badge } from "../../components/ui/badge";
+import { Loader2, Mail, CheckCircle, XCircle, Clock } from "lucide-react";
 // import { toast } from 'sonner'; // Removed - not available
 
 interface OutboxStats {
@@ -34,15 +40,15 @@ export function EmailOutboxWidget() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/dispatch-emails');
+      const response = await fetch("/api/admin/dispatch-emails");
       if (!response.ok) {
-        throw new Error('Failed to fetch outbox stats');
+        throw new Error("Failed to fetch outbox stats");
       }
       const data = await response.json();
       setStats(data.stats);
     } catch (error) {
-      console.error('Failed to fetch outbox stats:', error);
-      console.error('Failed to load email outbox statistics');
+      console.error("Failed to fetch outbox stats:", error);
+      console.error("Failed to load email outbox statistics");
     } finally {
       setLoading(false);
     }
@@ -52,21 +58,21 @@ export function EmailOutboxWidget() {
   const dispatchEmails = async (batchSize: number = 50) => {
     try {
       setDispatching(true);
-      const response = await fetch('/api/admin/dispatch-emails', {
-        method: 'POST',
+      const response = await fetch("/api/admin/dispatch-emails", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ batchSize }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to dispatch emails');
+        throw new Error("Failed to dispatch emails");
       }
 
       const data = await response.json();
       setLastDispatch(data.result);
-      
+
       // Refresh stats after dispatch
       await fetchStats();
 
@@ -78,11 +84,11 @@ export function EmailOutboxWidget() {
         console.error(`${data.result.errors} emails failed to send`);
       }
       if (data.result.sent === 0 && data.result.errors === 0) {
-        console.log('No emails to dispatch');
+        console.log("No emails to dispatch");
       }
     } catch (error) {
-      console.error('Failed to dispatch emails:', error);
-      console.error('Failed to dispatch emails');
+      console.error("Failed to dispatch emails:", error);
+      console.error("Failed to dispatch emails");
     } finally {
       setDispatching(false);
     }
@@ -100,15 +106,15 @@ export function EmailOutboxWidget() {
   }, []);
 
   const formatOldestPending = (timestamp: string | null) => {
-    if (!timestamp) return 'N/A';
+    if (!timestamp) return "N/A";
     const date = new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    
-    if (diffHours < 1) return '< 1 hour ago';
+
+    if (diffHours < 1) return "< 1 hour ago";
     if (diffHours < 24) return `${diffHours} hours ago`;
-    
+
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays} days ago`;
   };
@@ -151,27 +157,37 @@ export function EmailOutboxWidget() {
               <Clock className="h-4 w-4 text-yellow-500" />
               <span className="text-sm font-medium">Pending</span>
             </div>
-            <Badge variant={stats?.total_pending && stats.total_pending > 0 ? "destructive" : "secondary"}>
+            <Badge
+              variant={
+                stats?.total_pending && stats.total_pending > 0
+                  ? "destructive"
+                  : "secondary"
+              }
+            >
               {stats?.total_pending || 0}
             </Badge>
           </div>
-          
+
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <CheckCircle className="h-4 w-4 text-green-500" />
               <span className="text-sm font-medium">Sent</span>
             </div>
-            <Badge variant="outline">
-              {stats?.total_sent || 0}
-            </Badge>
+            <Badge variant="outline">{stats?.total_sent || 0}</Badge>
           </div>
-          
+
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <XCircle className="h-4 w-4 text-red-500" />
               <span className="text-sm font-medium">Errors</span>
             </div>
-            <Badge variant={stats?.total_error && stats.total_error > 0 ? "destructive" : "secondary"}>
+            <Badge
+              variant={
+                stats?.total_error && stats.total_error > 0
+                  ? "destructive"
+                  : "secondary"
+              }
+            >
               {stats?.total_error || 0}
             </Badge>
           </div>
@@ -203,7 +219,7 @@ export function EmailOutboxWidget() {
               </>
             )}
           </Button>
-          
+
           <Button
             onClick={fetchStats}
             disabled={loading}
@@ -242,4 +258,3 @@ export function EmailOutboxWidget() {
     </Card>
   );
 }
-

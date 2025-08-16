@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import { Resend } from "resend";
 
 interface EmailOptions {
   to: string;
@@ -19,14 +19,20 @@ class ResendProvider implements EmailProvider {
   constructor() {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
-      throw new Error('RESEND_API_KEY environment variable is required');
+      throw new Error("RESEND_API_KEY environment variable is required");
     }
-    
+
     this.resend = new Resend(apiKey);
-    this.fromEmail = process.env.EMAIL_FROM || 'YEC <info@rajagadget.live>';
+    this.fromEmail = process.env.EMAIL_FROM || "YEC <info@rajagadget.live>";
   }
 
-  async sendEmail({ to, subject, html, from, replyTo }: EmailOptions): Promise<boolean> {
+  async sendEmail({
+    to,
+    subject,
+    html,
+    from,
+    replyTo,
+  }: EmailOptions): Promise<boolean> {
     try {
       const { error } = await this.resend.emails.send({
         from: from || this.fromEmail,
@@ -37,29 +43,35 @@ class ResendProvider implements EmailProvider {
       });
 
       if (error) {
-        console.error('Resend email sending error:', error);
+        console.error("Resend email sending error:", error);
         return false;
       }
 
-      console.log('Email sent successfully via Resend to:', to);
+      console.log("Email sent successfully via Resend to:", to);
       return true;
     } catch (err) {
-      console.error('Unexpected error in Resend sendEmail:', err);
+      console.error("Unexpected error in Resend sendEmail:", err);
       return false;
     }
   }
 }
 
 class SendGridProvider implements EmailProvider {
-  async sendEmail({ to: _to, subject: _subject, html: _html, from: _from, replyTo: _replyTo }: EmailOptions): Promise<boolean> {
+  async sendEmail({
+    to: _to,
+    subject: _subject,
+    html: _html,
+    from: _from,
+    replyTo: _replyTo,
+  }: EmailOptions): Promise<boolean> {
     void _to; // used to satisfy lint without changing config
     void _subject; // used to satisfy lint without changing config
     void _html; // used to satisfy lint without changing config
     void _from; // used to satisfy lint without changing config
     void _replyTo; // used to satisfy lint without changing config
-    
+
     // TODO: Implement SendGrid integration when needed
-    console.warn('SendGrid provider not implemented yet');
+    console.warn("SendGrid provider not implemented yet");
     return false;
   }
 }
@@ -73,7 +85,7 @@ function createEmailProvider(): EmailProvider {
     try {
       return new ResendProvider();
     } catch (error) {
-      console.error('Failed to initialize Resend provider:', error);
+      console.error("Failed to initialize Resend provider:", error);
     }
   }
 
@@ -81,7 +93,9 @@ function createEmailProvider(): EmailProvider {
     return new SendGridProvider();
   }
 
-  throw new Error('No email provider configured. Please set RESEND_API_KEY or SENDGRID_API_KEY');
+  throw new Error(
+    "No email provider configured. Please set RESEND_API_KEY or SENDGRID_API_KEY",
+  );
 }
 
 // Global provider instance
@@ -104,7 +118,7 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
     const provider = getEmailProvider();
     return await provider.sendEmail(options);
   } catch (error) {
-    console.error('Email sending failed:', error);
+    console.error("Email sending failed:", error);
     return false;
   }
 }
@@ -114,14 +128,16 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
  * @param testEmail Optional test email address
  * @returns Promise<boolean> - true if test successful
  */
-export async function testEmailConnection(testEmail?: string): Promise<boolean> {
-  const testTo = testEmail || 'test@example.com';
-  
+export async function testEmailConnection(
+  testEmail?: string,
+): Promise<boolean> {
+  const testTo = testEmail || "test@example.com";
+
   try {
     const provider = getEmailProvider();
     const result = await provider.sendEmail({
       to: testTo,
-      subject: 'YEC Day - Email Service Test',
+      subject: "YEC Day - Email Service Test",
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px;">
           <h2 style="color: #1A237E;">YEC Day Email Service Test</h2>
@@ -134,7 +150,7 @@ export async function testEmailConnection(testEmail?: string): Promise<boolean> 
 
     return result;
   } catch (error) {
-    console.error('Email connection test failed:', error);
+    console.error("Email connection test failed:", error);
     return false;
   }
 }
@@ -152,7 +168,6 @@ export function getEmailProviderStatus() {
     resendConfigured: !!resendApiKey,
     sendgridConfigured: !!sendgridApiKey,
     fromEmail,
-    provider: emailProvider?.constructor.name || 'None',
+    provider: emailProvider?.constructor.name || "None",
   };
 }
-

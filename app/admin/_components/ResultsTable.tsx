@@ -1,10 +1,16 @@
-'use client';
+"use client";
 
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
-import StatusBadge from './StatusBadge';
-import ActionButtons from './ActionButtons';
-import type { Registration } from '../../types/database';
-import { formatDate } from '../../lib/datetime';
+import {
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Search,
+} from "lucide-react";
+import StatusBadge from "./StatusBadge";
+import ActionButtons from "./ActionButtons";
+import type { Registration } from "../../types/database";
+import { formatDate } from "../../lib/datetime";
 
 interface ResultsTableProps {
   registrations: Registration[];
@@ -12,8 +18,8 @@ interface ResultsTableProps {
   currentPage: number;
   pageSize: number;
   onPageChange: (page: number) => void;
-  onSort: (column: string, direction: 'asc' | 'desc') => void;
-  currentSort: { column: string; direction: 'asc' | 'desc' };
+  onSort: (column: string, direction: "asc" | "desc") => void;
+  currentSort: { column: string; direction: "asc" | "desc" };
   onRowClick: (registration: Registration) => void;
   onActionComplete?: (registrationId: string, newStatus: string) => void;
 }
@@ -34,15 +40,24 @@ export default function ResultsTable({
   const endIndex = Math.min(currentPage * pageSize, totalCount);
 
   const handleSort = (column: string) => {
-    const direction = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
+    const direction =
+      currentSort.column === column && currentSort.direction === "asc"
+        ? "desc"
+        : "asc";
     onSort(column, direction);
   };
 
-  const SortIcon = ({ column, className }: { column: string; className?: string }) => {
+  const SortIcon = ({
+    column,
+    className,
+  }: {
+    column: string;
+    className?: string;
+  }) => {
     if (currentSort.column !== column) {
       return <ChevronDown className={className || "h-4 w-4 text-gray-400"} />;
     }
-    return currentSort.direction === 'asc' ? (
+    return currentSort.direction === "asc" ? (
       <ChevronUp className={className || "h-4 w-4 text-yec-primary"} />
     ) : (
       <ChevronDown className={className || "h-4 w-4 text-yec-primary"} />
@@ -53,16 +68,22 @@ export default function ResultsTable({
   // Note: columns array is defined for documentation purposes
   // but not currently used in the component logic
 
-  const pageNumbers = Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-    const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-    return page;
-  });
+  const pageNumbers = Array.from(
+    { length: Math.min(5, totalPages) },
+    (_, i) => {
+      const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+      return page;
+    },
+  );
 
   return (
-    <div className="card-modern dark:card-modern-dark rounded-2xl overflow-hidden animate-fade-in-up backdrop-blur-sm bg-white/90 dark:bg-gray-800/90 border border-white/20 dark:border-gray-700/20 relative" style={{ animationDelay: '600ms' }}>
+    <div
+      className="card-modern dark:card-modern-dark rounded-2xl overflow-hidden animate-fade-in-up backdrop-blur-sm bg-white/90 dark:bg-gray-800/90 border border-white/20 dark:border-gray-700/20 relative"
+      style={{ animationDelay: "600ms" }}
+    >
       {/* Light overlay for better readability */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 to-blue-100/10"></div>
-      
+
       {/* Table Header */}
       <div className="px-6 py-6 border-b border-gray-200/50 dark:border-gray-600/50 bg-gradient-to-r from-gray-50/80 to-gray-100/80 dark:from-gray-800/80 dark:to-gray-700/80 backdrop-blur-sm relative z-10">
         <div className="flex items-center justify-between">
@@ -78,7 +99,8 @@ export default function ResultsTable({
             </div>
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-            Showing {startIndex}-{endIndex} of {totalCount.toLocaleString()} results
+            Showing {startIndex}-{endIndex} of {totalCount.toLocaleString()}{" "}
+            results
           </div>
         </div>
       </div>
@@ -90,7 +112,7 @@ export default function ResultsTable({
             <tr>
               <th className="px-4 py-4 text-left w-[12%]">
                 <button
-                  onClick={() => handleSort('status')}
+                  onClick={() => handleSort("status")}
                   className="flex items-center space-x-2 font-semibold text-gray-700 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-colors group"
                 >
                   <span>Status</span>
@@ -102,7 +124,7 @@ export default function ResultsTable({
               </th>
               <th className="px-4 py-4 text-left w-[20%]">
                 <button
-                  onClick={() => handleSort('name')}
+                  onClick={() => handleSort("name")}
                   className="flex items-center space-x-2 font-semibold text-gray-700 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-colors group"
                 >
                   <span>Name</span>
@@ -114,7 +136,7 @@ export default function ResultsTable({
               </th>
               <th className="px-4 py-4 text-left w-[10%]">
                 <button
-                  onClick={() => handleSort('yec_province')}
+                  onClick={() => handleSort("yec_province")}
                   className="flex items-center space-x-2 font-semibold text-gray-700 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-colors group"
                 >
                   <span>Province</span>
@@ -126,7 +148,7 @@ export default function ResultsTable({
               </th>
               <th className="px-4 py-4 text-left w-[12%]">
                 <button
-                  onClick={() => handleSort('created_at')}
+                  onClick={() => handleSort("created_at")}
                   className="flex items-center space-x-2 font-semibold text-gray-700 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-colors group"
                 >
                   <span>Created At</span>
@@ -137,13 +159,19 @@ export default function ResultsTable({
                 </button>
               </th>
               <th className="px-4 py-4 text-left w-[18%]">
-                <span className="font-semibold text-gray-700 dark:text-gray-300">Email</span>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  Email
+                </span>
               </th>
               <th className="px-4 py-4 text-left w-[10%]">
-                <span className="font-semibold text-gray-700 dark:text-gray-300">Phone</span>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  Phone
+                </span>
               </th>
               <th className="px-4 py-4 text-left w-[18%]">
-                <span className="font-semibold text-gray-700 dark:text-gray-300">Actions</span>
+                <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  Actions
+                </span>
               </th>
             </tr>
           </thead>
@@ -173,13 +201,28 @@ export default function ResultsTable({
                   className="group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-blue-100/50 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 transition-all duration-300 backdrop-blur-sm"
                   style={{ animationDelay: `${700 + index * 50}ms` }}
                 >
-                  <td className="px-4 py-4 cursor-pointer" onClick={() => onRowClick?.(registration)}>
-                    <StatusBadge status={registration.status as 'pending' | 'waiting_for_review' | 'approved' | 'rejected'} />
+                  <td
+                    className="px-4 py-4 cursor-pointer"
+                    onClick={() => onRowClick?.(registration)}
+                  >
+                    <StatusBadge
+                      status={
+                        registration.status as
+                          | "pending"
+                          | "waiting_for_review"
+                          | "approved"
+                          | "rejected"
+                      }
+                    />
                   </td>
-                  <td className="px-4 py-4 cursor-pointer" onClick={() => onRowClick?.(registration)}>
+                  <td
+                    className="px-4 py-4 cursor-pointer"
+                    onClick={() => onRowClick?.(registration)}
+                  >
                     <div className="min-w-0">
                       <div className="font-medium text-gray-900 dark:text-gray-100 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors drop-shadow-sm break-words leading-relaxed">
-                        {registration.title} {registration.first_name} {registration.last_name}
+                        {registration.title} {registration.first_name}{" "}
+                        {registration.last_name}
                       </div>
                       {registration.nickname && (
                         <div className="text-sm text-gray-500 dark:text-gray-400 break-words mt-1">
@@ -188,36 +231,54 @@ export default function ResultsTable({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-4 cursor-pointer" onClick={() => onRowClick?.(registration)}>
+                  <td
+                    className="px-4 py-4 cursor-pointer"
+                    onClick={() => onRowClick?.(registration)}
+                  >
                     <span className="text-sm text-gray-700 dark:text-gray-300 capitalize drop-shadow-sm break-words">
-                      {registration.yec_province?.replace(/-/g, ' ')}
+                      {registration.yec_province?.replace(/-/g, " ")}
                     </span>
                   </td>
-                  <td className="px-4 py-4 cursor-pointer" onClick={() => onRowClick?.(registration)}>
+                  <td
+                    className="px-4 py-4 cursor-pointer"
+                    onClick={() => onRowClick?.(registration)}
+                  >
                     <div className="text-sm text-gray-600 dark:text-gray-400 drop-shadow-sm">
-                      <time dateTime={registration.created_at} suppressHydrationWarning>
+                      <time
+                        dateTime={registration.created_at}
+                        suppressHydrationWarning
+                      >
                         {formatDate(registration.created_at)}
                       </time>
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-500">
-                      <time dateTime={registration.created_at} suppressHydrationWarning>
+                      <time
+                        dateTime={registration.created_at}
+                        suppressHydrationWarning
+                      >
                         {formatDate(registration.created_at, true)}
                       </time>
                     </div>
                   </td>
-                  <td className="px-4 py-4 cursor-pointer" onClick={() => onRowClick?.(registration)}>
+                  <td
+                    className="px-4 py-4 cursor-pointer"
+                    onClick={() => onRowClick?.(registration)}
+                  >
                     <div className="text-sm text-gray-600 dark:text-gray-400 drop-shadow-sm break-all">
                       {registration.email}
                     </div>
                   </td>
-                  <td className="px-4 py-4 cursor-pointer" onClick={() => onRowClick?.(registration)}>
+                  <td
+                    className="px-4 py-4 cursor-pointer"
+                    onClick={() => onRowClick?.(registration)}
+                  >
                     <div className="text-sm text-gray-600 dark:text-gray-400 drop-shadow-sm break-all">
                       {registration.phone}
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    <ActionButtons 
-                      registration={registration} 
+                    <ActionButtons
+                      registration={registration}
                       onActionComplete={onActionComplete}
                     />
                   </td>
@@ -244,21 +305,21 @@ export default function ResultsTable({
                 <ChevronLeft className="w-4 h-4" />
                 <span>Previous</span>
               </button>
-              
+
               {pageNumbers.map((page) => (
                 <button
                   key={page}
                   onClick={() => onPageChange(page)}
                   className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 backdrop-blur-sm ${
                     page === currentPage
-                      ? 'bg-gradient-to-r from-yec-primary to-yec-accent text-white shadow-lg'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-white/60 dark:hover:bg-gray-700/60'
+                      ? "bg-gradient-to-r from-yec-primary to-yec-accent text-white shadow-lg"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-white/60 dark:hover:bg-gray-700/60"
                   }`}
                 >
                   {page}
                 </button>
               ))}
-              
+
               <button
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}

@@ -1,18 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServiceClient } from '../../../../../lib/supabase-server';
-import { getCurrentUserFromRequest } from '../../../../../lib/auth-utils.server';
-import { isAdmin } from '../../../../../lib/admin-guard';
-import { EventService } from '../../../../../lib/events/eventService';
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseServiceClient } from "../../../../../lib/supabase-server";
+import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
+import { isAdmin } from "../../../../../lib/admin-guard";
+import { EventService } from "../../../../../lib/events/eventService";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     // Check admin authentication
     const user = await getCurrentUserFromRequest(request);
     if (!user || !isAdmin(user.email)) {
-      return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     const { id } = params;
@@ -20,45 +20,44 @@ export async function POST(
 
     // Load current registration
     const { data: registration, error: fetchError } = await supabase
-      .from('registrations')
-      .select('*')
-      .eq('id', id)
+      .from("registrations")
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (fetchError || !registration) {
-      console.error('Error fetching registration:', fetchError);
+      console.error("Error fetching registration:", fetchError);
       return NextResponse.json(
-        { ok: false, error: 'Registration not found' },
-        { status: 404 }
+        { ok: false, error: "Registration not found" },
+        { status: 404 },
       );
     }
 
     // Emit admin rejected event for centralized side-effects
     try {
       if (!user.email) {
-        throw new Error('Admin email is required');
+        throw new Error("Admin email is required");
       }
       await EventService.emitAdminRejected(registration, user.email);
-      console.log('Admin rejected event emitted successfully');
+      console.log("Admin rejected event emitted successfully");
     } catch (eventError) {
-      console.error('Error emitting admin rejected event:', eventError);
+      console.error("Error emitting admin rejected event:", eventError);
       return NextResponse.json(
-        { ok: false, error: 'Failed to process rejection' },
-        { status: 500 }
+        { ok: false, error: "Failed to process rejection" },
+        { status: 500 },
       );
     }
 
     return NextResponse.json({
       ok: true,
       id: registration.id,
-      status: 'rejected'
+      status: "rejected",
     });
-
   } catch (error) {
-    console.error('Unexpected error in reject action:', error);
+    console.error("Unexpected error in reject action:", error);
     return NextResponse.json(
-      { ok: false, error: 'Internal server error' },
-      { status: 500 }
+      { ok: false, error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

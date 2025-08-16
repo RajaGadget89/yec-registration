@@ -14,7 +14,10 @@ export const DEV_COOKIE_NAME = "dev-user-email";
  */
 export function getAdminEmails(): string[] {
   const raw = process.env.ADMIN_EMAILS ?? "";
-  return raw.split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
+  return raw
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
 }
 
 /**

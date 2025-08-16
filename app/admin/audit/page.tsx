@@ -1,16 +1,22 @@
-import { redirect } from 'next/navigation';
-import { Suspense } from 'react';
-import { Shield, Activity, Search, Filter, Download } from 'lucide-react';
-import { getCurrentUser } from '../../lib/auth-utils.server';
-import { getAuditAccessLogs, getAuditEventLogs, type AuditFilters, type AuditAccessLog, type AuditEventLog } from '../../lib/supabaseAdminAudit';
-import AuditTable from '../_components/AuditTable';
-import QuickFilters from '../_components/QuickFilters';
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { Shield, Activity, Search, Filter, Download } from "lucide-react";
+import { getCurrentUser } from "../../lib/auth-utils.server";
+import {
+  getAuditAccessLogs,
+  getAuditEventLogs,
+  type AuditFilters,
+  type AuditAccessLog,
+  type AuditEventLog,
+} from "../../lib/supabaseAdminAudit";
+import AuditTable from "../_components/AuditTable";
+import QuickFilters from "../_components/QuickFilters";
 
 // Force Node runtime for server-side operations
-export const runtime = 'nodejs';
+export const runtime = "nodejs";
 
 // Force dynamic rendering for real-time data
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 interface AuditPageProps {
   searchParams?: Promise<{
@@ -27,11 +33,11 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
   // Check admin authentication
   const user = await getCurrentUser();
   if (!user || !user.is_active) {
-    redirect('/admin/login');
+    redirect("/admin/login");
   }
 
   const params = (await searchParams) ?? {};
-  
+
   // Build filters from URL params
   const filters: AuditFilters = {
     request_id: params.request_id,
@@ -58,14 +64,14 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
   // Fetch audit data with error handling
   let accessLogs: AuditAccessLog[] = [];
   let eventLogs: AuditEventLog[] = [];
-  
+
   try {
     [accessLogs, eventLogs] = await Promise.all([
       getAuditAccessLogs(filters, 100),
       getAuditEventLogs(filters, 100),
     ]);
   } catch (error) {
-    console.error('Error fetching audit data:', error);
+    console.error("Error fetching audit data:", error);
     // Continue with empty arrays for better UX
   }
 
@@ -79,8 +85,12 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
               <Shield className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Audit Dashboard</h1>
-              <p className="text-gray-700 dark:text-gray-300">Monitor system access and events</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Audit Dashboard
+              </h1>
+              <p className="text-gray-700 dark:text-gray-300">
+                Monitor system access and events
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
@@ -94,20 +104,27 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center space-x-2 mb-4">
           <Filter className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Filters</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Filters
+          </h2>
         </div>
-        
+
         <form method="GET" className="space-y-4">
           {/* Quick Filters */}
           <div className="flex items-center space-x-4">
-            <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Quick Filters:</label>
+            <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+              Quick Filters:
+            </label>
             <QuickFilters currentAction={params.action} />
           </div>
 
           {/* Main Filters */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div>
-              <label htmlFor="request_id" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+              <label
+                htmlFor="request_id"
+                className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1"
+              >
                 Request ID
               </label>
               <input
@@ -119,9 +136,12 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
                 placeholder="Filter by request ID"
               />
             </div>
-            
+
             <div>
-              <label htmlFor="action" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+              <label
+                htmlFor="action"
+                className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1"
+              >
                 Action
               </label>
               <input
@@ -133,9 +153,12 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
                 placeholder="Filter by action"
               />
             </div>
-            
+
             <div>
-              <label htmlFor="resource" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+              <label
+                htmlFor="resource"
+                className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1"
+              >
                 Resource
               </label>
               <input
@@ -147,33 +170,41 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
                 placeholder="Filter by resource"
               />
             </div>
-            
+
             <div>
-              <label htmlFor="date_from" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+              <label
+                htmlFor="date_from"
+                className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1"
+              >
                 Date From
               </label>
               <input
                 type="datetime-local"
                 id="date_from"
                 name="date_from"
-                defaultValue={params.date_from ? params.date_from.slice(0, 16) : ''}
+                defaultValue={
+                  params.date_from ? params.date_from.slice(0, 16) : ""
+                }
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            
+
             <div>
-              <label htmlFor="date_to" className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+              <label
+                htmlFor="date_to"
+                className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1"
+              >
                 Date To
               </label>
               <input
                 type="datetime-local"
                 id="date_to"
                 name="date_to"
-                defaultValue={params.date_to ? params.date_to.slice(0, 16) : ''}
+                defaultValue={params.date_to ? params.date_to.slice(0, 16) : ""}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            
+
             <div className="flex items-end">
               <button
                 type="submit"
@@ -228,7 +259,12 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
                       <li>There might be a configuration issue</li>
                     </ul>
                     <p className="mt-2">
-                      <strong>To set up audit logging:</strong> Run the audit schema creation scripts in the <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">scripts/</code> folder.
+                      <strong>To set up audit logging:</strong> Run the audit
+                      schema creation scripts in the{" "}
+                      <code className="bg-yellow-100 dark:bg-yellow-900 px-1 rounded">
+                        scripts/
+                      </code>{" "}
+                      folder.
                     </p>
                   </div>
                 </div>
@@ -238,23 +274,36 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
         )}
 
         <div className="p-6">
-          <Suspense fallback={
-            <div className="space-y-4">
-              <div className="animate-pulse">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4"></div>
-                <div className="space-y-3">
-                  {['skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4', 'skeleton-5'].map((key) => (
-                    <div key={key} className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                  ))}
+          <Suspense
+            fallback={
+              <div className="space-y-4">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-4"></div>
+                  <div className="space-y-3">
+                    {[
+                      "skeleton-1",
+                      "skeleton-2",
+                      "skeleton-3",
+                      "skeleton-4",
+                      "skeleton-5",
+                    ].map((key) => (
+                      <div
+                        key={key}
+                        className="h-12 bg-gray-200 dark:bg-gray-700 rounded"
+                      ></div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          }>
+            }
+          >
             {/* Access Logs Tab */}
             <div>
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Access Logs</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Access Logs
+                  </h3>
                   <p className="text-sm text-gray-700 dark:text-gray-300">
                     HTTP requests and API access logs
                   </p>
@@ -274,7 +323,9 @@ export default async function AuditPage({ searchParams }: AuditPageProps) {
             <div className="mt-8">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Event Logs</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                    Event Logs
+                  </h3>
                   <p className="text-sm text-gray-700 dark:text-gray-300">
                     Business events and system activities
                   </p>

@@ -1,4 +1,4 @@
-import { getSupabaseServiceClient } from './supabase-server';
+import { getSupabaseServiceClient } from "./supabase-server";
 
 /**
  * Storage bucket configuration for YEC Registration System
@@ -15,40 +15,51 @@ export interface StorageBucketConfig {
 
 export const REQUIRED_BUCKETS: StorageBucketConfig[] = [
   {
-    name: 'profile-images',
+    name: "profile-images",
     public: false,
-    allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png'],
+    allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png"],
     maxFileSize: 5 * 1024 * 1024, // 5MB
-    description: 'User profile images - private access only'
+    description: "User profile images - private access only",
   },
   {
-    name: 'chamber-cards',
+    name: "chamber-cards",
     public: false,
-    allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'],
+    allowedMimeTypes: [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "application/pdf",
+    ],
     maxFileSize: 10 * 1024 * 1024, // 10MB
-    description: 'Chamber of Commerce membership cards - private access only'
+    description: "Chamber of Commerce membership cards - private access only",
   },
   {
-    name: 'payment-slips',
+    name: "payment-slips",
     public: false,
-    allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'],
+    allowedMimeTypes: [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "application/pdf",
+    ],
     maxFileSize: 10 * 1024 * 1024, // 10MB
-    description: 'Payment confirmation slips - private access only'
+    description: "Payment confirmation slips - private access only",
   },
   {
-    name: 'yec-badges',
+    name: "yec-badges",
     public: true,
-    allowedMimeTypes: ['image/png'],
+    allowedMimeTypes: ["image/png"],
     maxFileSize: 2 * 1024 * 1024, // 2MB
-    description: 'Generated YEC badges - public access for display'
+    description: "Generated YEC badges - public access for display",
   },
   {
-    name: 'yec-assets',
+    name: "yec-assets",
     public: true,
-    allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'],
+    allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png", "image/svg+xml"],
     maxFileSize: 2 * 1024 * 1024, // 2MB
-    description: 'YEC brand assets (logos, icons) - public access for email templates'
-  }
+    description:
+      "YEC brand assets (logos, icons) - public access for email templates",
+  },
 ];
 
 /**
@@ -66,15 +77,20 @@ export async function verifyStorageBuckets(): Promise<{
 
   try {
     // Get list of existing buckets
-    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-    
+    const { data: buckets, error: listError } =
+      await supabase.storage.listBuckets();
+
     if (listError) {
       errors.push(`Failed to list buckets: ${listError.message}`);
-      return { exists: false, missing: REQUIRED_BUCKETS.map(b => b.name), errors };
+      return {
+        exists: false,
+        missing: REQUIRED_BUCKETS.map((b) => b.name),
+        errors,
+      };
     }
 
-    const existingBucketNames = buckets?.map(b => b.name) || [];
-    
+    const existingBucketNames = buckets?.map((b) => b.name) || [];
+
     // Check each required bucket
     for (const bucketConfig of REQUIRED_BUCKETS) {
       if (!existingBucketNames.includes(bucketConfig.name)) {
@@ -85,12 +101,17 @@ export async function verifyStorageBuckets(): Promise<{
     return {
       exists: missing.length === 0,
       missing,
-      errors
+      errors,
     };
-
   } catch (error) {
-    errors.push(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    return { exists: false, missing: REQUIRED_BUCKETS.map(b => b.name), errors };
+    errors.push(
+      `Unexpected error: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+    return {
+      exists: false,
+      missing: REQUIRED_BUCKETS.map((b) => b.name),
+      errors,
+    };
   }
 }
 
@@ -99,14 +120,16 @@ export async function verifyStorageBuckets(): Promise<{
  * @param bucketConfig - Configuration for the bucket to create
  * @returns Promise<boolean> - True if bucket was created successfully
  */
-export async function createStorageBucket(bucketConfig: StorageBucketConfig): Promise<boolean> {
+export async function createStorageBucket(
+  bucketConfig: StorageBucketConfig,
+): Promise<boolean> {
   const supabase = getSupabaseServiceClient();
 
   try {
     const { error } = await supabase.storage.createBucket(bucketConfig.name, {
       public: bucketConfig.public,
       allowedMimeTypes: bucketConfig.allowedMimeTypes,
-      fileSizeLimit: bucketConfig.maxFileSize
+      fileSizeLimit: bucketConfig.maxFileSize,
     });
 
     if (error) {
@@ -116,7 +139,6 @@ export async function createStorageBucket(bucketConfig: StorageBucketConfig): Pr
 
     console.log(`Successfully created bucket: ${bucketConfig.name}`);
     return true;
-
   } catch (error) {
     console.error(`Error creating bucket ${bucketConfig.name}:`, error);
     return false;
@@ -137,7 +159,7 @@ export async function createMissingBuckets(): Promise<{
   const failed: string[] = [];
 
   for (const bucketName of missing) {
-    const bucketConfig = REQUIRED_BUCKETS.find(b => b.name === bucketName);
+    const bucketConfig = REQUIRED_BUCKETS.find((b) => b.name === bucketName);
     if (!bucketConfig) {
       failed.push(bucketName);
       continue;
@@ -154,7 +176,7 @@ export async function createMissingBuckets(): Promise<{
   return {
     success: failed.length === 0,
     created,
-    failed
+    failed,
   };
 }
 
@@ -163,8 +185,10 @@ export async function createMissingBuckets(): Promise<{
  * @param bucketName - Name of the bucket
  * @returns StorageBucketConfig | undefined
  */
-export function getBucketConfig(bucketName: string): StorageBucketConfig | undefined {
-  return REQUIRED_BUCKETS.find(b => b.name === bucketName);
+export function getBucketConfig(
+  bucketName: string,
+): StorageBucketConfig | undefined {
+  return REQUIRED_BUCKETS.find((b) => b.name === bucketName);
 }
 
 /**
@@ -173,29 +197,31 @@ export function getBucketConfig(bucketName: string): StorageBucketConfig | undef
  * @param bucketName - Name of the bucket
  * @returns {valid: boolean, error?: string}
  */
-export function validateFileForBucket(file: File, bucketName: string): { valid: boolean; error?: string } {
+export function validateFileForBucket(
+  file: File,
+  bucketName: string,
+): { valid: boolean; error?: string } {
   const bucketConfig = getBucketConfig(bucketName);
-  
+
   if (!bucketConfig) {
     return { valid: false, error: `Unknown bucket: ${bucketName}` };
   }
 
   // Check file size
   if (file.size > bucketConfig.maxFileSize) {
-    return { 
-      valid: false, 
-      error: `File size (${file.size} bytes) exceeds maximum allowed size (${bucketConfig.maxFileSize} bytes)` 
+    return {
+      valid: false,
+      error: `File size (${file.size} bytes) exceeds maximum allowed size (${bucketConfig.maxFileSize} bytes)`,
     };
   }
 
   // Check MIME type
   if (!bucketConfig.allowedMimeTypes.includes(file.type)) {
-    return { 
-      valid: false, 
-      error: `File type (${file.type}) not allowed. Allowed types: ${bucketConfig.allowedMimeTypes.join(', ')}` 
+    return {
+      valid: false,
+      error: `File type (${file.type}) not allowed. Allowed types: ${bucketConfig.allowedMimeTypes.join(", ")}`,
     };
   }
 
   return { valid: true };
 }
-

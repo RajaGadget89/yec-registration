@@ -14,14 +14,25 @@ jobs:
         with:
           node-version: 18
           cache: npm
+
       - run: npm ci
 
-      # ✅ เช็คเฉพาะโค้ดแอพ ไม่รวม tests/** และไฟล์ config
-      - name: ESLint (no warnings)
-        run: |
-          npx eslint "{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,mjs,cjs}" --max-warnings=0
+      # ใช้สคริปต์จาก package.json เพื่อให้ local = CI
+      - name: ESLint (strict; no warnings)
+        run: npm run lint:strict
 
-      - name: Prettier check (app code only)
+      # Prettier: non-blocking บน PR เพื่อไม่ขวางงาน
+      - name: Prettier check (PR, non-blocking)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          echo "Running Prettier check on app code (non-blocking for PR)."
+          npx prettier -c "{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}" \
+            || echo "::warning::Prettier found formatting issues. Run 'npm run format' locally."
+
+      # บังคับจริงเมื่อไม่ใช่ PR (เช่น push เข้า main)
+      - name: Prettier check (blocking on non-PR)
+        if: github.event_name != 'pull_request'
         run: |
           npx prettier -c "{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}"
 

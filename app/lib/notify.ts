@@ -1,4 +1,4 @@
-import { Resend } from 'resend';
+import { Resend } from "resend";
 
 /**
  * Send email notification using Resend
@@ -7,32 +7,36 @@ import { Resend } from 'resend';
  * @param html - Email HTML content
  * @returns Promise<boolean> - true if sent successfully, false otherwise
  */
-export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+): Promise<boolean> {
   const resendApiKey = process.env.RESEND_API_KEY;
-  
+
   if (!resendApiKey) {
-    console.warn('RESEND_API_KEY not configured, skipping email notification');
+    console.warn("RESEND_API_KEY not configured, skipping email notification");
     return false;
   }
 
   try {
     const resend = new Resend(resendApiKey);
     const { error } = await resend.emails.send({
-      from: 'YEC <info@rajagadget.live>',
+      from: "YEC <info@rajagadget.live>",
       to,
       subject,
       html,
     });
 
     if (error) {
-      console.error('Email sending error:', error);
+      console.error("Email sending error:", error);
       return false;
     }
 
-    console.log('Email sent successfully to:', to);
+    console.log("Email sent successfully to:", to);
     return true;
   } catch (err) {
-    console.error('Unexpected error in sendEmail:', err);
+    console.error("Unexpected error in sendEmail:", err);
     return false;
   }
 }
@@ -45,41 +49,47 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 export async function sendTelegram(text: string): Promise<boolean> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
-  
+
   if (!botToken || !chatId) {
-    console.warn('TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured, skipping Telegram notification');
+    console.warn(
+      "TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not configured, skipping Telegram notification",
+    );
     return false;
   }
 
   try {
     const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         chat_id: chatId,
         text,
-        parse_mode: 'HTML',
+        parse_mode: "HTML",
       }),
     });
 
     if (!response.ok) {
-      console.error('Telegram API error:', response.status, response.statusText);
+      console.error(
+        "Telegram API error:",
+        response.status,
+        response.statusText,
+      );
       return false;
     }
 
     const result = await response.json();
     if (!result.ok) {
-      console.error('Telegram API returned error:', result);
+      console.error("Telegram API returned error:", result);
       return false;
     }
 
-    console.log('Telegram notification sent successfully');
+    console.log("Telegram notification sent successfully");
     return true;
   } catch (err) {
-    console.error('Unexpected error in sendTelegram:', err);
+    console.error("Unexpected error in sendTelegram:", err);
     return false;
   }
 }
@@ -89,7 +99,7 @@ export async function sendTelegram(text: string): Promise<boolean> {
  */
 export const emailTemplates = {
   approved: (name: string, registrationId: string) => ({
-    subject: 'YEC Day — Registration Approved',
+    subject: "YEC Day — Registration Approved",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #1A237E;">YEC Day — Registration Approved / อนุมัติการลงทะเบียนแล้ว</h2>
@@ -112,11 +122,11 @@ export const emailTemplates = {
         <p>Best regards / ขอแสดงความนับถือ,<br>
         YEC Day Team</p>
       </div>
-    `
+    `,
   }),
-  
+
   rejected: (name: string, registrationId: string) => ({
-    subject: 'YEC Day — Registration Rejected',
+    subject: "YEC Day — Registration Rejected",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #1A237E;">YEC Day — Registration Rejected / ไม่อนุมัติการลงทะเบียน</h2>
@@ -136,11 +146,11 @@ export const emailTemplates = {
         <p>Best regards / ขอแสดงความนับถือ,<br>
         YEC Day Team</p>
       </div>
-    `
+    `,
   }),
-  
+
   requestUpdate: (name: string, registrationId: string) => ({
-    subject: 'YEC Day — Action Required: Please update your registration',
+    subject: "YEC Day — Action Required: Please update your registration",
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #1A237E;">YEC Day — Action Required / ต้องดำเนินการ</h2>
@@ -163,6 +173,6 @@ export const emailTemplates = {
         <p>Best regards / ขอแสดงความนับถือ,<br>
         YEC Day Team</p>
       </div>
-    `
-  })
+    `,
+  }),
 };

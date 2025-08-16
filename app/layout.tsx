@@ -7,19 +7,20 @@ const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
   preload: true,
-  display: 'swap',
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
   preload: true,
-  display: 'swap',
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: "YEC Day - Young Entrepreneurs Conference",
-  description: "Empowering young entrepreneurs through networking, learning, and growth opportunities. Register now for YEC Day!",
+  description:
+    "Empowering young entrepreneurs through networking, learning, and growth opportunities. Register now for YEC Day!",
   icons: {
     icon: "/assets/favicon.ico",
     apple: "/assets/favicon-192x192.png",
@@ -40,17 +41,29 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <link rel="icon" href="/assets/favicon.ico" />
-        <link rel="apple-touch-icon" sizes="192x192" href="/assets/favicon-192x192.png" />
-        <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
+        <link
+          rel="apple-touch-icon"
+          sizes="192x192"
+          href="/assets/favicon-192x192.png"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="16x16"
+          href="/assets/favicon-16x16.png"
+        />
+        <link
+          rel="icon"
+          type="image/png"
+          sizes="32x32"
+          href="/assets/favicon-32x32.png"
+        />
         <link rel="manifest" href="/assets/site.webmanifest" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

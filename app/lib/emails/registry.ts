@@ -1,5 +1,8 @@
 /** @jsxImportSource react */
-import { renderEmailTemplate as renderTemplate, getEmailSubject as getSubject } from './render';
+import {
+  renderEmailTemplate as renderTemplate,
+  getEmailSubject as getSubject,
+} from "./render";
 
 // Common props for all email templates
 export interface EmailTemplateProps {
@@ -9,7 +12,7 @@ export interface EmailTemplateProps {
   deadlineLocal?: string;
   priceApplied?: string;
   packageName?: string;
-  rejectedReason?: 'deadline_missed' | 'ineligible_rule_match' | 'other';
+  rejectedReason?: "deadline_missed" | "ineligible_rule_match" | "other";
   badgeUrl?: string;
   supportEmail?: string;
   // New props for production-shaped emails
@@ -18,7 +21,7 @@ export interface EmailTemplateProps {
     primaryColor?: string;
     secondaryColor?: string;
   };
-  dimension?: 'payment' | 'profile' | 'tcc';
+  dimension?: "payment" | "profile" | "tcc";
   notes?: string;
 }
 
@@ -31,7 +34,14 @@ export const getEmailSubject = getSubject;
  * @returns Array of template names
  */
 export function getAvailableTemplates(): string[] {
-  return ['tracking', 'update-payment', 'update-info', 'update-tcc', 'approval-badge', 'rejection'];
+  return [
+    "tracking",
+    "update-payment",
+    "update-info",
+    "update-tcc",
+    "approval-badge",
+    "rejection",
+  ];
 }
 
 /**

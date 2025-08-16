@@ -1,10 +1,10 @@
-import { randomUUID } from 'crypto';
-import { 
+import { randomUUID } from "crypto";
+import {
   RegistrationEvent,
   BatchRegistrationEvent,
-  AutoRejectSweepEvent
-} from './types';
-import { Registration } from '../../types/database';
+  AutoRejectSweepEvent,
+} from "./types";
+import { Registration } from "../../types/database";
 
 /**
  * Factory for creating domain events
@@ -17,11 +17,11 @@ export class EventFactory {
   static createRegistrationSubmitted(
     registration: Registration,
     priceApplied?: number,
-    selectedPackage?: string
+    selectedPackage?: string,
   ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'registration.submitted',
+      type: "registration.submitted",
       payload: {
         registration,
         price_applied: priceApplied,
@@ -37,11 +37,11 @@ export class EventFactory {
    */
   static createRegistrationBatchUpserted(
     registrations: Registration[],
-    adminEmail?: string
+    adminEmail?: string,
   ): BatchRegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'registration.batch_upserted',
+      type: "registration.batch_upserted",
       payload: {
         registrations,
         admin_email: adminEmail,
@@ -57,12 +57,12 @@ export class EventFactory {
   static createAdminRequestUpdate(
     registration: Registration,
     adminEmail: string,
-    dimension: 'payment' | 'profile' | 'tcc',
-    notes?: string
+    dimension: "payment" | "profile" | "tcc",
+    notes?: string,
   ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'admin.request_update',
+      type: "admin.request_update",
       payload: {
         registration,
         admin_email: adminEmail,
@@ -79,11 +79,11 @@ export class EventFactory {
    */
   static createAdminApproved(
     registration: Registration,
-    adminEmail: string
+    adminEmail: string,
   ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'admin.approved',
+      type: "admin.approved",
       payload: {
         registration,
         admin_email: adminEmail,
@@ -99,11 +99,11 @@ export class EventFactory {
   static createAdminRejected(
     registration: Registration,
     adminEmail: string,
-    reason?: string
+    reason?: string,
   ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'admin.rejected',
+      type: "admin.rejected",
       payload: {
         registration,
         admin_email: adminEmail,
@@ -118,11 +118,11 @@ export class EventFactory {
    * Create a document re-uploaded event
    */
   static createDocumentReuploaded(
-    registration: Registration
+    registration: Registration,
   ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'document.reuploaded',
+      type: "document.reuploaded",
       payload: {
         registration,
       },
@@ -137,12 +137,12 @@ export class EventFactory {
   static createAdminReviewTrackUpdated(
     registration: Registration,
     adminEmail: string,
-    dimension: 'payment' | 'profile' | 'tcc',
-    dimensionStatus: 'pending' | 'needs_update' | 'passed' | 'rejected'
+    dimension: "payment" | "profile" | "tcc",
+    dimensionStatus: "pending" | "needs_update" | "passed" | "rejected",
   ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'admin.review_track_updated',
+      type: "admin.review_track_updated",
       payload: {
         registration,
         admin_email: adminEmail,
@@ -160,16 +160,16 @@ export class EventFactory {
   static createAdminMarkPass(
     registration: Registration,
     adminEmail: string,
-    dimension: 'payment' | 'profile' | 'tcc'
+    dimension: "payment" | "profile" | "tcc",
   ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'admin.mark_pass',
+      type: "admin.mark_pass",
       payload: {
         registration,
         admin_email: adminEmail,
         dimension,
-        dimension_status: 'passed',
+        dimension_status: "passed",
       },
       timestamp: new Date().toISOString(),
       correlation_id: registration.registration_id,
@@ -181,11 +181,11 @@ export class EventFactory {
    */
   static createUserResubmitted(
     registration: Registration,
-    updates: Record<string, any>
+    updates: Record<string, any>,
   ): RegistrationEvent {
     return {
       id: randomUUID(),
-      type: 'user.resubmitted',
+      type: "user.resubmitted",
       payload: {
         registration,
         updates,
@@ -198,16 +198,18 @@ export class EventFactory {
   /**
    * Create an auto-reject sweep completed event
    */
-  static createAutoRejectSweepCompleted(rejectedRegistrations: Array<{
-    registration_id: string;
-    reason: 'deadline_missed' | 'ineligible_rule_match';
-    email: string;
-    first_name: string;
-    last_name: string;
-  }>): AutoRejectSweepEvent {
+  static createAutoRejectSweepCompleted(
+    rejectedRegistrations: Array<{
+      registration_id: string;
+      reason: "deadline_missed" | "ineligible_rule_match";
+      email: string;
+      first_name: string;
+      last_name: string;
+    }>,
+  ): AutoRejectSweepEvent {
     return {
       id: randomUUID(),
-      type: 'auto_reject.sweep_completed',
+      type: "auto_reject.sweep_completed",
       payload: {
         rejected_registrations: rejectedRegistrations,
         sweep_timestamp: new Date().toISOString(),
