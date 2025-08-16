@@ -7,6 +7,7 @@ on:
 
 jobs:
   lint:
+    name: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,21 +15,19 @@ jobs:
         with:
           node-version: 18
           cache: npm
-
       - run: npm ci
 
-      - name: ESLint (strict; no warnings)
+      - name: ESLint (strict)
         run: npm run lint:strict
 
-      - name: Prettier check (PR, non-blocking)
+      - name: Prettier check (non-blocking on PR)
         if: github.event_name == 'pull_request'
         continue-on-error: true
         run: |
-          echo "Running Prettier check on app code (non-blocking for PR)."
           npx prettier -c "{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}" \
-            || echo "::warning::Prettier found formatting issues. Run 'npm run format' locally."
+            || echo "::warning::Prettier found issues. Run 'npm run format'."
 
-      - name: Prettier check (blocking on non-PR)
+      - name: Prettier check (blocking on push)
         if: github.event_name != 'pull_request'
         run: |
           npx prettier -c "{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}"
