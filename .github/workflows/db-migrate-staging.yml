@@ -1,11 +1,18 @@
 name: DB — Migrate to Staging
 
 on:
+  workflow_dispatch: {}  # กดรันเองได้
   pull_request:
-    paths: [ 'supabase/migrations/**', 'supabase/seed.sql' ]
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/seed.sql'
+      - '.github/workflows/db-migrate-staging.yml'  # แก้ไฟล์นี้ก็ให้วิ่ง
   push:
-    branches: [ develop ]
-    paths: [ 'supabase/migrations/**', 'supabase/seed.sql' ]
+    branches: [main, develop]   # ปรับตาม flow ของคุณได้
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/seed.sql'
 
 concurrency:
   group: db-staging-${{ github.ref }}
@@ -20,12 +27,18 @@ jobs:
         image: postgres:15-alpine
         env:
           POSTGRES_PASSWORD: postgres
-        ports: [ '5432:5432' ]
+        ports: ['5432:5432']
         options: >-
-          --health-cmd="pg_isready -U postgres" --health-interval=10s
-          --health-timeout=5s --health-retries=5
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - uses: actions/checkout@v4
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
       - uses: supabase/setup-cli@v1
       - name: Apply migrations to shadow
         env:
@@ -36,17 +49,30 @@ jobs:
 
   push_to_staging:
     name: Push migrations to Staging
-    needs: [ test_on_shadow ]
+    needs: [test_on_shadow]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
-      - name: Login & link (staging)
+      - name: Push → Staging (link or DB URL fallback)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase link --project-ref ${{ secrets.SB_STAGING_REF }}
-      - name: Push → Staging
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase db push
+          SB_STAGING_REF: ${{ secrets.SB_STAGING_REF }}
+          # (ทางเลือก) ใส่ถ้าอยาก fallback แบบไม่ใช้ link:
+          # STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Trying: supabase link → supabase db push"
+          if supabase link --project-ref "$SB_STAGING_REF"; then
+            supabase db push
+            exit 0
+          fi
+          echo "Link failed. Checking STAGING_DB_URL fallback..."
+          if [[ -n "${STAGING_DB_URL:-}" ]]; then
+            supabase db push --db-url "$STAGING_DB_URL"
+            exit 0
+          fi
+          echo "No STAGING_DB_URL provided and link failed." >&2
+          exit 1
 
