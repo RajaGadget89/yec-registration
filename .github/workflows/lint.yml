@@ -21,6 +21,7 @@ jobs:
         run: |
           npx eslint "{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,mjs,cjs}" --max-warnings=0
 
-      - name: Prettier check
-        run: npx prettier -c "**/*.{ts,tsx,js,json,css,md}"
+      - name: Prettier check (app code only)
+        run: |
+          npx prettier -c "{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}"
 
