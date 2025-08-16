@@ -22,53 +22,56 @@ jobs:
   test_on_shadow:
     name: Test migrations on Shadow DB
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        # ใช้ Postgres ของ Supabase เพื่อให้มี extensions พร้อม
-        image: supabase/postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+    env:
+      SUPABASE_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
+
       - name: Install psql client
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
+
       - uses: supabase/setup-cli@v1
         with:
-          version: latest      # <-- สำคัญ: ใช้ CLI ล่าสุดให้รองรับ key ใหม่ ๆ ใน config.toml
+          version: latest   # ใช้ CLI ล่าสุด อ่าน config.toml ได้แน่นอน
+
+      - name: Start local Supabase stack (shadow)
+        run: |
+          # สตาร์ทสแต็ก local (มี Postgres + extensions ที่จำเป็น)
+          supabase start
+          supabase status
+
       - name: Apply migrations to shadow
         env:
-          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
         shell: bash
         run: |
           set -euo pipefail
-          # บางเวอร์ชันมีคำถามยืนยัน ใช้ yes ป้อนให้
-          if yes | supabase db reset --db-url "$SHADOW_DB_URL"; then
-            echo "Reset & apply migrations to shadow: OK"
-          fi
+          # reset + apply migrations ลง shadow (non-interactive)
+          yes | supabase db reset --db-url "$SHADOW_DB_URL"
+          # seed (ถ้ามี)
           if [ -f supabase/seed.sql ]; then psql "$SHADOW_DB_URL" -f supabase/seed.sql; fi
 
   push_to_staging:
     name: Push migrations to Staging
     needs: [test_on_shadow]
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+
       - name: Push → Staging (link or DB URL fallback)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SB_STAGING_REF: ${{ secrets.SB_STAGING_REF }}
-          # (ถ้าต้องการ) STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+          # (ถ้ามีปัญหา link ให้เพิ่ม secret นี้ แล้วจะใช้ fallback อัตโนมัติ)
+          # STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
         shell: bash
         run: |
           set -euo pipefail
