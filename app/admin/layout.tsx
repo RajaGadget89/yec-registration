@@ -6,7 +6,7 @@ import AdminUserInfoClient from "./_components/AdminUserInfoClient";
 import { getCurrentUser } from "../lib/auth-utils.server";
 
 // Force dynamic rendering for admin routes that use cookies
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Admin Dashboard - YEC Day Registration",
@@ -19,12 +19,12 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
-  
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-yec-primary via-blue-600 to-blue-500 relative overflow-hidden">
       {/* Light overlay for better readability */}
       <div className="absolute inset-0 bg-white/5"></div>
-      
+
       {/* Enhanced background decorations with more light */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
         {/* Top right light */}
@@ -43,7 +43,7 @@ export default async function AdminLayout({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <Link 
+              <Link
                 href="/"
                 className="flex items-center space-x-2 text-yec-primary hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
               >
@@ -75,9 +75,11 @@ export default async function AdminLayout({
                 <span className="font-semibold">Audit</span>
               </Link>
               <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
-              <span className="text-gray-500 dark:text-gray-400 font-medium">Dashboard</span>
+              <span className="text-gray-500 dark:text-gray-400 font-medium">
+                Dashboard
+              </span>
             </div>
-            
+
             {/* Admin User Info and Actions */}
             <div className="flex items-center space-x-3">
               <AdminUserInfoClient user={user} />
@@ -88,9 +90,7 @@ export default async function AdminLayout({
 
       {/* Main Content - Adjusted padding to account for fixed header */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-16rem)] relative pt-20">
-        <div className="animate-fade-in-up">
-          {children}
-        </div>
+        <div className="animate-fade-in-up">{children}</div>
       </main>
 
       {/* Footer */}

@@ -54,7 +54,13 @@ export interface Database {
 }
 
 // Form data type for registration
-type FormData = Record<string, unknown> | unknown[] | string | number | boolean | null;
+type FormData =
+  | Record<string, unknown>
+  | unknown[]
+  | string
+  | number
+  | boolean
+  | null;
 
 // Registration table types
 export interface Registration {
@@ -71,12 +77,12 @@ export interface Registration {
   business_type: string;
   business_type_other: string | null;
   yec_province: string;
-  hotel_choice: 'in-quota' | 'out-of-quota';
-  room_type: 'single' | 'double' | 'suite' | 'no-accommodation' | null;
+  hotel_choice: "in-quota" | "out-of-quota";
+  room_type: "single" | "double" | "suite" | "no-accommodation" | null;
   roommate_info: string | null;
   roommate_phone: string | null;
   external_hotel_name: string | null;
-  travel_type: 'private-car' | 'van';
+  travel_type: "private-car" | "van";
   profile_image_url: string | null;
   chamber_card_url: string | null;
   payment_slip_url: string | null;
@@ -84,18 +90,33 @@ export interface Registration {
   email_sent: boolean;
   email_sent_at: string | null;
   // Phase 1: New status model
-  status: 'waiting_for_review' | 'waiting_for_update_payment' | 'waiting_for_update_info' | 'waiting_for_update_tcc' | 'approved' | 'rejected';
-  update_reason: 'payment' | 'info' | 'tcc' | null;
+  status:
+    | "waiting_for_review"
+    | "waiting_for_update_payment"
+    | "waiting_for_update_info"
+    | "waiting_for_update_tcc"
+    | "approved"
+    | "rejected";
+  update_reason: "payment" | "info" | "tcc" | null;
   rejected_reason: string | null;
   // Phase 1: 3-track checklist
-  payment_review_status: 'pending' | 'needs_update' | 'passed' | 'rejected';
-  profile_review_status: 'pending' | 'needs_update' | 'passed' | 'rejected';
-  tcc_review_status: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  payment_review_status: "pending" | "needs_update" | "passed" | "rejected";
+  profile_review_status: "pending" | "needs_update" | "passed" | "rejected";
+  tcc_review_status: "pending" | "needs_update" | "passed" | "rejected";
   // Phase 1: Comprehensive review workflow
   review_checklist: {
-    payment: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
-    profile: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
-    tcc: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
+    payment: {
+      status: "pending" | "needs_update" | "passed" | "rejected";
+      notes?: string;
+    };
+    profile: {
+      status: "pending" | "needs_update" | "passed" | "rejected";
+      notes?: string;
+    };
+    tcc: {
+      status: "pending" | "needs_update" | "passed" | "rejected";
+      notes?: string;
+    };
   };
   // Phase 1: Pricing fields
   price_applied: number | null;
@@ -121,12 +142,12 @@ export interface RegistrationInsert {
   business_type: string;
   business_type_other?: string | null;
   yec_province: string;
-  hotel_choice: 'in-quota' | 'out-of-quota';
-  room_type?: 'single' | 'double' | 'suite' | 'no-accommodation' | null;
+  hotel_choice: "in-quota" | "out-of-quota";
+  room_type?: "single" | "double" | "suite" | "no-accommodation" | null;
   roommate_info?: string | null;
   roommate_phone?: string | null;
   external_hotel_name?: string | null;
-  travel_type: 'private-car' | 'van';
+  travel_type: "private-car" | "van";
   profile_image_url?: string | null;
   chamber_card_url?: string | null;
   payment_slip_url?: string | null;
@@ -134,13 +155,19 @@ export interface RegistrationInsert {
   email_sent?: boolean;
   email_sent_at?: string | null;
   // Phase 1: New status model
-  status?: 'waiting_for_review' | 'waiting_for_update_payment' | 'waiting_for_update_info' | 'waiting_for_update_tcc' | 'approved' | 'rejected';
-  update_reason?: 'payment' | 'info' | 'tcc' | null;
+  status?:
+    | "waiting_for_review"
+    | "waiting_for_update_payment"
+    | "waiting_for_update_info"
+    | "waiting_for_update_tcc"
+    | "approved"
+    | "rejected";
+  update_reason?: "payment" | "info" | "tcc" | null;
   rejected_reason?: string | null;
   // Phase 1: 3-track checklist
-  payment_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
-  profile_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
-  tcc_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  payment_review_status?: "pending" | "needs_update" | "passed" | "rejected";
+  profile_review_status?: "pending" | "needs_update" | "passed" | "rejected";
+  tcc_review_status?: "pending" | "needs_update" | "passed" | "rejected";
   // Phase 1: Pricing fields
   price_applied?: number | null;
   currency?: string;
@@ -165,12 +192,12 @@ export interface RegistrationUpdate {
   business_type?: string;
   business_type_other?: string | null;
   yec_province?: string;
-  hotel_choice?: 'in-quota' | 'out-of-quota';
-  room_type?: 'single' | 'double' | 'suite' | 'no-accommodation' | null;
+  hotel_choice?: "in-quota" | "out-of-quota";
+  room_type?: "single" | "double" | "suite" | "no-accommodation" | null;
   roommate_info?: string | null;
   roommate_phone?: string | null;
   external_hotel_name?: string | null;
-  travel_type?: 'private-car' | 'van';
+  travel_type?: "private-car" | "van";
   profile_image_url?: string | null;
   chamber_card_url?: string | null;
   payment_slip_url?: string | null;
@@ -178,18 +205,33 @@ export interface RegistrationUpdate {
   email_sent?: boolean;
   email_sent_at?: string | null;
   // Phase 1: New status model
-  status?: 'waiting_for_review' | 'waiting_for_update_payment' | 'waiting_for_update_info' | 'waiting_for_update_tcc' | 'approved' | 'rejected';
-  update_reason?: 'payment' | 'info' | 'tcc' | null;
+  status?:
+    | "waiting_for_review"
+    | "waiting_for_update_payment"
+    | "waiting_for_update_info"
+    | "waiting_for_update_tcc"
+    | "approved"
+    | "rejected";
+  update_reason?: "payment" | "info" | "tcc" | null;
   rejected_reason?: string | null;
   // Phase 1: 3-track checklist
-  payment_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
-  profile_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
-  tcc_review_status?: 'pending' | 'needs_update' | 'passed' | 'rejected';
+  payment_review_status?: "pending" | "needs_update" | "passed" | "rejected";
+  profile_review_status?: "pending" | "needs_update" | "passed" | "rejected";
+  tcc_review_status?: "pending" | "needs_update" | "passed" | "rejected";
   // Phase 1: Comprehensive review workflow
   review_checklist?: {
-    payment: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
-    profile: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
-    tcc: { status: 'pending' | 'needs_update' | 'passed' | 'rejected'; notes?: string };
+    payment: {
+      status: "pending" | "needs_update" | "passed" | "rejected";
+      notes?: string;
+    };
+    profile: {
+      status: "pending" | "needs_update" | "passed" | "rejected";
+      notes?: string;
+    };
+    tcc: {
+      status: "pending" | "needs_update" | "passed" | "rejected";
+      notes?: string;
+    };
   };
   // Phase 1: Pricing fields
   price_applied?: number | null;
@@ -206,21 +248,21 @@ export interface RegistrationUpdate {
 export interface AdminUser {
   id: string;
   email: string;
-  role: 'admin' | 'super_admin';
+  role: "admin" | "super_admin";
   created_at: string;
   updated_at: string;
 }
 
 export interface AdminUserInsert {
   email: string;
-  role?: 'admin' | 'super_admin';
+  role?: "admin" | "super_admin";
   created_at?: string;
   updated_at?: string;
 }
 
 export interface AdminUserUpdate {
   email?: string;
-  role?: 'admin' | 'super_admin';
+  role?: "admin" | "super_admin";
   created_at?: string;
   updated_at?: string;
 }
@@ -322,4 +364,4 @@ export interface AuditEventLogInsert {
   result: string;
   reason?: string | null;
   meta?: any;
-} 
+}

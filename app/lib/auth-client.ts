@@ -1,5 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from '../types/database';
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../types/database";
 
 /**
  * Interface for authenticated user data (shared with server)
@@ -7,7 +7,7 @@ import type { Database } from '../types/database';
 export interface AuthenticatedUser {
   id: string;
   email: string;
-  role: 'admin' | 'super_admin';
+  role: "admin" | "super_admin";
   created_at: string;
   last_login_at: string | null;
   is_active: boolean;
@@ -21,7 +21,7 @@ function getSupabaseClientSide() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Missing Supabase environment variables');
+    throw new Error("Missing Supabase environment variables");
   }
 
   return createClient<Database>(supabaseUrl, supabaseAnonKey);
@@ -50,17 +50,19 @@ export function getSupabaseBrowserClient() {
 export async function getClientUser(): Promise<AuthenticatedUser | null> {
   try {
     const supabase = getSupabaseAuth();
-    
+
     // Get current session
-    const { data: { session } } = await supabase.auth.getSession();
-    
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     if (session?.user) {
       // Get user from admin_users table
       const { data: adminUser, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('id', session.user.id)
-        .eq('is_active', true)
+        .from("admin_users")
+        .select("*")
+        .eq("id", session.user.id)
+        .eq("is_active", true)
         .single();
 
       if (!error && adminUser) {
@@ -70,14 +72,14 @@ export async function getClientUser(): Promise<AuthenticatedUser | null> {
           role: adminUser.role,
           created_at: adminUser.created_at,
           last_login_at: adminUser.last_login_at,
-          is_active: adminUser.is_active
+          is_active: adminUser.is_active,
         };
       }
     }
-    
+
     return null;
   } catch (error) {
-    console.error('Error getting client user:', error);
+    console.error("Error getting client user:", error);
     return null;
   }
 }

@@ -1,5 +1,10 @@
 // Export database types
-export type { Database, Registration, RegistrationInsert, RegistrationUpdate } from './database';
+export type {
+  Database,
+  Registration,
+  RegistrationInsert,
+  RegistrationUpdate,
+} from "./database";
 
 // User and Registration Types
 export interface User {
@@ -52,7 +57,7 @@ export interface AuthResponse {
 export interface AuthUser {
   id: string;
   email: string;
-  role: 'user' | 'admin';
+  role: "user" | "admin";
   firstName: string;
   lastName: string;
 }
@@ -163,7 +168,7 @@ export interface ValidationError {
 }
 
 export interface ValidationResult {
-  status: 'valid' | 'invalid' | 'partial' | null;
+  status: "valid" | "invalid" | "partial" | null;
   message?: string;
   isValid: boolean;
 }
@@ -172,4 +177,4 @@ export interface FormState {
   isValid: boolean;
   errors: ValidationError[];
   isSubmitting: boolean;
-} 
+}

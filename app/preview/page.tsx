@@ -1,14 +1,17 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import TopMenuBar from '../components/TopMenuBar';
-import Footer from '../components/Footer';
-import Modal from '../components/Modal';
-import FadeInStagger from '../components/animations/FadeInStagger';
-import SlideUp from '../components/animations/SlideUp';
-import { FormData, formSchema } from '../components/RegistrationForm/FormSchema';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import TopMenuBar from "../components/TopMenuBar";
+import Footer from "../components/Footer";
+import Modal from "../components/Modal";
+import FadeInStagger from "../components/animations/FadeInStagger";
+import SlideUp from "../components/animations/SlideUp";
+import {
+  FormData,
+  formSchema,
+} from "../components/RegistrationForm/FormSchema";
 
 export default function PreviewPage() {
   const router = useRouter();
@@ -30,74 +33,77 @@ export default function PreviewPage() {
 
   // Load form data from localStorage on component mount
   useEffect(() => {
-    console.log('Preview page mounted - Loading form data'); // Debug log
-    
-    const storedData = localStorage.getItem('yecRegistrationData');
+    console.log("Preview page mounted - Loading form data"); // Debug log
+
+    const storedData = localStorage.getItem("yecRegistrationData");
     if (!storedData) {
-      console.log('No stored data found, redirecting to home'); // Debug log
-      router.push('/');
+      console.log("No stored data found, redirecting to home"); // Debug log
+      router.push("/");
       return;
     }
 
     try {
       const parsedData = JSON.parse(storedData);
-      
+
       // Validate that parsedData is an object
-      if (typeof parsedData !== 'object' || parsedData === null) {
-        console.error('Invalid form data structure:', parsedData);
-        router.push('/');
+      if (typeof parsedData !== "object" || parsedData === null) {
+        console.error("Invalid form data structure:", parsedData);
+        router.push("/");
         return;
       }
 
       // Ensure all expected fields exist with proper defaults
       const validatedData = { ...parsedData };
-      
+
       // Set default values for missing fields to prevent rendering errors
-      formSchema.forEach(field => {
+      formSchema.forEach((field) => {
         if (!(field.id in validatedData)) {
-          validatedData[field.id] = '';
+          validatedData[field.id] = "";
         }
       });
 
-      console.log('Form data loaded successfully:', validatedData); // Debug log
-      console.log('Hotel choice:', validatedData.hotelChoice); // Debug hotel choice
-      console.log('Room type:', validatedData.roomType); // Debug room type
-      console.log('External hotel name:', validatedData.external_hotel_name); // Debug external hotel
+      console.log("Form data loaded successfully:", validatedData); // Debug log
+      console.log("Hotel choice:", validatedData.hotelChoice); // Debug hotel choice
+      console.log("Room type:", validatedData.roomType); // Debug room type
+      console.log("External hotel name:", validatedData.external_hotel_name); // Debug external hotel
       setFormData(validatedData);
     } catch (err) {
-      console.error('Error parsing stored form data:', err);
-      router.push('/');
+      console.error("Error parsing stored form data:", err);
+      router.push("/");
     }
   }, [router]);
 
   // Get field label from schema
   const getFieldLabel = (fieldId: string): string => {
     // First check if it's a main field
-    const field = formSchema.find(f => f.id === fieldId);
+    const field = formSchema.find((f) => f.id === fieldId);
     if (field) {
       return field.label;
     }
-    
+
     // Check if it's an extraField
     for (const schemaField of formSchema) {
       if (schemaField.extraField && schemaField.extraField.id === fieldId) {
         return schemaField.extraField.label;
       }
-      if (schemaField.roommatePhoneField && schemaField.roommatePhoneField.id === fieldId) {
+      if (
+        schemaField.roommatePhoneField &&
+        schemaField.roommatePhoneField.id === fieldId
+      ) {
         return schemaField.roommatePhoneField.label;
       }
     }
-    
+
     // Fallback to fieldId if not found
     return fieldId;
   };
 
   // Get option label for select fields
   const getOptionLabel = (fieldId: string, value: string): string => {
-    const field = formSchema.find(f => f.id === fieldId);
+    const field = formSchema.find((f) => f.id === fieldId);
     if (!field?.options) return value;
-    
-    const option = field.options.find(opt => opt.value === value);
+
+    const option = field.options.find((opt) => opt.value === value);
     return option?.label || value;
   };
 
@@ -106,19 +112,19 @@ export default function PreviewPage() {
     if (formData) {
       try {
         // Store edit data in sessionStorage
-        sessionStorage.setItem('yecEditData', JSON.stringify(formData));
-        
+        sessionStorage.setItem("yecEditData", JSON.stringify(formData));
+
         // Clear any existing localStorage data to prevent conflicts
-        localStorage.removeItem('yecRegistrationData');
-        
+        localStorage.removeItem("yecRegistrationData");
+
         // Navigate to edit mode and focus on firstName field
-        router.push('/?edit=true#firstName');
+        router.push("/?edit=true#firstName");
       } catch (err) {
-        console.error('Error navigating to edit mode:', err);
-        router.push('/?edit=true');
+        console.error("Error navigating to edit mode:", err);
+        router.push("/?edit=true");
       }
     } else {
-      router.push('/');
+      router.push("/");
     }
   };
 
@@ -127,19 +133,19 @@ export default function PreviewPage() {
     if (formData) {
       try {
         // Store edit data in sessionStorage
-        sessionStorage.setItem('yecEditData', JSON.stringify(formData));
-        
+        sessionStorage.setItem("yecEditData", JSON.stringify(formData));
+
         // Clear any existing localStorage data to prevent conflicts
-        localStorage.removeItem('yecRegistrationData');
-        
+        localStorage.removeItem("yecRegistrationData");
+
         // Navigate to edit mode and focus on email field
-        router.push('/?edit=true#email');
-        
+        router.push("/?edit=true#email");
+
         // Fallback: if navigation doesn't work, try to focus directly
         setTimeout(() => {
-          const emailField = document.getElementById('email');
-          const phoneField = document.getElementById('phone');
-          
+          const emailField = document.getElementById("email");
+          const phoneField = document.getElementById("phone");
+
           if (emailField) {
             emailField.focus();
           } else if (phoneField) {
@@ -147,11 +153,11 @@ export default function PreviewPage() {
           }
         }, 100);
       } catch (err) {
-        console.error('Error navigating to edit mode:', err);
-        router.push('/?edit=true');
+        console.error("Error navigating to edit mode:", err);
+        router.push("/?edit=true");
       }
     } else {
-      router.push('/');
+      router.push("/");
     }
   };
 
@@ -159,42 +165,46 @@ export default function PreviewPage() {
   const handleEdit = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    console.log('Edit button clicked - Starting edit process'); // Debug log
-    
+
+    console.log("Edit button clicked - Starting edit process"); // Debug log
+
     if (formData) {
       try {
         // Convert base64 data URLs to regular file metadata for edit mode
         const editData = { ...formData };
-        const fileFields = ['profileImage', 'chamberCard', 'paymentSlip'];
-        
-        fileFields.forEach(fieldId => {
-          if (editData[fieldId] && typeof editData[fieldId] === 'object' && 'dataUrl' in editData[fieldId]) {
+        const fileFields = ["profileImage", "chamberCard", "paymentSlip"];
+
+        fileFields.forEach((fieldId) => {
+          if (
+            editData[fieldId] &&
+            typeof editData[fieldId] === "object" &&
+            "dataUrl" in editData[fieldId]
+          ) {
             // Keep the dataUrl for image display in edit mode
             // The FormField component will handle showing the image
           }
         });
-        
+
         // Store edit data in sessionStorage
-        sessionStorage.setItem('yecEditData', JSON.stringify(editData));
-        console.log('Edit data stored in sessionStorage'); // Debug log
-        
+        sessionStorage.setItem("yecEditData", JSON.stringify(editData));
+        console.log("Edit data stored in sessionStorage"); // Debug log
+
         // Clear any existing localStorage data to prevent conflicts
-        localStorage.removeItem('yecRegistrationData');
-        
+        localStorage.removeItem("yecRegistrationData");
+
         // Use router.push for better navigation control
-        router.push('/?edit=true#form');
-        
-        console.log('Navigation to edit mode initiated'); // Debug log
+        router.push("/?edit=true#form");
+
+        console.log("Navigation to edit mode initiated"); // Debug log
       } catch (err) {
-        console.error('Error saving form data for edit:', err);
+        console.error("Error saving form data for edit:", err);
         // Fallback to home page
-        router.push('/');
+        router.push("/");
       }
     } else {
-      console.log('No form data found, navigating to home page'); // Debug log
+      console.log("No form data found, navigating to home page"); // Debug log
       // If no form data, just go to home page
-      router.push('/');
+      router.push("/");
     }
   };
 
@@ -202,16 +212,16 @@ export default function PreviewPage() {
   const handleSubmit = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    console.log('Submit button clicked, PDPA consent:', pdpaConsent); // Debug log
-    
+
+    console.log("Submit button clicked, PDPA consent:", pdpaConsent); // Debug log
+
     if (!pdpaConsent) {
-      setError('กรุณายอมรับเงื่อนไขการเก็บข้อมูลส่วนบุคคล (PDPA)');
+      setError("กรุณายอมรับเงื่อนไขการเก็บข้อมูลส่วนบุคคล (PDPA)");
       return;
     }
 
     if (!formData) {
-      setError('ไม่พบข้อมูลการลงทะเบียน');
+      setError("ไม่พบข้อมูลการลงทะเบียน");
       return;
     }
 
@@ -219,21 +229,25 @@ export default function PreviewPage() {
     setError(null);
 
     try {
-      console.log('Making API call to /api/register'); // Debug log
-      
-      const response = await fetch('/api/register', {
-        method: 'POST',
+      console.log("Making API call to /api/register"); // Debug log
+
+      const response = await fetch("/api/register", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
       });
 
-      console.log('API response status:', response.status); // Debug log
+      console.log("API response status:", response.status); // Debug log
 
-      const raw = await response.text();           // get text first
+      const raw = await response.text(); // get text first
       let data: any = null;
-      try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        data = null;
+      }
 
       if (!response.ok) {
         // Non-200 but we now expect JSON; still handle if it's empty
@@ -245,14 +259,14 @@ export default function PreviewPage() {
         // Show user-friendly modal (no throw)
         setModal({
           isOpen: true,
-          title: 'เกิดข้อผิดพลาด',
+          title: "เกิดข้อผิดพลาด",
           message: msg,
           actions: [
             {
-              label: 'ตกลง',
-              onClick: () => setModal(null)
-            }
-          ]
+              label: "ตกลง",
+              onClick: () => setModal(null),
+            },
+          ],
         });
         setIsSubmitting(false);
         return;
@@ -260,49 +274,49 @@ export default function PreviewPage() {
 
       // Business errors that come with 200 + success:false
       if (data && data.success === false) {
-        if (data.code === 'DUPLICATE_NAME_MATCH') {
+        if (data.code === "DUPLICATE_NAME_MATCH") {
           setModal({
             isOpen: true,
-            title: 'พบข้อมูลผู้สมัคร',
-            message: `${data.message}${data.contact ? ` (${data.contact})` : ''}`,
+            title: "พบข้อมูลผู้สมัคร",
+            message: `${data.message}${data.contact ? ` (${data.contact})` : ""}`,
             actions: [
               {
-                label: 'โทรหาเจ้าหน้าที่',
-                href: `tel:${data.contact || '0802240008'}`,
-                primary: true
+                label: "โทรหาเจ้าหน้าที่",
+                href: `tel:${data.contact || "0802240008"}`,
+                primary: true,
               },
               {
-                label: 'แก้ไขชื่อ–นามสกุล',
+                label: "แก้ไขชื่อ–นามสกุล",
                 onClick: () => {
                   setModal(null);
                   focusNameFields();
-                }
-              }
-            ]
+                },
+              },
+            ],
           });
           setIsSubmitting(false);
           return;
         }
 
-        if (data.code === 'DUPLICATE_EMAIL_OR_PHONE') {
+        if (data.code === "DUPLICATE_EMAIL_OR_PHONE") {
           setModal({
             isOpen: true,
-            title: 'พบข้อมูลซ้ำ',
-            message: `${data.message}${data.contact ? ` (${data.contact})` : ''}`,
+            title: "พบข้อมูลซ้ำ",
+            message: `${data.message}${data.contact ? ` (${data.contact})` : ""}`,
             actions: [
               {
-                label: 'โทรหาเจ้าหน้าที่',
-                href: `tel:${data.contact || '0802240008'}`,
-                primary: true
+                label: "โทรหาเจ้าหน้าที่",
+                href: `tel:${data.contact || "0802240008"}`,
+                primary: true,
               },
               {
-                label: 'เปลี่ยนอีเมล/เบอร์โทร',
+                label: "เปลี่ยนอีเมล/เบอร์โทร",
                 onClick: () => {
                   setModal(null);
                   focusContactFields();
-                }
-              }
-            ]
+                },
+              },
+            ],
           });
           setIsSubmitting(false);
           return;
@@ -311,58 +325,59 @@ export default function PreviewPage() {
         // Unknown business error -> friendly modal
         setModal({
           isOpen: true,
-          title: 'เกิดข้อผิดพลาด',
-          message: data.message || 'Operation failed',
+          title: "เกิดข้อผิดพลาด",
+          message: data.message || "Operation failed",
           actions: [
             {
-              label: 'ตกลง',
-              onClick: () => setModal(null)
-            }
-          ]
+              label: "ตกลง",
+              onClick: () => setModal(null),
+            },
+          ],
         });
         setIsSubmitting(false);
         return;
       }
 
       // Success path
-      console.log('Registration successful, result:', data); // Debug log
-      
+      console.log("Registration successful, result:", data); // Debug log
+
       // Clear localStorage after successful submission
-      localStorage.removeItem('yecRegistrationData');
-      
+      localStorage.removeItem("yecRegistrationData");
+
       // Add fade transition effect
-      const mainElement = document.querySelector('main');
+      const mainElement = document.querySelector("main");
       if (mainElement) {
-        mainElement.style.transition = 'opacity 0.5s ease-out';
-        mainElement.style.opacity = '0';
+        mainElement.style.transition = "opacity 0.5s ease-out";
+        mainElement.style.opacity = "0";
       }
-      
+
       // Navigate to success page after fade with badge URL and email status if available
       setTimeout(() => {
         let successUrl = `/success?id=${data.registration_id}`;
-        
+
         if (data.badgeUrl) {
           successUrl += `&badgeUrl=${encodeURIComponent(data.badgeUrl)}`;
         }
-        
+
         if (data.emailSent !== undefined) {
           successUrl += `&email=${data.emailSent}`;
         }
-        
+
         router.push(successUrl);
       }, 500);
     } catch (err) {
-      console.error('Submission error:', err);
+      console.error("Submission error:", err);
       setModal({
         isOpen: true,
-        title: 'เกิดข้อผิดพลาด',
-        message: err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการส่งข้อมูล',
+        title: "เกิดข้อผิดพลาด",
+        message:
+          err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการส่งข้อมูล",
         actions: [
           {
-            label: 'ตกลง',
-            onClick: () => setModal(null)
-          }
-        ]
+            label: "ตกลง",
+            onClick: () => setModal(null),
+          },
+        ],
       });
     } finally {
       setIsSubmitting(false);
@@ -373,16 +388,20 @@ export default function PreviewPage() {
   const renderFieldValue = (fieldId: string, value: any) => {
     if (!value) return <span className="text-gray-400">ไม่ระบุ</span>;
 
-    const field = formSchema.find(f => f.id === fieldId);
-    
+    const field = formSchema.find((f) => f.id === fieldId);
+
     // Handle File objects (upload fields)
-    if (field?.type === 'upload') {
-      if (typeof window !== 'undefined' && value instanceof File) {
+    if (field?.type === "upload") {
+      if (typeof window !== "undefined" && value instanceof File) {
         return (
           <div className="mt-2">
             <div className="w-full h-48 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden flex items-center justify-center">
               <Image
-                src={typeof window !== 'undefined' ? URL.createObjectURL(value) : ''}
+                src={
+                  typeof window !== "undefined"
+                    ? URL.createObjectURL(value)
+                    : ""
+                }
                 alt={field.label}
                 width={200}
                 height={200}
@@ -391,11 +410,14 @@ export default function PreviewPage() {
             </div>
           </div>
         );
-      } else if (typeof value === 'string' && value.startsWith('http')) {
+      } else if (typeof value === "string" && value.startsWith("http")) {
         // New format: URL from Supabase
         return (
           <div className="mt-2">
-            <div className="w-full h-48 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden flex items-center justify-center" data-image-field={fieldId}>
+            <div
+              className="w-full h-48 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden flex items-center justify-center"
+              data-image-field={fieldId}
+            >
               <Image
                 src={value}
                 alt={field.label}
@@ -404,12 +426,13 @@ export default function PreviewPage() {
                 className="w-full h-full object-contain"
                 onError={(e) => {
                   // Don't log to console in production to avoid noise
-                  if (process.env.NODE_ENV === 'development') {
-                    console.error('Failed to load image from URL:', value);
+                  if (process.env.NODE_ENV === "development") {
+                    console.error("Failed to load image from URL:", value);
                   }
-                  e.currentTarget.style.display = 'none';
-                  const errorDiv = document.createElement('div');
-                  errorDiv.className = 'flex items-center justify-center w-full h-full text-red-500 text-sm bg-gray-50 dark:bg-gray-700 rounded';
+                  e.currentTarget.style.display = "none";
+                  const errorDiv = document.createElement("div");
+                  errorDiv.className =
+                    "flex items-center justify-center w-full h-full text-red-500 text-sm bg-gray-50 dark:bg-gray-700 rounded";
                   errorDiv.innerHTML = `
                     <div class="text-center">
                       <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -423,9 +446,11 @@ export default function PreviewPage() {
                 }}
                 onLoad={() => {
                   // Remove any existing error div when image loads successfully
-                  const parent = document.querySelector(`[data-image-field="${fieldId}"]`);
+                  const parent = document.querySelector(
+                    `[data-image-field="${fieldId}"]`,
+                  );
                   if (parent) {
-                    const errorDiv = parent.querySelector('.text-red-500');
+                    const errorDiv = parent.querySelector(".text-red-500");
                     if (errorDiv) {
                       errorDiv.remove();
                     }
@@ -434,13 +459,15 @@ export default function PreviewPage() {
               />
             </div>
             <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
-              <p className="text-xs text-gray-600 dark:text-gray-400">ไฟล์อัปโหลดแล้ว</p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                ไฟล์อัปโหลดแล้ว
+              </p>
             </div>
           </div>
         );
-      } else if (value && typeof value === 'object' && 'name' in value) {
+      } else if (value && typeof value === "object" && "name" in value) {
         // Old format: file metadata from localStorage (backward compatibility)
-        if ('dataUrl' in value) {
+        if ("dataUrl" in value) {
           // Show actual image if we have base64 data
           return (
             <div className="mt-2">
@@ -454,7 +481,9 @@ export default function PreviewPage() {
                 />
               </div>
               <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-700 rounded border border-gray-200 dark:border-gray-600">
-                <p className="text-xs text-gray-600 dark:text-gray-400">{value.name}</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  {value.name}
+                </p>
                 <p className="text-xs text-gray-500 dark:text-gray-500">
                   {(value.size / 1024 / 1024).toFixed(2)} MB • {value.type}
                 </p>
@@ -466,10 +495,22 @@ export default function PreviewPage() {
           return (
             <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
               <div className="flex items-center space-x-2">
-                <svg className="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                <svg
+                  className="w-5 h-5 text-gray-500 dark:text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                  />
                 </svg>
-                <span className="text-sm text-gray-700 dark:text-gray-300">{value.name}</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  {value.name}
+                </span>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                 {(value.size / 1024 / 1024).toFixed(2)} MB • {value.type}
@@ -481,14 +522,14 @@ export default function PreviewPage() {
     }
 
     // Handle select fields
-    if (field?.type === 'select') {
+    if (field?.type === "select") {
       return <span>{getOptionLabel(fieldId, value)}</span>;
     }
 
     // Handle objects and arrays - convert to string
-    if (typeof value === 'object' && value !== null) {
+    if (typeof value === "object" && value !== null) {
       if (Array.isArray(value)) {
-        return <span>{value.join(', ')}</span>;
+        return <span>{value.join(", ")}</span>;
       }
       // For plain objects, try to get a meaningful string representation
       const objectKeys = Object.keys(value);
@@ -499,7 +540,10 @@ export default function PreviewPage() {
       if (objectKeys.length === 1) {
         const key = objectKeys[0];
         const objectValue = value[key];
-        if (typeof objectValue === 'string' || typeof objectValue === 'number') {
+        if (
+          typeof objectValue === "string" ||
+          typeof objectValue === "number"
+        ) {
           return <span>{objectValue}</span>;
         }
       }
@@ -512,34 +556,42 @@ export default function PreviewPage() {
   };
 
   // Group fields for better layout
-  const personalFields = ['title', 'firstName', 'lastName', 'nickname', 'phone', 'lineId', 'email'];
-  const businessFields = ['companyName', 'businessType'];
-  const uploadFields = ['profileImage', 'chamberCard', 'paymentSlip'];
-  const otherFields = ['yecProvince', 'travelType'];
+  const personalFields = [
+    "title",
+    "firstName",
+    "lastName",
+    "nickname",
+    "phone",
+    "lineId",
+    "email",
+  ];
+  const businessFields = ["companyName", "businessType"];
+  const uploadFields = ["profileImage", "chamberCard", "paymentSlip"];
+  const otherFields = ["yecProvince", "travelType"];
 
   // Helper function to check if businessTypeOther should be shown
   const shouldShowBusinessTypeOther = () => {
-    const businessType = getFieldValue('businessType');
-    return businessType === 'other';
+    const businessType = getFieldValue("businessType");
+    return businessType === "other";
   };
 
   // Helper function to check if roommateInfo should be shown
   const shouldShowRoommateInfo = () => {
-    const hotelChoice = getFieldValue('hotelChoice');
-    const roomType = getFieldValue('roomType');
-    return hotelChoice === 'in-quota' && roomType === 'double';
+    const hotelChoice = getFieldValue("hotelChoice");
+    const roomType = getFieldValue("roomType");
+    return hotelChoice === "in-quota" && roomType === "double";
   };
 
   // Helper function to check if roommatePhone should be shown
   const shouldShowRoommatePhone = () => {
-    const hotelChoice = getFieldValue('hotelChoice');
-    const roomType = getFieldValue('roomType');
-    return hotelChoice === 'in-quota' && roomType === 'double';
+    const hotelChoice = getFieldValue("hotelChoice");
+    const roomType = getFieldValue("roomType");
+    return hotelChoice === "in-quota" && roomType === "double";
   };
 
   // Helper function to safely get field value
   const getFieldValue = (fieldId: string) => {
-    return formData?.[fieldId] || '';
+    return formData?.[fieldId] || "";
   };
 
   if (!formData) {
@@ -549,7 +601,9 @@ export default function PreviewPage() {
         <div className="pt-24 flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yec-primary mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-300">กำลังโหลดข้อมูล...</p>
+            <p className="text-gray-600 dark:text-gray-300">
+              กำลังโหลดข้อมูล...
+            </p>
           </div>
         </div>
         <Footer />
@@ -560,7 +614,7 @@ export default function PreviewPage() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       <TopMenuBar />
-      
+
       <main className="pt-24 pb-16">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
@@ -568,8 +622,18 @@ export default function PreviewPage() {
             <div className="bg-gradient-to-r from-yec-primary/10 to-yec-accent/10 dark:from-yec-primary/20 dark:to-yec-accent/20 rounded-2xl p-8 border border-yec-primary/20 dark:border-yec-primary/30">
               <div className="flex items-center justify-center space-x-4 mb-4">
                 <div className="w-12 h-12 bg-yec-primary/20 dark:bg-yec-primary/30 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-yec-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-6 h-6 text-yec-primary"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <h1 className="text-3xl sm:text-4xl font-bold text-yec-primary">
@@ -591,8 +655,18 @@ export default function PreviewPage() {
           >
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 mb-4">
-                <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                <svg
+                  className="h-6 w-6 text-red-600 dark:text-red-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
                 </svg>
               </div>
               <p className="text-gray-700 dark:text-gray-300">{error}</p>
@@ -600,14 +674,27 @@ export default function PreviewPage() {
           </Modal>
 
           {/* Form Data Display */}
-          <FadeInStagger delay={50} className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden mb-8">
+          <FadeInStagger
+            delay={50}
+            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden mb-8"
+          >
             {/* Header Section */}
             <div className="bg-gradient-to-r from-yec-primary/5 to-yec-accent/5 dark:from-yec-primary/10 dark:to-yec-accent/10 px-8 py-6 border-b border-gray-100 dark:border-gray-700">
               <div className="flex items-center space-x-3">
                 <div className="flex-shrink-0">
                   <div className="w-10 h-10 bg-yec-primary/10 dark:bg-yec-primary/20 rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 text-yec-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg
+                      className="w-5 h-5 text-yec-primary"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
                     </svg>
                   </div>
                 </div>
@@ -625,15 +712,24 @@ export default function PreviewPage() {
             {/* Content Section */}
             <div className="p-8">
               <div className="flex flex-col lg:flex-row gap-8">
-                
                 {/* Left Column */}
                 <div className="flex-1 space-y-8">
                   {/* Personal Information */}
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-100 dark:border-gray-600">
                     <div className="flex items-center space-x-3 mb-6">
                       <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        <svg
+                          className="w-4 h-4 text-blue-600 dark:text-blue-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                          />
                         </svg>
                       </div>
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -641,15 +737,21 @@ export default function PreviewPage() {
                       </h3>
                     </div>
                     <div className="space-y-5">
-                      {personalFields.map(fieldId => (
-                        <div key={fieldId} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
+                      {personalFields.map((fieldId) => (
+                        <div
+                          key={fieldId}
+                          className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600"
+                        >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
                                 {getFieldLabel(fieldId)}
                               </label>
                               <div className="text-base font-medium text-gray-900 dark:text-white">
-                                {renderFieldValue(fieldId, getFieldValue(fieldId))}
+                                {renderFieldValue(
+                                  fieldId,
+                                  getFieldValue(fieldId),
+                                )}
                               </div>
                             </div>
                           </div>
@@ -662,9 +764,24 @@ export default function PreviewPage() {
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-100 dark:border-gray-600">
                     <div className="flex items-center space-x-3 mb-6">
                       <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <svg
+                          className="w-4 h-4 text-orange-600 dark:text-orange-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
                         </svg>
                       </div>
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -672,15 +789,21 @@ export default function PreviewPage() {
                       </h3>
                     </div>
                     <div className="space-y-5">
-                      {otherFields.map(fieldId => (
-                        <div key={fieldId} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
+                      {otherFields.map((fieldId) => (
+                        <div
+                          key={fieldId}
+                          className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600"
+                        >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
                                 {getFieldLabel(fieldId)}
                               </label>
                               <div className="text-base font-medium text-gray-900 dark:text-white">
-                                {renderFieldValue(fieldId, getFieldValue(fieldId))}
+                                {renderFieldValue(
+                                  fieldId,
+                                  getFieldValue(fieldId),
+                                )}
                               </div>
                             </div>
                           </div>
@@ -696,8 +819,18 @@ export default function PreviewPage() {
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-100 dark:border-gray-600">
                     <div className="flex items-center space-x-3 mb-6">
                       <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        <svg
+                          className="w-4 h-4 text-green-600 dark:text-green-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                          />
                         </svg>
                       </div>
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -705,31 +838,40 @@ export default function PreviewPage() {
                       </h3>
                     </div>
                     <div className="space-y-5">
-                      {businessFields.map(fieldId => (
-                        <div key={fieldId} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
+                      {businessFields.map((fieldId) => (
+                        <div
+                          key={fieldId}
+                          className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600"
+                        >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
                                 {getFieldLabel(fieldId)}
                               </label>
                               <div className="text-base font-medium text-gray-900 dark:text-white">
-                                {renderFieldValue(fieldId, getFieldValue(fieldId))}
+                                {renderFieldValue(
+                                  fieldId,
+                                  getFieldValue(fieldId),
+                                )}
                               </div>
                             </div>
                           </div>
                         </div>
                       ))}
-                      
+
                       {/* Conditionally show businessTypeOther field */}
                       {shouldShowBusinessTypeOther() && (
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
-                                {getFieldLabel('businessTypeOther')}
+                                {getFieldLabel("businessTypeOther")}
                               </label>
                               <div className="text-base font-medium text-gray-900 dark:text-white">
-                                {renderFieldValue('businessTypeOther', getFieldValue('businessTypeOther'))}
+                                {renderFieldValue(
+                                  "businessTypeOther",
+                                  getFieldValue("businessTypeOther"),
+                                )}
                               </div>
                             </div>
                           </div>
@@ -742,9 +884,24 @@ export default function PreviewPage() {
                   <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-100 dark:border-gray-600">
                     <div className="flex items-center space-x-3 mb-6">
                       <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                        <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z" />
+                        <svg
+                          className="w-4 h-4 text-purple-600 dark:text-purple-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"
+                          />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"
+                          />
                         </svg>
                       </div>
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -757,25 +914,31 @@ export default function PreviewPage() {
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
-                              {getFieldLabel('hotelChoice')}
+                              {getFieldLabel("hotelChoice")}
                             </label>
                             <div className="text-base font-medium text-gray-900 dark:text-white">
-                              {renderFieldValue('hotelChoice', getFieldValue('hotelChoice'))}
+                              {renderFieldValue(
+                                "hotelChoice",
+                                getFieldValue("hotelChoice"),
+                              )}
                             </div>
                           </div>
                         </div>
                       </div>
 
                       {/* Room Type - Only shown when hotelChoice is 'in-quota' */}
-                      {getFieldValue('hotelChoice') === 'in-quota' && (
+                      {getFieldValue("hotelChoice") === "in-quota" && (
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
-                                {getFieldLabel('roomType')}
+                                {getFieldLabel("roomType")}
                               </label>
                               <div className="text-base font-medium text-gray-900 dark:text-white">
-                                {renderFieldValue('roomType', getFieldValue('roomType'))}
+                                {renderFieldValue(
+                                  "roomType",
+                                  getFieldValue("roomType"),
+                                )}
                               </div>
                             </div>
                           </div>
@@ -783,47 +946,56 @@ export default function PreviewPage() {
                       )}
 
                       {/* External Hotel Name - Only shown when hotelChoice is 'out-of-quota' */}
-                      {getFieldValue('hotelChoice') === 'out-of-quota' && (
+                      {getFieldValue("hotelChoice") === "out-of-quota" && (
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
-                                {getFieldLabel('external_hotel_name')}
+                                {getFieldLabel("external_hotel_name")}
                               </label>
                               <div className="text-base font-medium text-gray-900 dark:text-white">
-                                {renderFieldValue('external_hotel_name', getFieldValue('external_hotel_name'))}
+                                {renderFieldValue(
+                                  "external_hotel_name",
+                                  getFieldValue("external_hotel_name"),
+                                )}
                               </div>
                             </div>
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Conditionally show roommateInfo field */}
                       {shouldShowRoommateInfo() && (
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
-                                {getFieldLabel('roommateInfo')}
+                                {getFieldLabel("roommateInfo")}
                               </label>
                               <div className="text-base font-medium text-gray-900 dark:text-white">
-                                {renderFieldValue('roommateInfo', getFieldValue('roommateInfo'))}
+                                {renderFieldValue(
+                                  "roommateInfo",
+                                  getFieldValue("roommateInfo"),
+                                )}
                               </div>
                             </div>
                           </div>
                         </div>
                       )}
-                      
+
                       {/* Conditionally show roommatePhone field */}
                       {shouldShowRoommatePhone() && (
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1 block">
-                                {getFieldLabel('roommatePhone')}
+                                {getFieldLabel("roommatePhone")}
                               </label>
                               <div className="text-base font-medium text-gray-900 dark:text-white">
-                                {renderFieldValue('roommatePhone', getFieldValue('roommatePhone'))}
+                                {renderFieldValue(
+                                  "roommatePhone",
+                                  getFieldValue("roommatePhone"),
+                                )}
                               </div>
                             </div>
                           </div>
@@ -839,8 +1011,18 @@ export default function PreviewPage() {
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6 border border-gray-100 dark:border-gray-600">
                   <div className="flex items-center space-x-3 mb-6">
                     <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
-                      <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      <svg
+                        className="w-4 h-4 text-red-600 dark:text-red-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                        />
                       </svg>
                     </div>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">
@@ -848,8 +1030,11 @@ export default function PreviewPage() {
                     </h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {uploadFields.map(fieldId => (
-                      <div key={fieldId} className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600">
+                    {uploadFields.map((fieldId) => (
+                      <div
+                        key={fieldId}
+                        className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-600"
+                      >
                         <div className="flex flex-col">
                           <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 block">
                             {getFieldLabel(fieldId)}
@@ -867,11 +1052,24 @@ export default function PreviewPage() {
           </FadeInStagger>
 
           {/* PDPA Consent - Enhanced */}
-          <SlideUp delay={200} className="bg-gradient-to-r from-yec-primary/5 to-yec-accent/5 dark:from-yec-primary/10 dark:to-yec-accent/10 border-2 border-yec-primary/20 dark:border-yec-primary/30 rounded-xl shadow-lg p-8 mb-8">
+          <SlideUp
+            delay={200}
+            className="bg-gradient-to-r from-yec-primary/5 to-yec-accent/5 dark:from-yec-primary/10 dark:to-yec-accent/10 border-2 border-yec-primary/20 dark:border-yec-primary/30 rounded-xl shadow-lg p-8 mb-8"
+          >
             <div className="text-center mb-6">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-yec-primary/10 dark:bg-yec-primary/20 rounded-full mb-4">
-                <svg className="w-8 h-8 text-yec-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-8 h-8 text-yec-primary"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
               <h3 className="text-2xl font-bold text-yec-primary mb-2">
@@ -879,13 +1077,15 @@ export default function PreviewPage() {
               </h3>
               <div className="w-24 h-1 bg-yec-accent mx-auto rounded-full"></div>
             </div>
-            
+
             <div className="bg-white dark:bg-gray-800 rounded-lg p-6 mb-6 border border-gray-200 dark:border-gray-600">
               <p className="text-lg text-gray-800 dark:text-gray-200 leading-relaxed text-center font-medium">
-                ข้าพเจ้ายินยอมให้เก็บ ใช้ และเปิดเผยข้อมูลส่วนบุคคลของข้าพเจ้าเพื่อวัตถุประสงค์ในการลงทะเบียนและเข้าร่วมงาน YEC Day ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)
+                ข้าพเจ้ายินยอมให้เก็บ ใช้
+                และเปิดเผยข้อมูลส่วนบุคคลของข้าพเจ้าเพื่อวัตถุประสงค์ในการลงทะเบียนและเข้าร่วมงาน
+                YEC Day ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 (PDPA)
               </p>
             </div>
-            
+
             <div className="flex items-center justify-center space-x-4">
               <input
                 type="checkbox"
@@ -896,25 +1096,30 @@ export default function PreviewPage() {
                 className="h-6 w-6 text-yec-primary border-gray-300 dark:border-gray-600 rounded focus:ring-yec-primary focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 min-h-[44px] min-w-[44px]"
                 aria-describedby="pdpa-description"
               />
-              <label htmlFor="pdpa-consent" className="text-lg font-semibold text-yec-primary cursor-pointer select-none">
+              <label
+                htmlFor="pdpa-consent"
+                className="text-lg font-semibold text-yec-primary cursor-pointer select-none"
+              >
                 ข้าพเจ้ายอมรับและยินยอม
               </label>
             </div>
-            
+
             <div className="mt-4 text-center">
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                <span className="font-semibold text-red-600 dark:text-red-400">*</span> 
+                <span className="font-semibold text-red-600 dark:text-red-400">
+                  *
+                </span>
                 การยอมรับข้อตกลงนี้เป็นเงื่อนไขที่จำเป็นสำหรับการลงทะเบียน
               </p>
             </div>
           </SlideUp>
 
           {/* Action Buttons - Enhanced */}
-          <div 
+          <div
             className="flex flex-col sm:flex-row gap-6 justify-center items-center"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === "Enter") {
                 e.preventDefault();
                 e.stopPropagation();
               }
@@ -934,15 +1139,25 @@ export default function PreviewPage() {
             >
               {/* Button Background Animation */}
               <div className="absolute inset-0 bg-gradient-to-r from-yec-primary/5 to-yec-accent/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-              
+
               {/* Button Content */}
               <div className="relative flex items-center justify-center space-x-2 pointer-events-none">
-                <svg className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-yec-primary transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <svg
+                  className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-yec-primary transition-colors duration-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
                 </svg>
                 <span className="text-lg">แก้ไขข้อมูล</span>
               </div>
-              
+
               {/* Hover Effect */}
               <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none"></div>
             </button>
@@ -961,7 +1176,7 @@ export default function PreviewPage() {
             >
               {/* Button Background Animation */}
               <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-              
+
               {/* Button Content */}
               <div className="relative flex items-center justify-center space-x-2 pointer-events-none">
                 {isSubmitting ? (
@@ -971,17 +1186,27 @@ export default function PreviewPage() {
                   </>
                 ) : (
                   <>
-                    <svg className="w-5 h-5 text-white group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg
+                      className="w-5 h-5 text-white group-hover:scale-110 transition-transform duration-300"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
                     </svg>
                     <span className="text-lg">ยืนยันการลงทะเบียน</span>
                   </>
                 )}
               </div>
-              
+
               {/* Hover Effect */}
               <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none"></div>
-              
+
               {/* Pulse Animation for Attention */}
               {!isSubmitting && pdpaConsent && (
                 <div className="absolute inset-0 rounded-xl bg-yec-accent/30 animate-pulse opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
@@ -993,16 +1218,36 @@ export default function PreviewPage() {
           <div className="mt-6 text-center space-y-2">
             {!pdpaConsent && (
               <p className="text-sm text-red-600 dark:text-red-400 flex items-center justify-center space-x-1">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
                 </svg>
                 <span>กรุณายอมรับเงื่อนไข PDPA ก่อนยืนยันการลงทะเบียน</span>
               </p>
             )}
             {isSubmitting && (
               <p className="text-sm text-blue-600 dark:text-blue-400 flex items-center justify-center space-x-1">
-                <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <svg
+                  className="w-4 h-4 animate-spin"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
                 </svg>
                 <span>กำลังประมวลผลข้อมูล กรุณารอสักครู่...</span>
               </p>
@@ -1023,7 +1268,7 @@ export default function PreviewPage() {
         >
           <div className="space-y-4">
             <p className="text-gray-700 dark:text-gray-300">{modal.message}</p>
-            
+
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               {modal.actions.map((action) => (
                 <div key={`modal-action-${action.label}`} className="flex-1">
@@ -1032,8 +1277,8 @@ export default function PreviewPage() {
                       href={action.href}
                       className={`block w-full px-4 py-2 text-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 min-h-[44px] flex items-center justify-center ${
                         action.primary
-                          ? 'bg-yec-primary hover:bg-yec-accent text-white focus:ring-yec-primary'
-                          : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 focus:ring-gray-500'
+                          ? "bg-yec-primary hover:bg-yec-accent text-white focus:ring-yec-primary"
+                          : "bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 focus:ring-gray-500"
                       }`}
                     >
                       {action.label}
@@ -1043,8 +1288,8 @@ export default function PreviewPage() {
                       onClick={action.onClick}
                       className={`block w-full px-4 py-2 text-center font-medium rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 min-h-[44px] ${
                         action.primary
-                          ? 'bg-yec-primary hover:bg-yec-accent text-white focus:ring-yec-primary'
-                          : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 focus:ring-gray-500'
+                          ? "bg-yec-primary hover:bg-yec-accent text-white focus:ring-yec-primary"
+                          : "bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 focus:ring-gray-500"
                       }`}
                     >
                       {action.label}
@@ -1058,4 +1303,4 @@ export default function PreviewPage() {
       )}
     </div>
   );
-} 
+}

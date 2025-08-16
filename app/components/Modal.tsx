@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect } from "react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -10,22 +10,28 @@ interface ModalProps {
   className?: string;
 }
 
-export default function Modal({ isOpen, onClose, title, children, className = '' }: ModalProps) {
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  className = "",
+}: ModalProps) {
   useEffect(() => {
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         onClose();
       }
     };
 
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'hidden';
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
     }
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
-      document.body.style.overflow = 'unset';
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
     };
   }, [isOpen, onClose]);
 
@@ -39,7 +45,7 @@ export default function Modal({ isOpen, onClose, title, children, className = ''
         onClick={onClose}
         aria-hidden="true"
       />
-      
+
       {/* Modal */}
       <div
         className={`relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto ${className}`}
@@ -49,7 +55,10 @@ export default function Modal({ isOpen, onClose, title, children, className = ''
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="modal-title" className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h2
+            id="modal-title"
+            className="text-lg font-semibold text-gray-900 dark:text-white"
+          >
             {title}
           </h2>
           <button
@@ -57,17 +66,25 @@ export default function Modal({ isOpen, onClose, title, children, className = ''
             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-yec-primary focus:ring-offset-2 rounded-full p-1"
             aria-label="Close modal"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
-        
+
         {/* Content */}
-        <div className="p-6">
-          {children}
-        </div>
-        
+        <div className="p-6">{children}</div>
+
         {/* Footer */}
         <div className="flex justify-end p-6 border-t border-gray-200 dark:border-gray-700">
           <button
@@ -80,4 +97,4 @@ export default function Modal({ isOpen, onClose, title, children, className = ''
       </div>
     </div>
   );
-} 
+}

@@ -11,7 +11,9 @@ const THAILAND_TIMEZONE_OFFSET = 7 * 60;
  */
 export function getThailandTimeISOString(): string {
   const now = new Date();
-  const thailandTime = new Date(now.getTime() + (THAILAND_TIMEZONE_OFFSET * 60 * 1000));
+  const thailandTime = new Date(
+    now.getTime() + THAILAND_TIMEZONE_OFFSET * 60 * 1000,
+  );
   return thailandTime.toISOString();
 }
 
@@ -21,8 +23,10 @@ export function getThailandTimeISOString(): string {
  * @returns ISO string in Thailand timezone
  */
 export function convertUTCToThailandTime(utcDate: string | Date): string {
-  const date = typeof utcDate === 'string' ? new Date(utcDate) : utcDate;
-  const thailandTime = new Date(date.getTime() + (THAILAND_TIMEZONE_OFFSET * 60 * 1000));
+  const date = typeof utcDate === "string" ? new Date(utcDate) : utcDate;
+  const thailandTime = new Date(
+    date.getTime() + THAILAND_TIMEZONE_OFFSET * 60 * 1000,
+  );
   return thailandTime.toISOString();
 }
 
@@ -32,7 +36,7 @@ export function convertUTCToThailandTime(utcDate: string | Date): string {
  */
 export function getThailandTimeDate(): Date {
   const now = new Date();
-  return new Date(now.getTime() + (THAILAND_TIMEZONE_OFFSET * 60 * 1000));
+  return new Date(now.getTime() + THAILAND_TIMEZONE_OFFSET * 60 * 1000);
 }
 
 /**
@@ -41,17 +45,19 @@ export function getThailandTimeDate(): Date {
  * @returns Formatted date string in Thailand timezone
  */
 export function formatThailandTime(date: Date | string): string {
-  const thailandDate = typeof date === 'string' ? new Date(date) : date;
-  const thailandTime = new Date(thailandDate.getTime() + (THAILAND_TIMEZONE_OFFSET * 60 * 1000));
-  
-  return thailandTime.toLocaleString('th-TH', {
-    timeZone: 'Asia/Bangkok',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
+  const thailandDate = typeof date === "string" ? new Date(date) : date;
+  const thailandTime = new Date(
+    thailandDate.getTime() + THAILAND_TIMEZONE_OFFSET * 60 * 1000,
+  );
+
+  return thailandTime.toLocaleString("th-TH", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
   });
-} 
+}
