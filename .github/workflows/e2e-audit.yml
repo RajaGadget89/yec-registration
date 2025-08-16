@@ -2,9 +2,9 @@ name: E2E Audit Tests
 
 on:
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,82 +14,37 @@ jobs:
   audit_diag:
     name: audit_diag
     runs-on: ubuntu-latest
+    # ถ้าเป็น PR จาก fork และไม่มี secrets ให้ skip เพื่อไม่ล้มผิดเหตุ
     if: |
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 18.x
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright browsers & OS deps
-        run: npx playwright install --with-deps
-
-      - name: Preflight — show repo tree & verify tests
-        run: |
-          echo "Node: $(node -v)"
-          npx playwright --version || true
-          echo "---- repo tree (top) ----"
-          ls -la
-          echo "---- list test files ----"
-          git ls-files | grep -E 'tests/.+\.spec\.(ts|js)' || true
-          echo "---- check diag spec exists ----"
-          if [ -f "tests/e2e/audit-diag.e2e.spec.ts" ]; then
-            echo "FOUND tests/e2e/audit-diag.e2e.spec.ts"
-            echo "MODE=file"
-          else
-            echo "NOT FOUND tests/e2e/audit-diag.e2e.spec.ts"
-            echo "MODE=grep"
-          fi
+      - run: npm ci
+      - run: npx playwright install --with-deps
 
       - name: Run @audit diag tests (with fallback)
-        id: run_tests
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ENV: 'staging'
-          NEXT_TELEMETRY_DISABLED: '1'
         run: |
           set -e
           if [ -f "tests/e2e/audit-diag.e2e.spec.ts" ]; then
-            echo ">> Running by file path"
-            npx playwright test tests/e2e/audit-diag.e2e.spec.ts --reporter=line && exit 0 || true
+            npx playwright test tests/e2e/audit-diag.e2e.spec.ts --reporter=line
+          else
+            npx playwright test --grep="@audit @diag" --reporter=line
           fi
-          echo ">> Falling back to tag grep"
-          if ! grep -R "@audit" tests >/dev/null 2>&1; then
-            echo "::error::No tests tagged @audit were found in repository. Did you forget to commit tests?"
-            exit 1
-          fi
-          npx playwright test --grep="@audit @diag" --reporter=line
-
-      - name: Prepare artifact directories
-        if: always()
-        run: |
-          mkdir -p playwright-report
-          mkdir -p test-artifacts
 
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-audit
           path: playwright-report/
-          retention-days: 14
-
-      - name: Upload test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-artifacts
-          path: test-artifacts/
           retention-days: 14
 
