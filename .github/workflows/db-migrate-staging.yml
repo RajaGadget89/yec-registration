@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   detect_changes:
-    name: Detect DB changes
+    name: detect_changes
     runs-on: ubuntu-latest
     outputs:
       db_changed: ${{ steps.filter.outputs.db }}
@@ -29,20 +29,18 @@ jobs:
               - '.github/workflows/db-migrate-staging.yml'
 
   test_on_shadow:
-    name: Test migrations on Shadow DB
+    name: test_on_shadow
     needs: detect_changes
     runs-on: ubuntu-latest
-    env:
-      SUPABASE_TELEMETRY_DISABLED: "1"
     steps:
       - uses: actions/checkout@v4
 
-      # no-op ทางผ่านเมื่อไม่มีการแก้ DB (เพื่อให้ check นี้ "ผ่าน" ไม่ค้าง Pending)
+      # ✅ ไม่มีการแก้ DB → ผ่านแบบเร็วเพื่อให้มีผลลัพธ์เสมอ
       - name: No DB changes → fast-pass
         if: needs.detect_changes.outputs.db_changed != 'true'
-        run: echo "No supabase changes; skipping heavy DB tests but reporting success."
+        run: echo "No supabase changes; skipping DB tests but reporting success."
 
-      # รันจริงเมื่อมีการแก้ DB
+      # ⬇️ มีการแก้ DB → รันของจริง
       - name: Install psql client
         if: needs.detect_changes.outputs.db_changed == 'true'
         run: |
@@ -64,19 +62,17 @@ jobs:
         if: needs.detect_changes.outputs.db_changed == 'true'
         env:
           SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
-        shell: bash
         run: |
           set -euo pipefail
           printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
           if [ -f supabase/seed.sql ]; then psql "$SHADOW_DB_URL" -f supabase/seed.sql; fi
 
   push_to_staging:
-    name: Push migrations to Staging (via DB URL)
+    name: push_to_staging
     needs: [detect_changes, test_on_shadow]
     if: needs.detect_changes.outputs.db_changed == 'true'
     runs-on: ubuntu-latest
     env:
-      SUPABASE_TELEMETRY_DISABLED: "1"
       STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
     steps:
       - uses: actions/checkout@v4
@@ -84,7 +80,6 @@ jobs:
         with:
           version: latest
       - name: Push → Staging (no prompt)
-        shell: bash
         run: |
           set -euo pipefail
           if [[ -z "${STAGING_DB_URL:-}" ]]; then
