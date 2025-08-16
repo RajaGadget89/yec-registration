@@ -1,0 +1,20 @@
+name: Lint, ESLint, Check format, Prettier
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+      - run: npm ci
+      - name: ESLint (no warnings)
+        run: npx eslint . --max-warnings=0
+      - name: Prettier check
+        run: npx prettier -c "**/*.{ts,tsx,js,json,css,md}"
+
