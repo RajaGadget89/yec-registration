@@ -1,15 +1,15 @@
 name: DB — Migrate to Staging
 
 on:
-  workflow_dispatch: {}  # กดรันเองได้
+  workflow_dispatch: {}
   pull_request:
     types: [opened, synchronize, reopened]
     paths:
       - 'supabase/migrations/**'
       - 'supabase/seed.sql'
-      - '.github/workflows/db-migrate-staging.yml'  # แก้ไฟล์นี้ก็ให้วิ่ง
+      - '.github/workflows/db-migrate-staging.yml'
   push:
-    branches: [main, develop]   # ปรับตาม flow ของคุณได้
+    branches: [main, develop]
     paths:
       - 'supabase/migrations/**'
       - 'supabase/seed.sql'
@@ -44,7 +44,8 @@ jobs:
         env:
           SHADOW_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: |
-          supabase db reset --db-url "$SHADOW_DB_URL" --force
+          # บางเวอร์ชันของ CLI จะถามยืนยัน reset; ใช้ `yes |` ป้อน y ให้อัตโนมัติ
+          yes | supabase db reset --db-url "$SHADOW_DB_URL"
           if [ -f supabase/seed.sql ]; then psql "$SHADOW_DB_URL" -f supabase/seed.sql; fi
 
   push_to_staging:
@@ -58,8 +59,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SB_STAGING_REF: ${{ secrets.SB_STAGING_REF }}
-          # (ทางเลือก) ใส่ถ้าอยาก fallback แบบไม่ใช้ link:
-          # STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+          # STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}   # (ถ้ามี)
         shell: bash
         run: |
           set -euo pipefail
