@@ -11,22 +11,29 @@ concurrency:
   group: db-staging-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  statuses: write
+
 jobs:
   detect_changes:
     name: detect_changes
     runs-on: ubuntu-latest
     outputs:
       db_changed: ${{ steps.filter.outputs.db }}
+      db_files: ${{ steps.filter.outputs.db_files }}
     steps:
       - uses: actions/checkout@v4
       - id: filter
         uses: dorny/paths-filter@v3
         with:
+          # รองรับทั้งตำแหน่งที่ repo ใช้อยู่จริง และตำแหน่งมาตรฐานของ Supabase CLI
           filters: |
             db:
+              - 'migrations/**'
               - 'supabase/migrations/**'
-              - 'supabase/seed.sql'
               - '.github/workflows/db-migrate-staging.yml'
+          list-files: shell
 
   test_on_shadow:
     name: test_on_shadow
@@ -37,7 +44,7 @@ jobs:
 
       - name: No DB changes → fast-pass
         if: needs.detect_changes.outputs.db_changed != 'true'
-        run: echo "No supabase changes; skipping DB tests but reporting success."
+        run: echo "No migrations changed; skipping shadow test but reporting success."
 
       - name: Install psql client
         if: needs.detect_changes.outputs.db_changed == 'true'
@@ -45,27 +52,37 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
-      - uses: supabase/setup-cli@v1
+      - name: Setup Supabase CLI
         if: needs.detect_changes.outputs.db_changed == 'true'
+        uses: supabase/setup-cli@v1
         with:
           version: latest
 
-      - name: Start local Supabase stack (shadow)
+      - name: Mirror migrations → supabase/migrations (CLI compat)
+        if: needs.detect_changes.outputs.db_changed == 'true'
+        run: |
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          # ใช้เฉพาะไฟล์ที่แก้ไขใน PR นี้ (ปลอดภัยกว่า)
+          echo "${{ needs.detect_changes.outputs.db_files }}" | tr ' ' '\n' | grep '^migrations/.*\.sql$' | sort | while read -r f; do
+            echo "Copy $f → supabase/migrations/"
+            cp --parents "$f" supabase/ 2>/dev/null || cp "$f" supabase/migrations/
+          done
+
+      - name: Start local Supabase (shadow)
         if: needs.detect_changes.outputs.db_changed == 'true'
         run: |
           supabase start
           supabase status
 
-      - name: Apply migrations to shadow
+      - name: Apply migrations to SHADOW via CLI
         if: needs.detect_changes.outputs.db_changed == 'true'
         env:
           SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
         run: |
           set -euo pipefail
           printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
-          if [ -f supabase/seed.sql ]; then psql "$SHADOW_DB_URL" -f supabase/seed.sql; fi
 
-      # ✅ รายงาน context ที่ Ruleset ต้องการเสมอ
       - name: Report required context (ruleset-compat)
         if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
@@ -84,7 +101,7 @@ jobs:
               context: 'DB — Migrate to Staging / test_on_shadow (pull_request)',
               description: `Reported from run ${context.runId}`,
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
-            })
+            });
 
   push_to_staging:
     name: push_to_staging
@@ -98,7 +115,17 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - name: Push → Staging (no prompt)
+
+      - name: Mirror migrations → supabase/migrations (CLI compat)
+        run: |
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          echo "${{ needs.detect_changes.outputs.db_files }}" | tr ' ' '\n' | grep '^migrations/.*\.sql$' | sort | while read -r f; do
+            echo "Copy $f → supabase/migrations/"
+            cp --parents "$f" supabase/ 2>/dev/null || cp "$f" supabase/migrations/
+          done
+
+      - name: Push migrations → Staging (no prompt)
         run: |
           set -euo pipefail
           if [[ -z "${STAGING_DB_URL:-}" ]]; then
