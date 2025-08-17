@@ -232,7 +232,16 @@ export default function RegistrationForm() {
 
           if (!uploadResponse.ok) {
             const errorData = await uploadResponse.json();
-            throw new Error(errorData.error || "Failed to upload file");
+            const errorMessage = errorData.error || "Failed to upload file";
+            const errorDetails = errorData.details ? ` (${errorData.details})` : "";
+            console.error(`Upload failed for ${fieldId}:`, {
+              status: uploadResponse.status,
+              statusText: uploadResponse.statusText,
+              error: errorMessage,
+              details: errorData.details,
+              response: errorData
+            });
+            throw new Error(`${errorMessage}${errorDetails}`);
           }
 
           const uploadResult = await uploadResponse.json();

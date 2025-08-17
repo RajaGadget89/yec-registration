@@ -13,6 +13,97 @@ import {
   formSchema,
 } from "../components/RegistrationForm/FormSchema";
 
+// Component to handle both public URLs and file paths that need signed URLs
+function ImageWithSignedUrl({ 
+  src, 
+  alt, 
+  width, 
+  height, 
+  className, 
+  onError, 
+  onLoad 
+}: {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+  className: string;
+  onError: (e: any) => void;
+  onLoad: () => void;
+}) {
+  const [imageSrc, setImageSrc] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // If it's already a full URL, use it directly
+    if (src.startsWith('http')) {
+      setImageSrc(src);
+      return;
+    }
+
+    // If it's a file path, generate a signed URL
+    if (src.includes('/')) {
+      setIsLoading(true);
+      
+      fetch('/api/get-signed-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ filePath: src }),
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.signedUrl) {
+            setImageSrc(data.signedUrl);
+          } else {
+            console.error('Failed to generate signed URL:', data.error);
+            onError({ currentTarget: { style: { display: 'none' } } });
+          }
+        })
+        .catch(error => {
+          console.error('Error generating signed URL:', error);
+          onError({ currentTarget: { style: { display: 'none' } } });
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    } else {
+      // If it's not a URL or file path, set empty to show loading
+      setImageSrc('');
+    }
+  }, [src, onError]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+      </div>
+    );
+  }
+
+  // Only render Image component if we have a valid URL (starts with http)
+  if (!imageSrc || !imageSrc.startsWith('http')) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={imageSrc}
+      alt={alt}
+      width={width}
+      height={height}
+      className={className}
+      onError={onError}
+      onLoad={onLoad}
+    />
+  );
+}
+
 export default function PreviewPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<FormData | null>(null);
@@ -410,15 +501,15 @@ export default function PreviewPage() {
             </div>
           </div>
         );
-      } else if (typeof value === "string" && value.startsWith("http")) {
-        // New format: URL from Supabase
+      } else if (typeof value === "string" && (value.startsWith("http") || value.includes("/"))) {
+        // New format: URL from Supabase or file path
         return (
           <div className="mt-2">
             <div
               className="w-full h-48 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden flex items-center justify-center"
               data-image-field={fieldId}
             >
-              <Image
+              <ImageWithSignedUrl
                 src={value}
                 alt={field.label}
                 width={200}
