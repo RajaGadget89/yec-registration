@@ -1,14 +1,11 @@
 name: DB — Promote Staging → Prod
 
 on:
-  # ✅ รันจริงเฉพาะตอน merge/push เข้า main
   push:
-    branches: [ main ]
-  # ✅ ให้ PR ได้สถานะ required context ด้วย (no-op)
-  pull_request:
+    branches: [ main ]            # รันจริงหลัง merge
+  pull_request:                    # ให้ PR ได้สถานะ required (no-op)
     types: [opened, synchronize, reopened]
-  # manual promote / hotfix
-  workflow_dispatch:
+  workflow_dispatch:               # manual promote/hotfix
     inputs:
       skip_shadow:
         description: "Skip shadow test (not recommended)"
@@ -25,7 +22,7 @@ permissions:
   contents: read
   statuses: write
 
-# ---------- PR-only: โพสต์สถานะ context ให้ PR ไม่ค้าง Expected ----------
+# ---------- PR ONLY: โพสต์สถานะ context ให้ PR ไม่ค้าง Expected ----------
 jobs:
   report_required_status_for_pr:
     name: report_required_status_for_pr
@@ -43,14 +40,14 @@ jobs:
               sha,
               state: 'success',
               context: 'DB — Promote Staging → Prod / push_to_prod (push)',
-              description: `PR no-op status to satisfy ruleset`,
+              description: 'PR no-op status to satisfy ruleset',
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             });
 
-  # ---------- งานจริง: ทำเฉพาะตอน push → main ----------
+# ---------- PRODUCTION STAGE: ทำงานจริงบน push → main หรือ manual ----------
   detect_changes:
     name: detect_changes
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
       db_changed: ${{ steps.filter.outputs.db }}
@@ -66,8 +63,10 @@ jobs:
 
   test_on_shadow:
     name: test_on_shadow
-    if: github.event_name == 'push' && needs.detect_changes.outputs.db_changed == 'true' && !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_shadow == 'true')
     needs: detect_changes
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        needs.detect_changes.outputs.db_changed == 'true' &&
+        !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_shadow == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -88,20 +87,21 @@ jobs:
 
   noop_when_not_db:
     name: No DB changes → fast-pass
-    if: github.event_name == 'push' && needs.detect_changes.outputs.db_changed != 'true'
     needs: detect_changes
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        needs.detect_changes.outputs.db_changed != 'true'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "No changes under supabase/migrations; promoting step is skipped."
+      - run: echo "No changes under supabase/migrations; DB promotion skipped."
 
   push_to_prod:
     name: push_to_prod
-    if: github.event_name == 'push' && needs.detect_changes.outputs.db_changed == 'true'
     needs: [detect_changes, test_on_shadow]
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+        needs.detect_changes.outputs.db_changed == 'true'
     runs-on: ubuntu-latest
     environment:
-      name: production
-      url: https://yec.rajagadget.live
+      name: production            # ใช้ Environment approval ที่นี่
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
@@ -133,4 +133,42 @@ jobs:
           name: prod-schema-backup
           path: db-backups/
           retention-days: 14
+
+  # ---- Vercel Prod Deploy: กรณีมี DB change → รอหลัง push_to_prod เสมอ ----
+  vercel_production_after_db:
+    name: vercel_production
+    needs: [detect_changes, push_to_prod]
+    if: github.event_name == 'push' && needs.detect_changes.outputs.db_changed == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vercel pull (prod)
+        run: npx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+      - name: Vercel build (prod)
+        run: npx vercel build --prod --token "$VERCEL_TOKEN"
+      - name: Vercel deploy (prod)
+        run: npx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+
+  # ---- Vercel Prod Deploy: กรณีไม่มี DB change → deploy ทันทีหลังตรวจ diff ----
+  vercel_production_no_db:
+    name: vercel_production (no-db-change)
+    needs: [detect_changes]
+    if: github.event_name == 'push' && needs.detect_changes.outputs.db_changed != 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vercel pull (prod)
+        run: npx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+      - name: Vercel build (prod)
+        run: npx vercel build --prod --token "$VERCEL_TOKEN"
+      - name: Vercel deploy (prod)
+        run: npx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
 
