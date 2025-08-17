@@ -1,0 +1,120 @@
+name: DB — Promote Staging → Prod
+
+on:
+  # รันอัตโนมัติเมื่อมี commit ลง main (หลัง merge)
+  push:
+    branches: [ main ]
+  # เผื่อ manual promote หรือ rollback แบบควบคุมเอง
+  workflow_dispatch:
+    inputs:
+      skip_shadow:
+        description: "Skip shadow test (not recommended)"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+
+# ป้องกันการชนกันของรันหลายรอบบน ref เดียว
+concurrency:
+  group: db-prod-${{ github.ref }}
+  cancel-in-progress: false
+
+# เผื่อในอนาคตอยาก post commit status เพิ่มเติม
+permissions:
+  contents: read
+  statuses: write
+
+jobs:
+  detect_changes:
+    name: detect_changes
+    runs-on: ubuntu-latest
+    outputs:
+      db_changed: ${{ steps.filter.outputs.db }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            db:
+              - 'supabase/migrations/**'
+              - '.github/workflows/db-promote-prod.yml'
+
+  # ทดสอบ migration บน shadow DB ก่อน (ถ้ามีการเปลี่ยนแปลง)
+  test_on_shadow:
+    name: test_on_shadow
+    runs-on: ubuntu-latest
+    needs: detect_changes
+    if: |
+      needs.detect_changes.outputs.db_changed == 'true' &&
+      !(github.event_name == 'workflow_dispatch' && github.event.inputs.skip_shadow == 'true')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start local Supabase (shadow)
+        run: |
+          supabase start
+          supabase status
+      - name: Apply migrations to shadow
+        env:
+          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
+          # ไม่ seed โปรดักชัน; shadow ใช้เพื่อพิสูจน์ schema เท่านั้น
+
+  # ไม่มีการเปลี่ยนแปลง DB → ผ่านแบบ no-op เพื่อให้ workflow มีผลลัพธ์ชัดเจน
+  noop_when_not_db:
+    name: No DB changes → fast-pass
+    runs-on: ubuntu-latest
+    needs: detect_changes
+    if: needs.detect_changes.outputs.db_changed != 'true'
+    steps:
+      - run: echo "No changes under supabase/migrations; promoting step is skipped."
+
+  # ขั้นตอน Promote (ต้องได้รับอนุมัติผ่าน Environment 'production')
+  push_to_prod:
+    name: push_to_prod
+    needs: [detect_changes, test_on_shadow]
+    if: needs.detect_changes.outputs.db_changed == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      # ตั้งค่า URL จริงของระบบ (optional) เพื่อแสดงในหน้า Environments
+      url: https://yec.rajagadget.live
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link Supabase (prod)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref ${{ secrets.SB_PROD_REF }}
+
+      - name: Backup current prod schema (pre-push)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          mkdir -p db-backups
+          # ดึง schema ปัจจุบันออกมาเป็นไฟล์อ้างอิง
+          supabase db pull --project-ref ${{ secrets.SB_PROD_REF }}
+          cp -f supabase/.temp/schema.sql db-backups/prod-before.sql || true
+
+      - name: Push migrations → Prod (requires environment approval)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push
+
+      - name: Upload backup artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-schema-backup
+          path: db-backups/
+          retention-days: 14
+
