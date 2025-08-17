@@ -34,6 +34,18 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps
 
+      - name: Create .env.ci from secrets
+        run: |
+          echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.ci
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.STAGING_SUPABASE_URL }}" >> .env.ci
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON }}" >> .env.ci
+          echo "SUPABASE_URL=${{ secrets.STAGING_SUPABASE_URL }}" >> .env.ci
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.STAGING_SERVICE_ROLE }}" >> .env.ci
+          echo "RESEND_API_KEY=${{ secrets.RESEND_TEST_KEY }}" >> .env.ci
+          echo "SUPABASE_ENV=staging" >> .env.ci
+          echo "DISPATCH_DRY_RUN=true" >> .env.ci
+          echo "EMAIL_MODE=DRY_RUN" >> .env.ci
+
       - name: Run dispatch-emails e2e
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

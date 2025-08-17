@@ -9,12 +9,18 @@ import { getThailandTimeISOString } from "../../lib/timezoneUtils";
 import { EventService } from "../../lib/events/eventService";
 import { PricingCalculator } from "../../lib/pricingCalculator";
 import { EventFactory } from "../../lib/events/types";
+import { precheckRegistration } from "../../lib/precheck";
+import { createErrorResponse, createUnexpectedErrorResponse } from "../../lib/errorResponses";
+import { logAccess } from "../../lib/audit/auditClient";
 
 // Ensure Node.js runtime for service role key access
 export const runtime = "nodejs";
 
 async function handlePOST(req: NextRequest) {
-  console.log("[REGISTER_ROUTE] handlePOST called");
+  const requestId = crypto.randomUUID();
+  const startTime = Date.now();
+  
+  console.log("[REGISTER_ROUTE] handlePOST called", { requestId });
 
   try {
     // Log environment variables for debugging (without exposing sensitive data)
@@ -31,26 +37,22 @@ async function handlePOST(req: NextRequest) {
 
     if (validationErrors.length > 0) {
       console.error("Validation errors:", validationErrors);
-      return NextResponse.json(
-        {
-          error: "Validation failed",
-          message: validationErrors.join(", "), // Frontend expects 'message' field
-          details: validationErrors,
-        },
-        { status: 400 },
+      return createErrorResponse(
+        "VALIDATION_FAILED",
+        "Registration data validation failed",
+        validationErrors.join(", "),
+        400
       );
     }
 
-    // Check if registration is still open
-    const isRegistrationOpen = await PricingCalculator.isRegistrationOpen();
-    if (!isRegistrationOpen) {
-      return NextResponse.json(
-        {
-          error: "Registration closed",
-          message:
-            "Registration deadline has passed. Registration is no longer accepting new submissions.",
-        },
-        { status: 400 },
+    // Precheck: Validate preconditions
+    const precheckResult = await precheckRegistration();
+    if (!precheckResult.success) {
+      return createErrorResponse(
+        precheckResult.code!,
+        precheckResult.hint!,
+        precheckResult.details,
+        precheckResult.code === "REGISTRATION_CLOSED" ? 400 : 409
       );
     }
 
@@ -69,13 +71,11 @@ async function handlePOST(req: NextRequest) {
         selectedPackageCode = body.selectedPackage;
       } catch (error) {
         console.error("Pricing calculation failed:", error);
-        return NextResponse.json(
-          {
-            error: "Pricing error",
-            message:
-              "Failed to calculate registration price. Please try again.",
-          },
-          { status: 500 },
+        return createErrorResponse(
+          "PRICING_CALCULATION_FAILED",
+          "Failed to calculate registration price. Please try again.",
+          error instanceof Error ? error.message : "Unknown pricing error",
+          400
         );
       }
     }
@@ -128,17 +128,39 @@ async function handlePOST(req: NextRequest) {
 
     if (error) {
       console.error("Database error:", error);
-      return NextResponse.json(
-        {
-          error: "Database error",
-          message: "Failed to save registration. Please try again.",
-          details: error.message,
-        },
-        { status: 500 },
+      
+      // Handle duplicate registration errors
+      if (error.code === "23505") { // PostgreSQL unique constraint violation
+        const constraint = error.details?.match(/Key \((.+)\)=/)?.[1];
+        if (constraint?.includes("email")) {
+          return createErrorResponse(
+            "DUPLICATE_REGISTRATION",
+            "A registration with this email address already exists.",
+            `email: ${body.email}`,
+            409
+          );
+        }
+        if (constraint?.includes("registration_id")) {
+          return createErrorResponse(
+            "DUPLICATE_REGISTRATION",
+            "Registration ID collision. Please try again.",
+            `registration_id: ${insertPayload.registration_id}`,
+            409
+          );
+        }
+      }
+      
+      return createErrorResponse(
+        "DATABASE_ERROR",
+        "Failed to save registration. Please try again.",
+        error.message,
+        500
       );
     }
 
     // Emit registration submitted event for centralized side-effects
+    let emailDispatchStatus = "success";
+    let emailDispatchDetails = "";
     try {
       const event = EventFactory.createRegistrationSubmitted(
         registration,
@@ -147,13 +169,30 @@ async function handlePOST(req: NextRequest) {
       );
       await EventService.emit(event);
       console.log("Registration submitted event emitted successfully");
+      
+      // Check if email was actually sent or blocked
+      const emailConfig = await import("../../lib/emails/config").then(m => m.getEmailConfig());
+      const allowCheck = await import("../../lib/emails/config").then(m => m.isEmailAllowed(registration.email));
+      
+      if (!allowCheck.allowed) {
+        emailDispatchStatus = "blocked";
+        emailDispatchDetails = allowCheck.reason;
+      } else if (emailConfig.mode === "DRY_RUN") {
+        emailDispatchStatus = "dry_run";
+        emailDispatchDetails = "EMAIL_MODE=DRY_RUN";
+      } else {
+        emailDispatchStatus = "sent";
+        emailDispatchDetails = "Email queued for delivery";
+      }
     } catch (eventError) {
       console.error("Error emitting registration submitted event:", eventError);
+      emailDispatchStatus = "failed";
+      emailDispatchDetails = eventError instanceof Error ? eventError.message : "Unknown error";
       // Don't fail the registration if event emission fails
     }
 
     // Return success response
-    return NextResponse.json({
+    const response = {
       success: true,
       message:
         "Registration submitted successfully and is waiting for admin review",
@@ -163,17 +202,35 @@ async function handlePOST(req: NextRequest) {
       is_early_bird: priceApplied
         ? await PricingCalculator.isEarlyBirdAvailable()
         : null,
-    });
+    };
+
+    // Add email dispatch status in non-prod
+    if (process.env.NODE_ENV !== "production") {
+      (response as any).emailDispatch = emailDispatchStatus;
+      (response as any).emailDispatchDetails = emailDispatchDetails;
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Unexpected error in registration route:", error);
-    return NextResponse.json(
-      {
-        error: "Server error",
-        message: "An unexpected error occurred. Please try again.",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
+    return createUnexpectedErrorResponse(error, "registration route");
+  } finally {
+    // Log access for audit
+    const latency = Date.now() - startTime;
+    try {
+      await logAccess({
+        action: "registration.submit",
+        method: "POST",
+        resource: "/api/register",
+        result: "success",
+        request_id: requestId,
+        src_ip: req.headers.get("x-forwarded-for") || undefined,
+        user_agent: req.headers.get("user-agent") || undefined,
+        latency_ms: latency,
+      });
+    } catch (auditError) {
+      console.error("Failed to log access:", auditError);
+    }
   }
 }
 
