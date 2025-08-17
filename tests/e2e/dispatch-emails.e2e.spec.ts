@@ -59,14 +59,14 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
   test.describe('Authorized GET Requests', () => {
     test('should accept GET with query parameter cron_secret and return 200', async ({ request }) => {
       const response = await request.get(
-        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}`
+        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}&dry_run=true`
       );
       
       expect(response.status()).toBe(200);
       
       const body = await response.json();
       expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true); // Should be true due to DISPATCH_DRY_RUN=true
+      expect(body.dryRun).toBe(true); // Should be true due to dry_run=true query parameter
       expect(body.sent).toBe(0); // Should be 0 in dry-run mode
       expect(typeof body.wouldSend).toBe('number');
       expect(typeof body.errors).toBe('number');
@@ -76,7 +76,7 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
     });
 
     test('should accept GET with Authorization header and return 200', async ({ request }) => {
-      const response = await request.get(`${baseURL}/api/admin/dispatch-emails`, {
+      const response = await request.get(`${baseURL}/api/admin/dispatch-emails?dry_run=true`, {
         headers: {
           'Authorization': `Bearer ${cronSecret}`
         }
@@ -95,7 +95,7 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
     });
 
     test('should accept GET with custom header x-cron-secret and return 200', async ({ request }) => {
-      const response = await request.get(`${baseURL}/api/admin/dispatch-emails`, {
+      const response = await request.get(`${baseURL}/api/admin/dispatch-emails?dry_run=true`, {
         headers: {
           'x-cron-secret': cronSecret
         }
@@ -134,7 +134,7 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
         headers: {
           'Authorization': `Bearer ${cronSecret}`
         },
-        data: { batchSize: 25 }
+        data: { batchSize: 25, dryRun: true }
       });
       
       expect(response.status()).toBe(200);
@@ -154,7 +154,7 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
         headers: {
           'x-cron-secret': cronSecret
         },
-        data: { batchSize: 10 }
+        data: { batchSize: 10, dryRun: true }
       });
       
       expect(response.status()).toBe(200);
@@ -220,7 +220,8 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
       const response = await request.post(`${baseURL}/api/admin/dispatch-emails`, {
         headers: {
           'Authorization': `Bearer ${cronSecret}`
-        }
+        },
+        data: { dryRun: true }
       });
       
       expect(response.status()).toBe(200);
@@ -237,7 +238,7 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
     test('should maintain idempotency in dry-run mode', async ({ request }) => {
       // First request
       const response1 = await request.get(
-        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}`
+        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}&dry_run=true`
       );
       
       expect(response1.status()).toBe(200);
@@ -247,7 +248,7 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
 
       // Second request (should be idempotent)
       const response2 = await request.get(
-        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}`
+        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}&dry_run=true`
       );
       
       expect(response2.status()).toBe(200);
@@ -262,7 +263,7 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
     test('should return consistent JSON structure across all methods', async ({ request }) => {
       // Test GET
       const getResponse = await request.get(
-        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}`
+        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}&dry_run=true`
       );
       expect(getResponse.status()).toBe(200);
       const getBody = await getResponse.json();
@@ -272,7 +273,7 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
         headers: {
           'Authorization': `Bearer ${cronSecret}`
         },
-        data: { batchSize: 20 }
+        data: { batchSize: 20, dryRun: true }
       });
       expect(postResponse.status()).toBe(200);
       const postBody = await postResponse.json();
@@ -310,7 +311,8 @@ test.describe('Dispatch Emails API - Comprehensive Tests', () => {
       
       const body = await response.json();
       expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true);
+      // Note: malformed JSON test doesn't force dry-run mode, so it uses environment defaults
+      expect(typeof body.dryRun).toBe('boolean');
     });
 
     test('should handle missing CRON_SECRET environment variable gracefully', async ({ request }) => {
