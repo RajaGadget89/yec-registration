@@ -4,7 +4,7 @@ import { BaseLayout } from "./components/BaseLayout";
 import { TrackingTemplate } from "./templates/tracking";
 import { UpdatePaymentTemplate } from "./templates/update-payment";
 import { UpdateInfoTemplate } from "./templates/update-info";
-import { UpdateTCCTemplate } from "./templates/update-tcc";
+import { UpdateTccTemplate } from "./templates/update-tcc";
 import { ApprovalBadgeTemplate } from "./templates/approval-badge";
 import { RejectionTemplate } from "./templates/rejection";
 
@@ -43,7 +43,7 @@ const emailTemplates = {
   "update-tcc": {
     renderer: (props: EmailTemplateProps) => (
       <BaseLayout supportEmail={props.supportEmail}>
-        <UpdateTCCTemplate {...props} />
+        <UpdateTccTemplate {...props} />
       </BaseLayout>
     ),
     subject: "[YEC Day] โปรดอัปเดตรูปบัตร TCC | Please Update Your TCC Card",

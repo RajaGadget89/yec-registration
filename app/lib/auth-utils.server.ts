@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../types/database";
 import type { AdminUser } from "../types/database";
+import { assertDbRouting } from "./env-guards";
 
 /**
  * Interface for authenticated user data
@@ -29,6 +30,9 @@ export interface AuthSession {
  * Get Supabase client for server-side operations
  */
 function getSupabaseClient() {
+  // Validate database routing
+  assertDbRouting();
+  
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

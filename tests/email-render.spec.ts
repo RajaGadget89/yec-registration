@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from 'vitest';
 import { renderEmail, validateEmailPayload, EmailPayload } from '../app/lib/emails/render';
 
 describe('Email Render Utility', () => {
@@ -38,8 +39,8 @@ describe('Email Render Utility', () => {
       // For now, we test the validation logic
       expect(() => {
         // Simulate invalid HTML output
-        const mockRender = jest.fn().mockReturnValue(null);
-        jest.doMock('@react-email/render', () => ({ render: mockRender }));
+        const mockRender = vi.fn().mockReturnValue(null);
+        vi.doMock('@react-email/render', () => ({ render: mockRender }));
         
         const element = <div>Test</div>;
         renderEmail(element);
@@ -50,8 +51,8 @@ describe('Email Render Utility', () => {
       // This test would require mocking @react-email/render to return empty string
       expect(() => {
         // Simulate empty HTML output
-        const mockRender = jest.fn().mockReturnValue('');
-        jest.doMock('@react-email/render', () => ({ render: mockRender }));
+        const mockRender = vi.fn().mockReturnValue('');
+        vi.doMock('@react-email/render', () => ({ render: mockRender }));
         
         const element = <div>Test</div>;
         renderEmail(element);

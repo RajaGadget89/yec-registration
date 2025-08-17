@@ -1,14 +1,17 @@
 import React from "react";
 import { emailTheme } from "../theme";
 import { EmailTemplateProps } from "../registry";
+// import { getEmailFromAddress } from "../../config"; // Unused import - removed to fix ESLint warning
 
 export const RejectionTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = "ผู้สมัคร",
   trackingCode,
-  rejectedReason = "other",
-  supportEmail: _supportEmail = "info@yecday.com",
+  rejectedReason,
+  // supportEmail: _supportEmail, // Unused parameter - removed to fix ESLint warning
+  // brandTokens, // Unused parameter - removed to fix ESLint warning
 }) => {
-  void _supportEmail; // used to satisfy lint without changing config
+  // Use centralized email address if not provided
+  // const supportEmail = _supportEmail || getEmailFromAddress(); // Unused variable - removed to fix ESLint warning
   const { colors, spacing } = emailTheme;
 
   // Reason messages in Thai and English
@@ -27,7 +30,7 @@ export const RejectionTemplate: React.FC<EmailTemplateProps> = ({
     },
   };
 
-  const currentReason = reasonMessages[rejectedReason];
+  const currentReason = reasonMessages[rejectedReason as keyof typeof reasonMessages] || reasonMessages.other;
 
   return (
     <div style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>

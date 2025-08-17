@@ -1,5 +1,8 @@
-import 'dotenv/config';
+import { config as loadDotenv } from 'dotenv';
 import { defineConfig, devices } from '@playwright/test';
+
+// Load environment variables before exporting config
+loadDotenv({ path: process.env.CI ? '.env.ci' : '.env.local' });
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -20,7 +23,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080',
+    baseURL: 'http://localhost:8080',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -65,24 +68,25 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'PORT=8080 DISPATCH_DRY_RUN=true EMAIL_MODE=DRY_RUN npm run dev',
-    url: 'http://localhost:8080',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-    env: {
-      PLAYWRIGHT_TEST: '1',
-      NODE_ENV: 'test',
-      DISPATCH_DRY_RUN: 'true',
-      CRON_SECRET: process.env.CRON_SECRET || 'local-secret',
-      EMAIL_MODE: 'DRY_RUN', // Force dry-run mode for tests
-      EMAIL_CAP_MAX_PER_RUN: '1',
-      EMAIL_THROTTLE_MS: '500',
-      EMAIL_RETRY_ON_429: '1',
-      BLOCK_NON_ALLOWLIST: 'true',
-      EMAIL_ALLOWLIST: 'test@example.com',
-      RESEND_API_KEY: 'test-api-key',
-      EMAIL_FROM: 'test@example.com'
-    },
-  },
+  // Temporarily disabled webServer to fix startup issues
+  // webServer: {
+  //   command: 'npx dotenv -e .env.local next dev -p 8080',
+  //   port: 8080,
+  //   reuseExistingServer: !process.env.CI,
+  //   timeout: 120000,
+  //   env: { 
+  //     ...process.env,            // Pass all loaded environment variables to Next server
+  //     PLAYWRIGHT_TEST: '1',
+  //     NODE_ENV: 'test',
+  //     DISPATCH_DRY_RUN: 'true',
+  //     EMAIL_MODE: 'DRY_RUN', // Force dry-run mode for tests
+  //     EMAIL_CAP_MAX_PER_RUN: '1',
+  //     EMAIL_THROTTLE_MS: '500',
+  //     EMAIL_RETRY_ON_429: '1',
+  //     BLOCK_NON_ALLOWLIST: 'true',
+  //     EMAIL_ALLOWLIST: 'test@example.com',
+  //     RESEND_API_KEY: 'test-api-key',
+  //     EMAIL_FROM: 'test@example.com'
+  //   },
+  // },
 });
