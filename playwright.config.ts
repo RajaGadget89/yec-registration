@@ -68,25 +68,24 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  // Temporarily disabled webServer to fix startup issues
-  // webServer: {
-  //   command: 'npx dotenv -e .env.local next dev -p 8080',
-  //   port: 8080,
-  //   reuseExistingServer: !process.env.CI,
-  //   timeout: 120000,
-  //   env: { 
-  //     ...process.env,            // Pass all loaded environment variables to Next server
-  //     PLAYWRIGHT_TEST: '1',
-  //     NODE_ENV: 'test',
-  //     DISPATCH_DRY_RUN: 'true',
-  //     EMAIL_MODE: 'DRY_RUN', // Force dry-run mode for tests
-  //     EMAIL_CAP_MAX_PER_RUN: '1',
-  //     EMAIL_THROTTLE_MS: '500',
-  //     EMAIL_RETRY_ON_429: '1',
-  //     BLOCK_NON_ALLOWLIST: 'true',
-  //     EMAIL_ALLOWLIST: 'test@example.com',
-  //     RESEND_API_KEY: 'test-api-key',
-  //     EMAIL_FROM: 'test@example.com'
-  //   },
-  // },
+  webServer: {
+    command: process.env.CI ? 'npx next dev -p 8080' : 'npx dotenv -e .env.local next dev -p 8080',
+    port: 8080,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+    env: { 
+      ...process.env,            // Pass all loaded environment variables to Next server
+      PLAYWRIGHT_TEST: '1',
+      NODE_ENV: 'test',
+      DISPATCH_DRY_RUN: 'true',
+      EMAIL_MODE: 'DRY_RUN', // Force dry-run mode for tests
+      EMAIL_CAP_MAX_PER_RUN: '1',
+      EMAIL_THROTTLE_MS: '500',
+      EMAIL_RETRY_ON_429: '1',
+      BLOCK_NON_ALLOWLIST: 'true',
+      EMAIL_ALLOWLIST: 'test@example.com',
+      RESEND_API_KEY: 'test-api-key',
+      EMAIL_FROM: 'test@example.com'
+    },
+  },
 });
