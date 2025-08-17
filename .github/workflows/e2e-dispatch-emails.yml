@@ -24,7 +24,7 @@ jobs:
           node-version: 18
           cache: npm
 
-      - name: OS deps for node-canvas/graphics
+      - name: OS deps for node-canvas
         run: |
           sudo apt-get update
           sudo apt-get install -y \

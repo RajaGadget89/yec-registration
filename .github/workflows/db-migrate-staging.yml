@@ -35,12 +35,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ✅ ไม่มีการแก้ DB → ผ่านแบบเร็วเพื่อให้มีผลลัพธ์เสมอ
+      # ไม่มีการแก้ DB → รายงานผ่านแบบสั้น ๆ (เพื่อให้มีผลลัพธ์เสมอ)
       - name: No DB changes → fast-pass
         if: needs.detect_changes.outputs.db_changed != 'true'
         run: echo "No supabase changes; skipping DB tests but reporting success."
 
-      # ⬇️ มีการแก้ DB → รันของจริง
+      # มีการแก้ DB → รันจริง
       - name: Install psql client
         if: needs.detect_changes.outputs.db_changed == 'true'
         run: |
