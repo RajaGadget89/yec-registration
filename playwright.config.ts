@@ -1,91 +1,55 @@
-import { config as loadDotenv } from 'dotenv';
-import { defineConfig, devices } from '@playwright/test';
+name: E2E Dispatch Emails Tests
 
-// Load environment variables before exporting config
-loadDotenv({ path: process.env.CI ? '.env.ci' : '.env.local' });
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/e2e-dispatch-emails.yml"
+      - "playwright.config.ts"
+      - "tests/**"
+      - "app/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "yarn.lock"
+      - "npm-shrinkwrap.json"
 
-/**
- * @see https://playwright.dev/docs/test-configuration
- */
-export default defineConfig({
-  testDir: 'tests/e2e',
-  testMatch: ['**/*.e2e.spec.ts', '**/*.spec.ts'],
-  /* Run tests in files in parallel */
-  fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 1,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:8080',
+jobs:
+  dispatch_emails:
+    runs-on: ubuntu-latest
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
-  },
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  /* Configure projects for major browsers */
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
+      - name: Use Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: "npm"
 
-    // Commented out for speed - uncomment for full browser testing
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
+      - name: Install deps
+        run: npm ci
 
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
+      # ✅ สร้าง .env.ci จาก GitHub Secrets (อย่าคอมมิตไฟล์ env)
+      - name: Create .env.ci from secrets
+        run: |
+          echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.ci
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.ci
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> .env.ci
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env.ci
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.ci
+          echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env.ci
+          # โหมดทดสอบ: ไม่ส่งอีเมลจริง
+          echo "SUPABASE_ENV=staging" >> .env.ci
+          echo "DISPATCH_DRY_RUN=true" >> .env.ci
+          echo "EMAIL_MODE=DRY_RUN" >> .env.ci
+          echo "EMAIL_FROM=noreply@local.test" >> .env.ci
+          echo "EMAIL_ALLOWLIST=test@example.com" >> .env.ci
 
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
-  ],
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: process.env.CI ? 'npx next dev -p 8080' : 'npx dotenv -e .env.local next dev -p 8080',
-    port: 8080,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-    env: { 
-      ...process.env,            // Pass all loaded environment variables to Next server
-      PLAYWRIGHT_TEST: '1',
-      NODE_ENV: 'test',
-      DISPATCH_DRY_RUN: 'true',
-      EMAIL_MODE: 'DRY_RUN', // Force dry-run mode for tests
-      EMAIL_CAP_MAX_PER_RUN: '1',
-      EMAIL_THROTTLE_MS: '500',
-      EMAIL_RETRY_ON_429: '1',
-      BLOCK_NON_ALLOWLIST: 'true',
-      EMAIL_ALLOWLIST: 'test@example.com',
-      RESEND_API_KEY: 'test-api-key',
-      EMAIL_FROM: 'test@example.com'
-    },
-  },
-});
+      - name: Run Playwright E2E (dispatch emails)
+        env:
+          CI: "true"
+        run: npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line
+
