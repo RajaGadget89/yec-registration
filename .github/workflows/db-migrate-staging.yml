@@ -1,52 +1,109 @@
 name: DB — Migrate to Staging
 
 on:
+  workflow_dispatch: {}
   pull_request:
-    paths: [ 'supabase/migrations/**', 'supabase/seed.sql' ]
+    types: [opened, synchronize, reopened]
   push:
-    branches: [ develop ]
-    paths: [ 'supabase/migrations/**', 'supabase/seed.sql' ]
+    branches: [main, develop]
 
 concurrency:
   group: db-staging-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test_on_shadow:
-    name: Test migrations on Shadow DB
+  detect_changes:
+    name: detect_changes
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports: [ '5432:5432' ]
-        options: >-
-          --health-cmd="pg_isready -U postgres" --health-interval=10s
-          --health-timeout=5s --health-retries=5
+    outputs:
+      db_changed: ${{ steps.filter.outputs.db }}
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
-      - name: Apply migrations to shadow
-        env:
-          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            db:
+              - 'supabase/migrations/**'
+              - 'supabase/seed.sql'
+              - '.github/workflows/db-migrate-staging.yml'
+
+  test_on_shadow:
+    name: test_on_shadow
+    needs: detect_changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No DB changes → fast-pass
+        if: needs.detect_changes.outputs.db_changed != 'true'
+        run: echo "No supabase changes; skipping DB tests but reporting success."
+
+      - name: Install psql client
+        if: needs.detect_changes.outputs.db_changed == 'true'
         run: |
-          supabase db reset --db-url "$SHADOW_DB_URL" --force
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - uses: supabase/setup-cli@v1
+        if: needs.detect_changes.outputs.db_changed == 'true'
+        with:
+          version: latest
+
+      - name: Start local Supabase stack (shadow)
+        if: needs.detect_changes.outputs.db_changed == 'true'
+        run: |
+          supabase start
+          supabase status
+
+      - name: Apply migrations to shadow
+        if: needs.detect_changes.outputs.db_changed == 'true'
+        env:
+          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
+        run: |
+          set -euo pipefail
+          printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
           if [ -f supabase/seed.sql ]; then psql "$SHADOW_DB_URL" -f supabase/seed.sql; fi
 
+      # ✅ รายงาน context ที่ Ruleset ต้องการเสมอ
+      - name: Report required context (ruleset-compat)
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          JOB_STATUS: ${{ job.status }}
+        with:
+          script: |
+            const stateMap = { success: 'success', failure: 'failure', cancelled: 'failure' };
+            const state = stateMap[process.env.JOB_STATUS] || 'failure';
+            const sha = context.payload.pull_request.head.sha;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha,
+              state,
+              context: 'DB — Migrate to Staging / test_on_shadow (pull_request)',
+              description: `Reported from run ${context.runId}`,
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            })
+
   push_to_staging:
-    name: Push migrations to Staging
-    needs: [ test_on_shadow ]
+    name: push_to_staging
+    needs: [detect_changes, test_on_shadow]
+    if: needs.detect_changes.outputs.db_changed == 'true'
     runs-on: ubuntu-latest
+    env:
+      STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
-      - name: Login & link (staging)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase link --project-ref ${{ secrets.SB_STAGING_REF }}
-      - name: Push → Staging
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase db push
+        with:
+          version: latest
+      - name: Push → Staging (no prompt)
+        run: |
+          set -euo pipefail
+          if [[ -z "${STAGING_DB_URL:-}" ]]; then
+            echo "Missing STAGING_DB_URL secret" >&2
+            exit 1
+          fi
+          supabase db push --db-url "$STAGING_DB_URL"
 
