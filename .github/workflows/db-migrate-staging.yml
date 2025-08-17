@@ -35,12 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ไม่มีการแก้ DB → รายงานผ่านแบบสั้น ๆ (เพื่อให้มีผลลัพธ์เสมอ)
       - name: No DB changes → fast-pass
         if: needs.detect_changes.outputs.db_changed != 'true'
         run: echo "No supabase changes; skipping DB tests but reporting success."
 
-      # มีการแก้ DB → รันจริง
       - name: Install psql client
         if: needs.detect_changes.outputs.db_changed == 'true'
         run: |
@@ -66,6 +64,27 @@ jobs:
           set -euo pipefail
           printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
           if [ -f supabase/seed.sql ]; then psql "$SHADOW_DB_URL" -f supabase/seed.sql; fi
+
+      # ✅ รายงาน context ที่ Ruleset ต้องการเสมอ
+      - name: Report required context (ruleset-compat)
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          JOB_STATUS: ${{ job.status }}
+        with:
+          script: |
+            const stateMap = { success: 'success', failure: 'failure', cancelled: 'failure' };
+            const state = stateMap[process.env.JOB_STATUS] || 'failure';
+            const sha = context.payload.pull_request.head.sha;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha,
+              state,
+              context: 'DB — Migrate to Staging / test_on_shadow (pull_request)',
+              description: `Reported from run ${context.runId}`,
+              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            })
 
   push_to_staging:
     name: push_to_staging
