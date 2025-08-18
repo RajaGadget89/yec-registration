@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/pr-validation.yml"
       - "migrations/**"
+      - "supabase/migrations/**"
       - "tests/**"
       - "app/**"
 
@@ -33,6 +34,7 @@ jobs:
           filters: |
             db:
               - 'supabase/migrations/**/*.sql'
+              - 'migrations/**/*.sql'
 
   # Job 2: ทดสอบ Migration บน Shadow DB
   test_db_shadow:
@@ -59,8 +61,13 @@ jobs:
         env:
           STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
         run: |
-          echo "Simulating shadow DB test..."
-          cp -a migrations/. supabase/migrations/
+          set -euo pipefail
+          # รวมไฟล์จากราก /migrations ไปไว้ที่ supabase/migrations/ ถ้ามี
+          mkdir -p supabase/migrations
+          if ls migrations/*.sql >/dev/null 2>&1; then
+            cp -a migrations/. supabase/migrations/
+          fi
+          echo "Starting Supabase services & resetting DB on shadow..."
           supabase start
           printf 'y\n' | supabase db reset
       
@@ -72,10 +79,7 @@ jobs:
             const sha = context.payload.pull_request.head.sha;
             let state = 'success';
             if ('${{ needs.detect.outputs.db_changed }}' === 'true') {
-              // If there were DB changes, check the result of the previous steps
-              if ('${{ job.status }}' !== 'success') {
-                state = 'failure';
-              }
+              if ('${{ job.status }}' !== 'success') state = 'failure';
             }
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
@@ -86,7 +90,7 @@ jobs:
               description: 'Migration script tested or fast-passed.'
             });
 
-  # Job 3: ✅ Deploy Migration ไปยัง Staging DB จริง
+  # Job 3: Apply Migration ไปยัง Staging DB
   push_db_staging:
     name: Push DB to Staging
     needs: [detect, test_db_shadow]
@@ -121,7 +125,7 @@ jobs:
               description: 'Migration applied to Staging DB.'
             });
 
-  # Job 4: ✅ รัน E2E Test (หลังจาก Push DB เสร็จ)
+  # Job 4: รัน E2E Tests หลังจาก Push สำเร็จ
   e2e_tests:
     name: Run E2E Tests
     needs: [push_db_staging]
@@ -133,7 +137,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: "npm"
+          cache: npm
       - run: npm ci
       - name: Create .env.ci from secrets
         run: |
@@ -163,3 +167,4 @@ jobs:
               context: 'PR Validation / Run E2E Tests (pull_request)',
               description: 'E2E tests completed.'
             });
+
