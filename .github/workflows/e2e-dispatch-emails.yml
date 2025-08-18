@@ -37,10 +37,17 @@ jobs:
       - name: Run dispatch-emails e2e
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ENV: 'staging'
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           DISPATCH_DRY_RUN: 'true'
+          NODE_ENV: 'test'
+          NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
+          EMAIL_FROM: 'test@example.com'
+          RESEND_API_KEY: 'test-key'
+          TELEGRAM_BOT_TOKEN: 'test-token'
+          TELEGRAM_CHAT_ID: 'test-chat-id'
         run: npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line
 
       - name: Report required context (ruleset-compat)
