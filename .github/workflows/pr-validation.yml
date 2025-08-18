@@ -1,12 +1,15 @@
-name: PRV
-
+name: PR Validation
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  workflow_dispatch: {}
+    paths:
+      - ".github/workflows/pr-validation.yml"
+      - "migrations/**"
+      - "tests/**"
+      - "app/**"
 
 concurrency:
-  group: prv-${{ github.head_ref || github.run_id }}
+  group: pr-validation-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 permissions:
@@ -14,8 +17,9 @@ permissions:
   statuses: write
 
 jobs:
+  # Job 1: ตรวจสอบการเปลี่ยนแปลงไฟล์ Migration
   detect:
-    name: Detect
+    name: Detect DB Changes
     runs-on: ubuntu-latest
     outputs:
       db_changed: ${{ steps.filter.outputs.db }}
@@ -30,66 +34,123 @@ jobs:
             db:
               - 'migrations/**/*.sql'
 
-      # รายงานทั้งชื่อยาว (ruleset ปัจจุบัน) และชื่อสั้น (สำหรับย้าย ruleset ในอนาคต)
-      - name: Report required contexts (long + short)
-        if: always() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        env: { JOB_STATUS: ${{ job.status }} }
-        with:
-          script: |
-            const map = { success:'success', failure:'failure', cancelled:'failure' };
-            const state = map[process.env.JOB_STATUS] || 'failure';
-            const sha = context.payload.pull_request.head.sha;
-            const contexts = [
-              'PR Validation (DB Migration + E2E Tests) + / Detect DB Changes (pull_request)', // ruleset เดิม
-              'PRV / Detect (pull_request)' // ชื่อสั้นใหม่
-            ];
-            for (const ctx of contexts) {
-              await github.rest.repos.createCommitStatus({
-                owner: context.repo.owner, repo: context.repo.repo, sha, state,
-                context: ctx,
-                description: `Reported from run ${context.runId}`,
-                target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
-              });
-            }
-
-  shadow:
-    name: Shadow
+  # Job 2: ทดสอบ Migration บน Shadow DB
+  test_db_shadow:
+    name: Test DB on Shadow
     needs: detect
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: No DB changes → fast-pass
+      - name: No DB changes, fast-pass
         if: needs.detect.outputs.db_changed != 'true'
-        run: echo "No DB changes; skipping heavy DB steps."
+        run: echo "No DB changes; reporting success."
+
+      - name: Checkout code
+        if: needs.detect.outputs.db_changed == 'true'
+        uses: actions/checkout@v4
 
       - name: Setup Supabase CLI
         if: needs.detect.outputs.db_changed == 'true'
         uses: supabase/setup-cli@v1
-        with: { version: latest }
+        with:
+          version: latest
 
-      - name: Build & test on shadow
+      - name: Build and Test on Shadow DB
         if: needs.detect.outputs.db_changed == 'true'
+        env:
+          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
         run: |
-          set -euo pipefail
-          mkdir -p supabase/migrations
-          cp -a migrations/. supabase/migrations/ || true
+          echo "Simulating shadow DB test..."
+          cp -a migrations/. supabase/migrations/
           supabase start
           printf 'y\n' | supabase db reset
 
-      - name: Report short context for shadow (optional)
-        if: always() && github.event_name == 'pull_request'
+      - name: Report required context for Ruleset
+        if: always()
         uses: actions/github-script@v7
-        env: { JOB_STATUS: ${{ job.status }} }
         with:
           script: |
-            const map = { success:'success', failure:'failure', cancelled:'failure' };
             const sha = context.payload.pull_request.head.sha;
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner, repo: context.repo.repo, sha,
-              state: map[process.env.JOB_STATUS] || 'failure',
-              context: 'PRV / Shadow (pull_request)',
-              description: `Reported from run ${context.runId}`,
-              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+              state: '${{ job.status }}' === 'success' ? 'success' : 'failure',
+              context: 'PR Validation / Test DB on Shadow (pull_request)',
+              description: 'Migration script tested successfully on a temporary DB.'
             });
 
+  # Job 3: ✅ Deploy Migration ไปยัง Staging DB จริง
+  push_db_staging:
+    name: Push DB to Staging
+    needs: [detect, test_db_shadow]
+    if: needs.detect.outputs.db_changed == 'true' && needs.test_db_shadow.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply changed migrations to STAGING
+        env:
+          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+          CHANGED_FILES: ${{ needs.detect.outputs.db_files }}
+        run: |
+          set -euo pipefail
+          echo "Applying migrations to Staging DB:"
+          echo "${CHANGED_FILES}"
+          for f in $(echo "${CHANGED_FILES}" | tr ' ' '\n' | sort); do
+            echo "==> Applying $f"
+            psql "${STAGING_DB_URL}" -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Report required context for Ruleset
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.payload.pull_request.head.sha;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner, repo: context.repo.repo, sha,
+              state: '${{ job.status }}' === 'success' ? 'success' : 'failure',
+              context: 'PR Validation / Push DB to Staging (pull_request)',
+              description: 'Migration applied to Staging DB.'
+            });
+
+  # Job 4: ✅ รัน E2E Test (หลังจาก Push DB เสร็จ)
+  e2e_tests:
+    name: Run E2E Tests
+    needs: [push_db_staging]
+    if: always() && needs.push_db_staging.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: "npm"
+      - run: npm ci
+      - name: Create .env.ci from secrets
+        run: |
+          echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.ci
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.ci
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> .env.ci
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env.ci
+          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.ci
+          echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env.ci
+          echo "SUPABASE_ENV=staging" >> .env.ci
+          echo "DISPATCH_DRY_RUN=true" >> .env.ci
+          echo "EMAIL_MODE=DRY_RUN" >> .env.ci
+      - run: npx playwright install --with-deps
+      - name: Run Playwright E2E
+        env:
+          CI: "true"
+        run: npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line
+      - name: Report required context for Ruleset
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.payload.pull_request.head.sha;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner, repo: context.repo.repo, sha,
+              state: '${{ job.status }}' === 'success' ? 'success' : 'failure',
+              context: 'PR Validation / Run E2E Tests (pull_request)',
+              description: 'E2E tests completed.'
+            });
