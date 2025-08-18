@@ -25,8 +25,12 @@ jobs:
     outputs:
       db_changed: ${{ steps.filter.outputs.db }}
       db_files: ${{ steps.filter.outputs.db_files }}
+      has_migrations: ${{ steps.check_migrations.outputs.has_files }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # ต้องใช้ full history เพื่อเปรียบเทียบ
+      
       - id: filter
         uses: dorny/paths-filter@v3
         with:
@@ -35,119 +39,259 @@ jobs:
             db:
               - 'supabase/migrations/**/*.sql'
               - 'migrations/**/*.sql'
+      
+      - name: Check if migration files exist
+        id: check_migrations
+        run: |
+          if ls migrations/*.sql >/dev/null 2>&1 || ls supabase/migrations/*.sql >/dev/null 2>&1; then
+            echo "has_files=true" >> $GITHUB_OUTPUT
+            echo "Found migration files"
+          else
+            echo "has_files=false" >> $GITHUB_OUTPUT
+            echo "No migration files found"
+          fi
+      
+      - name: Report detection results
+        run: |
+          echo "### 🔍 Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "- DB Changed: ${{ steps.filter.outputs.db }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Has Migration Files: ${{ steps.check_migrations.outputs.has_files }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.filter.outputs.db_files }}" != "" ]; then
+            echo "- Changed Files: ${{ steps.filter.outputs.db_files }}" >> $GITHUB_STEP_SUMMARY
+          fi
 
-  # Job 2: ทดสอบ Migration บน Shadow DB
+  # Job 2: ทดสอบ Migration บน Shadow DB (รันเฉพาะเมื่อมีการเปลี่ยนแปลง DB)
   test_db_shadow:
     name: Test DB on Shadow
-    needs: detect
-    if: needs.detect.outputs.db_changed == 'true'
     runs-on: ubuntu-latest
+    needs: detect
+    # แก้ไขเงื่อนไข: ต้องมีการเปลี่ยนแปลงและมีไฟล์จริง
+    if: needs.detect.outputs.db_changed == 'true' && needs.detect.outputs.has_migrations == 'true'
+    outputs:
+      test_result: ${{ steps.test.outputs.result }}
+      test_message: ${{ steps.test.outputs.message }}
+    
     steps:
-      - name: Report no-op pass (no DB changes)
-        if: needs.detect.outputs.db_changed != 'true'
-        run: echo "No DB changes; fast-passing."
-        
       - name: Checkout code
-        if: needs.detect.outputs.db_changed == 'true'
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
       - name: Setup Supabase CLI
-        if: needs.detect.outputs.db_changed == 'true'
         uses: supabase/setup-cli@v1
         with:
           version: latest
       
-      - name: Build and Test on Shadow DB
-        if: needs.detect.outputs.db_changed == 'true'
+      - name: Prepare migration files
+        id: prepare
+        run: |
+          echo "### 📁 Preparing Migration Files" >> $GITHUB_STEP_SUMMARY
+          
+          # สร้าง directory หลัก
+          mkdir -p supabase/migrations
+          
+          # Copy files จาก /migrations หาก มี
+          if ls migrations/*.sql >/dev/null 2>&1; then
+            echo "Copying from /migrations to /supabase/migrations" >> $GITHUB_STEP_SUMMARY
+            cp -v migrations/*.sql supabase/migrations/ || true
+          fi
+          
+          # แสดงไฟล์ที่มี
+          echo "Migration files found:" >> $GITHUB_STEP_SUMMARY
+          if ls supabase/migrations/*.sql >/dev/null 2>&1; then
+            ls -la supabase/migrations/*.sql >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No migration files to process" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+      
+      - name: Test migrations on Shadow DB
+        id: test
         env:
           STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
         run: |
           set -euo pipefail
-          # รวมไฟล์จากราก /migrations ไปไว้ที่ supabase/migrations/ ถ้ามี
-          mkdir -p supabase/migrations
-          if ls migrations/*.sql >/dev/null 2>&1; then
-            cp -a migrations/. supabase/migrations/
-          fi
-          echo "Starting Supabase services & resetting DB on shadow..."
+          
+          echo "### 🧪 Testing Migrations on Shadow DB" >> $GITHUB_STEP_SUMMARY
+          
+          # เริ่ม Supabase local services
+          echo "Starting Supabase services..."
           supabase start
+          
+          # Reset และ apply migrations
+          echo "Resetting DB and applying migrations..."
           printf 'y\n' | supabase db reset
+          
+          # ตรวจสอบสถานะ
+          if [ $? -eq 0 ]; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo "message=Shadow DB test passed" >> $GITHUB_OUTPUT
+            echo "✅ Shadow DB test passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "message=Shadow DB test failed" >> $GITHUB_OUTPUT
+            echo "❌ Shadow DB test failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
       
-      - name: Report required context for Ruleset
+      - name: Report test status
         if: always()
         uses: actions/github-script@v7
         with:
           script: |
             const sha = context.payload.pull_request.head.sha;
-            let state = 'success';
-            if ('${{ needs.detect.outputs.db_changed }}' === 'true') {
-              if ('${{ job.status }}' !== 'success') state = 'failure';
-            }
+            const state = '${{ steps.test.outputs.result }}' === 'success' ? 'success' : 'failure';
+            const description = '${{ steps.test.outputs.message }}' || 'Shadow DB test completed';
+            
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
               sha,
               state,
               context: 'PR Validation / Test DB on Shadow (pull_request)',
-              description: 'Migration script tested or fast-passed.'
+              description
             });
 
-  # Job 3: Apply Migration ไปยัง Staging DB
+  # Job 3: Apply Migration ไปยัง Staging DB (รันเฉพาะเมื่อ shadow test ผ่าน)
   push_db_staging:
     name: Push DB to Staging
-    needs: [detect, test_db_shadow]
-    if: needs.detect.outputs.db_changed == 'true' && needs.test_db_shadow.result == 'success'
     runs-on: ubuntu-latest
+    needs: [detect, test_db_shadow]
+    # แก้ไขเงื่อนไข: รอให้ test_db_shadow สำเร็จก่อน
+    if: |
+      needs.detect.outputs.db_changed == 'true' && 
+      needs.test_db_shadow.result == 'success' &&
+      needs.detect.outputs.has_migrations == 'true'
+    
+    outputs:
+      push_result: ${{ steps.push.outputs.result }}
+      push_message: ${{ steps.push.outputs.message }}
+    
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: latest
       
-      - name: Mirror ALL migrations → supabase/migrations
+      - name: Display received data from previous jobs
         run: |
+          echo "### 📋 Received Data from Previous Jobs" >> $GITHUB_STEP_SUMMARY
+          echo "- DB Changed: ${{ needs.detect.outputs.db_changed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Has Migration Files: ${{ needs.detect.outputs.has_migrations }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Shadow Test Result: ${{ needs.test_db_shadow.outputs.test_result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Shadow Test Message: ${{ needs.test_db_shadow.outputs.test_message }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Prepare migrations for staging
+        run: |
+          echo "### 📁 Preparing Migrations for Staging" >> $GITHUB_STEP_SUMMARY
+          
+          # ล้างและสร้างใหม่
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
-          cp -a migrations/. supabase/migrations/
+          
+          # Copy ไฟล์จาก migrations/ หากมี
+          if ls migrations/*.sql >/dev/null 2>&1; then
+            echo "Copying migrations to supabase/migrations/" >> $GITHUB_STEP_SUMMARY
+            cp -v migrations/*.sql supabase/migrations/
+            ls -la supabase/migrations/ >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No migration files in /migrations directory" >> $GITHUB_STEP_SUMMARY
+          fi
 
-      - name: Push migrations → Staging
+      - name: Push migrations to Staging
+        id: push
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SB_STAGING_REF }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
-          supabase link --project-ref ${{ env.SUPABASE_PROJECT_REF }} --password ${{ env.SUPABASE_DB_PASSWORD }}
-          supabase db push
+          set -euo pipefail
+          
+          echo "### 🚀 Pushing Migrations to Staging" >> $GITHUB_STEP_SUMMARY
+          
+          # Link to project
+          echo "Linking to Supabase project..."
+          supabase link --project-ref $SUPABASE_PROJECT_REF --password $SUPABASE_DB_PASSWORD
+          
+          # Check current migration status
+          echo "Checking migration status..."
+          supabase migration list || echo "Migration list failed"
+          
+          # Push migrations
+          echo "Pushing migrations..."
+          if supabase db push; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo "message=Migrations pushed successfully to staging" >> $GITHUB_OUTPUT
+            echo "✅ Migrations pushed successfully to staging" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT  
+            echo "message=Failed to push migrations to staging" >> $GITHUB_OUTPUT
+            echo "❌ Failed to push migrations to staging" >> $GITHUB_STEP_SUMMARY
+            
+            # ลองใช้ repair command
+            echo "Attempting to repair migration history..."
+            supabase migration repair --status reverted || echo "Repair failed"
+            exit 1
+          fi
 
-      - name: Report required context for Ruleset
+      - name: Report push status
         if: always()
         uses: actions/github-script@v7
         with:
           script: |
             const sha = context.payload.pull_request.head.sha;
+            const state = '${{ steps.push.outputs.result }}' === 'success' ? 'success' : 'failure';
+            const description = '${{ steps.push.outputs.message }}' || 'Staging push completed';
+            
             await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner, repo: context.repo.repo, sha,
-              state: '${{ job.status }}' === 'success' ? 'success' : 'failure',
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha,
+              state,
               context: 'PR Validation / Push DB to Staging (pull_request)',
-              description: 'Migration applied to Staging DB.'
+              description
             });
 
   # Job 4: รัน E2E Tests หลังจาก Push สำเร็จ
   e2e_tests:
     name: Run E2E Tests
-    needs: [push_db_staging]
-    if: always() && needs.push_db_staging.result == 'success'
     runs-on: ubuntu-latest
+    needs: [detect, test_db_shadow, push_db_staging]
+    # แก้ไขเงื่อนไข: รันเฉพาะเมื่อ staging push สำเร็จ
+    if: |
+      always() && 
+      needs.push_db_staging.result == 'success' &&
+      needs.detect.outputs.db_changed == 'true'
+    
+    outputs:
+      e2e_result: ${{ steps.e2e.outputs.result }}
+      e2e_message: ${{ steps.e2e.outputs.message }}
+    
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node 18
+      
+      - name: Display received data
+        run: |
+          echo "### 📋 E2E Test Prerequisites" >> $GITHUB_STEP_SUMMARY
+          echo "- DB Changed: ${{ needs.detect.outputs.db_changed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Shadow Test: ${{ needs.test_db_shadow.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Staging Push: ${{ needs.push_db_staging.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Push Message: ${{ needs.push_db_staging.outputs.push_message }}" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: npm
-      - run: npm ci
-      - name: Create .env.ci from secrets
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Create environment file
         run: |
           echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.ci
           echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.ci
@@ -158,20 +302,91 @@ jobs:
           echo "SUPABASE_ENV=staging" >> .env.ci
           echo "DISPATCH_DRY_RUN=true" >> .env.ci
           echo "EMAIL_MODE=DRY_RUN" >> .env.ci
-      - run: npx playwright install --with-deps
-      - name: Run Playwright E2E
+      
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+      
+      - name: Run E2E Tests
+        id: e2e
         env:
           CI: "true"
-        run: npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line
-      - name: Report required context for Ruleset
+        run: |
+          echo "### 🧪 Running E2E Tests" >> $GITHUB_STEP_SUMMARY
+          
+          if npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line; then
+            echo "result=success" >> $GITHUB_OUTPUT
+            echo "message=E2E tests passed" >> $GITHUB_OUTPUT
+            echo "✅ E2E tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "result=failure" >> $GITHUB_OUTPUT
+            echo "message=E2E tests failed" >> $GITHUB_OUTPUT
+            echo "❌ E2E tests failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+      
+      - name: Report E2E status
         if: always()
         uses: actions/github-script@v7
         with:
           script: |
             const sha = context.payload.pull_request.head.sha;
+            const state = '${{ steps.e2e.outputs.result }}' === 'success' ? 'success' : 'failure';
+            const description = '${{ steps.e2e.outputs.message }}' || 'E2E tests completed';
+            
             await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner, repo: context.repo.repo, sha,
-              state: '${{ job.status }}' === 'success' ? 'success' : 'failure',
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha,
+              state,
               context: 'PR Validation / Run E2E Tests (pull_request)',
-              description: 'E2E tests completed.'
+              description
             });
+
+  # Job 5: สรุปผลรวม (รันเสมอ)
+  final_report:
+    name: Final Report
+    runs-on: ubuntu-latest
+    needs: [detect, test_db_shadow, push_db_staging, e2e_tests]
+    if: always()
+    
+    steps:
+      - name: Generate final report
+        run: |
+          echo "## 📊 PR Validation Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Job Execution Status" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Detect: ${{ needs.detect.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧪 Shadow Test: ${{ needs.test_db_shadow.result }}" >> $GITHUB_STEP_SUMMARY  
+          echo "- 🚀 Staging Push: ${{ needs.push_db_staging.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧪 E2E Tests: ${{ needs.e2e_tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "- DB Changed: ${{ needs.detect.outputs.db_changed }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Has Migrations: ${{ needs.detect.outputs.has_migrations }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.test_db_shadow.result }}" != "skipped" ]; then
+            echo "### Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "- Shadow DB: ${{ needs.test_db_shadow.outputs.test_message }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.push_db_staging.result }}" != "skipped" ]; then
+            echo "- Staging Push: ${{ needs.push_db_staging.outputs.push_message }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.e2e_tests.result }}" != "skipped" ]; then
+            echo "- E2E Tests: ${{ needs.e2e_tests.outputs.e2e_message }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Overall status
+          if [ "${{ needs.detect.outputs.db_changed }}" != "true" ]; then
+            echo "### ✅ Overall: No Database Changes - Fast Pass" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.e2e_tests.result }}" = "success" ]; then
+            echo "### ✅ Overall: All Tests Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Overall: Some Tests Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Check individual job logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
