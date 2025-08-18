@@ -50,7 +50,6 @@ jobs:
         with:
           version: latest
 
-      # ⬇️ ใช้ dockerized pg_dump 17 เพื่อเลี่ยง version mismatch
       - name: Build migration set for shadow (remote base + local)
         if: needs.detect_changes.outputs.db_changed == 'true'
         env:
@@ -60,15 +59,26 @@ jobs:
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
 
-          # ดึง schema ปัจจุบันจาก STAGING → 000_remote_base.sql (pg_dump v17 ใน container)
+          # ดึง schema ปัจจุบันจาก STAGING → 000_remote_base.sql ด้วย pg_dump (plain SQL)
           docker run --rm \
             -e STAGING_DB_URL="${STAGING_DB_URL}" \
             -v "$PWD/supabase/migrations:/out" \
             postgres:17-alpine sh -lc '
+              set -e
               pg_dump --dbname="$STAGING_DB_URL" \
                       --schema-only --no-owner --no-privileges \
                 > /out/000_remote_base.sql
             '
+
+          echo "----- 000_remote_base.sql (head) -----"
+          head -n 25 supabase/migrations/000_remote_base.sql || true
+          echo "--------------------------------------"
+
+          # Guard: ถ้าไฟล์มีบรรทัดขึ้นต้นด้วย backslash แปลว่าไม่ใช่ SQL เพียว → fail ทันที
+          if grep -nE '^[[:space:]]*\\' supabase/migrations/000_remote_base.sql; then
+            echo "::error::Remote base dump contains psql meta-commands (leading backslash)."
+            exit 1
+          fi
 
           # ผนวกไฟล์ migrations ใน repo ต่อท้าย
           cp -a migrations/. supabase/migrations/
@@ -104,12 +114,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install PostgreSQL client (for psql)
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
-
       - name: Apply changed migrations to STAGING (psql)
         env:
           STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
@@ -118,13 +126,10 @@ jobs:
           set -euo pipefail
           echo "Changed migration files:"
           echo "$CHANGED"
-
           if [ -z "$CHANGED" ]; then
             echo "No changed .sql files detected."
             exit 0
           fi
-
-          # รันตามลำดับ timestamp ของไฟล์
           for f in $(echo "$CHANGED" | tr ' ' '\n' | sort); do
             echo "==> Applying $f"
             psql "$STAGING_DB_URL" -v ON_ERROR_STOP=1 -f "$f"
