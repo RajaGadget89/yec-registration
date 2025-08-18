@@ -40,6 +40,7 @@ jobs:
   test_db_shadow:
     name: Test DB on Shadow
     needs: detect
+    if: needs.detect.outputs.db_changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Report no-op pass (no DB changes)
@@ -98,20 +99,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Apply changed migrations to STAGING
-        env:
-          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
-          CHANGED_FILES: ${{ needs.detect.outputs.db_files }}
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      
+      - name: Mirror ALL migrations → supabase/migrations
         run: |
-          set -euo pipefail
-          echo "Applying migrations to Staging DB:"
-          echo "${CHANGED_FILES}"
-          for f in $(echo "${CHANGED_FILES}" | tr ' ' '\n' | sort); do
-            echo "==> Applying $f"
-            psql "${STAGING_DB_URL}" -v ON_ERROR_STOP=1 -f "$f"
-          done
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp -a migrations/. supabase/migrations/
+
+      - name: Push migrations → Staging
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SB_STAGING_REF }}
+        run: |
+          supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          supabase db push
+
       - name: Report required context for Ruleset
         if: always()
         uses: actions/github-script@v7
@@ -167,4 +174,3 @@ jobs:
               context: 'PR Validation / Run E2E Tests (pull_request)',
               description: 'E2E tests completed.'
             });
-
