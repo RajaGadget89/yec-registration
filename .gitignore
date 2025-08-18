@@ -80,4 +80,4 @@ scripts/
 
 # ===========================
 # Supabase
-supabase/migrations/
+# supabase/migrations/
