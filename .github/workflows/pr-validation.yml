@@ -32,7 +32,7 @@ jobs:
           list-files: shell
           filters: |
             db:
-              - 'migrations/**/*.sql'
+              - 'supabase/migrations/**/*.sql'
 
   # Job 2: ทดสอบ Migration บน Shadow DB
   test_db_shadow:
