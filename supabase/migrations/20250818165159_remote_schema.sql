@@ -656,10 +656,10 @@ CREATE TABLE IF NOT EXISTS "public"."registrations" (
     CONSTRAINT "chk_update_reason" CHECK ((("update_reason" IS NULL) OR ("update_reason" = ANY (ARRAY['payment'::"text", 'info'::"text", 'tcc'::"text"])))),
     CONSTRAINT "external_hotel_required_when_out_quota" CHECK ((((("hotel_choice")::"text" = 'out-of-quota'::"text") AND ("external_hotel_name" IS NOT NULL)) OR ((("hotel_choice")::"text" = 'in-quota'::"text") AND ("external_hotel_name" IS NULL)))),
     CONSTRAINT "registrations_email_check" CHECK ((("email")::"text" ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::"text")),
-    CONSTRAINT "registrations_hotel_choice_check" CHECK ((("hotel_choice")::"text" = ANY ((ARRAY['in-quota'::character varying, 'out-of-quota'::character varying])::"text"[]))),
+    CONSTRAINT "registrations_hotel_choice_check" CHECK ((("hotel_choice")::"text" = ANY (ARRAY[('in-quota'::character varying)::"text", ('out-of-quota'::character varying)::"text"]))),
     CONSTRAINT "registrations_line_id_check" CHECK ((("line_id")::"text" ~ '^[a-zA-Z0-9._-]+$'::"text")),
     CONSTRAINT "registrations_phone_check" CHECK (((("phone")::"text" ~ '^0[0-9]{9}$'::"text") OR (("phone")::"text" ~ '^\\+66[0-9]{8}$'::"text"))),
-    CONSTRAINT "registrations_travel_type_check" CHECK ((("travel_type")::"text" = ANY ((ARRAY['private-car'::character varying, 'van'::character varying])::"text"[]))),
+    CONSTRAINT "registrations_travel_type_check" CHECK ((("travel_type")::"text" = ANY (ARRAY[('private-car'::character varying)::"text", ('van'::character varying)::"text"]))),
     CONSTRAINT "room_type_required_when_in_quota" CHECK ((((("hotel_choice")::"text" = 'in-quota'::"text") AND ("room_type" IS NOT NULL)) OR ((("hotel_choice")::"text" = 'out-of-quota'::"text") AND ("room_type" IS NULL)))),
     CONSTRAINT "roommate_info_required_for_double" CHECK ((((("room_type")::"text" = 'double'::"text") AND ("roommate_info" IS NOT NULL) AND ("roommate_phone" IS NOT NULL)) OR (("room_type")::"text" <> 'double'::"text")))
 );
@@ -707,6 +707,23 @@ CREATE TABLE IF NOT EXISTS "public"."admin_users" (
 
 
 ALTER TABLE "public"."admin_users" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."email_outbox" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "template" "text" NOT NULL,
+    "to_email" "text" NOT NULL,
+    "payload" "jsonb" NOT NULL,
+    "status" "text" DEFAULT 'pending'::"text" NOT NULL,
+    "last_error" "text",
+    "scheduled_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "last_attempt_at" timestamp with time zone,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."email_outbox" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."event_settings" (
@@ -994,6 +1011,9 @@ CREATE POLICY "Users can view own admin record" ON "public"."admin_users" FOR SE
 
 
 ALTER TABLE "public"."admin_users" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."email_outbox" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."event_settings" ENABLE ROW LEVEL SECURITY;
@@ -1548,6 +1568,12 @@ GRANT ALL ON TABLE "public"."admin_registrations_view" TO "service_role";
 GRANT ALL ON TABLE "public"."admin_users" TO "anon";
 GRANT ALL ON TABLE "public"."admin_users" TO "authenticated";
 GRANT ALL ON TABLE "public"."admin_users" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."email_outbox" TO "anon";
+GRANT ALL ON TABLE "public"."email_outbox" TO "authenticated";
+GRANT ALL ON TABLE "public"."email_outbox" TO "service_role";
 
 
 
