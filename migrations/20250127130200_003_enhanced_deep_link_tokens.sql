@@ -1,6 +1,7 @@
 -- Migration: Enhanced Deep Link Token Security
--- Version: 5.0
+-- Version: 3.0
 -- Description: Implement production-ready deep link tokens with single-use, TTL, and audit logging
+-- Date: 2025-01-27
 
 -- 1. Create deep_link_tokens table for secure token management
 CREATE TABLE IF NOT EXISTS deep_link_tokens (
@@ -311,6 +312,41 @@ BEGIN
   RETURN stats;
 END;
 $$ LANGUAGE plpgsql;
+
+-- 11. Create function to generate simple deep link tokens (backward compatibility)
+CREATE OR REPLACE FUNCTION generate_simple_deep_link_token(
+  admin_email TEXT,
+  dimension TEXT,
+  reg_id UUID,
+  ttl_seconds INTEGER DEFAULT 86400
+) 
+RETURNS TEXT 
+LANGUAGE plpgsql AS $$
+DECLARE 
+  raw TEXT; 
+  tok TEXT; 
+  exp TIMESTAMPTZ;
+BEGIN
+  -- Set default TTL to 24 hours if not specified
+  IF ttl_seconds IS NULL OR ttl_seconds <= 0 THEN 
+    ttl_seconds := 86400; 
+  END IF;
+  
+  -- Calculate expiration time
+  exp := NOW() + (ttl_seconds || ' seconds')::interval;
+  
+  -- Generate raw string for hashing
+  raw := reg_id::text || '-' || dimension || '-' || NOW()::text || '-' || gen_random_uuid()::text;
+  
+  -- Create SHA256 hash as token
+  tok := encode(digest(raw, 'sha256'), 'hex');
+  
+  -- Insert token record using the enhanced system
+  INSERT INTO deep_link_tokens (registration_id, dimension, token_hash, expires_at, created_by)
+  VALUES (reg_id, dimension, encode(hmac(tok, 'storage-salt', 'sha256'), 'hex'), exp, admin_email);
+  
+  RETURN tok;
+END $$;
 
 -- Migration completed successfully
 SELECT 'Enhanced deep link token security migration completed successfully' as status;
