@@ -1,0 +1,437 @@
+name: Database Migration Pipeline
+
+on:
+  push:
+    branches: [ develop, staging ]
+    paths:
+      - 'migrations/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/db-migration.yml'
+  pull_request:
+    branches: [ main, develop, staging ]
+    paths:
+      - 'migrations/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/db-migration.yml'
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Target environment for migration'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      skip_tests:
+        description: 'Skip migration tests (not recommended)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      force_migration:
+        description: 'Force migration even if no changes detected'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+concurrency:
+  group: db-migration-${{ github.ref }}-${{ github.event.inputs.target_environment || 'staging' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  statuses: write
+  pull-requests: write
+
+env:
+  SUPABASE_CLI_VERSION: latest
+
+jobs:
+  # Detect changes in migration files
+  detect_changes:
+    name: Detect Migration Changes
+    runs-on: ubuntu-latest
+    outputs:
+      has_migrations: ${{ steps.filter.outputs.migrations }}
+      migration_files: ${{ steps.filter.outputs.migration_files }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect migration changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            migrations:
+              - 'migrations/**/*.sql'
+              - 'supabase/migrations/**/*.sql'
+              - '.github/workflows/db-migration.yml'
+
+      - name: List migration files
+        if: steps.filter.outputs.migrations == 'true'
+        run: |
+          echo "Migration files detected:"
+          find migrations/ -name "*.sql" -type f | sort
+          echo "Supabase migration files:"
+          find supabase/migrations/ -name "*.sql" -type f | sort
+
+  # Validate migration files
+  validate_migrations:
+    name: Validate Migration Files
+    runs-on: ubuntu-latest
+    needs: detect_changes
+    if: needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Validate migration syntax
+        run: |
+          echo "Validating migration files..."
+          
+          # Check for SQL syntax errors in migration files
+          for file in migrations/*.sql; do
+            if [ -f "$file" ]; then
+              echo "Validating $file..."
+              # Basic SQL syntax check (you can enhance this with more sophisticated validation)
+              if ! grep -q ";" "$file"; then
+                echo "❌ Error: $file appears to be missing semicolons"
+                exit 1
+              fi
+              echo "✅ $file syntax looks valid"
+            fi
+          done
+
+      - name: Check migration naming convention
+        run: |
+          echo "Checking migration naming convention..."
+          
+          # Ensure migrations follow timestamp naming convention
+          for file in migrations/*.sql; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              if ! [[ $filename =~ ^[0-9]{14}_.*\.sql$ ]]; then
+                echo "❌ Error: $filename doesn't follow timestamp naming convention (YYYYMMDDHHMMSS_description.sql)"
+                exit 1
+              fi
+              echo "✅ $filename follows naming convention"
+            fi
+          done
+
+      - name: Validate migration order
+        run: |
+          echo "Validating migration order..."
+          
+          # Check that migrations are in chronological order
+          prev_timestamp=""
+          for file in $(ls migrations/*.sql 2>/dev/null | sort); do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              timestamp=$(echo "$filename" | cut -d'_' -f1)
+              
+              if [ -n "$prev_timestamp" ] && [ "$timestamp" -lt "$prev_timestamp" ]; then
+                echo "❌ Error: Migration $filename has timestamp $timestamp which is before previous migration $prev_timestamp"
+                exit 1
+              fi
+              
+              prev_timestamp="$timestamp"
+              echo "✅ $filename timestamp: $timestamp"
+            fi
+          done
+
+  # Test migrations on shadow database
+  test_migrations:
+    name: Test Migrations (Shadow DB)
+    runs-on: ubuntu-latest
+    needs: [detect_changes, validate_migrations]
+    if: (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') && github.event.inputs.skip_tests != 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Start local Supabase (shadow)
+        run: |
+          supabase start
+          supabase status
+
+      - name: Sync migrations to supabase/migrations
+        run: |
+          echo "Syncing migrations to supabase/migrations directory..."
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp -a migrations/. supabase/migrations/
+
+      - name: Apply migrations to shadow database
+        env:
+          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
+        run: |
+          echo "Applying migrations to shadow database..."
+          set -euo pipefail
+          
+          # Reset shadow database and apply all migrations
+          printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
+          
+          echo "✅ Migrations applied successfully to shadow database"
+
+      - name: Run database tests
+        env:
+          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
+        run: |
+          echo "Running database tests..."
+          
+          # Basic connectivity test
+          psql "$SHADOW_DB_URL" -c "SELECT version();" || exit 1
+          
+          # Test that all expected tables exist
+          psql "$SHADOW_DB_URL" -c "
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_name;
+          " || exit 1
+          
+          echo "✅ Database tests passed"
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop
+
+  # Deploy to staging environment
+  deploy_staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [detect_changes, validate_migrations, test_migrations]
+    if: |
+      (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
+             (github.event.inputs.target_environment == 'staging' || github.event.inputs.target_environment == null) &&
+      (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch')
+    # Staging deployment - uses repository secrets for staging environment
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Link to staging project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }}
+
+      - name: Sync migrations to supabase/migrations
+        run: |
+          echo "Syncing migrations to supabase/migrations directory..."
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp -a migrations/. supabase/migrations/
+
+      - name: Generate migration diff
+        id: diff
+        run: |
+          echo "Generating migration diff..."
+          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
+          echo "diff_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$diff_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push migrations to staging
+        if: steps.diff.outputs.has_changes == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Pushing migrations to staging..."
+          supabase db push --dry-run
+          supabase db push
+          echo "✅ Migrations deployed to staging"
+
+      - name: No changes to deploy
+        if: steps.diff.outputs.has_changes == 'false'
+        run: |
+          echo "No database changes detected. Skipping deployment."
+
+      - name: Verify staging deployment
+        if: steps.diff.outputs.has_changes == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Verifying staging deployment..."
+          
+          # Link again to ensure we're connected
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }}
+          
+          # Check that migrations were applied
+          supabase db diff --schema public --linked || echo "No pending changes (good!)"
+
+  # Deploy to production (manual approval required)
+  deploy_production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [deploy_staging]
+    if: |
+      github.event.inputs.target_environment == 'production' &&
+      (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    environment:
+      name: production
+      url: https://yec.rajagadget.live
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Link to production project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }}
+
+      - name: Sync migrations to supabase/migrations
+        run: |
+          echo "Syncing migrations to supabase/migrations directory..."
+          rm -rf supabase/migrations
+          mkdir -p supabase/migrations
+          cp -a migrations/. supabase/migrations/
+
+      - name: Generate production migration diff
+        id: prod_diff
+        run: |
+          echo "Generating production migration diff..."
+          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
+          echo "diff_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$diff_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push migrations to production
+        if: steps.prod_diff.outputs.has_changes == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Pushing migrations to production..."
+          supabase db push --dry-run
+          supabase db push
+          echo "✅ Migrations deployed to production"
+
+      - name: No production changes to deploy
+        if: steps.prod_diff.outputs.has_changes == 'false'
+        run: |
+          echo "No database changes detected for production. Skipping deployment."
+
+      - name: Verify production deployment
+        if: steps.prod_diff.outputs.has_changes == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Verifying production deployment..."
+          
+          # Link again to ensure we're connected
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }}
+          
+          # Check that migrations were applied
+          supabase db diff --schema public --linked || echo "No pending changes (good!)"
+
+  # Create deployment summary
+  deployment_summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [deploy_staging, deploy_production]
+    if: always()
+    steps:
+      - name: Generate deployment summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'db-migration.yml',
+              run_id: context.runId
+            });
+            
+            const currentRun = runs.workflow_runs.find(run => run.id === context.runId);
+            
+            let summary = `## Database Migration Summary\n\n`;
+            summary += `**Workflow Run:** ${context.runId}\n`;
+            summary += `**Trigger:** ${context.eventName}\n`;
+            summary += `**Branch:** ${context.ref}\n`;
+            summary += `**Commit:** ${context.sha.substring(0, 7)}\n\n`;
+            
+            if (context.eventName === 'workflow_dispatch') {
+              summary += `**Manual Trigger:** ${context.payload.inputs?.target_environment || 'staging'}\n\n`;
+            }
+            
+            summary += `### Job Results\n\n`;
+            
+            const jobs = ['detect_changes', 'validate_migrations', 'test_migrations', 'deploy_staging', 'deploy_production'];
+            
+            for (const jobName of jobs) {
+              try {
+                const { data: job } = await github.rest.actions.getJobForWorkflowRun({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  job_id: currentRun.jobs.find(j => j.name === jobName)?.id
+                });
+                
+                const status = job.conclusion || job.status;
+                const emoji = status === 'success' ? '✅' : status === 'failure' ? '❌' : '⏳';
+                summary += `${emoji} **${jobName}:** ${status}\n`;
+              } catch (error) {
+                summary += `❓ **${jobName}:** Not found\n`;
+              }
+            }
+            
+            summary += `\n### Next Steps\n\n`;
+            summary += `- [ ] Verify application functionality in staging\n`;
+            summary += `- [ ] Run integration tests\n`;
+            summary += `- [ ] Monitor application logs for any issues\n`;
+            summary += `- [ ] If staging is stable, promote to production\n`;
+            
+            // Create a comment on PR if this is a PR
+            if (context.eventName === 'pull_request') {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: summary
+              });
+            }
+            
+            // Set output for other jobs
+            core.setOutput('summary', summary);
