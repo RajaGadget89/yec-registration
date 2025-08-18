@@ -962,10 +962,9 @@ using (((id = auth.uid()) AND (is_active = true)));
 
 
 
-CREATE TRIGGER trg_admin_users_updated_at BEFORE UPDATE ON public.admin_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER trigger_update_registration_status BEFORE UPDATE ON public.registrations FOR EACH ROW EXECUTE FUNCTION update_registration_status();
-
-CREATE TRIGGER update_registrations_updated_at BEFORE UPDATE ON public.registrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Triggers are created by earlier timestamped migrations; avoid duplicate creation here
+-- CREATE TRIGGER trg_admin_users_updated_at BEFORE UPDATE ON public.admin_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- CREATE TRIGGER trigger_update_registration_status BEFORE UPDATE ON public.registrations FOR EACH ROW EXECUTE FUNCTION update_registration_status();
+-- CREATE TRIGGER update_registrations_updated_at BEFORE UPDATE ON public.registrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 
