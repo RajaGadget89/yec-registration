@@ -142,55 +142,55 @@ alter table "public"."registrations" enable row level security;
       );
 
 
-CREATE UNIQUE INDEX admin_audit_logs_pkey ON public.admin_audit_logs USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS admin_audit_logs_pkey ON public.admin_audit_logs USING btree (id);
 
-CREATE UNIQUE INDEX admin_users_email_key ON public.admin_users USING btree (email);
+CREATE UNIQUE INDEX IF NOT EXISTS admin_users_email_key ON public.admin_users USING btree (email);
 
-CREATE UNIQUE INDEX admin_users_pkey ON public.admin_users USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS admin_users_pkey ON public.admin_users USING btree (id);
 
-CREATE UNIQUE INDEX email_outbox_idempotency_key_key ON public.email_outbox USING btree (idempotency_key);
+CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_idempotency_key_key ON public.email_outbox USING btree (idempotency_key);
 
-CREATE UNIQUE INDEX email_outbox_pkey ON public.email_outbox USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_pkey ON public.email_outbox USING btree (id);
 
-CREATE UNIQUE INDEX event_settings_pkey ON public.event_settings USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS event_settings_pkey ON public.event_settings USING btree (id);
 
-CREATE INDEX idx_audit_admin_email ON public.admin_audit_logs USING btree (admin_email);
+CREATE INDEX IF NOT EXISTS idx_audit_admin_email ON public.admin_audit_logs USING btree (admin_email);
 
-CREATE INDEX idx_audit_created_at ON public.admin_audit_logs USING btree (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_created_at ON public.admin_audit_logs USING btree (created_at DESC);
 
-CREATE INDEX idx_audit_registration_id ON public.admin_audit_logs USING btree (registration_id);
+CREATE INDEX IF NOT EXISTS idx_audit_registration_id ON public.admin_audit_logs USING btree (registration_id);
 
-CREATE INDEX idx_email_outbox_created_at ON public.email_outbox USING btree (created_at);
+CREATE INDEX IF NOT EXISTS idx_email_outbox_created_at ON public.email_outbox USING btree (created_at);
 
-CREATE INDEX idx_email_outbox_status_scheduled ON public.email_outbox USING btree (status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_email_outbox_status_scheduled ON public.email_outbox USING btree (status, scheduled_at);
 
-CREATE INDEX idx_email_outbox_template ON public.email_outbox USING btree (template);
+CREATE INDEX IF NOT EXISTS idx_email_outbox_template ON public.email_outbox USING btree (template);
 
-CREATE INDEX idx_email_outbox_to_email ON public.email_outbox USING btree (to_email);
+CREATE INDEX IF NOT EXISTS idx_email_outbox_to_email ON public.email_outbox USING btree (to_email);
 
-CREATE INDEX idx_registrations_business_type ON public.registrations USING btree (business_type);
+CREATE INDEX IF NOT EXISTS idx_registrations_business_type ON public.registrations USING btree (business_type);
 
-CREATE INDEX idx_registrations_company_name ON public.registrations USING btree (company_name);
+CREATE INDEX IF NOT EXISTS idx_registrations_company_name ON public.registrations USING btree (company_name);
 
-CREATE INDEX idx_registrations_created_at ON public.registrations USING btree (created_at);
+CREATE INDEX IF NOT EXISTS idx_registrations_created_at ON public.registrations USING btree (created_at);
 
-CREATE INDEX idx_registrations_email ON public.registrations USING btree (email);
+CREATE INDEX IF NOT EXISTS idx_registrations_email ON public.registrations USING btree (email);
 
-CREATE INDEX idx_registrations_status ON public.registrations USING btree (status);
+CREATE INDEX IF NOT EXISTS idx_registrations_status ON public.registrations USING btree (status);
 
-CREATE INDEX idx_registrations_status_created_at ON public.registrations USING btree (status, created_at);
+CREATE INDEX IF NOT EXISTS idx_registrations_status_created_at ON public.registrations USING btree (status, created_at);
 
-CREATE INDEX idx_registrations_status_province ON public.registrations USING btree (status, yec_province);
+CREATE INDEX IF NOT EXISTS idx_registrations_status_province ON public.registrations USING btree (status, yec_province);
 
-CREATE INDEX idx_registrations_update_reason ON public.registrations USING btree (update_reason) WHERE (update_reason IS NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_registrations_update_reason ON public.registrations USING btree (update_reason) WHERE (update_reason IS NOT NULL);
 
-CREATE INDEX idx_registrations_yec_province ON public.registrations USING btree (yec_province);
+CREATE INDEX IF NOT EXISTS idx_registrations_yec_province ON public.registrations USING btree (yec_province);
 
-CREATE UNIQUE INDEX registrations_pkey ON public.registrations USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS registrations_pkey ON public.registrations USING btree (id);
 
-CREATE UNIQUE INDEX registrations_registration_id_key ON public.registrations USING btree (registration_id);
+CREATE UNIQUE INDEX IF NOT EXISTS registrations_registration_id_key ON public.registrations USING btree (registration_id);
 
-CREATE UNIQUE INDEX ux_event_settings_singleton ON public.event_settings USING btree ((true));
+CREATE UNIQUE INDEX IF NOT EXISTS ux_event_settings_singleton ON public.event_settings USING btree ((true));
 
 
 
