@@ -1,79 +1,45 @@
-import 'dotenv/config';
+// playwright.config.ts
 import { defineConfig, devices } from '@playwright/test';
+import { config as loadDotenv } from 'dotenv';
+import fs from 'fs';
 
-/**
- * @see https://playwright.dev/docs/test-configuration
- */
+// เลือกไฟล์ env ตามสภาพแวดล้อม
+// - CI: ใช้ .env.ci (workflow จะสร้างให้)
+// - Local: ใช้ .env.ci.local ถ้ามี ไม่งั้น fallback เป็น .env.local
+const dotenvPath = process.env.CI
+  ? '.env.ci'
+  : (fs.existsSync('.env.ci.local') ? '.env.ci.local' : '.env.local');
+
+loadDotenv({ path: dotenvPath });
+
 export default defineConfig({
-  testDir: 'tests/e2e',
-  testMatch: ['**/*.e2e.spec.ts', '**/*.spec.ts'],
-  /* Run tests in files in parallel */
+  testDir: 'tests',
+  timeout: 30_000,
+  expect: { timeout: 10_000 },
   fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 1,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080',
+  retries: process.env.CI ? 1 : 0,
+  workers: process.env.CI ? 2 : undefined,
+  reporter: 'line',
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+  use: {
+    baseURL: 'http://localhost:8080',
+    trace: 'retain-on-failure',
+    headless: true,
   },
 
-  /* Configure projects for major browsers */
   projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    // Commented out for speed - uncomment for full browser testing
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // ถ้าต้องการ browser อื่นค่อยเพิ่มภายหลัง
   ],
 
-  /* Run your local dev server before starting the tests */
+  // สำคัญ: ส่ง ENV ทั้งหมดเข้า dev server ที่ Playwright เปิด
   webServer: {
-    command: 'PORT=8080 DISPATCH_DRY_RUN=true npm run dev',
-    url: 'http://localhost:8080',
+    command: 'npx next dev -p 8080',
+    port: 8080,
     reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-    env: {
-      PLAYWRIGHT_TEST: '1',
-      NODE_ENV: 'test',
-      DISPATCH_DRY_RUN: 'true'
-    },
+    env: { ...process.env },
+    timeout: 120_000,
   },
 });
+

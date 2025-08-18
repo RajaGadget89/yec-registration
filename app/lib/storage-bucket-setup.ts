@@ -18,7 +18,7 @@ export const REQUIRED_BUCKETS: StorageBucketConfig[] = [
     name: "profile-images",
     public: false,
     allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png"],
-    maxFileSize: 5 * 1024 * 1024, // 5MB
+    maxFileSize: 10 * 1024 * 1024, // 10MB - Updated to match form schema
     description: "User profile images - private access only",
   },
   {

@@ -4,6 +4,7 @@
  */
 
 import { Resend } from "resend";
+import { getEmailFromAddress } from "../config";
 
 export type SendResult = {
   ok: boolean;
@@ -122,7 +123,7 @@ class ResendTransport implements EmailTransport {
     }
 
     this.resend = new Resend(apiKey);
-    this.fromEmail = process.env.EMAIL_FROM || "YEC <info@rajagadget.live>";
+    this.fromEmail = getEmailFromAddress();
 
     // Load throttle and retry configuration
     this.throttleMs = parseInt(process.env.EMAIL_THROTTLE_MS || "500", 10);
@@ -292,8 +293,150 @@ class ResendTransport implements EmailTransport {
 }
 
 /**
- * Capped Transport - wraps a real transport with safety controls
+ * Safe-Send Transport - implements Safe-Send Gate for non-prod environments
+ * Enforces allowlist and provides audit logging
  */
+class SafeSendTransport implements EmailTransport {
+  private wrappedTransport: EmailTransport;
+  private stats = {
+    sent: 0,
+    capped: 0,
+    blocked: 0,
+    errors: 0,
+    rateLimited: 0,
+    retries: 0,
+  };
+
+  constructor(wrappedTransport: EmailTransport) {
+    this.wrappedTransport = wrappedTransport;
+    console.log("[SAFE-SEND] Transport initialized with Safe-Send Gate");
+  }
+
+  async send(input: {
+    to: string;
+    subject: string;
+    html: string;
+    text?: string;
+  }): Promise<SendResult> {
+    const toEmail = input.to.toLowerCase();
+    const allowCheck = isEmailAllowed(toEmail);
+
+    if (!allowCheck.allowed) {
+      console.log(`[SAFE-SEND] Blocked email to ${input.to}: ${allowCheck.reason}`);
+      this.stats.blocked++;
+      
+      // Log audit for blocked emails
+      await this.logAudit({
+        action: "email.blocked",
+        recipient: input.to,
+        reason: allowCheck.reason,
+        subject: input.subject,
+      });
+
+      return { ok: false, reason: "blocked" };
+    }
+
+    // Send via wrapped transport
+    const result = await this.wrappedTransport.send(input);
+
+    if (result.ok) {
+      this.stats.sent++;
+      
+      // Log audit for sent emails
+      await this.logAudit({
+        action: "email.sent",
+        recipient: input.to,
+        subject: input.subject,
+        success: true,
+      });
+    } else {
+      this.stats.errors++;
+      
+      // Log audit for failed emails
+      await this.logAudit({
+        action: "email.failed",
+        recipient: input.to,
+        subject: input.subject,
+        success: false,
+        error: result.reason,
+      });
+    }
+
+    // Aggregate rate limiting and retry stats from wrapped transport
+    if (result.rateLimited !== undefined) {
+      this.stats.rateLimited += result.rateLimited;
+    }
+    if (result.retries !== undefined) {
+      this.stats.retries += result.retries;
+    }
+
+    return result;
+  }
+
+  getStats() {
+    // Combine stats from wrapped transport
+    const wrappedStats = this.wrappedTransport.getStats();
+    return {
+      sent: this.stats.sent,
+      capped: this.stats.capped,
+      blocked: this.stats.blocked,
+      errors: this.stats.errors,
+      rateLimited: wrappedStats.rateLimited,
+      retries: wrappedStats.retries,
+    };
+  }
+
+  resetStats() {
+    this.stats = {
+      sent: 0,
+      capped: 0,
+      blocked: 0,
+      errors: 0,
+      rateLimited: 0,
+      retries: 0,
+    };
+    if ("resetStats" in this.wrappedTransport) {
+      this.wrappedTransport.resetStats();
+    }
+  }
+
+  // Dev-only method to get send log from wrapped transport
+  getSendLog() {
+    if ("getSendLog" in this.wrappedTransport) {
+      return (this.wrappedTransport as any).getSendLog();
+    }
+    return [];
+  }
+
+  private async logAudit(data: {
+    action: string;
+    recipient: string;
+    subject: string;
+    success?: boolean;
+    reason?: string;
+    error?: string;
+  }) {
+    try {
+      // Log to console for now, can be extended to database audit
+      console.log(`[AUDIT] ${data.action}:`, {
+        recipient: data.recipient,
+        subject: data.subject,
+        success: data.success,
+        reason: data.reason,
+        error: data.error,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.warn("[SAFE-SEND] Failed to log audit:", error);
+    }
+  }
+}
+
+/**
+ * Capped Transport - wraps a real transport with safety controls
+ * @deprecated This class is defined but not currently used
+ */
+/*
 class CappedTransport implements EmailTransport {
   private wrappedTransport: EmailTransport;
   private allowlist: Set<string>;
@@ -330,7 +473,9 @@ class CappedTransport implements EmailTransport {
       `[CAPPED] Transport initialized with cap=${this.capMaxPerRun}, allowlist=${Array.from(this.allowlist)}, blockNonAllowlist=${this.blockNonAllowlist}`,
     );
   }
+*/
 
+  /*
   async send(input: {
     to: string;
     subject: string;
@@ -418,29 +563,48 @@ class CappedTransport implements EmailTransport {
     return [];
   }
 }
+*/
+
+import { getEmailConfig, isEmailAllowed } from "./config";
 
 /**
- * Factory function to create the appropriate email transport based on EMAIL_MODE
+ * Factory function to create the appropriate email transport based on Safe-Send Gate
  */
 export function getEmailTransport(): EmailTransport {
-  const emailMode = process.env.EMAIL_MODE || "DRY_RUN";
+  const config = getEmailConfig();
 
-  console.log(`[EMAIL] Creating transport with mode: ${emailMode}`);
+  console.log(`[EMAIL] Creating transport with Safe-Send Gate:`, {
+    mode: config.mode,
+    allowlistSize: config.allowlist.size,
+    isProduction: config.isProduction,
+  });
 
-  switch (emailMode.toUpperCase()) {
+  // In production, always use ResendTransport if API key is available
+  if (config.isProduction) {
+    if (config.resendApiKey) {
+      return new ResendTransport();
+    } else {
+      console.error("[EMAIL] RESEND_API_KEY required in production");
+      throw new Error("RESEND_API_KEY required in production");
+    }
+  }
+
+  // In non-prod, use Safe-Send Gate
+  switch (config.mode) {
     case "DRY_RUN":
       return new DryRunTransport();
 
-    case "CAPPED":
-      const resendTransport = new ResendTransport();
-      return new CappedTransport(resendTransport);
-
     case "FULL":
-      return new ResendTransport();
+      if (config.resendApiKey) {
+        return new SafeSendTransport(new ResendTransport());
+      } else {
+        console.warn("[EMAIL] RESEND_API_KEY not available, falling back to DRY_RUN");
+        return new DryRunTransport();
+      }
 
     default:
       console.warn(
-        `[EMAIL] Unknown EMAIL_MODE: ${emailMode}, defaulting to DRY_RUN`,
+        `[EMAIL] Unknown EMAIL_MODE: ${config.mode}, defaulting to DRY_RUN`,
       );
       return new DryRunTransport();
   }

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { assertDbRouting } from "./env-guards";
 
 /**
  * Server-only Supabase client for audit operations
@@ -6,6 +7,9 @@ import { createClient } from "@supabase/supabase-js";
  * All queries stay on the server to protect the service role key
  */
 export function getSupabaseAdminAudit() {
+  // Validate database routing
+  assertDbRouting();
+  
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

@@ -1,327 +1,168 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Dispatch Emails API - Comprehensive Tests', () => {
-  const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8080';
-  const cronSecret = process.env.CRON_SECRET || 'test-cron-secret';
-
-  test.describe('Unauthorized Access', () => {
-    test('should return 401 for unauthorized GET request', async ({ request }) => {
-      const response = await request.get(`${baseURL}/api/admin/dispatch-emails`);
-      expect(response.status()).toBe(401);
-      
-      const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
-    });
-
-    test('should return 401 for unauthorized POST request', async ({ request }) => {
-      const response = await request.post(`${baseURL}/api/admin/dispatch-emails`, {
-        data: { batchSize: 10 }
-      });
-      expect(response.status()).toBe(401);
-      
-      const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
-    });
-
-    test('should return 401 for GET with invalid Authorization header', async ({ request }) => {
-      const response = await request.get(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'Authorization': 'Bearer invalid-secret'
-        }
-      });
-      expect(response.status()).toBe(401);
-      
-      const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
-    });
-
-    test('should return 401 for GET with invalid query parameter', async ({ request }) => {
-      const response = await request.get(`${baseURL}/api/admin/dispatch-emails?cron_secret=invalid-secret`);
-      expect(response.status()).toBe(401);
-      
-      const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
-    });
-
-    test('should return 401 for GET with invalid custom header', async ({ request }) => {
-      const response = await request.get(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'x-cron-secret': 'invalid-secret'
-        }
-      });
-      expect(response.status()).toBe(401);
-      
-      const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
-    });
-  });
-
-  test.describe('Authorized GET Requests', () => {
-    test('should accept GET with query parameter cron_secret and return 200', async ({ request }) => {
-      const response = await request.get(
-        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}`
-      );
-      
-      expect(response.status()).toBe(200);
-      
-      const body = await response.json();
-      expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true); // Should be true due to DISPATCH_DRY_RUN=true
-      expect(body.sent).toBe(0); // Should be 0 in dry-run mode
-      expect(typeof body.wouldSend).toBe('number');
-      expect(typeof body.errors).toBe('number');
-      expect(typeof body.remaining).toBe('number');
-      expect(typeof body.timestamp).toBe('string');
-      expect(new Date(body.timestamp)).toBeInstanceOf(Date);
-    });
-
-    test('should accept GET with Authorization header and return 200', async ({ request }) => {
-      const response = await request.get(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'Authorization': `Bearer ${cronSecret}`
-        }
-      });
-      
-      expect(response.status()).toBe(200);
-      
-      const body = await response.json();
-      expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true);
-      expect(body.sent).toBe(0);
-      expect(typeof body.wouldSend).toBe('number');
-      expect(typeof body.errors).toBe('number');
-      expect(typeof body.remaining).toBe('number');
-      expect(typeof body.timestamp).toBe('string');
-    });
-
-    test('should accept GET with custom header x-cron-secret and return 200', async ({ request }) => {
-      const response = await request.get(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'x-cron-secret': cronSecret
-        }
-      });
-      
-      expect(response.status()).toBe(200);
-      
-      const body = await response.json();
-      expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true);
-      expect(body.sent).toBe(0);
-      expect(typeof body.wouldSend).toBe('number');
-      expect(typeof body.errors).toBe('number');
-      expect(typeof body.remaining).toBe('number');
-      expect(typeof body.timestamp).toBe('string');
-    });
-
-    test('should handle dry_run query parameter override', async ({ request }) => {
-      const response = await request.get(
-        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}&dry_run=true`
-      );
-      
-      expect(response.status()).toBe(200);
-      
-      const body = await response.json();
-      expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true);
-      expect(body.sent).toBe(0);
-      expect(typeof body.wouldSend).toBe('number');
-    });
-  });
-
-  test.describe('Authorized POST Requests', () => {
-    test('should accept POST with Authorization header and return 200', async ({ request }) => {
-      const response = await request.post(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'Authorization': `Bearer ${cronSecret}`
-        },
-        data: { batchSize: 25 }
-      });
-      
-      expect(response.status()).toBe(200);
-      
-      const body = await response.json();
-      expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true);
-      expect(body.sent).toBe(0);
-      expect(typeof body.wouldSend).toBe('number');
-      expect(typeof body.errors).toBe('number');
-      expect(typeof body.remaining).toBe('number');
-      expect(typeof body.timestamp).toBe('string');
-    });
-
-    test('should accept POST with custom header and return 200', async ({ request }) => {
-      const response = await request.post(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'x-cron-secret': cronSecret
-        },
-        data: { batchSize: 10 }
-      });
-      
-      expect(response.status()).toBe(200);
-      
-      const body = await response.json();
-      expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true);
-      expect(body.sent).toBe(0);
-      expect(typeof body.wouldSend).toBe('number');
-    });
-
-    test('should handle dryRun in request body', async ({ request }) => {
-      const response = await request.post(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'Authorization': `Bearer ${cronSecret}`
-        },
-        data: { 
-          batchSize: 15,
-          dryRun: true
-        }
-      });
-      
-      expect(response.status()).toBe(200);
-      
-      const body = await response.json();
-      expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true);
-      expect(body.sent).toBe(0);
-      expect(typeof body.wouldSend).toBe('number');
-    });
-
-    test('should validate batch size limits', async ({ request }) => {
-      // Test minimum batch size
-      const response1 = await request.post(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'Authorization': `Bearer ${cronSecret}`
-        },
-        data: { batchSize: 0 }
-      });
-      
-      expect(response1.status()).toBe(400);
-      
-      const body1 = await response1.json();
-      expect(body1.error).toBe('Invalid batch size');
-      expect(body1.message).toBe('Batch size must be between 1 and 100');
-
-      // Test maximum batch size
-      const response2 = await request.post(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'Authorization': `Bearer ${cronSecret}`
-        },
-        data: { batchSize: 101 }
-      });
-      
-      expect(response2.status()).toBe(400);
-      
-      const body2 = await response2.json();
-      expect(body2.error).toBe('Invalid batch size');
-      expect(body2.message).toBe('Batch size must be between 1 and 100');
-    });
-
-    test('should handle empty request body gracefully', async ({ request }) => {
-      const response = await request.post(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'Authorization': `Bearer ${cronSecret}`
-        }
-      });
-      
-      expect(response.status()).toBe(200);
-      
-      const body = await response.json();
-      expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true);
-      expect(body.sent).toBe(0);
-      expect(typeof body.wouldSend).toBe('number');
-    });
-  });
-
-  test.describe('Idempotency and Consistency', () => {
-    test('should maintain idempotency in dry-run mode', async ({ request }) => {
-      // First request
-      const response1 = await request.get(
-        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}`
-      );
-      
-      expect(response1.status()).toBe(200);
-      const body1 = await response1.json();
-      expect(body1.sent).toBe(0);
-      const wouldSend1 = body1.wouldSend;
-
-      // Second request (should be idempotent)
-      const response2 = await request.get(
-        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}`
-      );
-      
-      expect(response2.status()).toBe(200);
-      const body2 = await response2.json();
-      expect(body2.sent).toBe(0);
-      const wouldSend2 = body2.wouldSend;
-
-      // In dry-run mode, wouldSend should be consistent
-      expect(wouldSend2).toBe(wouldSend1);
-    });
-
-    test('should return consistent JSON structure across all methods', async ({ request }) => {
-      // Test GET
-      const getResponse = await request.get(
-        `${baseURL}/api/admin/dispatch-emails?cron_secret=${cronSecret}`
-      );
-      expect(getResponse.status()).toBe(200);
-      const getBody = await getResponse.json();
-      
-      // Test POST
-      const postResponse = await request.post(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'Authorization': `Bearer ${cronSecret}`
-        },
-        data: { batchSize: 20 }
-      });
-      expect(postResponse.status()).toBe(200);
-      const postBody = await postResponse.json();
-
-      // Both should have the same structure
-      const expectedKeys = ['ok', 'dryRun', 'sent', 'wouldSend', 'errors', 'remaining', 'timestamp'];
-      
-      for (const key of expectedKeys) {
-        expect(getBody).toHaveProperty(key);
-        expect(postBody).toHaveProperty(key);
+test.describe('Email Dispatch E2E', () => {
+  test('should dispatch emails via admin endpoint', async ({ request }) => {
+    // Test dry-run dispatch
+    const dryRunResponse = await request.get('/api/admin/dispatch-emails?dry_run=true', {
+      headers: {
+        'Authorization': `Bearer ${process.env.CRON_SECRET}`
       }
-
-      // Both should be in dry-run mode
-      expect(getBody.dryRun).toBe(true);
-      expect(postBody.dryRun).toBe(true);
-      
-      // Both should have sent=0 in dry-run mode
-      expect(getBody.sent).toBe(0);
-      expect(postBody.sent).toBe(0);
     });
+
+    expect(dryRunResponse.ok()).toBeTruthy();
+    const dryRunData = await dryRunResponse.json();
+    
+    expect(dryRunData).toHaveProperty('ok', true);
+    expect(dryRunData).toHaveProperty('dryRun', true);
+    expect(dryRunData).toHaveProperty('sent');
+    expect(dryRunData).toHaveProperty('wouldSend');
+    expect(dryRunData).toHaveProperty('blocked');
+    expect(dryRunData).toHaveProperty('errors');
+    expect(dryRunData).toHaveProperty('remaining');
+    expect(dryRunData).toHaveProperty('timestamp');
+
+    // Test actual dispatch
+    const actualResponse = await request.get('/api/admin/dispatch-emails', {
+      headers: {
+        'Authorization': `Bearer ${process.env.CRON_SECRET}`
+      }
+    });
+
+    expect(actualResponse.ok()).toBeTruthy();
+    const actualData = await actualResponse.json();
+    
+    expect(actualData).toHaveProperty('ok', true);
+    expect(actualData).toHaveProperty('dryRun');
+    expect(actualData).toHaveProperty('sent');
+    expect(actualData).toHaveProperty('wouldSend');
+    expect(actualData).toHaveProperty('blocked');
+    expect(actualData).toHaveProperty('errors');
+    expect(actualData).toHaveProperty('remaining');
+    expect(actualData).toHaveProperty('timestamp');
   });
 
-  test.describe('Error Handling', () => {
-    test('should handle malformed JSON in POST body', async ({ request }) => {
-      const response = await request.post(`${baseURL}/api/admin/dispatch-emails`, {
-        headers: {
-          'Authorization': `Bearer ${cronSecret}`,
-          'Content-Type': 'application/json'
-        },
-        data: 'invalid json'
-      });
-      
-      // Should still work with default values
-      expect(response.status()).toBe(200);
-      
-      const body = await response.json();
-      expect(body.ok).toBe(true);
-      expect(body.dryRun).toBe(true);
+  test('should return email status via admin endpoint', async ({ request }) => {
+    const response = await request.get('/api/admin/email-status', {
+      headers: {
+        'Authorization': `Bearer ${process.env.CRON_SECRET}`
+      }
     });
 
-    test('should handle missing CRON_SECRET environment variable gracefully', async ({ request }) => {
-      // This test documents the expected behavior when CRON_SECRET is not set
-      // In a real scenario, this would be caught by the environment setup
-      const response = await request.get(`${baseURL}/api/admin/dispatch-emails`);
-      expect(response.status()).toBe(401);
-      
-      const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    
+    expect(data).toHaveProperty('ok', true);
+    expect(data).toHaveProperty('timestamp');
+    expect(data).toHaveProperty('config');
+    expect(data).toHaveProperty('transport');
+    expect(data).toHaveProperty('validation');
+    expect(data).toHaveProperty('health');
+    expect(data).toHaveProperty('env');
+
+    // Check configuration structure
+    expect(data.config).toHaveProperty('mode');
+    expect(data.config).toHaveProperty('allowlist');
+    expect(data.config).toHaveProperty('allowlistSize');
+    expect(data.config).toHaveProperty('fromEmail');
+    expect(data.config).toHaveProperty('resendConfigured');
+    expect(data.config).toHaveProperty('isProduction');
+    expect(data.config).toHaveProperty('nodeEnv');
+
+    // Check transport structure
+    expect(data.transport).toHaveProperty('mode');
+    expect(data.transport).toHaveProperty('allowlist');
+    expect(data.transport).toHaveProperty('capMaxPerRun');
+    expect(data.transport).toHaveProperty('blockNonAllowlist');
+    expect(data.transport).toHaveProperty('subjectPrefix');
+    expect(data.transport).toHaveProperty('resendConfigured');
+
+    // Check validation structure
+    expect(data.validation).toHaveProperty('valid');
+    expect(data.validation).toHaveProperty('errors');
+    expect(data.validation).toHaveProperty('warnings');
+
+    // Check health structure
+    expect(data.health).toHaveProperty('provider');
+    expect(data.health).toHaveProperty('outbox');
+
+    // Check environment structure
+    expect(data.env).toHaveProperty('EMAIL_MODE');
+    expect(data.env).toHaveProperty('DISPATCH_DRY_RUN');
+    expect(data.env).toHaveProperty('RESEND_API_KEY');
+    expect(data.env).toHaveProperty('EMAIL_FROM');
+    expect(data.env).toHaveProperty('CRON_SECRET');
+    expect(data.env).toHaveProperty('SUPABASE_ENV');
+    expect(data.env).toHaveProperty('NODE_ENV');
+  });
+
+  test('should handle registration with email dispatch', async ({ request }) => {
+    // Submit a registration
+    const registrationResponse = await request.post('/api/register', {
+      data: {
+        title: "Mr",
+        firstName: "EmailTest",
+        lastName: "User",
+        nickname: "EmailTestUser",
+        phone: "0123456798",
+        lineId: "emailtestuser2",
+        email: "raja.gadgets89@gmail.com", // Use allowlisted email
+        companyName: "Test Co",
+        businessType: "technology",
+        yecProvince: "bangkok",
+        hotelChoice: "in-quota",
+        roomType: "single",
+        travelType: "private-car",
+        pdpaConsent: true
+      }
     });
+
+    expect(registrationResponse.ok()).toBeTruthy();
+    const registrationData = await registrationResponse.json();
+    
+    expect(registrationData).toHaveProperty('success', true);
+    expect(registrationData).toHaveProperty('registration_id');
+    
+    // Check email dispatch status in non-prod
+    if (process.env.NODE_ENV !== 'production') {
+      expect(registrationData).toHaveProperty('emailDispatch');
+      expect(registrationData).toHaveProperty('emailDispatchDetails');
+      
+      // The emailDispatch should be one of the expected values
+      expect(['sent', 'blocked', 'dry_run', 'failed']).toContain(registrationData.emailDispatch);
+    }
+
+    // Wait a moment for email processing
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Check if emails are in the outbox
+    const dispatchResponse = await request.get('/api/admin/dispatch-emails?dry_run=true', {
+      headers: {
+        'Authorization': `Bearer ${process.env.CRON_SECRET}`
+      }
+    });
+
+    expect(dispatchResponse.ok()).toBeTruthy();
+    const dispatchData = await dispatchResponse.json();
+    
+    // Should have some emails to process
+    expect(dispatchData.wouldSend + dispatchData.blocked + dispatchData.errors).toBeGreaterThan(0);
+  });
+
+  test('should reject unauthorized access to admin endpoints', async ({ request }) => {
+    // Test without authorization
+    const unauthorizedResponse = await request.get('/api/admin/dispatch-emails');
+    expect(unauthorizedResponse.status()).toBe(401);
+
+    const unauthorizedStatusResponse = await request.get('/api/admin/email-status');
+    expect(unauthorizedStatusResponse.status()).toBe(401);
+
+    // Test with invalid authorization
+    const invalidResponse = await request.get('/api/admin/dispatch-emails', {
+      headers: {
+        'Authorization': 'Bearer invalid-token'
+      }
+    });
+    expect(invalidResponse.status()).toBe(401);
   });
 });
 

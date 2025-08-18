@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { config } from 'dotenv';
 import path from 'path';
+import { assertDbRouting } from '../../../app/lib/env-guards';
 
 // Load environment variables
 const envPath = path.join(process.cwd(), '.env.local');
@@ -14,6 +15,9 @@ export class SupabaseTestClient {
   private client: SupabaseClient<any, 'audit', any>;
 
   constructor() {
+    // Validate database routing
+    assertDbRouting();
+    
     const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

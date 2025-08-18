@@ -61,6 +61,34 @@ function getAppUrl(): string {
   return productionUrl;
 }
 
+/**
+ * Get email from address with production validation
+ * In production, EMAIL_FROM is required and must be a verified sender
+ * In non-production, falls back to safe test domain
+ */
+export function getEmailFromAddress(): string {
+  const from = process.env.EMAIL_FROM;
+  const env = process.env.NODE_ENV || 'development';
+  
+  if (env === 'production') {
+    if (!from) {
+      throw new Error('EMAIL_FROM is required in production');
+    }
+    return from; // must be a verified sender on Resend
+  }
+  
+  // non-prod safe fallback (no real sending)
+  return from || 'noreply@local.test';
+}
+
+/**
+ * Get base URL for the application
+ * Centralized helper for building absolute URLs
+ */
+export function getBaseUrl(): string {
+  return getAppUrl();
+}
+
 export const config: AppConfig = {
   supabase: {
     url: getRequiredEnvVar("NEXT_PUBLIC_SUPABASE_URL"),
@@ -69,7 +97,7 @@ export const config: AppConfig = {
 
   email: {
     resendApiKey: getOptionalEnvVar("RESEND_API_KEY"),
-    fromEmail: getOptionalEnvVar("FROM_EMAIL"),
+    fromEmail: getOptionalEnvVar("EMAIL_FROM"),
     replyToEmail: getOptionalEnvVar("REPLY_TO_EMAIL"),
   },
 
