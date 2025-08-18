@@ -61,7 +61,7 @@ jobs:
           mkdir -p supabase/migrations
 
           # 1) dump schema จาก STAGING → ไฟล์ชั่วคราว ด้วย pg_dump v17
-          #    (exclude สคีมาระบบของ Supabase ออกทั้งหมด)
+          #   Exclude สคีมาระบบของ Supabase ออกทั้งหมด (กันชนกับ local stack)
           docker run --rm \
             -e STAGING_DB_URL="${STAGING_DB_URL}" \
             -v "$PWD/supabase/migrations:/out" \
@@ -77,32 +77,49 @@ jobs:
                         --exclude-schema=supabase_migrations \
                         --exclude-schema=supabase_functions \
                         --exclude-schema=pgsodium \
-                        --exclude-schema=vault"
-              pg_dump --dbname="$STAGING_DB_URL" \
+                        --exclude-schema=vault \
+                        --exclude-schema=pg_net \
+                        --exclude-schema=pg_graphql"
+              pg_dump --dbname=\"$STAGING_DB_URL\" \
                       --schema-only --no-owner --no-privileges $EXCLUDES \
                 > /out/_tmp_remote_base.sql
             '
 
           echo "----- tmp(head) -----"
-          head -n 25 supabase/migrations/_tmp_remote_base.sql || true
+          head -n 30 supabase/migrations/_tmp_remote_base.sql || true
 
-          # 2) กรอง meta-commands ของ psql (เช่น \restrict, \unrestrict, \connect ฯลฯ)
-          awk '!/^[[:space:]]*\\/' supabase/migrations/_tmp_remote_base.sql \
+          # 2) ทำความสะอาดไฟล์:
+          #   - ลบ meta-commands psql (เช่น \restrict/\unrestrict ของ PG17)
+          #   - ลบ CREATE/ALTER PUBLICATION และ SUBSCRIPTION (ของ realtime)
+          #   - (กัน future cases) ลบ COMMENT ON PUBLICATION/SUBSCRIPTION ด้วย
+          sed_clean() {
+            sed -E "/^[[:space:]]*\\\\/d" \
+            | sed -E "/^(CREATE|ALTER|COMMENT)[[:space:]]+PUBLICATION\\b/Id" \
+            | sed -E "/^(CREATE|ALTER|COMMENT)[[:space:]]+SUBSCRIPTION\\b/Id"
+          }
+          sed_clean < supabase/migrations/_tmp_remote_base.sql \
             > supabase/migrations/00000000000000_remote_base.sql
-
-          # 3) ลบไฟล์ชั่วคราว เพื่อกันไม่ให้ของดิบถูกนำไปรัน
           rm -f supabase/migrations/_tmp_remote_base.sql
 
           echo "----- filtered(head) -----"
           head -n 30 supabase/migrations/00000000000000_remote_base.sql || true
 
-          # 4) การ์ดกันพลาด
-          if grep -nE '^[[:space:]]*\\' supabase/migrations/00000000000000_remote_base.sql; then
-            echo "::error::filtered remote base still contains psql meta-commands"
+          # 3) Preflight: ถ้าเหลือ patterns ต้องห้าม ให้ fail พร้อมรายงานก่อน
+          BAD=0
+          echo "Preflight scan…"
+          for pat in '^[[:space:]]*\\' \
+                     '^(CREATE|ALTER|COMMENT)[[:space:]]+PUBLICATION\\b' \
+                     '^(CREATE|ALTER|COMMENT)[[:space:]]+SUBSCRIPTION\\b' ; do
+            if grep -nE "$pat" supabase/migrations/00000000000000_remote_base.sql >/dev/null; then
+              echo "::error::remote_base.sql still contains forbidden pattern: $pat"
+              BAD=1
+            fi
+          done
+          if [ $BAD -ne 0 ]; then
             exit 1
           fi
 
-          # 5) ผนวกไฟล์ migrations ในรีโปเข้ามา
+          # 4) ผนวกไฟล์ migrations ในรีโปเข้ามา
           cp -a migrations/. supabase/migrations/
           ls -la supabase/migrations
 
