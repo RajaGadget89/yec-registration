@@ -50,7 +50,6 @@ jobs:
         with:
           version: latest
 
-      # ✅ แก้เฉพาะสเต็ปนี้
       - name: Build migration set for shadow (remote base + local)
         if: needs.detect_changes.outputs.db_changed == 'true'
         env:
@@ -80,9 +79,8 @@ jobs:
                         --exclude-schema=vault \
                         --exclude-schema=pg_net \
                         --exclude-schema=pg_graphql"
-              pg_dump --dbname=\"$STAGING_DB_URL\" \
-                      --schema-only --no-owner --no-privileges $EXCLUDES \
-                > /out/_tmp_remote_base.sql
+              pg_dump --schema-only --no-owner --no-privileges $EXCLUDES \
+                      "$STAGING_DB_URL" > /out/_tmp_remote_base.sql
             '
 
           echo "----- tmp(head) -----"
@@ -175,4 +173,3 @@ jobs:
             echo "==> Applying $f"
             psql "$STAGING_DB_URL" -v ON_ERROR_STOP=1 -f "$f"
           done
-
