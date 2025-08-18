@@ -21,19 +21,16 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       db_changed: ${{ steps.filter.outputs.db }}
-      db_files: ${{ steps.filter.outputs.db_files }}
     steps:
       - uses: actions/checkout@v4
       - id: filter
         uses: dorny/paths-filter@v3
         with:
-          # รองรับทั้งตำแหน่งที่ repo ใช้อยู่จริง และตำแหน่งมาตรฐานของ Supabase CLI
           filters: |
             db:
               - 'migrations/**'
               - 'supabase/migrations/**'
               - '.github/workflows/db-migrate-staging.yml'
-          list-files: shell
 
   test_on_shadow:
     name: test_on_shadow
@@ -58,16 +55,12 @@ jobs:
         with:
           version: latest
 
-      - name: Mirror migrations → supabase/migrations (CLI compat)
+      - name: Mirror ALL migrations → supabase/migrations
         if: needs.detect_changes.outputs.db_changed == 'true'
         run: |
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
-          # ใช้เฉพาะไฟล์ที่แก้ไขใน PR นี้ (ปลอดภัยกว่า)
-          echo "${{ needs.detect_changes.outputs.db_files }}" | tr ' ' '\n' | grep '^migrations/.*\.sql$' | sort | while read -r f; do
-            echo "Copy $f → supabase/migrations/"
-            cp --parents "$f" supabase/ 2>/dev/null || cp "$f" supabase/migrations/
-          done
+          cp -a migrations/. supabase/migrations/
 
       - name: Start local Supabase (shadow)
         if: needs.detect_changes.outputs.db_changed == 'true'
@@ -116,14 +109,11 @@ jobs:
         with:
           version: latest
 
-      - name: Mirror migrations → supabase/migrations (CLI compat)
+      - name: Mirror ALL migrations → supabase/migrations
         run: |
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
-          echo "${{ needs.detect_changes.outputs.db_files }}" | tr ' ' '\n' | grep '^migrations/.*\.sql$' | sort | while read -r f; do
-            echo "Copy $f → supabase/migrations/"
-            cp --parents "$f" supabase/ 2>/dev/null || cp "$f" supabase/migrations/
-          done
+          cp -a migrations/. supabase/migrations/
 
       - name: Push migrations → Staging (no prompt)
         run: |
