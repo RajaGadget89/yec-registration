@@ -57,6 +57,7 @@ jobs:
           filters: |
             db:
               - 'migrations/**'
+              - 'supabase/migrations/**'
               - '.github/workflows/db-promote-prod.yml'
 
   test_on_shadow:
