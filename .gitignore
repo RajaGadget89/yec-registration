@@ -77,3 +77,7 @@ docs/
 documents/
 tmp/
 scripts/
+
+# ===========================
+# Supabase
+supabase/migrations/
