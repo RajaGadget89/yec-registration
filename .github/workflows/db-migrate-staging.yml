@@ -50,13 +50,7 @@ jobs:
         with:
           version: latest
 
-      - name: Install PostgreSQL client
-        if: needs.detect_changes.outputs.db_changed == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client
-
-      # ⬇️ ดึง snapshot จาก STAGING แล้วประกอบชุด migrations สำหรับ shadow
+      # ⬇️ ใช้ dockerized pg_dump 17 เพื่อเลี่ยง version mismatch
       - name: Build migration set for shadow (remote base + local)
         if: needs.detect_changes.outputs.db_changed == 'true'
         env:
@@ -66,13 +60,17 @@ jobs:
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
 
-          # 1) ดึง schema ปัจจุบันของ STAGING → 000_remote_base.sql
-          pg_dump "$STAGING_DB_URL" \
-            --schema-only --no-owner --no-privileges \
-            --exclude-schema=pg_* --exclude-schema=information_schema \
-            > supabase/migrations/000_remote_base.sql
+          # ดึง schema ปัจจุบันจาก STAGING → 000_remote_base.sql (pg_dump v17 ใน container)
+          docker run --rm \
+            -e STAGING_DB_URL="${STAGING_DB_URL}" \
+            -v "$PWD/supabase/migrations:/out" \
+            postgres:17-alpine sh -lc '
+              pg_dump --dbname="$STAGING_DB_URL" \
+                      --schema-only --no-owner --no-privileges \
+                > /out/000_remote_base.sql
+            '
 
-          # 2) เติมไฟล์ migrations ใน repo ต่อท้าย
+          # ผนวกไฟล์ migrations ใน repo ต่อท้าย
           cp -a migrations/. supabase/migrations/
           ls -la supabase/migrations
 
@@ -81,7 +79,6 @@ jobs:
         run: |
           set -euo pipefail
           supabase start
-          # reset จะอ่านไฟล์ใน supabase/migrations ตามลำดับ
           printf 'y\n' | supabase db reset
 
       - name: Report required context (ruleset-compat)
@@ -108,7 +105,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL client (for psql)
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
@@ -122,13 +119,12 @@ jobs:
           echo "Changed migration files:"
           echo "$CHANGED"
 
-          # กันกรณี output ว่าง
           if [ -z "$CHANGED" ]; then
             echo "No changed .sql files detected."
             exit 0
           fi
 
-          # รันตามลำดับชื่อไฟล์ (prefix timestamp)
+          # รันตามลำดับ timestamp ของไฟล์
           for f in $(echo "$CHANGED" | tr ' ' '\n' | sort); do
             echo "==> Applying $f"
             psql "$STAGING_DB_URL" -v ON_ERROR_STOP=1 -f "$f"
