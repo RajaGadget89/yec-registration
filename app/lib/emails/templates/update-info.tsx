@@ -1,16 +1,19 @@
 import React from "react";
 import { emailTheme } from "../theme";
 import { EmailTemplateProps } from "../registry";
+import { getEmailFromAddress } from "../../config";
 
 export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = "ผู้สมัคร",
   trackingCode,
   ctaUrl,
-  supportEmail: _supportEmail = "info@yecday.com",
+  notes,
+  supportEmail: _supportEmail,
   brandTokens,
   dimension,
-  notes,
 }) => {
+  // Use centralized email address if not provided
+  const supportEmail = _supportEmail || getEmailFromAddress();
   void _supportEmail; // used to satisfy lint without changing config
   void dimension; // used to satisfy lint without changing config
   const { colors, spacing, button } = emailTheme;
@@ -171,7 +174,7 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
           }}
         >
           <p style={{ margin: 0 }}>
-            <strong>หากมีคำถาม:</strong> ติดต่อเราได้ที่ {_supportEmail}
+            <strong>หากมีคำถาม:</strong> ติดต่อเราได้ที่ {supportEmail}
           </p>
           <p style={{ margin: "8px 0 0 0", fontSize: "12px" }}>
             ข้อมูลส่วนบุคคลของคุณจะถูกเก็บรักษาไว้ตามนโยบายการคุ้มครองข้อมูลส่วนบุคคล
@@ -333,7 +336,7 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
           }}
         >
           <p style={{ margin: 0 }}>
-            <strong>Questions?</strong> Contact us at {_supportEmail}
+            <strong>Questions?</strong> Contact us at {supportEmail}
           </p>
           <p style={{ margin: "8px 0 0 0", fontSize: "12px" }}>
             Your personal information will be protected according to our

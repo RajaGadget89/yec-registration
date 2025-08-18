@@ -101,17 +101,24 @@ export async function uploadFileToSupabase(
       throw new Error("Upload succeeded but no file path returned");
     }
 
-    // Get public URL for the uploaded file
-    const { data: urlData } = supabase.storage
-      .from(folder)
-      .getPublicUrl(data.path);
+    // Generate appropriate URL based on bucket type
+    if (bucketConfig.public) {
+      // For public buckets, use public URL
+      const { data: urlData } = supabase.storage
+        .from(folder)
+        .getPublicUrl(data.path);
 
-    if (!urlData?.publicUrl) {
-      throw new Error("Failed to generate public URL for uploaded file");
+      if (!urlData?.publicUrl) {
+        throw new Error("Failed to generate public URL for uploaded file");
+      }
+
+      console.log(`File uploaded successfully (public): ${urlData.publicUrl}`);
+      return urlData.publicUrl;
+    } else {
+      // For private buckets, return the file path - signed URLs will be generated on-demand
+      console.log(`File uploaded successfully (private bucket): ${folder}/${data.path}`);
+      return `${folder}/${data.path}`;
     }
-
-    console.log(`File uploaded successfully: ${urlData.publicUrl}`);
-    return urlData.publicUrl;
   } catch (error) {
     console.error("Error in uploadFileToSupabase:", error);
 
@@ -121,6 +128,50 @@ export async function uploadFileToSupabase(
     } else {
       throw new Error("File upload failed: Unknown error occurred");
     }
+  }
+}
+
+/**
+ * Generates a signed URL for a file in a private bucket
+ * @param filePath - The file path (e.g., "profile-images/filename.jpg")
+ * @param expirySeconds - URL expiry time in seconds (default: 1 hour)
+ * @returns Promise<string> - Signed URL for the file
+ */
+export async function generateSignedUrl(
+  filePath: string,
+  expirySeconds: number = 3600
+): Promise<string> {
+  const supabase = getSupabaseServiceClient();
+  
+  try {
+    // Parse the file path to get bucket and file path
+    const [bucket, ...pathParts] = filePath.split('/');
+    const filePathInBucket = pathParts.join('/');
+    
+    if (!bucket || !filePathInBucket) {
+      throw new Error(`Invalid file path format: ${filePath}`);
+    }
+    
+    console.log(`[SIGNED_URL] Generating signed URL for: ${bucket}/${filePathInBucket}, expiry: ${expirySeconds}s`);
+    
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(filePathInBucket, expirySeconds);
+    
+    if (error) {
+      console.error(`[SIGNED_URL] Error generating signed URL:`, error);
+      throw new Error(`Failed to generate signed URL: ${error.message}`);
+    }
+    
+    if (!data?.signedUrl) {
+      throw new Error("No signed URL returned from Supabase");
+    }
+    
+    console.log(`[SIGNED_URL] Generated signed URL successfully`);
+    return data.signedUrl;
+  } catch (error) {
+    console.error(`[SIGNED_URL] Error in generateSignedUrl:`, error);
+    throw error;
   }
 }
 

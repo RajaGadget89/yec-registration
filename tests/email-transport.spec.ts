@@ -1,13 +1,14 @@
 import { getEmailTransport, EmailTransport } from '../app/lib/emails/transport';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock Resend SDK
-jest.mock('resend', () => {
+vi.mock('resend', () => {
   return {
-    Resend: jest.fn().mockImplementation(() => ({
+    Resend: vi.fn().mockImplementation(() => ({
       emails: {
-        send: jest.fn()
-      }
-    }))
+        send: vi.fn().mockResolvedValue({ error: null, data: { id: 'test-id' } }),
+      },
+    })),
   };
 });
 
