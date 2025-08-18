@@ -188,15 +188,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_event_settings_singleton ON public.event_se
 
 
 
-alter table "public"."admin_users" add constraint "admin_users_email_key" UNIQUE using index "admin_users_email_key";
+
 
 alter table "public"."admin_users" add constraint "admin_users_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
 
 alter table "public"."admin_users" validate constraint "admin_users_id_fkey";
 
-alter table "public"."admin_users" add constraint "admin_users_role_check" CHECK ((role = ANY (ARRAY['admin'::text, 'super_admin'::text]))) not valid;
-
-alter table "public"."admin_users" validate constraint "admin_users_role_check";
 
 
 
@@ -204,29 +201,20 @@ alter table "public"."admin_users" validate constraint "admin_users_role_check";
 
 
 
-alter table "public"."registrations" add constraint "chk_review_statuses" CHECK (((payment_review_status = ANY (ARRAY['pending'::text, 'needs_update'::text, 'passed'::text, 'rejected'::text])) AND (profile_review_status = ANY (ARRAY['pending'::text, 'needs_update'::text, 'passed'::text, 'rejected'::text])) AND (tcc_review_status = ANY (ARRAY['pending'::text, 'needs_update'::text, 'passed'::text, 'rejected'::text])))) not valid;
 
-alter table "public"."registrations" validate constraint "chk_review_statuses";
 
-alter table "public"."registrations" add constraint "chk_status" CHECK ((status = ANY (ARRAY['waiting_for_review'::text, 'waiting_for_update_payment'::text, 'waiting_for_update_info'::text, 'waiting_for_update_tcc'::text, 'approved'::text, 'rejected'::text]))) not valid;
 
-alter table "public"."registrations" validate constraint "chk_status";
 
-alter table "public"."registrations" add constraint "chk_update_reason" CHECK (((update_reason IS NULL) OR (update_reason = ANY (ARRAY['payment'::text, 'info'::text, 'tcc'::text])))) not valid;
 
-alter table "public"."registrations" validate constraint "chk_update_reason";
 
-alter table "public"."registrations" add constraint "external_hotel_required_when_out_quota" CHECK (((((hotel_choice)::text = 'out-of-quota'::text) AND (external_hotel_name IS NOT NULL)) OR (((hotel_choice)::text = 'in-quota'::text) AND (external_hotel_name IS NULL)))) not valid;
 
-alter table "public"."registrations" validate constraint "external_hotel_required_when_out_quota";
+
 
 alter table "public"."registrations" add constraint "registrations_email_check" CHECK (((email)::text ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'::text)) not valid;
 
 alter table "public"."registrations" validate constraint "registrations_email_check";
 
-alter table "public"."registrations" add constraint "registrations_hotel_choice_check" CHECK (((hotel_choice)::text = ANY (ARRAY[('in-quota'::character varying)::text, ('out-of-quota'::character varying)::text]))) not valid;
 
-alter table "public"."registrations" validate constraint "registrations_hotel_choice_check";
 
 alter table "public"."registrations" add constraint "registrations_line_id_check" CHECK (((line_id)::text ~ '^[a-zA-Z0-9._-]+$'::text)) not valid;
 
@@ -236,19 +224,13 @@ alter table "public"."registrations" add constraint "registrations_phone_check" 
 
 alter table "public"."registrations" validate constraint "registrations_phone_check";
 
-alter table "public"."registrations" add constraint "registrations_registration_id_key" UNIQUE using index "registrations_registration_id_key";
 
-alter table "public"."registrations" add constraint "registrations_travel_type_check" CHECK (((travel_type)::text = ANY (ARRAY[('private-car'::character varying)::text, ('van'::character varying)::text]))) not valid;
 
-alter table "public"."registrations" validate constraint "registrations_travel_type_check";
 
-alter table "public"."registrations" add constraint "room_type_required_when_in_quota" CHECK (((((hotel_choice)::text = 'in-quota'::text) AND (room_type IS NOT NULL)) OR (((hotel_choice)::text = 'out-of-quota'::text) AND (room_type IS NULL)))) not valid;
 
-alter table "public"."registrations" validate constraint "room_type_required_when_in_quota";
 
-alter table "public"."registrations" add constraint "roommate_info_required_for_double" CHECK (((((room_type)::text = 'double'::text) AND (roommate_info IS NOT NULL) AND (roommate_phone IS NOT NULL)) OR ((room_type)::text <> 'double'::text))) not valid;
 
-alter table "public"."registrations" validate constraint "roommate_info_required_for_double";
+
 
 set check_function_bodies = off;
 
