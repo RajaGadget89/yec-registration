@@ -190,9 +190,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_event_settings_singleton ON public.event_se
 
 
 
-alter table "public"."admin_users" add constraint "admin_users_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
 
-alter table "public"."admin_users" validate constraint "admin_users_id_fkey";
 
 
 
