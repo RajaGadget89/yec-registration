@@ -947,103 +947,19 @@ using (((id = auth.uid()) AND (is_active = true)));
 
 
 
-  create policy "Admin can read email outbox"
-  on "public"."email_outbox"
-  as permissive
-  for select
-  to public
-using ((auth.role() = 'authenticated'::text));
 
 
 
-  create policy "Service role can manage email outbox"
-  on "public"."email_outbox"
-  as permissive
-  for all
-  to public
-using ((auth.role() = 'service_role'::text));
 
 
 
-  create policy "Admin users can insert event settings"
-  on "public"."event_settings"
-  as permissive
-  for insert
-  to public
-with check ((EXISTS ( SELECT 1
-   FROM admin_users
-  WHERE (admin_users.email = ((current_setting('request.jwt.claims'::text, true))::json ->> 'email'::text)))));
 
 
 
-  create policy "Admin users can update event settings"
-  on "public"."event_settings"
-  as permissive
-  for update
-  to public
-using ((EXISTS ( SELECT 1
-   FROM admin_users
-  WHERE (admin_users.email = ((current_setting('request.jwt.claims'::text, true))::json ->> 'email'::text)))));
 
 
 
-  create policy "Admin users can view event settings"
-  on "public"."event_settings"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM admin_users
-  WHERE (admin_users.email = ((current_setting('request.jwt.claims'::text, true))::json ->> 'email'::text)))));
 
-
-
-  create policy "Admin users can update registrations"
-  on "public"."registrations"
-  as permissive
-  for update
-  to public
-using ((EXISTS ( SELECT 1
-   FROM admin_users
-  WHERE (admin_users.email = ((current_setting('request.jwt.claims'::text, true))::json ->> 'email'::text)))));
-
-
-
-  create policy "Admin users can view all registrations"
-  on "public"."registrations"
-  as permissive
-  for select
-  to public
-using ((EXISTS ( SELECT 1
-   FROM admin_users
-  WHERE (admin_users.email = ((current_setting('request.jwt.claims'::text, true))::json ->> 'email'::text)))));
-
-
-
-  create policy "Allow Admin Read"
-  on "public"."registrations"
-  as permissive
-  for select
-  to public
-using ((auth.role() = 'admin'::text));
-
-
-
-  create policy "Allow Public Insert"
-  on "public"."registrations"
-  as permissive
-  for insert
-  to public
-with check (true);
-
-
-
-  create policy "Users can insert registrations"
-  on "public"."registrations"
-  as permissive
-  for insert
-  to public
-with check (true);
 
 
 CREATE TRIGGER trg_admin_users_updated_at BEFORE UPDATE ON public.admin_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
