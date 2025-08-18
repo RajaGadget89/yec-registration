@@ -25,7 +25,7 @@ echo "=================================="
 title "🧰 Runtime Guard"
 REQ_NODE_MAJOR=18
 NODE_MAJOR=$(node -p "process.versions.node.split('.')[0]")
-[ "$NODE_MAJOR" -eq "$REQ_NODE_MAJOR" ] || fail "Node $REQ_NODE_MAJOR.x required, found $(node -v)"
+[ "$NODE_MAJOR" -ge "$REQ_NODE_MAJOR" ] || fail "Node $REQ_NODE_MAJOR.x or higher required, found $(node -v)"
 ok "Node $(node -v)"
 
 # ---------- 0a) Local .env auto-load (non-CI) ----------
@@ -51,11 +51,37 @@ echo "Skip allowlist check for now"; ok "Allowlist skipped"
 title "🔐 ENV Sanity"
 : "${SUPABASE_URL:?Missing SUPABASE_URL}"
 : "${SUPABASE_SERVICE_ROLE_KEY:?Missing SUPABASE_SERVICE_ROLE_KEY}"
+: "${NEXT_PUBLIC_SUPABASE_URL:?Missing NEXT_PUBLIC_SUPABASE_URL}"
+: "${NEXT_PUBLIC_SUPABASE_ANON_KEY:?Missing NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+: "${CRON_SECRET:?Missing CRON_SECRET}"
+
 ENV_FLAVOR="${SUPABASE_ENV:-staging}"
+
+# Validate database routing - prevent localhost usage in non-localdev environments
+if [[ "$ENV_FLAVOR" != "localdev" ]]; then
+  if [[ "$SUPABASE_URL" =~ ^(http://)?(127\.0\.0\.1|localhost) ]]; then
+    fail "Invalid DB routing: SUPABASE_URL points to localhost while SUPABASE_ENV=$ENV_FLAVOR. Use staging project in Local/CI/Preview. Set SUPABASE_ENV=localdev to explicitly use local database."
+  fi
+  if [[ "$NEXT_PUBLIC_SUPABASE_URL" =~ ^(http://)?(127\.0\.0\.1|localhost) ]]; then
+    fail "Invalid DB routing: NEXT_PUBLIC_SUPABASE_URL points to localhost while SUPABASE_ENV=$ENV_FLAVOR. Use staging project in Local/CI/Preview. Set SUPABASE_ENV=localdev to explicitly use local database."
+  fi
+fi
+
 if [[ "$ENV_FLAVOR" == "prod" && "${ALLOW_PROD:-0}" != "1" ]]; then
   fail "Refusing to run audit tests against PROD (SUPABASE_ENV=prod). Set SUPABASE_ENV=staging or ALLOW_PROD=1 intentionally."
 fi
-echo "ENV OK (masked) URL=$SUPABASE_URL SRK=${SUPABASE_SERVICE_ROLE_KEY:0:6}**** ENV=$ENV_FLAVOR"
+
+# Validate EMAIL_FROM in production
+if [[ "${NODE_ENV:-}" == "production" ]]; then
+  if [[ -z "${EMAIL_FROM:-}" ]]; then
+    fail "EMAIL_FROM is required in production environment"
+  fi
+  echo "EMAIL_FROM validated for production: ${EMAIL_FROM}"
+fi
+
+# Extract hostname for logging (masked)
+SUPABASE_HOST=$(echo "$SUPABASE_URL" | sed -E 's|^https?://([^/]+).*|\1|')
+echo "ENV OK (masked) HOST=$SUPABASE_HOST SRK=${SUPABASE_SERVICE_ROLE_KEY:0:6}**** ENV=$ENV_FLAVOR CRON_SECRET=${CRON_SECRET:0:6}****"
 
 # ---------- 3) Code quality ----------
 title "🔍 Code Quality"
@@ -69,6 +95,9 @@ if [ -f "app/lib/filenameUtils.test.ts" ]; then
 else
   echo "Skip filenameUtils.test.ts (not found)"; ok "Unit test skipped"
 fi
+
+# Database routing validation test
+run "Database routing validation" npm run -s test:db-routing
 
 # ---------- 5) Build sanity (CI only) ----------
 title "🏗️ Build Sanity (CI only)"

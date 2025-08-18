@@ -12,6 +12,7 @@ import {
 } from "./registry";
 import { getEmailTransport } from "./transport";
 import { Registration } from "../../types/database";
+import { getBaseUrl, getEmailFromAddress } from "../config";
 
 export interface EmailSendResult {
   ok: boolean;
@@ -61,7 +62,7 @@ export async function generateDeepLinkToken(
   }
 
   // Build CTA URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
+  const baseUrl = getBaseUrl();
   const ctaUrl = `${baseUrl}/user/${token}/resubmit`;
 
   // Get expiration time
@@ -88,7 +89,7 @@ export async function sendTrackingEmail(
   const props: EmailTemplateProps = {
     applicantName,
     trackingCode: registration.registration_id,
-    supportEmail: process.env.EMAIL_FROM || "info@yecday.com",
+    supportEmail: getEmailFromAddress(),
     brandTokens,
   };
 
@@ -154,7 +155,7 @@ export async function sendUpdateRequestEmail(
     ctaUrl: tokenResult.ctaUrl,
     dimension,
     notes,
-    supportEmail: process.env.EMAIL_FROM || "info@yecday.com",
+    supportEmail: getEmailFromAddress(),
     brandTokens,
     // Add payment-specific props for payment template
     ...(dimension === "payment" && {
@@ -199,7 +200,7 @@ export async function sendApprovalEmail(
     applicantName,
     trackingCode: registration.registration_id,
     badgeUrl: badgeUrl || "",
-    supportEmail: process.env.EMAIL_FROM || "info@yecday.com",
+    supportEmail: getEmailFromAddress(),
     brandTokens,
   };
 
@@ -239,7 +240,7 @@ export async function sendRejectionEmail(
     applicantName,
     trackingCode: registration.registration_id,
     rejectedReason,
-    supportEmail: process.env.EMAIL_FROM || "info@yecday.com",
+    supportEmail: getEmailFromAddress(),
     brandTokens,
   };
 

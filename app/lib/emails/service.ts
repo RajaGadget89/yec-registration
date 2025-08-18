@@ -9,6 +9,7 @@ void _sendEmail;
 void _renderEmailTemplate;
 void _getEmailSubject;
 import { getServiceRoleClient } from "../supabase-server";
+import { getBaseUrl } from "../config";
 import { enqueueEmail } from "./dispatcher";
 
 /**
@@ -281,7 +282,7 @@ export async function sendStatusChangeEmail(
         return sendUpdatePaymentEmail(
           registration.email,
           trackingCode,
-          `${process.env.NEXT_PUBLIC_APP_URL}/update/${registrationId}`,
+          `${getBaseUrl()}/update/${registrationId}`,
           applicantName,
           registration.price_applied?.toString(),
           registration.package_name,
@@ -291,7 +292,7 @@ export async function sendStatusChangeEmail(
         return sendUpdateInfoEmail(
           registration.email,
           trackingCode,
-          `${process.env.NEXT_PUBLIC_APP_URL}/update/${registrationId}`,
+          `${getBaseUrl()}/update/${registrationId}`,
           applicantName,
           registrationId,
         );
@@ -299,7 +300,7 @@ export async function sendStatusChangeEmail(
         return sendUpdateTccEmail(
           registration.email,
           trackingCode,
-          `${process.env.NEXT_PUBLIC_APP_URL}/update/${registrationId}`,
+          `${getBaseUrl()}/update/${registrationId}`,
           applicantName,
           registrationId,
         );

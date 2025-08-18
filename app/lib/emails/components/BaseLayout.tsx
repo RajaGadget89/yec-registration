@@ -1,15 +1,23 @@
 import React from "react";
 import { emailTheme } from "../theme";
+import { getEmailFromAddress } from "../../config";
 
 interface BaseLayoutProps {
   children: React.ReactNode;
   supportEmail?: string;
+  brandTokens?: {
+    primaryColor?: string;
+    secondaryColor?: string;
+  };
 }
 
 export const BaseLayout: React.FC<BaseLayoutProps> = ({
   children,
-  supportEmail = "info@yecday.com",
+  supportEmail,
+  // brandTokens, // Unused parameter - removed to fix ESLint warning
 }) => {
+  // Use centralized email address if not provided
+  const emailAddress = supportEmail || getEmailFromAddress();
   const { colors, containerWidth, header, footer } = emailTheme;
 
   return (
@@ -147,14 +155,14 @@ export const BaseLayout: React.FC<BaseLayoutProps> = ({
 
             <div style={{ marginBottom: "8px" }}>
               <a
-                href={`mailto:${supportEmail}`}
+                href={`mailto:${emailAddress}`}
                 style={{
                   color: colors.accent,
                   textDecoration: "none",
                   fontWeight: "bold",
                 }}
               >
-                {supportEmail}
+                {emailAddress}
               </a>
             </div>
 

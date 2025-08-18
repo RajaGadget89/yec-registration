@@ -1,14 +1,16 @@
 import React from "react";
 import { emailTheme } from "../theme";
 import { EmailTemplateProps } from "../registry";
+import { getEmailFromAddress } from "../../config";
 
 export const TrackingTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = "ผู้สมัคร",
   trackingCode,
-  supportEmail: _supportEmail = "info@yecday.com",
+  supportEmail: _supportEmail,
   brandTokens,
 }) => {
-  void _supportEmail; // used to satisfy lint without changing config
+  // Use centralized email address if not provided
+  const supportEmail = _supportEmail || getEmailFromAddress();
   const { colors } = emailTheme;
 
   // Use brand colors if provided, otherwise use default theme
@@ -156,7 +158,7 @@ export const TrackingTemplate: React.FC<EmailTemplateProps> = ({
       >
         <p style={{ margin: 0 }}>
           <strong>หากมีคำถาม | Questions?</strong> ติดต่อเราได้ที่ | Contact us
-          at {_supportEmail}
+          at {supportEmail}
         </p>
       </div>
     </div>

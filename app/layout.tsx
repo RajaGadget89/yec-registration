@@ -3,6 +3,17 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./contexts/ThemeContext";
 
+// Log email configuration on server boot (dev only)
+if (typeof window === "undefined") {
+  // Server-side only
+  try {
+    const { logEmailConfigOnBoot } = await import("./lib/emails/config");
+    logEmailConfigOnBoot();
+  } catch {
+    // Ignore errors in case email config is not available
+  }
+}
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

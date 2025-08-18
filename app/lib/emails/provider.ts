@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { getEmailFromAddress } from "../config";
 
 interface EmailOptions {
   to: string;
@@ -12,9 +13,12 @@ interface EmailProvider {
   sendEmail(options: EmailOptions): Promise<boolean>;
 }
 
+import { getEmailConfig, isEmailAllowed } from "./config";
+
 class ResendProvider implements EmailProvider {
   private resend: Resend;
   private fromEmail: string;
+  private config: ReturnType<typeof getEmailConfig>;
 
   constructor() {
     const apiKey = process.env.RESEND_API_KEY;
@@ -23,7 +27,8 @@ class ResendProvider implements EmailProvider {
     }
 
     this.resend = new Resend(apiKey);
-    this.fromEmail = process.env.EMAIL_FROM || "YEC <info@rajagadget.live>";
+    this.fromEmail = getEmailFromAddress();
+    this.config = getEmailConfig();
   }
 
   async sendEmail({
@@ -33,6 +38,23 @@ class ResendProvider implements EmailProvider {
     from,
     replyTo,
   }: EmailOptions): Promise<boolean> {
+    // Apply Safe-Send Gate
+    const allowCheck = isEmailAllowed(to);
+    
+    if (!allowCheck.allowed) {
+      console.log(`[RESEND] Email blocked by Safe-Send Gate: ${to} (${allowCheck.reason})`);
+      
+      // Log audit for blocked emails
+      console.log(`[AUDIT] email.blocked:`, {
+        recipient: to,
+        subject,
+        reason: allowCheck.reason,
+        timestamp: new Date().toISOString(),
+      });
+      
+      return false;
+    }
+
     try {
       const { error } = await this.resend.emails.send({
         from: from || this.fromEmail,
@@ -48,9 +70,28 @@ class ResendProvider implements EmailProvider {
       }
 
       console.log("Email sent successfully via Resend to:", to);
+      
+      // Log audit for sent emails
+      console.log(`[AUDIT] email.sent:`, {
+        recipient: to,
+        subject,
+        success: true,
+        timestamp: new Date().toISOString(),
+      });
+      
       return true;
     } catch (err) {
       console.error("Unexpected error in Resend sendEmail:", err);
+      
+      // Log audit for failed emails
+      console.log(`[AUDIT] email.failed:`, {
+        recipient: to,
+        subject,
+        success: false,
+        error: err instanceof Error ? err.message : "Unknown error",
+        timestamp: new Date().toISOString(),
+      });
+      
       return false;
     }
   }

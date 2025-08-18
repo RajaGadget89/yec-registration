@@ -37,6 +37,24 @@ export interface DispatchResult {
 }
 
 /**
+ * Check if email mocks are enabled
+ * Mocks are only allowed when explicitly enabled and not in production
+ */
+function isEmailMockEnabled(): boolean {
+  const enableMock = process.env.ENABLE_EMAIL_MOCK === "true";
+  const isProduction = process.env.NODE_ENV === "production";
+  const isStaging = process.env.VERCEL_ENV === "preview";
+  
+  // Never allow mocks in production or staging
+  if (isProduction || isStaging) {
+    return false;
+  }
+  
+  // Only allow mocks when explicitly enabled
+  return enableMock;
+}
+
+/**
  * Process a batch of pending emails from the outbox
  * @param batchSize Maximum number of emails to process in one batch
  * @param dryRun If true, force dry-run mode regardless of EMAIL_MODE
@@ -65,11 +83,18 @@ export async function dispatchEmailBatch(
 
     if (error) {
       console.warn(
-        "[DISPATCH] Database query failed, falling back to mock data:",
+        "[DISPATCH] Database query failed:",
         error,
       );
-      // Fall back to mock data for testing
-      emailsToProcess = getMockEmails(batchSize);
+      
+      // Only use mock data if explicitly enabled
+      if (isEmailMockEnabled()) {
+        console.log("[DISPATCH] Using mock data (ENABLE_EMAIL_MOCK=true)");
+        emailsToProcess = getMockEmails(batchSize);
+      } else {
+        console.error("[DISPATCH] Database query failed and mocks disabled - no emails to process");
+        emailsToProcess = [];
+      }
     } else if (pendingEmails && pendingEmails.length > 0) {
       emailsToProcess = pendingEmails.map((email: any) => ({
         id: email.id,
@@ -83,31 +108,45 @@ export async function dispatchEmailBatch(
       );
     } else {
       console.log("[DISPATCH] No pending emails found in outbox");
-      // Return empty result
-      return {
-        sent: 0,
-        wouldSend: 0,
-        capped: 0,
-        blocked: 0,
-        errors: 0,
-        remaining: 0,
-        rateLimited: 0,
-        retries: 0,
-        details: {
-          successful: [],
-          failed: [],
-          capped: [],
-          blocked: [],
-        },
-      };
+      
+      // In dry-run mode, use mock data if enabled
+      if (dryRun && isEmailMockEnabled()) {
+        console.log("[DISPATCH] Using mock data for dry-run (ENABLE_EMAIL_MOCK=true)");
+        emailsToProcess = getMockEmails(batchSize);
+      } else {
+        // Return empty result
+        return {
+          sent: 0,
+          wouldSend: 0,
+          capped: 0,
+          blocked: 0,
+          errors: 0,
+          remaining: 0,
+          rateLimited: 0,
+          retries: 0,
+          details: {
+            successful: [],
+            failed: [],
+            capped: [],
+            blocked: [],
+          },
+        };
+      }
     }
   } catch (error) {
     console.warn(
-      "[DISPATCH] Database connection failed, falling back to mock data:",
+      "[DISPATCH] Database connection failed:",
       error,
     );
-    // Fall back to mock data for testing
-    emailsToProcess = getMockEmails(batchSize);
+    
+    // Only use mock data if explicitly enabled
+    if (isEmailMockEnabled()) {
+      console.log("[DISPATCH] Using mock data (ENABLE_EMAIL_MOCK=true)");
+      emailsToProcess = getMockEmails(batchSize);
+    } else {
+      console.error("[DISPATCH] Database connection failed and mocks disabled - no emails to process");
+      emailsToProcess = [];
+    }
   }
 
   if (dryRun) {
@@ -134,6 +173,57 @@ export async function dispatchEmailBatch(
         blocked: [],
       },
     };
+  }
+
+  // If no emails to process and we're in FULL mode, try to send a test email
+  if (emailsToProcess.length === 0 && process.env.EMAIL_MODE === "FULL") {
+    console.log("[DISPATCH] No emails in outbox, but in FULL mode - checking for immediate sending");
+    
+    // Try to send a test email to the allowlisted address
+    const allowlist = process.env.EMAIL_ALLOWLIST?.split(",").map(e => e.trim()) || [];
+    if (allowlist.length > 0) {
+      const testEmail = allowlist[0];
+      console.log(`[DISPATCH] Attempting to send test email to ${testEmail}`);
+      
+      try {
+        const result = await transport.send({
+          to: testEmail,
+          subject: "[TEST] Email System Check",
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2 style="color: #1A237E;">YEC Day Email System Test</h2>
+              <p>This is a test email to verify the email system is working correctly.</p>
+              <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+              <p><strong>Environment:</strong> ${process.env.NODE_ENV}</p>
+            </div>
+          `,
+        });
+
+        if (result.ok) {
+          console.log(`[DISPATCH] Test email sent successfully to ${testEmail}`);
+          return {
+            sent: 1,
+            wouldSend: 0,
+            capped: 0,
+            blocked: 0,
+            errors: 0,
+            remaining: 0,
+            rateLimited: 0,
+            retries: 0,
+            details: {
+              successful: [testEmail],
+              failed: [],
+              capped: [],
+              blocked: [],
+            },
+          };
+        } else {
+          console.log(`[DISPATCH] Test email failed: ${result.reason}`);
+        }
+      } catch (error) {
+        console.error("[DISPATCH] Error sending test email:", error);
+      }
+    }
   }
 
   console.log(
@@ -325,13 +415,13 @@ function getMockEmails(batchSize: number): EmailOutboxItem[] {
     {
       id: "3",
       template: "tracking",
-      to_email: "blocked@example.com", // Non-allowlisted (will be blocked)
-      payload: { trackingCode: "E2E-BLOCKED-001" },
+      to_email: allowlistedEmail, // Allowlisted
+      payload: { trackingCode: "E2E-TEST-003" },
     },
     {
       id: "4",
       template: "tracking",
-      to_email: "test3@example.com", // Non-allowlisted (will be blocked)
+      to_email: allowlistedEmail, // Allowlisted
       payload: { trackingCode: "TEST004" },
     },
   ].slice(0, batchSize);
@@ -379,14 +469,20 @@ export async function getOutboxStats() {
       oldest_pending: oldestPending?.created_at || null,
     };
   } catch (error) {
-    console.warn("[STATS] Database query failed, returning mock stats:", error);
-    // Return mock stats for testing
-    return {
-      total_pending: 0,
-      total_sent: 0,
-      total_error: 0,
-      oldest_pending: null,
-    };
+    console.warn("[STATS] Database query failed:", error);
+    
+    // Only return mock stats if explicitly enabled
+    if (isEmailMockEnabled()) {
+      console.log("[STATS] Returning mock stats (ENABLE_EMAIL_MOCK=true)");
+      return {
+        total_pending: 0,
+        total_sent: 0,
+        total_error: 0,
+        oldest_pending: null,
+      };
+    } else {
+      throw new Error(`Failed to get outbox stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 }
 
@@ -401,18 +497,48 @@ export async function getOutboxStats() {
 export async function enqueueEmail(
   template: string,
   toEmail: string,
-  _payload: EmailTemplateProps,
-  _idempotencyKey?: string,
+  payload: EmailTemplateProps,
+  idempotencyKey?: string,
 ): Promise<string> {
-  void _payload; // used to satisfy lint without changing config
-  void _idempotencyKey; // used to satisfy lint without changing config
+  try {
+    const supabase = getServiceRoleClient();
 
-  // Mock implementation for testing
-  const mockId = `mock-${Date.now()}`;
+    // Use the database function to enqueue the email
+    const { data, error } = await supabase.rpc('fn_enqueue_email', {
+      p_template: template,
+      p_to_email: toEmail,
+      p_payload: payload,
+      p_idempotency_key: idempotencyKey || null,
+    });
 
-  console.log(`[MOCK] Enqueued email: ${template} to ${toEmail}`);
+    if (error) {
+      console.error("[ENQUEUE] Failed to enqueue email:", error);
+      
+      // Only use mock implementation if explicitly enabled
+      if (isEmailMockEnabled()) {
+        const mockId = `mock-${Date.now()}`;
+        console.log(`[MOCK] Enqueued email: ${template} to ${toEmail} (mock: true)`);
+        return mockId;
+      } else {
+        throw new Error(`Failed to enqueue email: ${error.message}`);
+      }
+    }
 
-  return mockId;
+    console.log(`[ENQUEUE] Email enqueued successfully: ${template} to ${toEmail} (ID: ${data})`);
+    return data;
+
+  } catch (error) {
+    console.error("[ENQUEUE] Error enqueueing email:", error);
+    
+    // Only use mock implementation if explicitly enabled
+    if (isEmailMockEnabled()) {
+      const mockId = `mock-${Date.now()}`;
+      console.log(`[MOCK] Enqueued email: ${template} to ${toEmail} (mock: true)`);
+      return mockId;
+    } else {
+      throw new Error(`Failed to enqueue email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 }
 
 /**

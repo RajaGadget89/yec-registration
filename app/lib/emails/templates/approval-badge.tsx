@@ -1,15 +1,17 @@
 import React from "react";
 import { emailTheme } from "../theme";
 import { EmailTemplateProps } from "../registry";
+import { getEmailFromAddress } from "../../config";
 
 export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = "ผู้สมัคร",
   trackingCode,
   badgeUrl,
-  supportEmail: _supportEmail = "info@yecday.com",
+  supportEmail: _supportEmail,
   brandTokens,
 }) => {
-  void _supportEmail; // used to satisfy lint without changing config
+  // Use centralized email address if not provided
+  const supportEmail = _supportEmail || getEmailFromAddress();
   const { colors, spacing, button } = emailTheme;
 
   // Use brand colors if provided, otherwise use default theme
@@ -195,7 +197,7 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           >
             <li>เก็บบัตรประจำตัวไว้เพื่อเข้าร่วมงาน</li>
             <li>ตรวจสอบรายละเอียดงานในอีเมลถัดไป</li>
-            <li>หากมีคำถาม ติดต่อเราได้ที่ {_supportEmail}</li>
+            <li>หากมีคำถาม ติดต่อเราได้ที่ {supportEmail}</li>
           </ul>
         </div>
 
@@ -209,7 +211,7 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           }}
         >
           <p style={{ margin: 0 }}>
-            <strong>หากมีคำถาม:</strong> ติดต่อเราได้ที่ {_supportEmail}
+            <strong>หากมีคำถาม:</strong> ติดต่อเราได้ที่ {supportEmail}
           </p>
           <p style={{ margin: "8px 0 0 0", fontSize: "12px" }}>
             ข้อมูลส่วนบุคคลของคุณจะถูกเก็บรักษาไว้ตามนโยบายการคุ้มครองข้อมูลส่วนบุคคล
@@ -400,7 +402,7 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           >
             <li>Keep your badge for event entry</li>
             <li>Check your email for event details</li>
-            <li>Contact us at {_supportEmail} if you have questions</li>
+            <li>Contact us at {supportEmail} if you have questions</li>
           </ul>
         </div>
 
@@ -414,7 +416,7 @@ export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
           }}
         >
           <p style={{ margin: 0 }}>
-            <strong>Questions?</strong> Contact us at {_supportEmail}
+            <strong>Questions?</strong> Contact us at {supportEmail}
           </p>
           <p style={{ margin: "8px 0 0 0", fontSize: "12px" }}>
             Your personal information will be protected according to our
