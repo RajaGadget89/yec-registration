@@ -1,7 +1,7 @@
 create extension if not exists "pg_trgm" with schema "public";
 
 
-  create table "public"."admin_audit_logs" (
+  create table if not exists "public"."admin_audit_logs" (
     "id" uuid not null default gen_random_uuid(),
     "created_at" timestamp with time zone not null default now(),
     "admin_email" text not null,
@@ -13,7 +13,7 @@ create extension if not exists "pg_trgm" with schema "public";
 
 
 
-  create table "public"."admin_users" (
+  create table if not exists "public"."admin_users" (
     "id" uuid not null,
     "email" text not null,
     "role" text not null default 'admin'::text,
@@ -27,7 +27,7 @@ create extension if not exists "pg_trgm" with schema "public";
 alter table "public"."admin_users" enable row level security;
 
 
-  create table "public"."email_outbox" (
+  create table if not exists "public"."email_outbox" (
     "id" uuid not null default gen_random_uuid(),
     "template" text not null,
     "to_email" text not null,
@@ -45,7 +45,7 @@ alter table "public"."admin_users" enable row level security;
 alter table "public"."email_outbox" enable row level security;
 
 
-  create table "public"."event_settings" (
+  create table if not exists "public"."event_settings" (
     "id" uuid not null default gen_random_uuid(),
     "registration_deadline_utc" timestamp with time zone not null,
     "early_bird_deadline_utc" timestamp with time zone not null,
@@ -60,7 +60,7 @@ alter table "public"."email_outbox" enable row level security;
 alter table "public"."event_settings" enable row level security;
 
 
-  create table "public"."registrations" (
+  create table if not exists "public"."registrations" (
     "id" uuid not null default gen_random_uuid(),
     "registration_id" character varying(50) not null,
     "title" character varying(10) not null,
@@ -107,7 +107,7 @@ alter table "public"."event_settings" enable row level security;
 alter table "public"."registrations" enable row level security;
 
 
-  create table "public"."registrations_backup_yyyymmdd" (
+  create table if not exists "public"."registrations_backup_yyyymmdd" (
     "id" uuid,
     "registration_id" character varying(50),
     "status" character varying(20),
