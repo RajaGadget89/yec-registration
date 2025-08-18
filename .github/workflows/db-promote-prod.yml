@@ -49,7 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       db_changed: ${{ steps.filter.outputs.db }}
-      db_files: ${{ steps.filter.outputs.db_files }}
     steps:
       - uses: actions/checkout@v4
       - id: filter
@@ -60,7 +59,6 @@ jobs:
               - 'migrations/**'
               - 'supabase/migrations/**'
               - '.github/workflows/db-promote-prod.yml'
-          list-files: shell
 
   test_on_shadow:
     name: test_on_shadow
@@ -72,18 +70,18 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - name: Mirror migrations → supabase/migrations (CLI compat)
+
+      - name: Mirror ALL migrations → supabase/migrations
         run: |
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
-          echo "${{ needs.detect_changes.outputs.db_files }}" | tr ' ' '\n' | grep '^migrations/.*\.sql$' | sort | while read -r f; do
-            echo "Copy $f → supabase/migrations/"
-            cp --parents "$f" supabase/ 2>/dev/null || cp "$f" supabase/migrations/
-          done
+          cp -a migrations/. supabase/migrations/
+
       - name: Start local Supabase (shadow)
         run: |
           supabase start
           supabase status
+
       - name: Apply migrations to SHADOW
         env:
           SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
@@ -118,25 +116,14 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase link --project-ref ${{ secrets.SB_PROD_REF }}
 
-      - name: Mirror migrations → supabase/migrations (CLI compat)
+      - name: Mirror ALL migrations → supabase/migrations
         run: |
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
-          echo "${{ needs.detect_changes.outputs.db_files }}" | tr ' ' '\n' | grep '^migrations/.*\.sql$' | sort | while read -r f; do
-            echo "Copy $f → supabase/migrations/"
-            cp --parents "$f" supabase/ 2>/dev/null || cp "$f" supabase/migrations/
-          done
+          cp -a migrations/. supabase/migrations/
 
       - name: Push migrations → Prod (requires environment approval)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase db push
-
-      - name: Upload backup artifact (optional)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: prod-schema-backup
-          path: supabase/.temp/
-          retention-days: 14
 
