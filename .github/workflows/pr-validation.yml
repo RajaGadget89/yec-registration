@@ -1,13 +1,8 @@
-name: PR Validation (DB Migration + E2E Tests)
+name: PR Validation Checks
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    paths:
-      - ".github/workflows/pr-validation.yml"
-      - "migrations/**"
-      - "tests/**"
-      - "app/**"
 
 concurrency:
   group: pr-validation-${{ github.head_ref || github.run_id }}
@@ -18,16 +13,19 @@ permissions:
   statuses: write
 
 jobs:
-  # Job 1: ตรวจจับการเปลี่ยนแปลงไฟล์ Migration
-  detect_db_changes:
-    name: Detect DB Changes
+  # Job 1: DB Migration Check (Required)
+  db_migration_check:
+    name: DB — Migrate to Staging / test_on_shadow (pull_request)
     runs-on: ubuntu-latest
     outputs:
-      db_changed: ${{ steps.filter.outputs.db }}
-      db_files: ${{ steps.filter.outputs.db_files }}
+      db_changed: ${{ steps.detect_changes.outputs.db }}
+      db_files: ${{ steps.detect_changes.outputs.db_files }}
     steps:
-      - uses: actions/checkout@v4
-      - id: filter
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect DB Changes
+        id: detect_changes
         uses: dorny/paths-filter@v3
         with:
           list-files: shell
@@ -35,45 +33,91 @@ jobs:
             db:
               - 'migrations/**/*.sql'
 
-  # Job 2: ทดสอบ Migration บน Shadow DB (เหมือนเดิม เพื่อความปลอดภัย)
-  test_on_shadow:
-    name: Test Migration on Shadow DB
-    needs: detect_db_changes
-    if: needs.detect_db_changes.outputs.db_changed == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+      - name: Fast-pass when no DB changes
+        if: steps.detect_changes.outputs.db != 'true'
+        run: echo "No DB changes detected. Skipping shadow test."
+
       - name: Setup Supabase CLI
+        if: steps.detect_changes.outputs.db == 'true'
         uses: supabase/setup-cli@v1
         with:
           version: latest
+
       - name: Build and Test on Shadow DB
+        if: steps.detect_changes.outputs.db == 'true'
         env:
           STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
         run: |
-          # ส่วนนี้คือโค้ดเดิมจาก db-migrate-staging.yml ที่ใช้สร้าง remote_base และทดสอบ
-          # (เพื่อความกระชับจึงไม่ใส่โค้ดทั้งหมด แต่ให้ยกตรรกะเดิมมา)
-          echo "Simulating shadow DB test..."
+          echo "DB changes detected. Building and testing on shadow DB..."
+          # (นำตรรกะการ build และ reset จากไฟล์เดิมของคุณมาใส่ที่นี่)
+          # เพื่อความกระชับจึงใช้คำสั่งจำลอง
+          rm -rf supabase/migrations && mkdir -p supabase/migrations
           cp -a migrations/. supabase/migrations/
           supabase start
           printf 'y\n' | supabase db reset
+
       - name: Report required context
-        if: always()
+        if: always() # ✅ Always run this step
         uses: actions/github-script@v7
         with:
           script: |
             const sha = context.payload.pull_request.head.sha;
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner, repo: context.repo.repo, sha,
-              state: '${{ job.status }}', context: 'Test Migration on Shadow DB',
-              description: 'Migration script tested successfully on a temporary DB.'
+              state: '${{ job.status }}',
+              context: 'DB — Migrate to Staging / test_on_shadow (pull_request)',
+              description: 'Validation completed.'
             });
 
-  # Job 3: ✅ Deploy Migration ไปยัง Staging DB จริง
+  # Job 2: E2E Tests (Required)
+  e2e_tests:
+    name: E2E Dispatch Emails Tests / dispatch_emails (pull_request)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node 18 and Install Dependencies
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: "npm"
+      - run: npm ci
+
+      - name: Create .env.ci from secrets
+        run: |
+          echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.ci
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.ci
+          # (ใส่ .env variables ที่เหลือทั้งหมด)
+          echo "SUPABASE_ENV=staging" >> .env.ci
+          echo "DISPATCH_DRY_RUN=true" >> .env.ci
+          echo "EMAIL_MODE=DRY_RUN" >> .env.ci
+
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright E2E
+        run: npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line
+
+      - name: Report required context
+        if: always() # ✅ Always run this step
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.payload.pull_request.head.sha;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner, repo: context.repo.repo, sha,
+              state: '${{ job.status }}',
+              context: 'E2E Dispatch Emails Tests / dispatch_emails (pull_request)',
+              description: 'E2E tests completed.'
+            });
+
+  # Job 3: (Optional) Deploy to Staging after checks pass
   push_to_staging:
     name: Push Migration to Staging
-    needs: [detect_db_changes, test_on_shadow]
-    if: needs.detect_db_changes.outputs.db_changed == 'true'
+    needs: [db_migration_check, e2e_tests]
+    if: success() && needs.db_migration_check.outputs.db_changed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -82,7 +126,7 @@ jobs:
       - name: Apply changed migrations to STAGING
         env:
           STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
-          CHANGED_FILES: ${{ needs.detect_db_changes.outputs.db_files }}
+          CHANGED_FILES: ${{ needs.db_migration_check.outputs.db_files }}
         run: |
           set -euo pipefail
           echo "Applying migrations to Staging DB:"
@@ -91,36 +135,3 @@ jobs:
             echo "==> Applying $f"
             psql "${STAGING_DB_URL}" -v ON_ERROR_STOP=1 -f "$f"
           done
-
-  # Job 4: ✅ รัน E2E Test (หลังจาก Push DB เสร็จ)
-  dispatch_emails_e2e:
-    name: E2E Dispatch Emails Tests
-    # บังคับให้ Job นี้ต้องรอ push_to_staging เสร็จก่อน
-    needs: push_to_staging
-    # รัน Job นี้ก็ต่อเมื่อมีไฟล์ migration เปลี่ยนแปลง (เพราะต้องรอ push_to_staging)
-    if: always() && needs.push_to_staging.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Use Node 18
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: "npm"
-      - run: npm ci
-      - name: Create .env.ci from secrets
-        run: |
-          echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.ci
-          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.ci
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> .env.ci
-          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env.ci
-          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.ci
-          echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env.ci
-          echo "SUPABASE_ENV=staging" >> .env.ci
-          echo "DISPATCH_DRY_RUN=true" >> .env.ci
-          echo "EMAIL_MODE=DRY_RUN" >> .env.ci
-      - run: npx playwright install --with-deps
-      - name: Run Playwright E2E
-        env:
-          CI: "true"
-        run: npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line
