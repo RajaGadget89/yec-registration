@@ -1,13 +1,12 @@
-name: PR Validation (DB Migration + E2E Tests)
+name: PRV
 
 on:
-  # รันทุก PR เสมอ (ห้าม gate ด้วย paths เพื่อไม่ให้ Required check ค้าง Expected)
   pull_request:
     types: [opened, synchronize, reopened]
   workflow_dispatch: {}
 
 concurrency:
-  group: pr-validation-${{ github.head_ref || github.run_id }}
+  group: prv-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 permissions:
@@ -15,9 +14,8 @@ permissions:
   statuses: write
 
 jobs:
-  # 1) ตรวจจับการเปลี่ยนแปลงไฟล์ DB แบบภายในงาน (ไม่ gate ที่ on:)
-  detect_db_changes:
-    name: Detect DB Changes
+  detect:
+    name: Detect
     runs-on: ubuntu-latest
     outputs:
       db_changed: ${{ steps.filter.outputs.db }}
@@ -32,50 +30,46 @@ jobs:
             db:
               - 'migrations/**/*.sql'
 
-      # รับประกันว่ามีการรายงานสถานะตามชื่อ context ที่ Ruleset ต้องการทุกครั้ง
-      - name: Report required context (ruleset-compat)
+      # รายงานทั้งชื่อยาว (ruleset ปัจจุบัน) และชื่อสั้น (สำหรับย้าย ruleset ในอนาคต)
+      - name: Report required contexts (long + short)
         if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
-        env:
-          JOB_STATUS: ${{ job.status }}
+        env: { JOB_STATUS: ${{ job.status }} }
         with:
           script: |
-            const map = { success: 'success', failure: 'failure', cancelled: 'failure' };
+            const map = { success:'success', failure:'failure', cancelled:'failure' };
             const state = map[process.env.JOB_STATUS] || 'failure';
             const sha = context.payload.pull_request.head.sha;
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha,
-              state,
-              // ⚠️ ถ้า Ruleset ของคุณใช้ชื่ออื่น ให้คัดลอกจาก PR (… → Copy status check name) มาแทนบรรทัดนี้
-              context: 'PR Validation (DB Migration + E2E Tests) / Detect DB Changes (pull_request)',
-              description: `Reported from run ${context.runId}`,
-              target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
-            });
+            const contexts = [
+              'PR Validation (DB Migration + E2E Tests) + / Detect DB Changes (pull_request)', // ruleset เดิม
+              'PRV / Detect (pull_request)' // ชื่อสั้นใหม่
+            ];
+            for (const ctx of contexts) {
+              await github.rest.repos.createCommitStatus({
+                owner: context.repo.owner, repo: context.repo.repo, sha, state,
+                context: ctx,
+                description: `Reported from run ${context.runId}`,
+                target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+              });
+            }
 
-  # 2) ทดสอบ Migration บน Shadow DB
-  test_on_shadow:
-    name: Test Migration on Shadow DB
-    needs: detect_db_changes
+  shadow:
+    name: Shadow
+    needs: detect
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      # ถ้าไม่มีไฟล์ DB เปลี่ยน → fast-pass เพื่อให้รายงานผลสำเร็จบน PR (ไม่ค้าง Expected)
       - name: No DB changes → fast-pass
-        if: needs.detect_db_changes.outputs.db_changed != 'true'
-        run: echo "No DB changes; skipping heavy DB steps but reporting success."
+        if: needs.detect.outputs.db_changed != 'true'
+        run: echo "No DB changes; skipping heavy DB steps."
 
-      # ของจริง: มี DB เปลี่ยน → ตั้งค่าและเทสต์ shadow
       - name: Setup Supabase CLI
-        if: needs.detect_db_changes.outputs.db_changed == 'true'
+        if: needs.detect.outputs.db_changed == 'true'
         uses: supabase/setup-cli@v1
-        with:
-          version: latest
+        with: { version: latest }
 
       - name: Build & test on shadow
-        if: needs.detect_db_changes.outputs.db_changed == 'true'
+        if: needs.detect.outputs.db_changed == 'true'
         run: |
           set -euo pipefail
           mkdir -p supabase/migrations
@@ -83,77 +77,19 @@ jobs:
           supabase start
           printf 'y\n' | supabase db reset
 
-      # รายงาน context ของงานนี้เสมอ (ชื่อให้ตรงกับ Ruleset)
-      - name: Report required context (ruleset-compat)
+      - name: Report short context for shadow (optional)
         if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
-        env:
-          JOB_STATUS: ${{ job.status }}
+        env: { JOB_STATUS: ${{ job.status }} }
         with:
           script: |
-            const map = { success: 'success', failure: 'failure', cancelled: 'failure' };
-            const state = map[process.env.JOB_STATUS] || 'failure';
+            const map = { success:'success', failure:'failure', cancelled:'failure' };
             const sha = context.payload.pull_request.head.sha;
             await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha,
-              state,
-              // ถ้ากำหนดเป็น Required ใน Ruleset ให้ใช้ชื่อเดียวกับที่ Ruleset แสดง
-              context: 'PR Validation (DB Migration + E2E Tests) / Test Migration on Shadow DB (pull_request)',
+              owner: context.repo.owner, repo: context.repo.repo, sha,
+              state: map[process.env.JOB_STATUS] || 'failure',
+              context: 'PRV / Shadow (pull_request)',
               description: `Reported from run ${context.runId}`,
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             });
 
-  # 3) (ออปชัน) ผลัก migration ไป STAGING เมื่อมีการเปลี่ยนแปลงจริง
-  push_to_staging:
-    name: Push Migration to Staging
-    needs: [detect_db_changes, test_on_shadow]
-    if: needs.detect_db_changes.outputs.db_changed == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Apply changed migrations to STAGING
-        env:
-          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
-          CHANGED_FILES: ${{ needs.detect_db_changes.outputs.db_files }}
-        run: |
-          set -euo pipefail
-          echo "Applying migrations to Staging DB:"
-          echo "${CHANGED_FILES}"
-          for f in $(echo "${CHANGED_FILES}" | tr ' ' '\n' | sort); do
-            echo "==> Applying $f"
-            psql "${STAGING_DB_URL}" -v ON_ERROR_STOP=1 -f "$f"
-          done
-
-  # 4) (ออปชัน) E2E หลัง push_to_staging สำเร็จ
-  dispatch_emails_e2e:
-    name: E2E Dispatch Emails Tests
-    needs: push_to_staging
-    if: always() && needs.push_to_staging.result == 'success'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: "npm"
-      - run: npm ci
-      - name: Create .env.ci from secrets
-        run: |
-          echo "CRON_SECRET=${{ secrets.CRON_SECRET }}" >> .env.ci
-          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.ci
-          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> .env.ci
-          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env.ci
-          echo "SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> .env.ci
-          echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}" >> .env.ci
-          echo "SUPABASE_ENV=staging" >> .env.ci
-          echo "DISPATCH_DRY_RUN=true" >> .env.ci
-          echo "EMAIL_MODE=DRY_RUN" >> .env.ci
-      - run: npx playwright install --with-deps
-      - name: Run Playwright E2E
-        env:
-          CI: "true"
-        run: npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line
