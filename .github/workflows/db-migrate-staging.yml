@@ -94,7 +94,7 @@ jobs:
             sed -E "/^[[:space:]]*\\\\/d" \
             | sed -E "/^(CREATE|ALTER|COMMENT)[[:space:]]+PUBLICATION\\b/Id" \
             | sed -E "/^(CREATE|ALTER|COMMENT)[[:space:]]+SUBSCRIPTION\\b/Id" \
-            | sed -E "/issue_graphql_placeholder/d"
+            | sed -e '/CREATE EVENT TRIGGER issue_graphql_placeholder/,/EXECUTE FUNCTION extensions.set_graphql_placeholder/d'
           }
           sed_clean < supabase/migrations/_tmp_remote_base.sql \
             > supabase/migrations/00000000000000_remote_base.sql
