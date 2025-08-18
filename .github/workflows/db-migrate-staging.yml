@@ -50,7 +50,7 @@ jobs:
         with:
           version: latest
 
-      # ⬇️ ใช้ dockerized pg_dump 17 เพื่อเลี่ยง version mismatch
+      # ✅ แก้เฉพาะสเต็ปนี้
       - name: Build migration set for shadow (remote base + local)
         if: needs.detect_changes.outputs.db_changed == 'true'
         env:
@@ -60,7 +60,7 @@ jobs:
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
 
-          # ดึง schema ปัจจุบันจาก STAGING → base_raw (pg_dump v17 ใน container)
+          # 1) dump schema จาก STAGING → ไฟล์ชั่วคราว (_tmp_remote_base.sql) ด้วย pg_dump v17
           docker run --rm \
             -e STAGING_DB_URL="${STAGING_DB_URL}" \
             -v "$PWD/supabase/migrations:/out" \
@@ -68,20 +68,30 @@ jobs:
               set -e
               pg_dump --dbname="$STAGING_DB_URL" \
                       --schema-only --no-owner --no-privileges \
-                > /out/000_remote_base.raw.sql
+                > /out/_tmp_remote_base.sql
             '
 
-          # กรอง meta-commands ของ psql (เช่น \restrict, \unrestrict, \connect ฯลฯ) ออก
-          awk '!/^[[:space:]]*\\/' supabase/migrations/000_remote_base.raw.sql \
-            > supabase/migrations/000_remote_base.sql
+          echo "----- tmp(head) -----"
+          head -n 25 supabase/migrations/_tmp_remote_base.sql || true
 
-          # การ์ดกันพลาด: ถ้ายังมีบรรทัดขึ้นต้นด้วย "\" อยู่ ให้ fail
-          if grep -nE '^[[:space:]]*\\' supabase/migrations/000_remote_base.sql; then
+          # 2) กรอง meta-commands psql (เช่น \restrict, \unrestrict, \connect ฯลฯ)
+          #    แล้วตั้งชื่อไฟล์ให้เป็นตัวเลขล้วน + _remote_base.sql
+          awk '!/^[[:space:]]*\\/' supabase/migrations/_tmp_remote_base.sql \
+            > supabase/migrations/00000000000000_remote_base.sql
+
+          # 3) ลบไฟล์ชั่วคราว เพื่อกันไม่ให้ของดิบถูกนำไปรัน
+          rm -f supabase/migrations/_tmp_remote_base.sql
+
+          echo "----- filtered(head) -----"
+          head -n 25 supabase/migrations/00000000000000_remote_base.sql || true
+
+          # 4) การ์ดกันพลาด: ถ้ายังมีบรรทัดขึ้นต้นด้วย "\" อยู่ ให้ fail ทันที
+          if grep -nE '^[[:space:]]*\\' supabase/migrations/00000000000000_remote_base.sql; then
             echo "::error::filtered remote base still contains psql meta-commands"
             exit 1
           fi
 
-          # ผนวกไฟล์ migrations ใน repo ต่อท้าย
+          # 5) ผนวกไฟล์ migrations ในรีโปเข้ามา
           cp -a migrations/. supabase/migrations/
           ls -la supabase/migrations
 
@@ -129,13 +139,10 @@ jobs:
           set -euo pipefail
           echo "Changed migration files:"
           echo "$CHANGED"
-
           if [ -z "$CHANGED" ]; then
             echo "No changed .sql files detected."
             exit 0
           fi
-
-          # รันตามลำดับ timestamp ของไฟล์
           for f in $(echo "$CHANGED" | tr ' ' '\n' | sort); do
             echo "==> Applying $f"
             psql "$STAGING_DB_URL" -v ON_ERROR_STOP=1 -f "$f"
