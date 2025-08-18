@@ -115,6 +115,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SB_STAGING_REF }}
+	  SUPABASE_DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
         run: |
           supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
           supabase db push
