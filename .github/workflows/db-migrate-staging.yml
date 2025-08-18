@@ -61,40 +61,48 @@ jobs:
           mkdir -p supabase/migrations
 
           # 1) dump schema จาก STAGING → ไฟล์ชั่วคราว ด้วย pg_dump v17
+          #    (exclude สคีมาระบบของ Supabase ออกทั้งหมด)
           docker run --rm \
             -e STAGING_DB_URL="${STAGING_DB_URL}" \
             -v "$PWD/supabase/migrations:/out" \
             postgres:17-alpine sh -lc '
               set -e
+              EXCLUDES="--exclude-schema=auth \
+                        --exclude-schema=storage \
+                        --exclude-schema=graphql \
+                        --exclude-schema=graphql_public \
+                        --exclude-schema=realtime \
+                        --exclude-schema=extensions \
+                        --exclude-schema=pgbouncer \
+                        --exclude-schema=supabase_migrations \
+                        --exclude-schema=supabase_functions \
+                        --exclude-schema=pgsodium \
+                        --exclude-schema=vault"
               pg_dump --dbname="$STAGING_DB_URL" \
-                      --schema-only --no-owner --no-privileges \
+                      --schema-only --no-owner --no-privileges $EXCLUDES \
                 > /out/_tmp_remote_base.sql
             '
 
           echo "----- tmp(head) -----"
           head -n 25 supabase/migrations/_tmp_remote_base.sql || true
 
-          # 2) ฟิลเตอร์:
-          #   - ตัด meta-commands ของ psql (เช่น \restrict/\unrestrict ใน PG17)
-          #   - ตัด CREATE/ALTER/COMMENT SCHEMA ของสคีมาระบบ Supabase (local มีอยู่แล้ว)
-          SYS_SCHEMAS='auth|storage|graphql_public|graphql|realtime|extensions|pgbouncer|supabase_migrations|supabase_functions|pgsodium|vault'
+          # 2) กรอง meta-commands ของ psql (เช่น \restrict, \unrestrict, \connect ฯลฯ)
           awk '!/^[[:space:]]*\\/' supabase/migrations/_tmp_remote_base.sql \
-            | sed -E "/^(CREATE|ALTER|COMMENT)[[:space:]]+SCHEMA[[:space:]]+(${SYS_SCHEMAS})\\b/d" \
             > supabase/migrations/00000000000000_remote_base.sql
 
-          # ลบไฟล์ชั่วคราว
+          # 3) ลบไฟล์ชั่วคราว เพื่อกันไม่ให้ของดิบถูกนำไปรัน
           rm -f supabase/migrations/_tmp_remote_base.sql
 
           echo "----- filtered(head) -----"
           head -n 30 supabase/migrations/00000000000000_remote_base.sql || true
 
-          # การ์ดกันพลาด: ถ้าเหลือบรรทัดขึ้นต้น "\" ให้ fail
+          # 4) การ์ดกันพลาด
           if grep -nE '^[[:space:]]*\\' supabase/migrations/00000000000000_remote_base.sql; then
             echo "::error::filtered remote base still contains psql meta-commands"
             exit 1
           fi
 
-          # 3) ผนวกไฟล์ migrations ในรีโป
+          # 5) ผนวกไฟล์ migrations ในรีโปเข้ามา
           cp -a migrations/. supabase/migrations/
           ls -la supabase/migrations
 
@@ -128,10 +136,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install PostgreSQL client (for psql)
         run: |
           sudo apt-get update
           sudo apt-get install -y postgresql-client
+
       - name: Apply changed migrations to STAGING (psql)
         env:
           STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
