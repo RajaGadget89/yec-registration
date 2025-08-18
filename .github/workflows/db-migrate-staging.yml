@@ -21,15 +21,16 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       db_changed: ${{ steps.filter.outputs.db }}
+      db_files: ${{ steps.filter.outputs.db_files }}
     steps:
       - uses: actions/checkout@v4
       - id: filter
         uses: dorny/paths-filter@v3
         with:
+          list-files: shell
           filters: |
             db:
-              - 'migrations/**'
-              - 'supabase/migrations/**'
+              - 'migrations/**/*.sql'
               - '.github/workflows/db-migrate-staging.yml'
 
   test_on_shadow:
@@ -49,34 +50,39 @@ jobs:
         with:
           version: latest
 
-      # ⬇️ สำคัญ: ดึง snapshot จาก STAGING แล้วทำไฟล์ 000_remote_base.sql
-      - name: Build migration set (remote base + local)
+      - name: Install PostgreSQL client
+        if: needs.detect_changes.outputs.db_changed == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      # ⬇️ ดึง snapshot จาก STAGING แล้วประกอบชุด migrations สำหรับ shadow
+      - name: Build migration set for shadow (remote base + local)
         if: needs.detect_changes.outputs.db_changed == 'true'
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SB_STAGING_REF: ${{ secrets.SB_STAGING_REF }}
           STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
         run: |
           set -euo pipefail
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
-          # 1) ดึง snapshot schema จาก Staging
-          supabase db pull --db-url "$STAGING_DB_URL"
-          SNAP=$(ls -1t supabase/migrations/*_snapshot.sql | head -1)
-          mv "$SNAP" supabase/migrations/000_remote_base.sql
+
+          # 1) ดึง schema ปัจจุบันของ STAGING → 000_remote_base.sql
+          pg_dump "$STAGING_DB_URL" \
+            --schema-only --no-owner --no-privileges \
+            --exclude-schema=pg_* --exclude-schema=information_schema \
+            > supabase/migrations/000_remote_base.sql
+
           # 2) เติมไฟล์ migrations ใน repo ต่อท้าย
           cp -a migrations/. supabase/migrations/
           ls -la supabase/migrations
 
       - name: Start local Supabase (shadow) + apply
         if: needs.detect_changes.outputs.db_changed == 'true'
-        env:
-          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
         run: |
           set -euo pipefail
           supabase start
-          # reset จะอ่านตามลำดับไฟล์ใน supabase/migrations
-          printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
+          # reset จะอ่านไฟล์ใน supabase/migrations ตามลำดับ
+          printf 'y\n' | supabase db reset
 
       - name: Report required context (ruleset-compat)
         if: always() && github.event_name == 'pull_request'
@@ -99,28 +105,32 @@ jobs:
     needs: [detect_changes, test_on_shadow]
     if: needs.detect_changes.outputs.db_changed == 'true'
     runs-on: ubuntu-latest
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SB_STAGING_REF: ${{ secrets.SB_STAGING_REF }}
-      STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
 
-      # ซิงก์โครงสร้างจาก Staging มาก่อน เพื่อให้ history ตรงกัน
-      - name: Sync local with remote history
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply changed migrations to STAGING (psql)
+        env:
+          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+          CHANGED: ${{ needs.detect_changes.outputs.db_files }}
         run: |
           set -euo pipefail
-          rm -rf supabase/migrations
-          mkdir -p supabase/migrations
-          supabase db pull --db-url "$STAGING_DB_URL"
-          cp -a migrations/. supabase/migrations/
-          ls -la supabase/migrations
+          echo "Changed migration files:"
+          echo "$CHANGED"
 
-      - name: Push migrations → Staging
-        run: |
-          set -euo pipefail
-          supabase db push --db-url "$STAGING_DB_URL"
+          # กันกรณี output ว่าง
+          if [ -z "$CHANGED" ]; then
+            echo "No changed .sql files detected."
+            exit 0
+          fi
+
+          # รันตามลำดับชื่อไฟล์ (prefix timestamp)
+          for f in $(echo "$CHANGED" | tr ' ' '\n' | sort); do
+            echo "==> Applying $f"
+            psql "$STAGING_DB_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
 
