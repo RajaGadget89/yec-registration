@@ -33,8 +33,8 @@ alter table "public"."admin_users" enable row level security;
     "to_email" text not null,
     "payload" jsonb not null,
     "status" text not null default 'pending'::text,
-    "error" text,
-    "idempotency_key" text,
+    "last_error" text,
+
     "scheduled_at" timestamp with time zone not null default now(),
     "last_attempt_at" timestamp with time zone,
     "created_at" timestamp with time zone not null default now(),
@@ -148,9 +148,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS admin_users_email_key ON public.admin_users US
 
 CREATE UNIQUE INDEX IF NOT EXISTS admin_users_pkey ON public.admin_users USING btree (id);
 
-CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_idempotency_key_key ON public.email_outbox USING btree (idempotency_key);
 
-CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_pkey ON public.email_outbox USING btree (id);
+
+
 
 CREATE UNIQUE INDEX IF NOT EXISTS event_settings_pkey ON public.event_settings USING btree (id);
 
@@ -160,13 +160,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_created_at ON public.admin_audit_logs USING
 
 CREATE INDEX IF NOT EXISTS idx_audit_registration_id ON public.admin_audit_logs USING btree (registration_id);
 
-CREATE INDEX IF NOT EXISTS idx_email_outbox_created_at ON public.email_outbox USING btree (created_at);
 
-CREATE INDEX IF NOT EXISTS idx_email_outbox_status_scheduled ON public.email_outbox USING btree (status, scheduled_at);
-
-CREATE INDEX IF NOT EXISTS idx_email_outbox_template ON public.email_outbox USING btree (template);
-
-CREATE INDEX IF NOT EXISTS idx_email_outbox_to_email ON public.email_outbox USING btree (to_email);
 
 CREATE INDEX IF NOT EXISTS idx_registrations_business_type ON public.registrations USING btree (business_type);
 
@@ -204,15 +198,11 @@ alter table "public"."admin_users" add constraint "admin_users_role_check" CHECK
 
 alter table "public"."admin_users" validate constraint "admin_users_role_check";
 
-alter table "public"."email_outbox" add constraint "email_outbox_idempotency_key_key" UNIQUE using index "email_outbox_idempotency_key_key";
 
-alter table "public"."email_outbox" add constraint "email_outbox_status_check" CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'error'::text]))) not valid;
 
-alter table "public"."email_outbox" validate constraint "email_outbox_status_check";
 
-alter table "public"."email_outbox" add constraint "email_outbox_template_check" CHECK ((template = ANY (ARRAY['tracking'::text, 'update-payment'::text, 'update-info'::text, 'update-tcc'::text, 'approval-badge'::text, 'rejection'::text]))) not valid;
 
-alter table "public"."email_outbox" validate constraint "email_outbox_template_check";
+
 
 alter table "public"."registrations" add constraint "chk_review_statuses" CHECK (((payment_review_status = ANY (ARRAY['pending'::text, 'needs_update'::text, 'passed'::text, 'rejected'::text])) AND (profile_review_status = ANY (ARRAY['pending'::text, 'needs_update'::text, 'passed'::text, 'rejected'::text])) AND (tcc_review_status = ANY (ARRAY['pending'::text, 'needs_update'::text, 'passed'::text, 'rejected'::text])))) not valid;
 
@@ -284,131 +274,15 @@ create or replace view "public"."admin_registrations_view" as  SELECT id,
   ORDER BY created_at DESC;
 
 
-CREATE OR REPLACE FUNCTION public.fn_enqueue_email(p_template text, p_to_email text, p_payload jsonb, p_idempotency_key text DEFAULT NULL::text)
- RETURNS uuid
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-  v_id uuid;
-BEGIN
-  -- If idempotency key provided, try to upsert
-  IF p_idempotency_key IS NOT NULL THEN
-    INSERT INTO email_outbox (
-      template, 
-      to_email, 
-      payload, 
-      idempotency_key,
-      status,
-      scheduled_at
-    ) VALUES (
-      p_template,
-      p_to_email,
-      p_payload,
-      p_idempotency_key,
-      'pending',
-      now()
-    )
-    ON CONFLICT (idempotency_key) DO NOTHING
-    RETURNING id INTO v_id;
-    
-    -- If no insert happened (conflict), get the existing id
-    IF v_id IS NULL THEN
-      SELECT id INTO v_id FROM email_outbox WHERE idempotency_key = p_idempotency_key;
-    END IF;
-  ELSE
-    -- No idempotency key, just insert
-    INSERT INTO email_outbox (
-      template, 
-      to_email, 
-      payload, 
-      status,
-      scheduled_at
-    ) VALUES (
-      p_template,
-      p_to_email,
-      p_payload,
-      'pending',
-      now()
-    )
-    RETURNING id INTO v_id;
-  END IF;
-  
-  RETURN v_id;
-END;
-$function$
-;
 
-CREATE OR REPLACE FUNCTION public.fn_get_outbox_stats()
- RETURNS TABLE(total_pending integer, total_sent integer, total_error integer, oldest_pending timestamp with time zone)
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    COUNT(*) FILTER (WHERE status = 'pending')::int as total_pending,
-    COUNT(*) FILTER (WHERE status = 'sent')::int as total_sent,
-    COUNT(*) FILTER (WHERE status = 'error')::int as total_error,
-    MIN(created_at) FILTER (WHERE status = 'pending') as oldest_pending
-  FROM email_outbox;
-END;
-$function$
-;
 
-CREATE OR REPLACE FUNCTION public.fn_get_pending_emails(p_batch_size integer DEFAULT 50)
- RETURNS TABLE(id uuid, template text, to_email text, payload jsonb, idempotency_key text)
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  RETURN QUERY
-  SELECT 
-    eo.id,
-    eo.template,
-    eo.to_email,
-    eo.payload,
-    eo.idempotency_key
-  FROM email_outbox eo
-  WHERE eo.status = 'pending' 
-    AND eo.scheduled_at <= now()
-  ORDER BY eo.created_at ASC
-  LIMIT p_batch_size;
-END;
-$function$
-;
 
-CREATE OR REPLACE FUNCTION public.fn_mark_email_error(p_id uuid, p_error text)
- RETURNS boolean
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  UPDATE email_outbox 
-  SET 
-    status = 'error',
-    error = p_error,
-    last_attempt_at = now(),
-    updated_at = now()
-  WHERE id = p_id;
-  
-  RETURN FOUND;
-END;
-$function$
-;
 
-CREATE OR REPLACE FUNCTION public.fn_mark_email_sent(p_id uuid)
- RETURNS boolean
- LANGUAGE plpgsql
-AS $function$
-BEGIN
-  UPDATE email_outbox 
-  SET 
-    status = 'sent',
-    last_attempt_at = now(),
-    updated_at = now()
-  WHERE id = p_id;
-  
-  RETURN FOUND;
-END;
-$function$
-;
+
+
+
+
+
 
 CREATE OR REPLACE FUNCTION public.get_price_packages()
  RETURNS TABLE(code text, name text, currency text, early_bird_amount numeric, regular_amount numeric, is_early_bird boolean)
