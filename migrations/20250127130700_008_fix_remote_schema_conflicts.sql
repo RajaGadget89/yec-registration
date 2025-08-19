@@ -1,5 +1,5 @@
 -- Migration: Fix Remote Schema Conflicts
--- Version: 1.1
+-- Version: 1.2
 -- Description: Removes conflicting constraints from remote schema file
 -- Date: 2025-01-27
 
@@ -16,7 +16,7 @@ BEGIN
         WHERE conname = 'admin_audit_logs_pkey' 
         AND conrelid = 'admin_audit_logs'::regclass
     ) THEN
-        ALTER TABLE admin_audit_logs DROP CONSTRAINT IF EXISTS admin_audit_logs_pkey;
+        ALTER TABLE admin_audit_logs DROP CONSTRAINT IF EXISTS admin_audit_logs_pkey CASCADE;
         RAISE NOTICE 'Removed conflicting primary key constraint from admin_audit_logs';
     ELSE
         RAISE NOTICE 'No conflicting primary key constraint found on admin_audit_logs';
@@ -28,64 +28,28 @@ BEGIN
         WHERE conname = 'admin_users_pkey' 
         AND conrelid = 'admin_users'::regclass
     ) THEN
-        ALTER TABLE admin_users DROP CONSTRAINT IF EXISTS admin_users_pkey;
+        ALTER TABLE admin_users DROP CONSTRAINT IF EXISTS admin_users_pkey CASCADE;
         RAISE NOTICE 'Removed conflicting primary key constraint from admin_users';
     ELSE
         RAISE NOTICE 'No conflicting primary key constraint found on admin_users';
     END IF;
     
     -- Remove conflicting primary key constraints from registrations
+    -- Note: Using CASCADE to handle dependent foreign keys from deep_link_tokens and deep_link_token_audit
     IF EXISTS (
         SELECT 1 FROM pg_constraint 
         WHERE conname = 'registrations_pkey' 
         AND conrelid = 'registrations'::regclass
     ) THEN
-        ALTER TABLE registrations DROP CONSTRAINT IF EXISTS registrations_pkey;
-        RAISE NOTICE 'Removed conflicting primary key constraint from registrations';
+        ALTER TABLE registrations DROP CONSTRAINT IF EXISTS registrations_pkey CASCADE;
+        RAISE NOTICE 'Removed conflicting primary key constraint from registrations (with CASCADE)';
     ELSE
         RAISE NOTICE 'No conflicting primary key constraint found on registrations';
     END IF;
 END $$;
 
--- Re-add the primary key constraints properly
-DO $$
-BEGIN
-    -- Add primary key constraint to admin_audit_logs if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'admin_audit_logs_pkey' 
-        AND conrelid = 'admin_audit_logs'::regclass
-    ) THEN
-        ALTER TABLE admin_audit_logs ADD CONSTRAINT admin_audit_logs_pkey PRIMARY KEY (id);
-        RAISE NOTICE 'Added primary key constraint to admin_audit_logs';
-    ELSE
-        RAISE NOTICE 'Primary key constraint already exists on admin_audit_logs';
-    END IF;
-    
-    -- Add primary key constraint to admin_users if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'admin_users_pkey' 
-        AND conrelid = 'admin_users'::regclass
-    ) THEN
-        ALTER TABLE admin_users ADD CONSTRAINT admin_users_pkey PRIMARY KEY (id);
-        RAISE NOTICE 'Added primary key constraint to admin_users';
-    ELSE
-        RAISE NOTICE 'Primary key constraint already exists on admin_users';
-    END IF;
-    
-    -- Add primary key constraint to registrations if it doesn't exist
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint 
-        WHERE conname = 'registrations_pkey' 
-        AND conrelid = 'registrations'::regclass
-    ) THEN
-        ALTER TABLE registrations ADD CONSTRAINT registrations_pkey PRIMARY KEY (id);
-        RAISE NOTICE 'Added primary key constraint to registrations';
-    ELSE
-        RAISE NOTICE 'Primary key constraint already exists on registrations';
-    END IF;
-END $$;
+-- Note: Primary key constraints will be re-added by earlier migrations (001 or 007)
+-- This prevents future conflicts and ensures proper migration order
 
 -- Ensure all required columns exist in email_outbox
 DO $$
