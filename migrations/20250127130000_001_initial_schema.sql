@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS registrations (
 
 -- 3. Create admin_users table
 CREATE TABLE IF NOT EXISTS admin_users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID DEFAULT gen_random_uuid(),
   email TEXT NOT NULL UNIQUE,
   role TEXT NOT NULL DEFAULT 'admin',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -111,9 +111,21 @@ CREATE TABLE IF NOT EXISTS admin_users (
   CONSTRAINT admin_users_role_check CHECK (role IN ('admin', 'super_admin'))
 );
 
+-- Add primary key constraint if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE constraint_name = 'admin_users_pkey' 
+    AND table_name = 'admin_users'
+  ) THEN
+    ALTER TABLE admin_users ADD CONSTRAINT admin_users_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
+
 -- 4. Create admin_audit_logs table
 CREATE TABLE IF NOT EXISTS admin_audit_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   admin_email TEXT NOT NULL,
   action TEXT NOT NULL,
@@ -121,6 +133,18 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
   before JSONB,
   after JSONB
 );
+
+-- Add primary key constraint if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE constraint_name = 'admin_audit_logs_pkey' 
+    AND table_name = 'admin_audit_logs'
+  ) THEN
+    ALTER TABLE admin_audit_logs ADD CONSTRAINT admin_audit_logs_pkey PRIMARY KEY (id);
+  END IF;
+END $$;
 
 -- 5. Create indexes for performance
 -- Registrations table indexes
