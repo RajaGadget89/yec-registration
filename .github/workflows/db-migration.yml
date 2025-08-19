@@ -302,7 +302,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          supabase link --project-ref ${{ secrets.SB_STAGING_REF }}
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
 
       - name: Sync migrations to supabase/migrations
         run: |
@@ -349,7 +349,7 @@ jobs:
           echo "Verifying staging deployment..."
           
           # Link again to ensure we're connected
-          supabase link --project-ref ${{ secrets.SB_STAGING_REF }}
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
           
           # Check that migrations were applied
           supabase db diff --schema public --linked || echo "No pending changes (good!)"
@@ -378,7 +378,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }}
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
 
       - name: Sync migrations to supabase/migrations
         run: |
@@ -425,7 +425,7 @@ jobs:
           echo "Verifying production deployment..."
           
           # Link again to ensure we're connected
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }}
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
           
           # Check that migrations were applied
           supabase db diff --schema public --linked || echo "No pending changes (good!)"
