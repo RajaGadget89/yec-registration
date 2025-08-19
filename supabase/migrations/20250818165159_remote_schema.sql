@@ -803,11 +803,6 @@ ALTER TABLE ONLY "public"."admin_audit_logs"
 
 
 ALTER TABLE ONLY "public"."admin_users"
-    ADD CONSTRAINT "admin_users_email_key" UNIQUE ("email");
-
-
-
-ALTER TABLE ONLY "public"."admin_users"
     ADD CONSTRAINT "admin_users_pkey" PRIMARY KEY ("id");
 
 
