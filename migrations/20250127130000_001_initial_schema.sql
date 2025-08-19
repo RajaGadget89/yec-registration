@@ -1,5 +1,5 @@
 -- Migration: Initial Database Schema
--- Version: 1.0
+-- Version: 1.1
 -- Description: Creates the core database schema for YEC Registration system
 -- Date: 2025-01-27
 
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS event_settings (
 
 -- 2. Create registrations table
 CREATE TABLE IF NOT EXISTS registrations (
-  id UUID DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   registration_id TEXT NOT NULL UNIQUE,
   title TEXT,
   first_name TEXT,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS registrations (
 
 -- 3. Create admin_users table
 CREATE TABLE IF NOT EXISTS admin_users (
-  id UUID DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL UNIQUE,
   role TEXT NOT NULL DEFAULT 'admin',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
 
 -- 4. Create admin_audit_logs table
 CREATE TABLE IF NOT EXISTS admin_audit_logs (
-  id UUID DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   admin_email TEXT NOT NULL,
   action TEXT NOT NULL,
@@ -76,40 +76,6 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
   ip_address INET,
   user_agent TEXT
 );
-
--- Add primary key constraints only for tables that don't have them in CREATE TABLE
--- event_settings already has PRIMARY KEY in CREATE TABLE, so we skip it
-DO $$
-BEGIN
-  -- Add primary key to admin_users if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'admin_users_pkey' 
-    AND conrelid = 'admin_users'::regclass
-  ) THEN
-    ALTER TABLE admin_users ADD CONSTRAINT admin_users_pkey PRIMARY KEY (id);
-  END IF;
-  
-  -- Add primary key to admin_audit_logs if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'admin_audit_logs_pkey' 
-    AND conrelid = 'admin_audit_logs'::regclass
-  ) THEN
-    ALTER TABLE admin_audit_logs ADD CONSTRAINT admin_audit_logs_pkey PRIMARY KEY (id);
-  END IF;
-  
-  -- Add primary key to registrations if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'registrations_pkey' 
-    AND conrelid = 'registrations'::regclass
-  ) THEN
-    ALTER TABLE registrations ADD CONSTRAINT registrations_pkey PRIMARY KEY (id);
-  END IF;
-  
-  -- Note: event_settings already has PRIMARY KEY in CREATE TABLE, so we don't add it here
-END $$;
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status);
