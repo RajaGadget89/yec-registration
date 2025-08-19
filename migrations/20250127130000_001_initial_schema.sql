@@ -20,83 +20,23 @@ CREATE TABLE IF NOT EXISTS event_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Ensure only one row exists
-CREATE UNIQUE INDEX IF NOT EXISTS ux_event_settings_singleton ON event_settings ((true));
-
--- 2. Create registrations table with all columns
+-- 2. Create registrations table
 CREATE TABLE IF NOT EXISTS registrations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  registration_id VARCHAR(50) NOT NULL UNIQUE,
-  title VARCHAR(10) NOT NULL,
-  first_name VARCHAR(50) NOT NULL,
-  last_name VARCHAR(50) NOT NULL,
-  nickname VARCHAR(30) NOT NULL,
-  phone VARCHAR(15) NOT NULL,
-  line_id VARCHAR(30) NOT NULL,
-  email VARCHAR(255) NOT NULL,
-  company_name VARCHAR(100) NOT NULL,
-  business_type VARCHAR(50) NOT NULL,
-  business_type_other VARCHAR(50),
-  yec_province VARCHAR(50) NOT NULL,
-  hotel_choice VARCHAR(20) NOT NULL,
-  room_type VARCHAR(20),
-  roommate_info VARCHAR(100),
-  roommate_phone VARCHAR(15),
-  external_hotel_name VARCHAR(100),
-  travel_type VARCHAR(20) NOT NULL,
-  profile_image_url TEXT,
-  chamber_card_url TEXT,
-  payment_slip_url TEXT,
-  badge_url TEXT,
+  id UUID DEFAULT gen_random_uuid(),
+  registration_id TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL,
+  full_name TEXT NOT NULL,
+  phone TEXT,
+  company_name TEXT,
+  business_type TEXT,
+  yec_province TEXT NOT NULL,
+  registration_date TIMESTAMPTZ NOT NULL DEFAULT now(),
+  status TEXT NOT NULL DEFAULT 'pending',
+  review_notes TEXT,
+  update_reason TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  email_sent BOOLEAN DEFAULT false,
-  email_sent_at TIMESTAMPTZ,
-  ip_address INET,
-  user_agent TEXT,
-  form_data JSONB,
-  
-  -- Status model fields
-  status TEXT NOT NULL DEFAULT 'waiting_for_review',
-  update_reason TEXT NULL,
-  rejected_reason TEXT NULL,
-  
-  -- 3-track checklist fields
-  payment_review_status TEXT NOT NULL DEFAULT 'pending',
-  profile_review_status TEXT NOT NULL DEFAULT 'pending',
-  tcc_review_status TEXT NOT NULL DEFAULT 'pending',
-  
-  -- Comprehensive review workflow
-  review_checklist JSONB DEFAULT '{
-    "payment": {"status": "pending"},
-    "profile": {"status": "pending"},
-    "tcc": {"status": "pending"}
-  }'::jsonb,
-  
-  -- Pricing fields
-  price_applied NUMERIC(12,2) NULL,
-  currency TEXT DEFAULT 'THB',
-  selected_package_code TEXT NULL,
-  
-  -- Constraints
-  CONSTRAINT chk_status CHECK (status IN ('waiting_for_review', 'waiting_for_update_payment', 'waiting_for_update_info', 'waiting_for_update_tcc', 'approved', 'rejected')),
-  CONSTRAINT chk_update_reason CHECK (update_reason IS NULL OR update_reason IN ('payment', 'info', 'tcc')),
-  CONSTRAINT chk_review_statuses CHECK (
-    payment_review_status IN ('pending', 'needs_update', 'passed', 'rejected') AND
-    profile_review_status IN ('pending', 'needs_update', 'passed', 'rejected') AND
-    tcc_review_status IN ('pending', 'needs_update', 'passed', 'rejected')
-  ),
-  CONSTRAINT chk_hotel_choice CHECK (hotel_choice IN ('in-quota', 'out-of-quota')),
-  CONSTRAINT chk_room_type CHECK (room_type IS NULL OR room_type IN ('single', 'double', 'suite', 'no-accommodation')),
-  CONSTRAINT chk_travel_type CHECK (travel_type IN ('private-car', 'van')),
-  CONSTRAINT room_type_required_when_in_quota CHECK (
-    (hotel_choice = 'in-quota' AND room_type IS NOT NULL) OR 
-    (hotel_choice = 'out-of-quota' AND room_type IS NULL)
-  ),
-  CONSTRAINT roommate_info_required_for_double CHECK (
-    (room_type = 'double' AND roommate_info IS NOT NULL AND roommate_phone IS NOT NULL) OR 
-    (room_type != 'double')
-  )
+  CONSTRAINT registrations_status_check CHECK (status IN ('pending', 'approved', 'rejected', 'needs_update'))
 );
 
 -- 3. Create admin_users table
@@ -111,18 +51,6 @@ CREATE TABLE IF NOT EXISTS admin_users (
   CONSTRAINT admin_users_role_check CHECK (role IN ('admin', 'super_admin'))
 );
 
--- Add primary key constraint if it doesn't exist
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_name = 'admin_users_pkey' 
-    AND table_name = 'admin_users'
-  ) THEN
-    ALTER TABLE admin_users ADD CONSTRAINT admin_users_pkey PRIMARY KEY (id);
-  END IF;
-END $$;
-
 -- 4. Create admin_audit_logs table
 CREATE TABLE IF NOT EXISTS admin_audit_logs (
   id UUID DEFAULT gen_random_uuid(),
@@ -130,60 +58,109 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
   admin_email TEXT NOT NULL,
   action TEXT NOT NULL,
   registration_id TEXT NOT NULL,
-  before JSONB,
-  after JSONB
+  details JSONB,
+  ip_address INET,
+  user_agent TEXT
 );
 
--- Add primary key constraint if it doesn't exist
+-- Add primary key constraints using advanced PostgreSQL techniques
+-- This approach handles existing constraints gracefully
 DO $$
 BEGIN
+  -- Add primary key to admin_users if it doesn't exist
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints 
-    WHERE constraint_name = 'admin_audit_logs_pkey' 
-    AND table_name = 'admin_audit_logs'
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'admin_users_pkey' 
+    AND conrelid = 'admin_users'::regclass
+  ) THEN
+    ALTER TABLE admin_users ADD CONSTRAINT admin_users_pkey PRIMARY KEY (id);
+  END IF;
+  
+  -- Add primary key to admin_audit_logs if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'admin_audit_logs_pkey' 
+    AND conrelid = 'admin_audit_logs'::regclass
   ) THEN
     ALTER TABLE admin_audit_logs ADD CONSTRAINT admin_audit_logs_pkey PRIMARY KEY (id);
   END IF;
+  
+  -- Add primary key to registrations if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'registrations_pkey' 
+    AND conrelid = 'registrations'::regclass
+  ) THEN
+    ALTER TABLE registrations ADD CONSTRAINT registrations_pkey PRIMARY KEY (id);
+  END IF;
+  
+  -- Add primary key to event_settings if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname = 'event_settings_pkey' 
+    AND conrelid = 'event_settings'::regclass
+  ) THEN
+    ALTER TABLE event_settings ADD CONSTRAINT event_settings_pkey PRIMARY KEY (id);
+  END IF;
 END $$;
 
--- 5. Create indexes for performance
--- Registrations table indexes
+-- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_registrations_status ON registrations(status);
-CREATE INDEX IF NOT EXISTS idx_registrations_created_at ON registrations(created_at);
 CREATE INDEX IF NOT EXISTS idx_registrations_email ON registrations(email);
+CREATE INDEX IF NOT EXISTS idx_registrations_created_at ON registrations(created_at);
 CREATE INDEX IF NOT EXISTS idx_registrations_company_name ON registrations(company_name);
-CREATE INDEX IF NOT EXISTS idx_registrations_yec_province ON registrations(yec_province);
 CREATE INDEX IF NOT EXISTS idx_registrations_business_type ON registrations(business_type);
-CREATE INDEX IF NOT EXISTS idx_registrations_update_reason ON registrations(update_reason) WHERE update_reason IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_registrations_review_checklist ON registrations USING GIN (review_checklist);
+CREATE INDEX IF NOT EXISTS idx_registrations_yec_province ON registrations(yec_province);
 CREATE INDEX IF NOT EXISTS idx_registrations_status_created_at ON registrations(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_registrations_status_province ON registrations(status, yec_province);
+CREATE INDEX IF NOT EXISTS idx_registrations_update_reason ON registrations(update_reason) WHERE update_reason IS NOT NULL;
 
--- Admin audit logs indexes
 CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_admin_email ON admin_audit_logs(admin_email);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at ON admin_audit_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_registration_id ON admin_audit_logs(registration_id);
-CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_created_at ON admin_audit_logs(created_at);
-CREATE INDEX IF NOT EXISTS idx_admin_audit_logs_action ON admin_audit_logs(action);
 
--- 6. Insert default event settings
-INSERT INTO event_settings (
-  registration_deadline_utc,
-  early_bird_deadline_utc,
-  price_packages,
-  eligibility_rules,
-  timezone
-) VALUES (
-  (NOW() + INTERVAL '30 days')::timestamptz,
-  (NOW() + INTERVAL '7 days')::timestamptz,
-  '[
-    {"code": "standard", "name": "Standard Package", "currency": "THB", "early_bird_amount": 1500, "regular_amount": 2000},
-    {"code": "premium", "name": "Premium Package", "currency": "THB", "early_bird_amount": 2500, "regular_amount": 3000},
-    {"code": "vip", "name": "VIP Package", "currency": "THB", "early_bird_amount": 3500, "regular_amount": 4000},
-    {"code": "student", "name": "Student Package", "currency": "THB", "early_bird_amount": 800, "regular_amount": 1200}
-  ]'::jsonb,
-  '{"blocked_emails": [], "blocked_domains": [], "blocked_keywords": []}'::jsonb,
-  'Asia/Bangkok'
-) ON CONFLICT DO NOTHING;
+-- Create trigger function for updating timestamps
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
--- Migration completed successfully
-SELECT 'Initial database schema migration completed successfully' as status;
+-- Add update triggers to tables
+DROP TRIGGER IF EXISTS update_registrations_updated_at ON registrations;
+CREATE TRIGGER update_registrations_updated_at
+    BEFORE UPDATE ON registrations
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_admin_users_updated_at ON admin_users;
+CREATE TRIGGER update_admin_users_updated_at
+    BEFORE UPDATE ON admin_users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_event_settings_updated_at ON event_settings;
+CREATE TRIGGER update_event_settings_updated_at
+    BEFORE UPDATE ON event_settings
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Create trigger for updating registration status
+CREATE OR REPLACE FUNCTION update_registration_status()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Update the status based on review_notes
+    IF NEW.review_notes IS NOT NULL AND OLD.review_notes IS DISTINCT FROM NEW.review_notes THEN
+        NEW.updated_at = now();
+    END IF;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS trigger_update_registration_status ON registrations;
+CREATE TRIGGER trigger_update_registration_status
+    BEFORE UPDATE ON registrations
+    FOR EACH ROW
+    EXECUTE FUNCTION update_registration_status();
