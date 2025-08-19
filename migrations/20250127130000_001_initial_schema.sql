@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS event_settings (
 CREATE TABLE IF NOT EXISTS registrations (
   id UUID DEFAULT gen_random_uuid(),
   registration_id TEXT NOT NULL UNIQUE,
+  title TEXT,
+  first_name TEXT,
+  last_name TEXT,
   email TEXT NOT NULL,
   full_name TEXT NOT NULL,
   phone TEXT,
@@ -34,9 +37,20 @@ CREATE TABLE IF NOT EXISTS registrations (
   status TEXT NOT NULL DEFAULT 'pending',
   review_notes TEXT,
   update_reason TEXT,
+  payment_review_status TEXT NOT NULL DEFAULT 'pending',
+  profile_review_status TEXT NOT NULL DEFAULT 'pending',
+  tcc_review_status TEXT NOT NULL DEFAULT 'pending',
+  price_applied NUMERIC(12,2),
+  currency TEXT DEFAULT 'THB',
+  selected_package_code TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CONSTRAINT registrations_status_check CHECK (status IN ('pending', 'approved', 'rejected', 'needs_update'))
+  CONSTRAINT registrations_status_check CHECK (status IN ('pending', 'approved', 'rejected', 'needs_update', 'waiting_for_review', 'waiting_for_update_payment', 'waiting_for_update_info', 'waiting_for_update_tcc')),
+  CONSTRAINT registrations_review_status_check CHECK (
+    payment_review_status IN ('pending', 'needs_update', 'passed', 'rejected') AND
+    profile_review_status IN ('pending', 'needs_update', 'passed', 'rejected') AND
+    tcc_review_status IN ('pending', 'needs_update', 'passed', 'rejected')
+  )
 );
 
 -- 3. Create admin_users table
