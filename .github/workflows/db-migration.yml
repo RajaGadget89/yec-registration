@@ -218,9 +218,35 @@ jobs:
       - name: Sync migrations to supabase/migrations
         run: |
           echo "Syncing migrations to supabase/migrations directory..."
+          
+          # Create backup of existing supabase migrations
+          if [ -d "supabase/migrations" ]; then
+            echo "Backing up existing supabase migrations..."
+            cp -r supabase/migrations supabase/migrations.backup
+          fi
+          
+          # Copy local migrations to supabase/migrations
           rm -rf supabase/migrations
           mkdir -p supabase/migrations
-          cp -a migrations/. supabase/migrations/
+          cp -a migrations/*.sql supabase/migrations/
+          
+          # Restore any existing supabase migrations that aren't in local
+          if [ -d "supabase/migrations.backup" ]; then
+            echo "Restoring existing supabase migrations..."
+            for file in supabase/migrations.backup/*.sql; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                if [ ! -f "supabase/migrations/$filename" ]; then
+                  echo "Restoring: $filename"
+                  cp "$file" supabase/migrations/
+                fi
+              fi
+            done
+            rm -rf supabase/migrations.backup
+          fi
+          
+          echo "Migration files synced:"
+          ls -la supabase/migrations/
 
       - name: Apply migrations to shadow database
         env:
