@@ -2,13 +2,13 @@ name: Database Migration Pipeline
 
 on:
   push:
-    branches: [ develop, staging ]
+    branches: [ develop, staging, bugfix/recover-core-services-system ]
     paths:
       - 'migrations/**'
       - 'supabase/migrations/**'
       - '.github/workflows/db-migration.yml'
   pull_request:
-    branches: [ main, develop, staging ]
+    branches: [ main, develop, staging, bugfix/recover-core-services-system ]
     paths:
       - 'migrations/**'
       - 'supabase/migrations/**'
