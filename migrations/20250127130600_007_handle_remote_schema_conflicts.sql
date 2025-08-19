@@ -61,9 +61,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Handle primary key constraints that might conflict with remote schema
+-- Note: event_settings already has PRIMARY KEY in CREATE TABLE, so we skip it
 DO $$
 BEGIN
-    -- Safely add primary key constraints
+    -- Safely add primary key constraints (only for tables without PRIMARY KEY in CREATE TABLE)
     PERFORM safe_add_constraint(
         'admin_audit_logs',
         'admin_audit_logs_pkey',
@@ -82,11 +83,7 @@ BEGIN
         'ALTER TABLE registrations ADD CONSTRAINT registrations_pkey PRIMARY KEY (id)'
     );
     
-    PERFORM safe_add_constraint(
-        'event_settings',
-        'event_settings_pkey',
-        'ALTER TABLE event_settings ADD CONSTRAINT event_settings_pkey PRIMARY KEY (id)'
-    );
+    -- Note: event_settings already has PRIMARY KEY in CREATE TABLE, so we skip it
     
     -- Safely add unique constraints
     PERFORM safe_add_constraint(

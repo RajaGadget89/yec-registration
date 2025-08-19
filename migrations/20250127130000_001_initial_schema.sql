@@ -63,8 +63,8 @@ CREATE TABLE IF NOT EXISTS admin_audit_logs (
   user_agent TEXT
 );
 
--- Add primary key constraints using advanced PostgreSQL techniques
--- This approach handles existing constraints gracefully
+-- Add primary key constraints only for tables that don't have them in CREATE TABLE
+-- event_settings already has PRIMARY KEY in CREATE TABLE, so we skip it
 DO $$
 BEGIN
   -- Add primary key to admin_users if it doesn't exist
@@ -94,14 +94,7 @@ BEGIN
     ALTER TABLE registrations ADD CONSTRAINT registrations_pkey PRIMARY KEY (id);
   END IF;
   
-  -- Add primary key to event_settings if it doesn't exist
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'event_settings_pkey' 
-    AND conrelid = 'event_settings'::regclass
-  ) THEN
-    ALTER TABLE event_settings ADD CONSTRAINT event_settings_pkey PRIMARY KEY (id);
-  END IF;
+  -- Note: event_settings already has PRIMARY KEY in CREATE TABLE, so we don't add it here
 END $$;
 
 -- Create indexes for better performance
