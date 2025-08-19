@@ -332,8 +332,8 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           echo "Pushing migrations to staging..."
-          supabase db push --dry-run
-          supabase db push
+          supabase db push --dry-run --password ${{ secrets.STAGING_DB_PASSWORD }}
+          supabase db push --password ${{ secrets.STAGING_DB_PASSWORD }}
           echo "✅ Migrations deployed to staging"
 
       - name: No changes to deploy
@@ -352,7 +352,7 @@ jobs:
           supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
           
           # Check that migrations were applied
-          supabase db diff --schema public --linked || echo "No pending changes (good!)"
+          supabase db diff --schema public --linked --password ${{ secrets.STAGING_DB_PASSWORD }} || echo "No pending changes (good!)"
 
   # Deploy to production (manual approval required)
   deploy_production:
