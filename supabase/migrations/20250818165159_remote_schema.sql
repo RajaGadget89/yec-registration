@@ -797,28 +797,8 @@ ALTER TABLE ONLY "audit"."event_log"
 
 
 
-ALTER TABLE ONLY "public"."admin_audit_logs"
-    ADD CONSTRAINT "admin_audit_logs_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."admin_users"
-    ADD CONSTRAINT "admin_users_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."event_settings"
-    ADD CONSTRAINT "event_settings_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."registrations"
-    ADD CONSTRAINT "registrations_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."registrations"
-    ADD CONSTRAINT "registrations_registration_id_key" UNIQUE ("registration_id");
+-- Primary key and unique constraints are handled by local migrations
+-- to prevent conflicts with auto-generated schema
 
 
 
