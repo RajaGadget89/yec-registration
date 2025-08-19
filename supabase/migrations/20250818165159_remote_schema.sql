@@ -1,5 +1,5 @@
 -- Migration: Remote Schema (Auto-generated)
--- Version: 1.1
+-- Version: 1.2
 -- Description: Auto-generated schema from Supabase - Cleaned to prevent conflicts
 -- Date: 2025-08-18
 
@@ -77,10 +77,17 @@ CREATE INDEX IF NOT EXISTS "idx_access_log_occurred_at" ON "audit"."access_log" 
 CREATE INDEX IF NOT EXISTS "idx_event_log_occurred_at" ON "audit"."event_log" USING "btree" ("occurred_at_utc");
 
 -- RLS Policies for audit tables
-CREATE POLICY IF NOT EXISTS "Authenticated users can access all audit logs" ON "audit"."access_log" TO "authenticated" USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "Authenticated users can access all audit logs" ON "audit"."event_log" TO "authenticated" USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "Service role can access all audit logs" ON "audit"."access_log" TO "service_role" USING (true) WITH CHECK (true);
-CREATE POLICY IF NOT EXISTS "Service role can access all audit logs" ON "audit"."event_log" TO "service_role" USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "Authenticated users can access all audit logs" ON "audit"."access_log";
+CREATE POLICY "Authenticated users can access all audit logs" ON "audit"."access_log" TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Authenticated users can access all audit logs" ON "audit"."event_log";
+CREATE POLICY "Authenticated users can access all audit logs" ON "audit"."event_log" TO authenticated USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Service role can access all audit logs" ON "audit"."access_log";
+CREATE POLICY "Service role can access all audit logs" ON "audit"."access_log" TO service_role USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Service role can access all audit logs" ON "audit"."event_log";
+CREATE POLICY "Service role can access all audit logs" ON "audit"."event_log" TO service_role USING (true) WITH CHECK (true);
 
 -- Enable RLS on audit tables
 ALTER TABLE "audit"."access_log" ENABLE ROW LEVEL SECURITY;
