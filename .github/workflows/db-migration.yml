@@ -315,7 +315,7 @@ jobs:
         id: diff
         run: |
           echo "Generating migration diff..."
-          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
+          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "No diff or error")
           echo "diff_output<<EOF" >> $GITHUB_OUTPUT
           echo "$diff_output" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -391,7 +391,7 @@ jobs:
         id: prod_diff
         run: |
           echo "Generating production migration diff..."
-          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
+          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || echo "No diff or error")
           echo "diff_output<<EOF" >> $GITHUB_OUTPUT
           echo "$diff_output" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -408,8 +408,8 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           echo "Pushing migrations to production..."
-          supabase db push --dry-run
-          supabase db push
+          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }}
+          supabase db push --password ${{ secrets.PROD_DB_PASSWORD }}
           echo "✅ Migrations deployed to production"
 
       - name: No production changes to deploy
@@ -428,7 +428,7 @@ jobs:
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
           
           # Check that migrations were applied
-          supabase db diff --schema public --linked || echo "No pending changes (good!)"
+          supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} || echo "No pending changes (good!)"
 
   # Run E2E tests after database migrations are complete
   e2e_tests_after_migration:

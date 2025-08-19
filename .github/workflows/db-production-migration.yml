@@ -250,7 +250,7 @@ jobs:
           echo "Generating production migration diff..."
           
           # Generate diff and capture output
-          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
+          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || echo "No diff or error")
           
           # Save diff output for debugging
           echo "$diff_output" > migration_diff.txt
@@ -279,7 +279,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           echo "Performing dry run of migration..."
-          supabase db push --dry-run
+          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }}
           echo "✅ Dry run completed successfully"
 
       - name: Apply migrations to production
@@ -287,13 +287,10 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          echo "Applying migrations to production..."
-          echo "🚀 Starting production migration..."
-          
-          # Apply migrations with detailed output
-          supabase db push
-          
-          echo "✅ Migrations applied successfully to production"
+          echo "Pushing migrations to production..."
+          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }}
+          supabase db push --password ${{ secrets.PROD_DB_PASSWORD }}
+          echo "✅ Migrations deployed to production"
 
       - name: No changes to deploy
         if: steps.prod_diff.outputs.has_changes == 'false'
@@ -313,7 +310,7 @@ jobs:
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
           
           # Check that migrations were applied
-          verification_diff=$(supabase db diff --schema public --linked 2>&1 || echo "Verification complete")
+          verification_diff=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || echo "Verification complete")
           
           if [ "$verification_diff" = "No schema changes found" ] || [ "$verification_diff" = "Verification complete" ]; then
             echo "✅ Production deployment verified successfully"
@@ -364,7 +361,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           echo "Generating staging migration diff..."
-          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
+          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "No diff or error")
           
           if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ] && [ "$diff_output" != "No schema changes found" ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
