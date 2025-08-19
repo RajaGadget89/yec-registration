@@ -120,20 +120,4 @@ CREATE TRIGGER update_event_settings_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Create trigger for updating registration status
-CREATE OR REPLACE FUNCTION update_registration_status()
-RETURNS TRIGGER AS $$
-BEGIN
-    -- Update the status based on review_notes
-    IF NEW.review_notes IS NOT NULL AND OLD.review_notes IS DISTINCT FROM NEW.review_notes THEN
-        NEW.updated_at = now();
-    END IF;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-DROP TRIGGER IF EXISTS trigger_update_registration_status ON registrations;
-CREATE TRIGGER trigger_update_registration_status
-    BEFORE UPDATE ON registrations
-    FOR EACH ROW
-    EXECUTE FUNCTION update_registration_status();
+-- Note: update_registration_status function and trigger are handled by migration 002_comprehensive_review_workflow.sql
