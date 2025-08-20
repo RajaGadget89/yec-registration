@@ -12,13 +12,16 @@ export async function POST(request: NextRequest) {
     const { email } = body;
 
     if (!email) {
-      return NextResponse.json({ error: "Email address required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Email address required" },
+        { status: 400 },
+      );
     }
 
     console.log(`[EMAIL-TEST] Testing email sending to ${email}`);
 
     const transport = getEmailTransport();
-    
+
     const result = await transport.send({
       to: email,
       subject: "[TEST] YEC Day Email System Test",
@@ -40,7 +43,6 @@ export async function POST(request: NextRequest) {
       result,
       timestamp: new Date().toISOString(),
     });
-
   } catch (error) {
     console.error("[EMAIL-TEST] Error:", error);
     return NextResponse.json(
@@ -52,4 +54,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

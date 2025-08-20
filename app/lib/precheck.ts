@@ -32,8 +32,10 @@ export async function precheckRegistration(): Promise<PrecheckResult> {
 
     // 2. Check if registration deadline has passed
     const now = new Date();
-    const registrationDeadline = new Date(eventSettings.registration_deadline_utc);
-    
+    const registrationDeadline = new Date(
+      eventSettings.registration_deadline_utc,
+    );
+
     if (now > registrationDeadline) {
       return {
         success: false,
@@ -51,7 +53,9 @@ export async function precheckRegistration(): Promise<PrecheckResult> {
           success: false,
           code: "STORAGE_PRECONDITION_FAILED",
           hint: "Required storage buckets not configured. Contact administrators.",
-          details: bucketResult.missing?.join(", ") || "Storage bucket verification failed",
+          details:
+            bucketResult.missing?.join(", ") ||
+            "Storage bucket verification failed",
         };
       }
     } catch (bucketError) {
@@ -59,7 +63,10 @@ export async function precheckRegistration(): Promise<PrecheckResult> {
         success: false,
         code: "STORAGE_PRECONDITION_FAILED",
         hint: "Storage bucket verification failed. Contact administrators.",
-        details: bucketError instanceof Error ? bucketError.message : "Unknown storage error",
+        details:
+          bucketError instanceof Error
+            ? bucketError.message
+            : "Unknown storage error",
       };
     }
 

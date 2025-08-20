@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { assertDbRouting } from '../../../lib/env-guards';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { assertDbRouting } from "../../../lib/env-guards";
 
 // Validate database routing
 assertDbRouting();
@@ -14,19 +14,19 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
  * Check if request is authorized with CRON_SECRET
  */
 function isAuthorized(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
+  const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
-  
+
   if (!cronSecret) {
-    console.error('CRON_SECRET environment variable not set');
+    console.error("CRON_SECRET environment variable not set");
     return false;
   }
-  
+
   if (!authHeader) {
     return false;
   }
-  
-  const token = authHeader.replace('Bearer ', '');
+
+  const token = authHeader.replace("Bearer ", "");
   return token === cronSecret;
 }
 
@@ -39,27 +39,27 @@ export async function GET(request: NextRequest) {
 
     // Fetch all registrations from the database
     const { data: registrations, error } = await supabase
-      .from('registrations')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from("registrations")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error('Failed to fetch registrations:', error);
+      console.error("Failed to fetch registrations:", error);
       return NextResponse.json(
         { error: "Failed to fetch registrations", message: error.message },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     return NextResponse.json(registrations);
   } catch (error) {
-    console.error('Failed to get registrations:', error);
+    console.error("Failed to get registrations:", error);
     return NextResponse.json(
       {
         error: "Failed to get registrations",
         message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
