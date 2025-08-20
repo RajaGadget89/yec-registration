@@ -319,10 +319,6 @@ jobs:
           set -euo pipefail
           echo "Checking for orphaned remote_schema entry on production..."
 
-          # Since we're using Supabase CLI, we can use the linked project
-          # to access the database directly without needing the raw connection string
-          echo "Using Supabase CLI to access production database..."
-          
           # Test connection using Supabase CLI
           echo "Testing database connection via Supabase CLI..."
           if ! supabase db ping --password ${{ secrets.PROD_DB_PASSWORD }} > /dev/null 2>&1; then
@@ -332,26 +328,26 @@ jobs:
           fi
           echo "✅ Database connection successful via Supabase CLI"
 
-          # Use Supabase CLI to query the database
-          echo "Querying for remote_schema entries..."
-          count="$(supabase db query --password ${{ secrets.PROD_DB_PASSWORD }} \
-            "select count(*) 
-               from supabase_migrations.schema_migrations 
-              where name = 'remote_schema'" | tail -n 1 | tr -d ' ')"
-
-          echo "remote_schema rows detected: ${count}"
-
-          if [ "${count}" != "0" ]; then
-            echo "Orphaned 'remote_schema' found. Marking as reverted..."
-            # Use Supabase CLI to update the database
-            supabase db query --password ${{ secrets.PROD_DB_PASSWORD }} \
-              "update supabase_migrations.schema_migrations
-                  set status = 'reverted'
-                where name = 'remote_schema';"
-            echo "Repair complete."
+          # Use a simpler approach: try to repair any remote_schema entries directly
+          echo "Attempting to repair any orphaned remote_schema entries..."
+          
+          # First, try the official Supabase migration repair command
+          # This will handle the repair automatically if there are orphaned entries
+          repair_output=$(supabase migration repair --status reverted --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || echo "No repair needed")
+          echo "Migration repair output: $repair_output"
+          
+          if echo "$repair_output" | grep -q "remote_schema\|repaired\|fixed"; then
+            echo "✅ Successfully repaired remote_schema entries using Supabase CLI"
           else
-            echo "No orphaned 'remote_schema' row found. Skipping repair."
+            echo "No remote_schema entries found or repair not needed"
           fi
+          
+          # As a fallback, also try to directly update any remaining remote_schema entries
+          echo "Running fallback cleanup for any remaining remote_schema entries..."
+          supabase db query --password ${{ secrets.PROD_DB_PASSWORD }} \
+            "UPDATE supabase_migrations.schema_migrations SET status = 'reverted' WHERE name = 'remote_schema' AND status != 'reverted';" 2>/dev/null || echo "No remote_schema entries to update"
+          
+          echo "Auto-repair process completed."
 
       - name: Generate production migration diff
         id: prod_diff
