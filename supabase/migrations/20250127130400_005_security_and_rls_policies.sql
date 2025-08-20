@@ -14,153 +14,276 @@ ALTER TABLE email_outbox ENABLE ROW LEVEL SECURITY;
 
 -- 2. Create RLS policies for registrations table
 -- Admin users can view all registrations
-CREATE POLICY "Admin users can view all registrations" ON registrations
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'registrations'
+      AND policyname = 'Admin users can view all registrations'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admin users can view all registrations" ON public.registrations FOR SELECT USING (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- Admin users can update registrations
-CREATE POLICY "Admin users can update registrations" ON registrations
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'registrations'
+      AND policyname = 'Admin users can update registrations'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admin users can update registrations" ON public.registrations FOR UPDATE USING (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- Users can insert their own registrations (for registration form)
-CREATE POLICY "Users can insert registrations" ON registrations
-  FOR INSERT WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'registrations'
+      AND policyname = 'Users can insert registrations'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Users can insert registrations" ON public.registrations FOR INSERT WITH CHECK (true);';
+  END IF;
+END $$;
 
 -- Service role can manage all registrations
-CREATE POLICY "Service role can manage registrations" ON registrations
-  FOR ALL USING (auth.role() = 'service_role');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'registrations'
+      AND policyname = 'Service role can manage registrations'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Service role can manage registrations" ON public.registrations FOR ALL USING (auth.role() = ''service_role'');';
+  END IF;
+END $$;
 
 -- 3. Create RLS policies for event_settings table
 -- Admin users can view event settings
-CREATE POLICY "Admin users can view event settings" ON event_settings
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'event_settings'
+      AND policyname = 'Admin users can view event settings'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admin users can view event settings" ON public.event_settings FOR SELECT USING (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- Admin users can update event settings
-CREATE POLICY "Admin users can update event settings" ON event_settings
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'event_settings'
+      AND policyname = 'Admin users can update event settings'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admin users can update event settings" ON public.event_settings FOR UPDATE USING (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- Admin users can insert event settings
-CREATE POLICY "Admin users can insert event settings" ON event_settings
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'event_settings'
+      AND policyname = 'Admin users can insert event settings'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admin users can insert event settings" ON public.event_settings FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- Service role can manage event settings
-CREATE POLICY "Service role can manage event settings" ON event_settings
-  FOR ALL USING (auth.role() = 'service_role');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'event_settings'
+      AND policyname = 'Service role can manage event settings'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Service role can manage event settings" ON public.event_settings FOR ALL USING (auth.role() = ''service_role'');';
+  END IF;
+END $$;
 
 -- 4. Create RLS policies for admin_users table
 -- Admin users can view admin users (for admin management)
-CREATE POLICY "Admin users can view admin users" ON admin_users
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'admin_users'
+      AND policyname = 'Admin users can view admin users'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admin users can view admin users" ON public.admin_users FOR SELECT USING (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- Super admins can manage admin users
-CREATE POLICY "Super admins can manage admin users" ON admin_users
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND role = 'super_admin'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'admin_users'
+      AND policyname = 'Super admins can manage admin users'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Super admins can manage admin users" ON public.admin_users FOR ALL USING (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND role = ''super_admin'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- Service role can manage admin users
-CREATE POLICY "Service role can manage admin users" ON admin_users
-  FOR ALL USING (auth.role() = 'service_role');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'admin_users'
+      AND policyname = 'Service role can manage admin users'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Service role can manage admin users" ON public.admin_users FOR ALL USING (auth.role() = ''service_role'');';
+  END IF;
+END $$;
 
 -- 5. Create RLS policies for admin_audit_logs table
 -- Admin users can view audit logs
-CREATE POLICY "Admin users can view audit logs" ON admin_audit_logs
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'admin_audit_logs'
+      AND policyname = 'Admin users can view audit logs'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admin users can view audit logs" ON public.admin_audit_logs FOR SELECT USING (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- Service role can insert audit logs
-CREATE POLICY "Service role can insert audit logs" ON admin_audit_logs
-  FOR INSERT WITH CHECK (auth.role() = 'service_role');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'admin_audit_logs'
+      AND policyname = 'Service role can insert audit logs'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Service role can insert audit logs" ON public.admin_audit_logs FOR INSERT WITH CHECK (auth.role() = ''service_role'');';
+  END IF;
+END $$;
 
 -- 6. Create RLS policies for deep_link_tokens table
 -- Admin users can view deep link tokens
-CREATE POLICY "Admin users can view deep link tokens" ON deep_link_tokens
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'deep_link_tokens'
+      AND policyname = 'Admin users can view deep link tokens'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admin users can view deep link tokens" ON public.deep_link_tokens FOR SELECT USING (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- Service role can manage deep link tokens
-CREATE POLICY "Service role can manage deep link tokens" ON deep_link_tokens
-  FOR ALL USING (auth.role() = 'service_role');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'deep_link_tokens'
+      AND policyname = 'Service role can manage deep link tokens'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Service role can manage deep link tokens" ON public.deep_link_tokens FOR ALL USING (auth.role() = ''service_role'');';
+  END IF;
+END $$;
 
 -- 7. Create RLS policies for deep_link_token_audit table
 -- Admin users can view deep link token audit logs
-CREATE POLICY "Admin users can view deep link token audit" ON deep_link_token_audit
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'deep_link_token_audit'
+      AND policyname = 'Admin users can view deep link token audit'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admin users can view deep link token audit" ON public.deep_link_token_audit FOR SELECT USING (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- Service role can insert deep link token audit logs
-CREATE POLICY "Service role can insert deep link token audit" ON deep_link_token_audit
-  FOR INSERT WITH CHECK (auth.role() = 'service_role');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'deep_link_token_audit'
+      AND policyname = 'Service role can insert deep link token audit'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Service role can insert deep link token audit" ON public.deep_link_token_audit FOR INSERT WITH CHECK (auth.role() = ''service_role'');';
+  END IF;
+END $$;
 
 -- 8. Create RLS policies for email_outbox table
 -- Service role can manage email outbox
-CREATE POLICY "Service role can manage email outbox" ON email_outbox
-  FOR ALL USING (auth.role() = 'service_role');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'email_outbox'
+      AND policyname = 'Service role can manage email outbox'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Service role can manage email outbox" ON public.email_outbox FOR ALL USING (auth.role() = ''service_role'');';
+  END IF;
+END $$;
 
 -- Admin users can view email outbox
-CREATE POLICY "Admin users can view email outbox" ON email_outbox
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM admin_users 
-      WHERE email = current_setting('request.jwt.claims', true)::json->>'email'
-      AND is_active = true
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'email_outbox'
+      AND policyname = 'Admin users can view email outbox'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Admin users can view email outbox" ON public.email_outbox FOR SELECT USING (EXISTS (SELECT 1 FROM public.admin_users WHERE email = current_setting(''request.jwt.claims'', true)::json->>''email'' AND is_active = true));';
+  END IF;
+END $$;
 
 -- 9. Grant necessary permissions to authenticated users
 GRANT USAGE ON SCHEMA public TO authenticated;
