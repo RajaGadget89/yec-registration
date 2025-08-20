@@ -4,8 +4,8 @@
 -- Date: 2025-01-27
 
 -- Add idempotency_key column to email_outbox table
-ALTER TABLE email_outbox 
-ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+ALTER TABLE IF EXISTS public.email_outbox
+  ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
 
 -- Create index for idempotency_key lookups
 CREATE INDEX IF NOT EXISTS idx_email_outbox_idempotency_key 
