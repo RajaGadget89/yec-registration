@@ -306,26 +306,38 @@ jobs:
           echo "Migration files synced:"
           ls -la supabase/migrations/
 
-      # Why we auto-repair here:
-      # - Production once had only 'remote_schema' in schema_migrations, causing dry-run to fail.
-      # - We standardize by marking that 'remote_schema' version as 'reverted' so real migrations can apply.
-      # - Required to keep Node 18 (team constraint), do not touch Node versions in this workflow.
       - name: Auto-repair remote_schema (if present)
+        # Why this exists:
+        # Some legacy environments may still have an orphaned 'remote_schema'
+        # row in supabase_migrations.schema_migrations. That confuses the CLI
+        # and causes 'remote migration versions not found in local migrations'
+        # during prod deploys. We defensively mark it as reverted if present.
         env:
-          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+          PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        shell: bash
         run: |
-          echo "Checking for orphaned remote_schema entry..."
-          
-          # Read the latest remote_schema version
-          REMOTE_SCHEMA_VER=$(psql "$SUPABASE_PROD_DB_URL" -Atc \
-            "select version from supabase_migrations.schema_migrations where name='remote_schema' order by version desc limit 1")
-          
-          if [ -n "$REMOTE_SCHEMA_VER" ]; then
-            echo "Found remote_schema version: $REMOTE_SCHEMA_VER — repairing to 'reverted' ..."
-            supabase migration repair --status reverted "$REMOTE_SCHEMA_VER" --db-url "$SUPABASE_PROD_DB_URL"
-            echo "Repair done."
+          set -euo pipefail
+          echo "Checking for orphaned remote_schema entry on production..."
+
+          # Count rows for 'remote_schema'. We pass the connection string so
+          # psql connects to the remote DB (not the local UNIX socket).
+          count="$(psql "$PROD_DB_URL" -Atc \
+            "select count(*) 
+               from supabase_migrations.schema_migrations 
+              where name = 'remote_schema'")"
+
+          echo "remote_schema rows detected: ${count}"
+
+          if [ "${count}" != "0" ]; then
+            echo "Orphaned 'remote_schema' found. Marking as reverted..."
+            # Be tolerant to different status values; just force it to 'reverted'.
+            psql "$PROD_DB_URL" -v ON_ERROR_STOP=1 -c \
+              "update supabase_migrations.schema_migrations
+                  set status = 'reverted'
+                where name = 'remote_schema';"
+            echo "Repair complete."
           else
-            echo "No remote_schema entry — nothing to repair"
+            echo "No orphaned 'remote_schema' row found. Skipping repair."
           fi
 
       - name: Generate production migration diff
