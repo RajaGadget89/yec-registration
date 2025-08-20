@@ -239,7 +239,14 @@ BEGIN
     CREATE INDEX IF NOT EXISTS idx_email_outbox_template ON email_outbox (template);
     CREATE INDEX IF NOT EXISTS idx_email_outbox_to_email ON email_outbox (to_email);
     CREATE INDEX IF NOT EXISTS idx_email_outbox_created_at ON email_outbox (created_at);
-    CREATE INDEX IF NOT EXISTS idx_email_outbox_next_attempt ON email_outbox (next_attempt);
+    -- Only create index if the column exists
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name = 'email_outbox' 
+      AND column_name = 'next_attempt'
+    ) THEN
+      CREATE INDEX IF NOT EXISTS idx_email_outbox_next_attempt ON email_outbox (next_attempt);
+    END IF;
     CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_dedupe_key_uidx ON email_outbox (dedupe_key) WHERE dedupe_key IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_email_outbox_idempotency_key ON email_outbox (idempotency_key) WHERE idempotency_key IS NOT NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_idempotency_key_uidx ON email_outbox (idempotency_key) WHERE idempotency_key IS NOT NULL;
