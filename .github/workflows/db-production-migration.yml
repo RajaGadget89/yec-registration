@@ -313,28 +313,92 @@ jobs:
         # and causes 'remote migration versions not found in local migrations'
         # during prod deploys. We defensively mark it as reverted if present.
         env:
-          PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
         shell: bash
         run: |
           set -euo pipefail
           echo "Checking for orphaned remote_schema entry on production..."
 
+          # Unset any conflicting PostgreSQL environment variables that might
+          # cause psql to try local connections instead of using the URL
+          unset PGHOST PGPORT PGDATABASE PGUSER PGPASSWORD PGSERVICE PGSERVICEFILE
+          
+          # Debug connection string (masked for security)
+          echo "Connection string format: ${SUPABASE_PROD_DB_URL:0:20}..."
+          
+          # Test connection first with explicit connection parameters
+          echo "Testing database connection..."
+          
+          # Try direct URL connection first
+          if psql "$SUPABASE_PROD_DB_URL" -c "SELECT 1;" > /dev/null 2>&1; then
+            echo "✅ Database connection successful (direct URL)"
+          else
+            echo "⚠️ Direct URL connection failed, trying alternative approach..."
+            
+            # Parse connection string and use explicit parameters
+            # Extract components from postgresql://user:pass@host:port/dbname
+            if [[ "$SUPABASE_PROD_DB_URL" =~ postgresql://([^:]+):([^@]+)@([^:]+):([^/]+)/(.+) ]]; then
+              DB_USER="${BASH_REMATCH[1]}"
+              DB_PASS="${BASH_REMATCH[2]}"
+              DB_HOST="${BASH_REMATCH[3]}"
+              DB_PORT="${BASH_REMATCH[4]}"
+              DB_NAME="${BASH_REMATCH[5]}"
+              
+              echo "Parsed connection: ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+              
+              # Test with explicit parameters
+              if PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" > /dev/null 2>&1; then
+                echo "✅ Database connection successful (explicit parameters)"
+                # Use explicit parameters for all subsequent commands
+                USE_EXPLICIT_PARAMS=true
+              else
+                echo "❌ Failed to connect to production database with explicit parameters"
+                echo "Connection test failed. Check SUPABASE_PROD_DB_URL format and network access."
+                exit 1
+              fi
+            else
+              echo "❌ Failed to parse connection string format"
+              echo "Expected format: postgresql://user:pass@host:port/dbname"
+              exit 1
+            fi
+          fi
+
           # Count rows for 'remote_schema'. We pass the connection string so
           # psql connects to the remote DB (not the local UNIX socket).
-          count="$(psql "$PROD_DB_URL" -Atc \
-            "select count(*) 
-               from supabase_migrations.schema_migrations 
-              where name = 'remote_schema'")"
+          echo "Querying for remote_schema entries..."
+          
+          if [ "${USE_EXPLICIT_PARAMS:-false}" = "true" ]; then
+            # Use explicit parameters if direct URL failed
+            count="$(PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -Atc \
+              "select count(*) 
+                 from supabase_migrations.schema_migrations 
+                where name = 'remote_schema'")"
+          else
+            # Use direct URL connection
+            count="$(psql "$SUPABASE_PROD_DB_URL" -Atc \
+              "select count(*) 
+                 from supabase_migrations.schema_migrations 
+                where name = 'remote_schema'")"
+          fi
 
           echo "remote_schema rows detected: ${count}"
 
           if [ "${count}" != "0" ]; then
             echo "Orphaned 'remote_schema' found. Marking as reverted..."
             # Be tolerant to different status values; just force it to 'reverted'.
-            psql "$PROD_DB_URL" -v ON_ERROR_STOP=1 -c \
-              "update supabase_migrations.schema_migrations
-                  set status = 'reverted'
-                where name = 'remote_schema';"
+            if [ "${USE_EXPLICIT_PARAMS:-false}" = "true" ]; then
+              # Use explicit parameters if direct URL failed
+              PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -c \
+                "update supabase_migrations.schema_migrations
+                    set status = 'reverted'
+                  where name = 'remote_schema';"
+            else
+              # Use direct URL connection
+              psql "$SUPABASE_PROD_DB_URL" -v ON_ERROR_STOP=1 -c \
+                "update supabase_migrations.schema_migrations
+                    set status = 'reverted'
+                  where name = 'remote_schema';"
+            fi
             echo "Repair complete."
           else
             echo "No orphaned 'remote_schema' row found. Skipping repair."
