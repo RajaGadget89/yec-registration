@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateAdminAccess } from "../../../lib/admin-guard-server";
-import { getEmailConfigStatus, validateEmailConfig } from "../../../lib/emails/config";
+import {
+  getEmailConfigStatus,
+  validateEmailConfig,
+} from "../../../lib/emails/config";
 import { getEmailTransportConfig } from "../../../lib/emails/transport";
 import { getOutboxStats } from "../../../lib/emails/dispatcher";
 
 /**
  * Admin API route for email system diagnostics
  * Returns current email configuration, health status, and recent audit information
- * 
+ *
  * Authentication: Admin access required
  */
 
@@ -70,7 +73,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       timestamp: new Date().toISOString(),
-      
+
       // Configuration
       config: {
         mode: configStatus.mode,
@@ -81,7 +84,7 @@ export async function GET(request: NextRequest) {
         isProduction: configStatus.isProduction,
         nodeEnv: configStatus.nodeEnv,
       },
-      
+
       // Transport configuration
       transport: {
         mode: transportConfig.mode,
@@ -91,20 +94,20 @@ export async function GET(request: NextRequest) {
         subjectPrefix: transportConfig.subjectPrefix,
         resendConfigured: transportConfig.resendConfigured,
       },
-      
+
       // Validation
       validation: {
         valid: validation.valid,
         errors: validation.errors,
         warnings: validation.warnings,
       },
-      
+
       // Health
       health: {
         provider: providerHealth,
         outbox: outboxStats,
       },
-      
+
       // Environment variables (safe subset)
       env: {
         EMAIL_MODE: process.env.EMAIL_MODE || "not_set",

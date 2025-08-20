@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = getSupabaseServiceClient();
-    
+
     // Query event logs
     let eventQuery = supabase
       .from("audit.event_log")

@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
           error: "Invalid file path",
           details: "filePath is required and must be a string",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -22,11 +22,13 @@ export async function POST(request: NextRequest) {
           error: "Invalid file path format",
           details: "File path must be in format 'bucket/filename'",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    console.log(`[SIGNED_URL_API] Generating signed URL for: ${filePath}, expiry: ${expirySeconds}s`);
+    console.log(
+      `[SIGNED_URL_API] Generating signed URL for: ${filePath}, expiry: ${expirySeconds}s`,
+    );
 
     const signedUrl = await generateSignedUrl(filePath, expirySeconds);
 
@@ -37,17 +39,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Signed URL generation error:", error);
-    
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     const statusCode = errorMessage.includes("Invalid") ? 400 : 500;
-    
+
     return NextResponse.json(
       {
         error: "Failed to generate signed URL",
         details: errorMessage,
         status: statusCode,
       },
-      { status: statusCode }
+      { status: statusCode },
     );
   }
 }
