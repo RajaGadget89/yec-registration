@@ -306,15 +306,38 @@ jobs:
           echo "Migration files synced:"
           ls -la supabase/migrations/
 
+      # Why we auto-repair here:
+      # - Production once had only 'remote_schema' in schema_migrations, causing dry-run to fail.
+      # - We standardize by marking that 'remote_schema' version as 'reverted' so real migrations can apply.
+      # - Required to keep Node 18 (team constraint), do not touch Node versions in this workflow.
+      - name: Auto-repair remote_schema (if present)
+        env:
+          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        run: |
+          echo "Checking for orphaned remote_schema entry..."
+          
+          # Read the latest remote_schema version
+          REMOTE_SCHEMA_VER=$(psql "$SUPABASE_PROD_DB_URL" -Atc \
+            "select version from supabase_migrations.schema_migrations where name='remote_schema' order by version desc limit 1")
+          
+          if [ -n "$REMOTE_SCHEMA_VER" ]; then
+            echo "Found remote_schema version: $REMOTE_SCHEMA_VER — repairing to 'reverted' ..."
+            supabase migration repair --status reverted "$REMOTE_SCHEMA_VER" --db-url "$SUPABASE_PROD_DB_URL"
+            echo "Repair done."
+          else
+            echo "No remote_schema entry — nothing to repair"
+          fi
+
       - name: Generate production migration diff
         id: prod_diff
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
         run: |
           echo "Generating production migration diff..."
           
           # Generate diff and capture output
-          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || echo "No diff or error")
+          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} --db-url "$SUPABASE_PROD_DB_URL" 2>&1 || echo "No diff or error")
           
           # Save diff output for debugging
           echo "$diff_output" > migration_diff.txt
@@ -341,19 +364,21 @@ jobs:
         if: steps.prod_diff.outputs.has_changes == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
         run: |
           echo "Performing dry run of migration..."
-          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }}
+          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }} --db-url "$SUPABASE_PROD_DB_URL"
           echo "✅ Dry run completed successfully"
 
       - name: Apply migrations to production
         if: steps.prod_diff.outputs.has_changes == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
         run: |
           echo "Pushing migrations to production..."
-          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }}
-          supabase db push --password ${{ secrets.PROD_DB_PASSWORD }}
+          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }} --db-url "$SUPABASE_PROD_DB_URL"
+          supabase db push --password ${{ secrets.PROD_DB_PASSWORD }} --db-url "$SUPABASE_PROD_DB_URL"
           echo "✅ Migrations deployed to production"
 
       - name: No changes to deploy
@@ -367,6 +392,7 @@ jobs:
         if: steps.prod_diff.outputs.has_changes == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
         run: |
           echo "Verifying production deployment..."
           
@@ -374,7 +400,7 @@ jobs:
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
           
           # Check that migrations were applied
-          verification_diff=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || echo "Verification complete")
+          verification_diff=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} --db-url "$SUPABASE_PROD_DB_URL" 2>&1 || echo "Verification complete")
           
           if [ "$verification_diff" = "No schema changes found" ] || [ "$verification_diff" = "Verification complete" ]; then
             echo "✅ Production deployment verified successfully"
