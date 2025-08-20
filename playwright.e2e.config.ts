@@ -47,13 +47,15 @@ export default defineConfig({
   globalSetup: 'e2e/global.setup.ts',
   globalTeardown: 'e2e/global.teardown.ts',
 
-  // Environment variables for tests
-  env: {
-    ...e2eEnvVars,
-    NODE_ENV: 'test',
-    SUPABASE_ENV: 'localdev',
+  // Web server configuration with environment variables
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:8080',
+    reuseExistingServer: !process.env.CI,
+    env: {
+      ...e2eEnvVars,
+      NODE_ENV: 'test',
+      SUPABASE_ENV: 'localdev',
+    },
   },
-
-  // Web server configuration (disabled for E2E as we manage it ourselves)
-  webServer: undefined,
 });
