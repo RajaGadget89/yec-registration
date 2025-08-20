@@ -85,8 +85,21 @@ echo "ENV OK (masked) HOST=$SUPABASE_HOST SRK=${SUPABASE_SERVICE_ROLE_KEY:0:6}**
 
 # ---------- 3) Code quality ----------
 title "🔍 Code Quality"
+run "Prettier format check" npm run -s format:check
 run "ESLint (no warnings)" npm run -s lint -- --max-warnings=0
 run "TypeScript compile (noEmit)" npx -y tsc --noEmit
+
+# ---------- 3a) Optional Prettier auto-fix ----------
+if [ "${AUTO_FIX_FORMATTING:-0}" = "1" ]; then
+  title "🎨 Prettier Auto-Fix (Optional)"
+  echo "Auto-fixing formatting issues..."
+  npm run -s format
+  ok "Prettier auto-fix completed"
+  echo "Re-running format check to verify..."
+  run "Prettier format check (after auto-fix)" npm run -s format:check
+else
+  echo "Set AUTO_FIX_FORMATTING=1 to automatically fix formatting issues"
+fi
 
 # ---------- 4) Security-critical unit(s) ----------
 title "🔒 Security-Critical Unit Tests"
