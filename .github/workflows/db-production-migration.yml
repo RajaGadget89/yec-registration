@@ -319,9 +319,11 @@ jobs:
           set -euo pipefail
           echo "Checking for orphaned remote_schema entry on production..."
 
-          # Test connection using Supabase CLI
+          # Test connection using Supabase CLI (fixed for version 2.34.3)
           echo "Testing database connection via Supabase CLI..."
-          if ! supabase db ping --password ${{ secrets.PROD_DB_PASSWORD }} > /dev/null 2>&1; then
+          
+          # Use database diff as connection test (more reliable than ping)
+          if ! supabase db diff --schema public --linked > /dev/null 2>&1; then
             echo "❌ Failed to connect to production database via Supabase CLI"
             echo "Connection test failed. Check project linking and credentials."
             exit 1
@@ -333,7 +335,7 @@ jobs:
           
           # First, try the official Supabase migration repair command
           # This will handle the repair automatically if there are orphaned entries
-          repair_output=$(supabase migration repair --status reverted --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || echo "No repair needed")
+          repair_output=$(supabase migration repair --status reverted 2>&1 || echo "No repair needed")
           echo "Migration repair output: $repair_output"
           
           if echo "$repair_output" | grep -q "remote_schema\|repaired\|fixed"; then
@@ -344,7 +346,7 @@ jobs:
           
           # As a fallback, also try to directly update any remaining remote_schema entries
           echo "Running fallback cleanup for any remaining remote_schema entries..."
-          supabase db query --password ${{ secrets.PROD_DB_PASSWORD }} \
+          supabase db query \
             "UPDATE supabase_migrations.schema_migrations SET status = 'reverted' WHERE name = 'remote_schema' AND status != 'reverted';" 2>/dev/null || echo "No remote_schema entries to update"
           
           echo "Auto-repair process completed."
@@ -358,7 +360,7 @@ jobs:
           echo "Generating production migration diff..."
           
           # Generate diff and capture output
-          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} --db-url "$SUPABASE_PROD_DB_URL" 2>&1 || echo "No diff or error")
+          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
           
           # Save diff output for debugging
           echo "$diff_output" > migration_diff.txt
@@ -388,7 +390,7 @@ jobs:
           SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
         run: |
           echo "Performing dry run of migration..."
-          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }} --db-url "$SUPABASE_PROD_DB_URL"
+          supabase db push --dry-run
           echo "✅ Dry run completed successfully"
 
       - name: Apply migrations to production
@@ -398,8 +400,8 @@ jobs:
           SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
         run: |
           echo "Pushing migrations to production..."
-          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }} --db-url "$SUPABASE_PROD_DB_URL"
-          supabase db push --password ${{ secrets.PROD_DB_PASSWORD }} --db-url "$SUPABASE_PROD_DB_URL"
+          supabase db push --dry-run
+          supabase db push
           echo "✅ Migrations deployed to production"
 
       - name: No changes to deploy
@@ -421,7 +423,7 @@ jobs:
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
           
           # Check that migrations were applied
-          verification_diff=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} --db-url "$SUPABASE_PROD_DB_URL" 2>&1 || echo "Verification complete")
+          verification_diff=$(supabase db diff --schema public --linked 2>&1 || echo "Verification complete")
           
           if [ "$verification_diff" = "No schema changes found" ] || [ "$verification_diff" = "Verification complete" ]; then
             echo "✅ Production deployment verified successfully"
@@ -472,7 +474,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           echo "Generating staging migration diff..."
-          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "No diff or error")
+          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
           
           if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ] && [ "$diff_output" != "No schema changes found" ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
