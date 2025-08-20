@@ -68,17 +68,17 @@ function getAppUrl(): string {
  */
 export function getEmailFromAddress(): string {
   const from = process.env.EMAIL_FROM;
-  const env = process.env.NODE_ENV || 'development';
-  
-  if (env === 'production') {
+  const env = process.env.NODE_ENV || "development";
+
+  if (env === "production") {
     if (!from) {
-      throw new Error('EMAIL_FROM is required in production');
+      throw new Error("EMAIL_FROM is required in production");
     }
     return from; // must be a verified sender on Resend
   }
-  
+
   // non-prod safe fallback (no real sending)
-  return from || 'noreply@local.test';
+  return from || "noreply@local.test";
 }
 
 /**

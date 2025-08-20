@@ -5,12 +5,15 @@ import type { Database } from "../types/database";
 import { assertDbRouting, logDbRouting } from "./env-guards";
 
 // Validate database routing on module load (development only)
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === "development") {
   try {
     assertDbRouting();
     logDbRouting();
   } catch (error) {
-    console.error('Database routing validation failed:', error instanceof Error ? error.message : String(error));
+    console.error(
+      "Database routing validation failed:",
+      error instanceof Error ? error.message : String(error),
+    );
     process.exit(1);
   }
 }

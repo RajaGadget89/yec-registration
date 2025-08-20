@@ -15,10 +15,10 @@ export function createErrorResponse(
   code: string,
   hint: string,
   details?: string,
-  status: number = 400
+  status: number = 400,
 ): NextResponse<ErrorResponse> {
   const errorId = randomUUID();
-  
+
   // Log error for debugging (in non-prod)
   if (process.env.NODE_ENV !== "production") {
     console.error(`[ERROR ${code}] ${hint}`, { errorId, details });
@@ -31,7 +31,7 @@ export function createErrorResponse(
       details: process.env.NODE_ENV === "production" ? undefined : details,
       errorId,
     },
-    { status }
+    { status },
   );
 }
 
@@ -40,13 +40,13 @@ export function createErrorResponse(
  */
 export function createDuplicateErrorResponse(
   field: string,
-  value: string
+  value: string,
 ): NextResponse<ErrorResponse> {
   return createErrorResponse(
     "DUPLICATE_REGISTRATION",
     `Registration with this ${field} already exists.`,
     `${field}: ${value}`,
-    409
+    409,
   );
 }
 
@@ -55,22 +55,24 @@ export function createDuplicateErrorResponse(
  */
 export function createUnexpectedErrorResponse(
   error: unknown,
-  context: string
+  context: string,
 ): NextResponse<ErrorResponse> {
   const errorMessage = error instanceof Error ? error.message : "Unknown error";
   const errorId = randomUUID();
-  
+
   // Log full error for debugging
   console.error(`[UNEXPECTED_ERROR] ${context}:`, error);
-  
+
   return NextResponse.json(
     {
       code: "UNEXPECTED_ERROR",
       hint: "An unexpected error occurred. Please try again.",
-      details: process.env.NODE_ENV === "production" ? undefined : `${context}: ${errorMessage}`,
+      details:
+        process.env.NODE_ENV === "production"
+          ? undefined
+          : `${context}: ${errorMessage}`,
       errorId,
     },
-    { status: 500 }
+    { status: 500 },
   );
 }
-

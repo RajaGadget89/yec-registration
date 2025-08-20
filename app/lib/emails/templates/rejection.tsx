@@ -30,7 +30,9 @@ export const RejectionTemplate: React.FC<EmailTemplateProps> = ({
     },
   };
 
-  const currentReason = reasonMessages[rejectedReason as keyof typeof reasonMessages] || reasonMessages.other;
+  const currentReason =
+    reasonMessages[rejectedReason as keyof typeof reasonMessages] ||
+    reasonMessages.other;
 
   return (
     <div style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>

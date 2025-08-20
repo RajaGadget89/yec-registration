@@ -10,7 +10,10 @@ import { EventService } from "../../lib/events/eventService";
 import { PricingCalculator } from "../../lib/pricingCalculator";
 import { EventFactory } from "../../lib/events/types";
 import { precheckRegistration } from "../../lib/precheck";
-import { createErrorResponse, createUnexpectedErrorResponse } from "../../lib/errorResponses";
+import {
+  createErrorResponse,
+  createUnexpectedErrorResponse,
+} from "../../lib/errorResponses";
 import { logAccess } from "../../lib/audit/auditClient";
 
 // Ensure Node.js runtime for service role key access
@@ -19,7 +22,7 @@ export const runtime = "nodejs";
 async function handlePOST(req: NextRequest) {
   const requestId = crypto.randomUUID();
   const startTime = Date.now();
-  
+
   console.log("[REGISTER_ROUTE] handlePOST called", { requestId });
 
   try {
@@ -41,7 +44,7 @@ async function handlePOST(req: NextRequest) {
         "VALIDATION_FAILED",
         "Registration data validation failed",
         validationErrors.join(", "),
-        400
+        400,
       );
     }
 
@@ -52,7 +55,7 @@ async function handlePOST(req: NextRequest) {
         precheckResult.code!,
         precheckResult.hint!,
         precheckResult.details,
-        precheckResult.code === "REGISTRATION_CLOSED" ? 400 : 409
+        precheckResult.code === "REGISTRATION_CLOSED" ? 400 : 409,
       );
     }
 
@@ -75,7 +78,7 @@ async function handlePOST(req: NextRequest) {
           "PRICING_CALCULATION_FAILED",
           "Failed to calculate registration price. Please try again.",
           error instanceof Error ? error.message : "Unknown pricing error",
-          400
+          400,
         );
       }
     }
@@ -128,16 +131,17 @@ async function handlePOST(req: NextRequest) {
 
     if (error) {
       console.error("Database error:", error);
-      
+
       // Handle duplicate registration errors
-      if (error.code === "23505") { // PostgreSQL unique constraint violation
+      if (error.code === "23505") {
+        // PostgreSQL unique constraint violation
         const constraint = error.details?.match(/Key \((.+)\)=/)?.[1];
         if (constraint?.includes("email")) {
           return createErrorResponse(
             "DUPLICATE_REGISTRATION",
             "A registration with this email address already exists.",
             `email: ${body.email}`,
-            409
+            409,
           );
         }
         if (constraint?.includes("registration_id")) {
@@ -145,16 +149,16 @@ async function handlePOST(req: NextRequest) {
             "DUPLICATE_REGISTRATION",
             "Registration ID collision. Please try again.",
             `registration_id: ${insertPayload.registration_id}`,
-            409
+            409,
           );
         }
       }
-      
+
       return createErrorResponse(
         "DATABASE_ERROR",
         "Failed to save registration. Please try again.",
         error.message,
-        500
+        500,
       );
     }
 
@@ -169,11 +173,15 @@ async function handlePOST(req: NextRequest) {
       );
       await EventService.emit(event);
       console.log("Registration submitted event emitted successfully");
-      
+
       // Check if email was actually sent or blocked
-      const emailConfig = await import("../../lib/emails/config").then(m => m.getEmailConfig());
-      const allowCheck = await import("../../lib/emails/config").then(m => m.isEmailAllowed(registration.email));
-      
+      const emailConfig = await import("../../lib/emails/config").then((m) =>
+        m.getEmailConfig(),
+      );
+      const allowCheck = await import("../../lib/emails/config").then((m) =>
+        m.isEmailAllowed(registration.email),
+      );
+
       if (!allowCheck.allowed) {
         emailDispatchStatus = "blocked";
         emailDispatchDetails = allowCheck.reason;
@@ -187,7 +195,8 @@ async function handlePOST(req: NextRequest) {
     } catch (eventError) {
       console.error("Error emitting registration submitted event:", eventError);
       emailDispatchStatus = "failed";
-      emailDispatchDetails = eventError instanceof Error ? eventError.message : "Unknown error";
+      emailDispatchDetails =
+        eventError instanceof Error ? eventError.message : "Unknown error";
       // Don't fail the registration if event emission fails
     }
 

@@ -20,10 +20,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload file using server-side function
-    console.log(`[UPLOAD] Starting upload for folder: ${folder}, filename: ${filename || 'auto-generated'}, size: ${file.size}, type: ${file.type}`);
-    
+    console.log(
+      `[UPLOAD] Starting upload for folder: ${folder}, filename: ${filename || "auto-generated"}, size: ${file.size}, type: ${file.type}`,
+    );
+
     const fileUrl = await uploadFileToSupabase(file, folder, filename);
-    
+
     console.log(`[UPLOAD] Successfully uploaded to: ${fileUrl}`);
 
     return NextResponse.json({
@@ -33,11 +35,15 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("File upload error:", error);
-    
+
     // Provide structured error response
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    const statusCode = errorMessage.includes("size") || errorMessage.includes("type") ? 400 : 500;
-    
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    const statusCode =
+      errorMessage.includes("size") || errorMessage.includes("type")
+        ? 400
+        : 500;
+
     return NextResponse.json(
       {
         error: "Failed to upload file",

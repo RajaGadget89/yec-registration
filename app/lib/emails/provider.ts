@@ -40,10 +40,12 @@ class ResendProvider implements EmailProvider {
   }: EmailOptions): Promise<boolean> {
     // Apply Safe-Send Gate
     const allowCheck = isEmailAllowed(to);
-    
+
     if (!allowCheck.allowed) {
-      console.log(`[RESEND] Email blocked by Safe-Send Gate: ${to} (${allowCheck.reason})`);
-      
+      console.log(
+        `[RESEND] Email blocked by Safe-Send Gate: ${to} (${allowCheck.reason})`,
+      );
+
       // Log audit for blocked emails
       console.log(`[AUDIT] email.blocked:`, {
         recipient: to,
@@ -51,7 +53,7 @@ class ResendProvider implements EmailProvider {
         reason: allowCheck.reason,
         timestamp: new Date().toISOString(),
       });
-      
+
       return false;
     }
 
@@ -70,7 +72,7 @@ class ResendProvider implements EmailProvider {
       }
 
       console.log("Email sent successfully via Resend to:", to);
-      
+
       // Log audit for sent emails
       console.log(`[AUDIT] email.sent:`, {
         recipient: to,
@@ -78,11 +80,11 @@ class ResendProvider implements EmailProvider {
         success: true,
         timestamp: new Date().toISOString(),
       });
-      
+
       return true;
     } catch (err) {
       console.error("Unexpected error in Resend sendEmail:", err);
-      
+
       // Log audit for failed emails
       console.log(`[AUDIT] email.failed:`, {
         recipient: to,
@@ -91,7 +93,7 @@ class ResendProvider implements EmailProvider {
         error: err instanceof Error ? err.message : "Unknown error",
         timestamp: new Date().toISOString(),
       });
-      
+
       return false;
     }
   }

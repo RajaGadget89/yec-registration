@@ -30,7 +30,7 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const supabase = getSupabaseServiceClient();
-    
+
     // Delete from registrations table
     const { error: registrationError } = await supabase
       .from("registrations")
