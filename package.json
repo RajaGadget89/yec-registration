@@ -27,8 +27,11 @@
     "test:code-quality:fix": "npm run test:lint:fix && npm run test:types",
     "test:db-routing": "vitest run tests/api/db-routing.spec.ts",
     "test:all": "npm run test:code-quality && npm run test:unit:email && npm run test:e2e:all",
-    "e2e:install": "npx playwright install",
+    "e2e:install": "npx playwright install --with-deps",
     "e2e": "playwright test",
+    "e2e:local": "cross-env APP_BASE_URL=http://localhost:8080 E2E_DATABASE_URL=$(cat .e2e-env 2>/dev/null || echo '') playwright test --config=playwright.e2e.config.ts",
+    "e2e:headed": "cross-env APP_BASE_URL=http://localhost:8080 playwright test --config=playwright.e2e.config.ts --headed",
+    "e2e:auto-fix": "tsx scripts/migration-auto-fix.ts",
     "test:e2e:api": "dotenv -e .env.local -- playwright test tests/e2e/dispatch-emails.e2e.spec.ts",
     "test:e2e:capped": "PLAYWRIGHT_BASE_URL=http://localhost:8080 CRON_SECRET=local-secret EMAIL_MODE=CAPPED EMAIL_CAP_MAX_PER_RUN=1 EMAIL_THROTTLE_MS=500 EMAIL_RETRY_ON_429=1 BLOCK_NON_ALLOWLIST=true EMAIL_ALLOWLIST=raja.gadgets89@gmail.com DISPATCH_DRY_RUN=false playwright test tests/e2e/dispatch-emails.capped.e2e.spec.ts",
     "test:e2e:all": "playwright test",
@@ -80,6 +83,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
+    "@types/pg": "^8.11.10",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -92,9 +96,11 @@
     "eslint-config-next": "15.4.5",
     "jsonwebtoken": "^9.0.2",
     "node-mocks-http": "^1.17.2",
+    "pg": "^8.13.1",
     "tailwindcss": "^4",
     "tsx": "^4.20.4",
     "typescript": "^5",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wait-on": "^8.0.1"
   }
 }
