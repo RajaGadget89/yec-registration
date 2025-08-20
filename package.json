@@ -32,6 +32,8 @@
     "e2e:local": "cross-env APP_BASE_URL=http://localhost:8080 E2E_DATABASE_URL=$(cat .e2e-env 2>/dev/null || echo '') playwright test --config=playwright.e2e.config.ts",
     "e2e:headed": "cross-env APP_BASE_URL=http://localhost:8080 playwright test --config=playwright.e2e.config.ts --headed",
     "e2e:auto-fix": "tsx scripts/migration-auto-fix.ts",
+    "e2e:auto-fix:ci": "tsx scripts/ci-auto-fix.ts",
+    "ci:auto-fix": "tsx scripts/ci-auto-fix.ts",
     "test:e2e:api": "dotenv -e .env.local -- playwright test tests/e2e/dispatch-emails.e2e.spec.ts",
     "test:e2e:capped": "PLAYWRIGHT_BASE_URL=http://localhost:8080 CRON_SECRET=local-secret EMAIL_MODE=CAPPED EMAIL_CAP_MAX_PER_RUN=1 EMAIL_THROTTLE_MS=500 EMAIL_RETRY_ON_429=1 BLOCK_NON_ALLOWLIST=true EMAIL_ALLOWLIST=raja.gadgets89@gmail.com DISPATCH_DRY_RUN=false playwright test tests/e2e/dispatch-emails.capped.e2e.spec.ts",
     "test:e2e:all": "playwright test",
