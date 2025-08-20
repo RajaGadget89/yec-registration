@@ -79,6 +79,10 @@ jobs:
           echo "migrations output: '${{ steps.filter.outputs.migrations }}'"
           echo "migration_files output: '${{ steps.filter.outputs.migration_files }}'"
           echo "has_migrations will be set to: '${{ steps.filter.outputs.migrations }}'"
+          echo "Event name: '${{ github.event_name }}'"
+          echo "Event type: '${{ github.event.action }}'"
+          echo "Ref: '${{ github.ref }}'"
+          echo "SHA: '${{ github.sha }}'"
 
       - name: List migration files
         if: steps.filter.outputs.migrations == 'true'
@@ -87,6 +91,24 @@ jobs:
           find migrations/ -name "*.sql" -type f | sort
           echo "Supabase migration files:"
           find supabase/migrations/ -name "*.sql" -type f | sort
+
+      - name: Verify job outputs
+        run: |
+          echo "🔍 DEBUG: Verifying job outputs..."
+          echo "steps.filter.outputs.migrations: '${{ steps.filter.outputs.migrations }}'"
+          echo "steps.filter.outputs.migration_files: '${{ steps.filter.outputs.migration_files }}'"
+          echo "Job outputs will be:"
+          echo "  has_migrations: '${{ steps.filter.outputs.migrations }}'"
+          echo "  migration_files: '${{ steps.filter.outputs.migration_files }}'"
+          
+          # Verify the output values are what we expect
+          if [ "${{ steps.filter.outputs.migrations }}" = "true" ]; then
+            echo "✅ Migration changes detected - heavy jobs should run"
+          elif [ "${{ steps.filter.outputs.migrations }}" = "false" ]; then
+            echo "✅ No migration changes detected - heavy jobs should be skipped"
+          else
+            echo "⚠️  Unexpected migrations value: '${{ steps.filter.outputs.migrations }}'"
+          fi
 
       - name: Set all contexts to success when no migrations
         if: steps.filter.outputs.migrations == 'false' && github.event_name == 'pull_request'
@@ -101,13 +123,13 @@ jobs:
               'Database Migration Pipeline / E2E Tests (After Migration) (pull_request)'
             ];
             
-            for (const context of contexts) {
+            for (const contextName of contexts) {
               await github.rest.repos.createCommitStatus({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 sha: context.payload.pull_request.head.sha,
                 state: 'success',
-                context: context,
+                context: contextName,
                 description: 'No migration changes detected - skipping',
                 target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
               });
@@ -148,7 +170,16 @@ jobs:
           echo "🔍 DEBUG: validate_migrations job condition check:"
           echo "has_migrations: '${{ needs.detect_changes.outputs.has_migrations }}'"
           echo "force_migration: '${{ github.event.inputs.force_migration }}'"
-          echo "Condition result: ${{ needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true' }}"
+          echo "Condition: needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true'"
+          echo "Condition evaluation:"
+          echo "  has_migrations == 'true': ${{ needs.detect_changes.outputs.has_migrations == 'true' }}"
+          echo "  force_migration == 'true': ${{ github.event.inputs.force_migration == 'true' }}"
+          echo "  Final result: ${{ needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true' }}"
+          
+          # Additional debugging
+          echo "All detect_changes outputs:"
+          echo "  has_migrations: '${{ needs.detect_changes.outputs.has_migrations }}'"
+          echo "  migration_files: '${{ needs.detect_changes.outputs.migration_files }}'"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -249,7 +280,17 @@ jobs:
           echo "has_migrations: '${{ needs.detect_changes.outputs.has_migrations }}'"
           echo "force_migration: '${{ github.event.inputs.force_migration }}'"
           echo "skip_tests: '${{ github.event.inputs.skip_tests }}'"
-          echo "Condition result: ${{ (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') && github.event.inputs.skip_tests != 'true' }}"
+          echo "Condition: (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') && github.event.inputs.skip_tests != 'true'"
+          echo "Condition evaluation:"
+          echo "  has_migrations == 'true': ${{ needs.detect_changes.outputs.has_migrations == 'true' }}"
+          echo "  force_migration == 'true': ${{ github.event.inputs.force_migration == 'true' }}"
+          echo "  skip_tests != 'true': ${{ github.event.inputs.skip_tests != 'true' }}"
+          echo "  Final result: ${{ (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') && github.event.inputs.skip_tests != 'true' }}"
+          
+          # Additional debugging
+          echo "All detect_changes outputs:"
+          echo "  has_migrations: '${{ needs.detect_changes.outputs.has_migrations }}'"
+          echo "  migration_files: '${{ needs.detect_changes.outputs.migration_files }}'"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -340,6 +381,26 @@ jobs:
       (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request')
     # Staging deployment - uses repository secrets for staging environment
     steps:
+      - name: Debug deploy_staging condition
+        run: |
+          echo "🔍 DEBUG: deploy_staging job condition check:"
+          echo "has_migrations: '${{ needs.detect_changes.outputs.has_migrations }}'"
+          echo "force_migration: '${{ github.event.inputs.force_migration }}'"
+          echo "target_environment: '${{ github.event.inputs.target_environment }}'"
+          echo "ref: '${{ github.ref }}'"
+          echo "event_name: '${{ github.event_name }}'"
+          echo "Condition: (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') && (github.event.inputs.target_environment == 'staging' || github.event.inputs.target_environment == null) && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request')"
+          echo "Condition evaluation:"
+          echo "  has_migrations == 'true': ${{ needs.detect_changes.outputs.has_migrations == 'true' }}"
+          echo "  force_migration == 'true': ${{ github.event.inputs.force_migration == 'true' }}"
+          echo "  target_environment check: ${{ github.event.inputs.target_environment == 'staging' || github.event.inputs.target_environment == null }}"
+          echo "  ref check: ${{ github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}"
+          echo "  Final result: ${{ (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') && (github.event.inputs.target_environment == 'staging' || github.event.inputs.target_environment == null) && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request') }}"
+          
+          # Additional debugging
+          echo "All detect_changes outputs:"
+          echo "  has_migrations: '${{ needs.detect_changes.outputs.has_migrations }}'"
+          echo "  migration_files: '${{ needs.detect_changes.outputs.migration_files }}'"
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -418,6 +479,26 @@ jobs:
       name: production
       url: https://yec.rajagadget.live
     steps:
+      - name: Debug deploy_production condition
+        run: |
+          echo "🔍 DEBUG: deploy_production job condition check:"
+          echo "has_migrations: '${{ needs.detect_changes.outputs.has_migrations }}'"
+          echo "force_migration: '${{ github.event.inputs.force_migration }}'"
+          echo "target_environment: '${{ github.event.inputs.target_environment }}'"
+          echo "ref: '${{ github.ref }}'"
+          echo "event_name: '${{ github.event_name }}'"
+          echo "Condition: (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') && github.event.inputs.target_environment == 'production' && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')"
+          echo "Condition evaluation:"
+          echo "  has_migrations == 'true': ${{ needs.detect_changes.outputs.has_migrations == 'true' }}"
+          echo "  force_migration == 'true': ${{ github.event.inputs.force_migration == 'true' }}"
+          echo "  target_environment == 'production': ${{ github.event.inputs.target_environment == 'production' }}"
+          echo "  ref check: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}"
+          echo "  Final result: ${{ (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') && github.event.inputs.target_environment == 'production' && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') }}"
+          
+          # Additional debugging
+          echo "All detect_changes outputs:"
+          echo "  has_migrations: '${{ needs.detect_changes.outputs.has_migrations }}'"
+          echo "  migration_files: '${{ needs.detect_changes.outputs.migration_files }}'"
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -499,6 +580,25 @@ jobs:
     outputs:
       tests_passed: ${{ steps.test_result.outputs.passed }}
     steps:
+      - name: Debug e2e_tests_after_migration condition
+        run: |
+          echo "🔍 DEBUG: e2e_tests_after_migration job condition check:"
+          echo "always(): true (always runs)"
+          echo "deploy_staging.result: '${{ needs.deploy_staging.result }}'"
+          echo "deploy_production.result: '${{ needs.deploy_production.result }}'"
+          echo "Condition: always() && (needs.deploy_staging.result == 'success' || needs.deploy_staging.result == 'skipped') && (needs.deploy_production.result == 'success' || needs.deploy_production.result == 'skipped')"
+          echo "Condition evaluation:"
+          echo "  always(): true"
+          echo "  deploy_staging check: ${{ needs.deploy_staging.result == 'success' || needs.deploy_staging.result == 'skipped' }}"
+          echo "  deploy_production check: ${{ needs.deploy_production.result == 'success' || needs.deploy_production.result == 'skipped' }}"
+          echo "  Final result: true (always runs as requested)"
+          
+          # Additional debugging
+          echo "All detect_changes outputs:"
+          echo "  has_migrations: '${{ needs.detect_changes.outputs.has_migrations }}'"
+          echo "  migration_files: '${{ needs.detect_changes.outputs.migration_files }}'"
+          echo "Note: E2E tests are designed to always run regardless of migration changes (as requested)"
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
