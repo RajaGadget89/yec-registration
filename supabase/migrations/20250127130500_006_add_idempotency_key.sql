@@ -1,20 +1,20 @@
 -- Migration: Add idempotency_key to email_outbox
--- Version: 1.0
+-- Version: 6.0
 -- Description: Add idempotency_key column to email_outbox table for better deduplication
--- Date: 2025-08-19
+-- Date: 2025-01-27
 
 -- Add idempotency_key column to email_outbox table
-ALTER TABLE public.email_outbox 
-ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+ALTER TABLE IF EXISTS public.email_outbox
+  ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
 
 -- Create index for idempotency_key lookups
 CREATE INDEX IF NOT EXISTS idx_email_outbox_idempotency_key 
-ON public.email_outbox (idempotency_key) 
+ON email_outbox (idempotency_key) 
 WHERE idempotency_key IS NOT NULL;
 
 -- Create unique constraint on idempotency_key to prevent duplicates
 CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_idempotency_key_uidx 
-ON public.email_outbox (idempotency_key) 
+ON email_outbox (idempotency_key) 
 WHERE idempotency_key IS NOT NULL;
 
 -- Update the fn_enqueue_email function to handle idempotency_key
@@ -72,4 +72,4 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Add comment to document the change
-COMMENT ON COLUMN public.email_outbox.idempotency_key IS 'Unique key for idempotent email processing to prevent duplicate sends';
+COMMENT ON COLUMN email_outbox.idempotency_key IS 'Unique key for idempotent email processing to prevent duplicate sends';
