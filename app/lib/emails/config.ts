@@ -22,8 +22,10 @@ export function logEmailConfigOnBoot() {
     const allowlistCount = config.allowlist.size;
     const fromEmail = config.fromEmail;
     const apiKeyStatus = config.resendApiKey ? "set" : "unset";
-    
-    console.log(`[Email] MODE=${config.mode} ALLOWLIST=${allowlistCount} FROM=${fromEmail} KEY=${apiKeyStatus}`);
+
+    console.log(
+      `[Email] MODE=${config.mode} ALLOWLIST=${allowlistCount} FROM=${fromEmail} KEY=${apiKeyStatus}`,
+    );
   }
 }
 
@@ -31,13 +33,15 @@ export function logEmailConfigOnBoot() {
  * Get current email configuration
  */
 export function getEmailConfig(): EmailConfig {
-  const emailMode = (process.env.EMAIL_MODE || "DRY_RUN").toUpperCase() as "FULL" | "DRY_RUN";
+  const emailMode = (process.env.EMAIL_MODE || "DRY_RUN").toUpperCase() as
+    | "FULL"
+    | "DRY_RUN";
   const allowlistStr = process.env.EMAIL_ALLOWLIST || "";
   const allowlist = new Set(
     allowlistStr
       .split(",")
       .map((email) => email.trim().toLowerCase())
-      .filter(Boolean)
+      .filter(Boolean),
   );
   const fromEmail = getEmailFromAddress();
   const resendApiKey = process.env.RESEND_API_KEY || null;
@@ -86,7 +90,9 @@ export function isEmailAllowed(recipientEmail: string): {
       }
     }
     // If no allowlist configured, allow all (but warn)
-    console.warn("[EMAIL] No EMAIL_ALLOWLIST configured in FULL mode - allowing all emails");
+    console.warn(
+      "[EMAIL] No EMAIL_ALLOWLIST configured in FULL mode - allowing all emails",
+    );
     return { allowed: true, reason: "allowed" };
   }
 
@@ -99,7 +105,7 @@ export function isEmailAllowed(recipientEmail: string): {
  */
 export function getEmailConfigStatus() {
   const config = getEmailConfig();
-  
+
   return {
     mode: config.mode,
     allowlist: Array.from(config.allowlist),
@@ -140,11 +146,17 @@ export function validateEmailConfig(): {
     allowlistStr
       .split(",")
       .map((email) => email.trim().toLowerCase())
-      .filter(Boolean)
+      .filter(Boolean),
   );
-  
-  if (emailMode === "FULL" && allowlist.size === 0 && process.env.NODE_ENV !== "production") {
-    warnings.push("No EMAIL_ALLOWLIST configured in FULL mode - all emails will be sent");
+
+  if (
+    emailMode === "FULL" &&
+    allowlist.size === 0 &&
+    process.env.NODE_ENV !== "production"
+  ) {
+    warnings.push(
+      "No EMAIL_ALLOWLIST configured in FULL mode - all emails will be sent",
+    );
   }
 
   // Check production configuration
