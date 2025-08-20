@@ -322,9 +322,11 @@ class SafeSendTransport implements EmailTransport {
     const allowCheck = isEmailAllowed(toEmail);
 
     if (!allowCheck.allowed) {
-      console.log(`[SAFE-SEND] Blocked email to ${input.to}: ${allowCheck.reason}`);
+      console.log(
+        `[SAFE-SEND] Blocked email to ${input.to}: ${allowCheck.reason}`,
+      );
       this.stats.blocked++;
-      
+
       // Log audit for blocked emails
       await this.logAudit({
         action: "email.blocked",
@@ -341,7 +343,7 @@ class SafeSendTransport implements EmailTransport {
 
     if (result.ok) {
       this.stats.sent++;
-      
+
       // Log audit for sent emails
       await this.logAudit({
         action: "email.sent",
@@ -351,7 +353,7 @@ class SafeSendTransport implements EmailTransport {
       });
     } else {
       this.stats.errors++;
-      
+
       // Log audit for failed emails
       await this.logAudit({
         action: "email.failed",
@@ -475,7 +477,7 @@ class CappedTransport implements EmailTransport {
   }
 */
 
-  /*
+/*
   async send(input: {
     to: string;
     subject: string;
@@ -598,7 +600,9 @@ export function getEmailTransport(): EmailTransport {
       if (config.resendApiKey) {
         return new SafeSendTransport(new ResendTransport());
       } else {
-        console.warn("[EMAIL] RESEND_API_KEY not available, falling back to DRY_RUN");
+        console.warn(
+          "[EMAIL] RESEND_API_KEY not available, falling back to DRY_RUN",
+        );
         return new DryRunTransport();
       }
 

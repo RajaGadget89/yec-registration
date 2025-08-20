@@ -335,27 +335,27 @@ export default function FormField({
     // Enhanced file validation with immediate feedback
     const maxSizeInMB = normalizedField.validation?.maxFileSize || 10;
     const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
-    
+
     if (file.size > maxSizeInBytes) {
       // Show immediate error feedback
       const fileSizeInMB = (file.size / 1024 / 1024).toFixed(2);
       const maxSizeFormatted = maxSizeInMB.toFixed(0);
-      
+
       // Create a custom error message
       const errorMessage = `ไฟล์มีขนาดใหญ่เกินไป (${fileSizeInMB} MB) ขนาดสูงสุดที่อนุญาต: ${maxSizeFormatted} MB`;
-      
+
       // Set validation state immediately
       setValidation({
         isValid: false,
         message: errorMessage,
-        status: "invalid"
+        status: "invalid",
       });
-      
+
       // Clear the file input
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    
+
     // File is valid, proceed with normal flow
     onChange(file);
   };
@@ -373,7 +373,7 @@ export default function FormField({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
+
     const files = e.dataTransfer.files;
     if (files.length > 0) {
       const file = files[0];
@@ -617,8 +617,8 @@ export default function FormField({
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                  isDragOver 
-                    ? 'border-blue-500 bg-blue-50' 
+                  isDragOver
+                    ? "border-blue-500 bg-blue-50"
                     : `${getBorderColor().replace("border-", "border-dashed-")} bg-gray-50 hover:bg-gray-100`
                 }`}
               >
@@ -643,7 +643,8 @@ export default function FormField({
                     หรือลากไฟล์มาวาง
                   </p>
                   <p className="text-xs text-gray-500">
-                    JPG, JPEG, PNG (สูงสุด {normalizedField.validation?.maxFileSize || 10}MB)
+                    JPG, JPEG, PNG (สูงสุด{" "}
+                    {normalizedField.validation?.maxFileSize || 10}MB)
                   </p>
                 </div>
                 <input
@@ -683,33 +684,48 @@ export default function FormField({
             {typeof window !== "undefined" && value instanceof File && (
               <div className="space-y-2">
                 <p className="text-sm text-gray-600">
-                  ไฟล์ที่เลือก: {value.name} ({(value.size / 1024 / 1024).toFixed(2)} MB)
+                  ไฟล์ที่เลือก: {value.name} (
+                  {(value.size / 1024 / 1024).toFixed(2)} MB)
                 </p>
                 {/* File size progress indicator */}
                 <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
+                  <div
                     className={`h-2 rounded-full transition-all duration-300 ${
-                      value.size > (normalizedField.validation?.maxFileSize || 10) * 1024 * 1024 * 0.9 
-                        ? 'bg-red-500' 
-                        : value.size > (normalizedField.validation?.maxFileSize || 10) * 1024 * 1024 * 0.7 
-                        ? 'bg-yellow-500' 
-                        : 'bg-green-500'
+                      value.size >
+                      (normalizedField.validation?.maxFileSize || 10) *
+                        1024 *
+                        1024 *
+                        0.9
+                        ? "bg-red-500"
+                        : value.size >
+                            (normalizedField.validation?.maxFileSize || 10) *
+                              1024 *
+                              1024 *
+                              0.7
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
                     }`}
-                    style={{ 
-                      width: `${Math.min((value.size / ((normalizedField.validation?.maxFileSize || 10) * 1024 * 1024)) * 100, 100)}%` 
+                    style={{
+                      width: `${Math.min((value.size / ((normalizedField.validation?.maxFileSize || 10) * 1024 * 1024)) * 100, 100)}%`,
                     }}
                   ></div>
                 </div>
-                                  <p className="text-xs text-gray-500">
-                    ใช้พื้นที่ {(value.size / 1024 / 1024).toFixed(2)} MB จาก {(normalizedField.validation?.maxFileSize || 10)} MB
-                  </p>
-                  {value.size > (normalizedField.validation?.maxFileSize || 10) * 1024 * 1024 * 0.8 && (
-                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-                      <p className="text-xs text-yellow-800">
-                        💡 เคล็ดลับ: ไฟล์ขนาดใหญ่จะใช้เวลาอัปโหลดนานขึ้น ลองลดขนาดภาพหรือใช้ไฟล์ที่มีความละเอียดต่ำลง
-                      </p>
-                    </div>
-                  )}
+                <p className="text-xs text-gray-500">
+                  ใช้พื้นที่ {(value.size / 1024 / 1024).toFixed(2)} MB จาก{" "}
+                  {normalizedField.validation?.maxFileSize || 10} MB
+                </p>
+                {value.size >
+                  (normalizedField.validation?.maxFileSize || 10) *
+                    1024 *
+                    1024 *
+                    0.8 && (
+                  <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-xs text-yellow-800">
+                      💡 เคล็ดลับ: ไฟล์ขนาดใหญ่จะใช้เวลาอัปโหลดนานขึ้น
+                      ลองลดขนาดภาพหรือใช้ไฟล์ที่มีความละเอียดต่ำลง
+                    </p>
+                  </div>
+                )}
               </div>
             )}
             {/* Show file info for metadata objects (from localStorage) */}
