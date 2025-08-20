@@ -446,6 +446,10 @@ jobs:
       always() && 
       (needs.deploy_staging.result == 'success' || needs.deploy_staging.result == 'skipped') &&
       (needs.deploy_production.result == 'success' || needs.deploy_production.result == 'skipped')
+    timeout-minutes: 15
+    concurrency:
+      group: e2e-tests-${{ github.ref }}
+      cancel-in-progress: false
     outputs:
       tests_passed: ${{ steps.test_result.outputs.passed }}
     steps:
@@ -458,7 +462,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 18.x  # IMPORTANT: pinned to Node 18 — some repo dependencies currently require Node 18. Do NOT bump to 20 without a compatibility audit.
           cache: npm
 
       - name: Install OS dependencies for node-canvas
@@ -478,12 +482,10 @@ jobs:
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
 
-      - name: Start local Supabase
-        run: |
-          supabase start
-          supabase status
+      - name: Prepare test database (apply migrations)
+        run: npx tsx scripts/supabase-e2e-setup.ts
 
-      - name: Run E2E Tests
+      - name: Run dispatch-emails e2e
         id: test_result
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -500,7 +502,7 @@ jobs:
           TELEGRAM_CHAT_ID: 'test-chat-id'
         run: |
           set +e
-          npm run e2e:local 2>&1 | tee e2e-ci.log
+          npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line 2>&1 | tee e2e-ci.log
           if [ $? -eq 0 ]; then
             echo "passed=true" >> $GITHUB_OUTPUT
           else
