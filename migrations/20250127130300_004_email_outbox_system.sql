@@ -36,6 +36,29 @@ CREATE INDEX IF NOT EXISTS idx_email_outbox_status_scheduled ON email_outbox (st
 CREATE INDEX IF NOT EXISTS idx_email_outbox_template ON email_outbox (template);
 CREATE INDEX IF NOT EXISTS idx_email_outbox_to_email ON email_outbox (to_email);
 CREATE INDEX IF NOT EXISTS idx_email_outbox_created_at ON email_outbox (created_at);
+
+-- Ensure next_attempt column exists before creating index (drift-safe)
+DO $$
+BEGIN
+  -- Ensure table exists (skip if missing; 004 should already create it on clean DB)
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'email_outbox'
+  ) THEN
+    -- Add column if it does not exist (handles old staging table)
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'email_outbox'
+        AND column_name = 'next_attempt'
+    ) THEN
+      ALTER TABLE public.email_outbox
+        ADD COLUMN next_attempt timestamptz NULL;
+    END IF;
+  END IF;
+END $$;
+
+-- Create the correct index (safe if just added or already present)
 CREATE INDEX IF NOT EXISTS idx_email_outbox_next_attempt ON public.email_outbox (next_attempt);
 CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_dedupe_key_uidx ON email_outbox (dedupe_key) WHERE dedupe_key IS NOT NULL;
 
