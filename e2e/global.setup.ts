@@ -7,7 +7,7 @@ async function globalSetup() {
   try {
     // 1. Run Supabase E2E setup
     console.log('📦 Setting up Supabase...');
-    execSync('tsx scripts/supabase-e2e-setup.ts', {
+    execSync('npx tsx scripts/supabase-e2e-setup.ts', {
       stdio: 'inherit',
       env: { ...process.env }
     });
@@ -15,7 +15,7 @@ async function globalSetup() {
     // 2. Start the app unless SKIP_APP_START is set
     if (!process.env.SKIP_APP_START) {
       console.log('🚀 Starting application...');
-      execSync('tsx scripts/app-start.ts', {
+      execSync('npx tsx scripts/app-start.ts', {
         stdio: 'inherit',
         env: { ...process.env }
       });
