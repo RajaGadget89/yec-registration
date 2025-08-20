@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS email_outbox (
   max_attempts INTEGER NOT NULL DEFAULT 5,
   last_error TEXT,
   scheduled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  next_attempt_at TIMESTAMPTZ,
+  next_attempt TIMESTAMPTZ,
   sent_at TIMESTAMPTZ,
   dedupe_key TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -36,7 +36,7 @@ CREATE INDEX IF NOT EXISTS idx_email_outbox_status_scheduled ON email_outbox (st
 CREATE INDEX IF NOT EXISTS idx_email_outbox_template ON email_outbox (template);
 CREATE INDEX IF NOT EXISTS idx_email_outbox_to_email ON email_outbox (to_email);
 CREATE INDEX IF NOT EXISTS idx_email_outbox_created_at ON email_outbox (created_at);
-CREATE INDEX IF NOT EXISTS idx_email_outbox_next_attempt ON email_outbox (next_attempt_at);
+CREATE INDEX IF NOT EXISTS idx_email_outbox_next_attempt ON public.email_outbox (next_attempt);
 CREATE UNIQUE INDEX IF NOT EXISTS email_outbox_dedupe_key_uidx ON email_outbox (dedupe_key) WHERE dedupe_key IS NOT NULL;
 
 -- 4. Create function to automatically update updated_at timestamp
@@ -120,7 +120,7 @@ BEGIN
   FROM email_outbox eo
   WHERE eo.status = 'pending' 
     AND eo.scheduled_at <= now()
-    AND (eo.next_attempt_at IS NULL OR eo.next_attempt_at <= now())
+    AND (eo.next_attempt IS NULL OR eo.next_attempt <= now())
     AND eo.attempts < eo.max_attempts
   ORDER BY eo.created_at ASC
   LIMIT p_batch_size;
@@ -167,7 +167,7 @@ BEGIN
       status = 'pending',
       attempts = attempts + 1,
       last_error = p_error,
-      next_attempt_at = next_attempt,
+      next_attempt = next_attempt,
       last_attempt_at = now(),
       updated_at = now()
     WHERE id = p_id;
@@ -235,7 +235,7 @@ BEGIN
   SET 
     status = 'pending',
     attempts = 0,
-    next_attempt_at = now(),
+          next_attempt = now(),
     last_error = NULL,
     updated_at = now()
   WHERE status = 'failed';
