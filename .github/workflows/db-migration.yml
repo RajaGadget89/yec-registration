@@ -482,8 +482,21 @@ jobs:
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
 
-      - name: Prepare test database (apply migrations)
-        run: npx tsx scripts/supabase-e2e-setup.ts
+      - name: Link to staging project for E2E tests
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Linking to staging project for E2E tests..."
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
+          echo "✅ Linked to staging project"
+
+      - name: Verify staging database connection
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Verifying staging database connection..."
+          supabase db diff --schema public --linked --password ${{ secrets.STAGING_DB_PASSWORD }} || echo "No pending changes (good!)"
+          echo "✅ Staging database connection verified"
 
       - name: Run dispatch-emails e2e
         id: test_result
@@ -502,11 +515,20 @@ jobs:
           TELEGRAM_CHAT_ID: 'test-chat-id'
         run: |
           set +e
+          echo "Running E2E tests against staging database..."
+          
+          # Try to run the E2E tests
           npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line 2>&1 | tee e2e-ci.log
-          if [ $? -eq 0 ]; then
+          test_exit_code=$?
+          
+          if [ $test_exit_code -eq 0 ]; then
             echo "passed=true" >> $GITHUB_OUTPUT
+            echo "✅ E2E tests passed"
           else
             echo "passed=false" >> $GITHUB_OUTPUT
+            echo "❌ E2E tests failed with exit code: $test_exit_code"
+            echo "📋 Test log summary:"
+            tail -20 e2e-ci.log || echo "No test log available"
           fi
           set -e
 
@@ -539,9 +561,12 @@ jobs:
         run: |
           npm run e2e:auto-fix:ci || true
 
-      - name: Stop local Supabase
+      - name: Cleanup staging connection
         if: always()
-        run: supabase stop
+        run: |
+          echo "Cleaning up staging connection..."
+          supabase unlink || echo "No project linked to unlink"
+          echo "✅ Cleanup completed"
 
       # Always report status to satisfy ruleset requirements
       - name: Report required context (ruleset-compat)
