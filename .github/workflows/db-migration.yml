@@ -581,67 +581,59 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+            // Fetch jobs for the current workflow run (this returns the jobs list)
+            const { data: { jobs } } = await github.rest.actions.listJobsForWorkflowRun({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'db-migration.yml',
-              run_id: context.runId
+              run_id: context.runId,
+              per_page: 100,
             });
-            
-            const currentRun = runs.workflow_runs.find(run => run.id === context.runId);
-            
+
             let summary = `## Database Migration Summary\n\n`;
-            summary += `**Workflow Run:** ${context.runId}\n`;
-            summary += `**Trigger:** ${context.eventName}\n`;
+            summary += `**Run ID:** ${context.runId}\n`;
+            summary += `**Event:** ${context.eventName}\n`;
             summary += `**Branch:** ${context.ref}\n`;
             summary += `**Commit:** ${context.sha.substring(0, 7)}\n\n`;
-            
-            if (context.eventName === 'workflow_dispatch') {
-              summary += `**Manual Trigger:** ${context.payload.inputs?.target_environment || 'staging'}\n\n`;
-            }
-            
+
             summary += `### Job Results\n\n`;
-            
-            const jobs = ['detect_changes', 'validate_migrations', 'test_migrations', 'deploy_staging', 'deploy_production', 'e2e_tests_after_migration'];
-            
-            for (const jobName of jobs) {
-              try {
-                const { data: job } = await github.rest.actions.getJobForWorkflowRun({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  job_id: currentRun.jobs.find(j => j.name === jobName)?.id
-                });
-                
-                const status = job.conclusion || job.status;
-                const emoji = status === 'success' ? '✅' : status === 'failure' ? '❌' : '⏳';
-                summary += `${emoji} **${jobName}:** ${status}\n`;
-              } catch (error) {
-                summary += `❓ **${jobName}:** Not found\n`;
+
+            // Map display labels to regex patterns that match actual job names
+            const targets = [
+              { label: 'detect_changes',            pattern: /Detect Migration Changes/i },
+              { label: 'validate_migrations',       pattern: /Validate Migration Files/i },
+              { label: 'test_migrations',           pattern: /Test Migrations.*Shadow DB/i },
+              { label: 'deploy_staging',            pattern: /Deploy to Staging/i },
+              { label: 'deploy_production',         pattern: /Deploy to Production/i },
+              { label: 'e2e_tests_after_migration', pattern: /E2E Tests \(After Migration\)/i },
+            ];
+
+            for (const t of targets) {
+              const job = jobs.find(j => t.pattern.test(j.name));
+              if (!job) {
+                summary += `❓ **${t.label}:** Not found\n`;
+                continue;
               }
+              const status = job.conclusion || job.status; // conclusion may be null while running
+              const emoji =
+                status === 'success' ? '✅' :
+                status === 'failure' ? '❌' :
+                status === 'cancelled' ? '🚫' : '⏳';
+              summary += `${emoji} **${t.label}:** ${status}\n`;
             }
-            
-            summary += `\n### Next Steps\n\n`;
-            
-            // Check if auto-fix was applied in E2E job
-            const e2eJob = currentRun.jobs.find(j => j.name === 'E2E Tests (After Migration)');
-            if (e2eJob && e2eJob.conclusion === 'failure') {
-              summary += `🔧 **Auto-fix may have been attempted!** Please check the E2E job logs and review any changes.\n\n`;
-            }
-            
-            summary += `- [ ] Verify application functionality in staging\n`;
-            summary += `- [ ] Run integration tests\n`;
-            summary += `- [ ] Monitor application logs for any issues\n`;
-            summary += `- [ ] If staging is stable, promote to production\n`;
-            
-            // Create a comment on PR if this is a PR
+
+            summary += `\n### Next Steps\n`;
+            summary += `- [ ] Verify staging\n`;
+            summary += `- [ ] Review logs if any job failed\n`;
+            summary += `- [ ] Promote to production when stable\n`;
+
+            // If running on a PR, comment the summary
             if (context.eventName === 'pull_request') {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.payload.pull_request.number,
-                body: summary
+                body: summary,
               });
             }
-            
-            // Set output for other jobs
+
             core.setOutput('summary', summary);
