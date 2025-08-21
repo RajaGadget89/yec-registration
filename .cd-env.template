@@ -1,0 +1,31 @@
+# CD Simulation Environment Variables Template
+# Copy this file to .cd-env and update with your actual values
+
+# Supabase Configuration (use staging for safety)
+SUPABASE_URL=https://your-staging-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-staging-service-role-key
+SUPABASE_ACCESS_TOKEN=sbp_your_access_token_here
+SUPABASE_PROJECT_REF=your_staging_project_ref
+SUPABASE_DB_PASSWORD=your_staging_database_password
+
+# CD-specific variables
+SUPABASE_NON_INTERACTIVE=1
+SUPABASE_CLI_VERSION=latest
+
+# Application Configuration
+NODE_ENV=test
+SUPABASE_ENV=staging
+NEXT_PUBLIC_APP_URL=http://localhost:8080
+
+# Email Configuration (use test values)
+EMAIL_MODE=DRY_RUN
+RESEND_API_KEY=test-key
+EMAIL_FROM=test@example.com
+
+# Test Configuration
+CRON_SECRET=test-secret
+DISPATCH_DRY_RUN=true
+
+# CD Simulation Configuration
+CD_SIMULATION_TIMEOUT=300000
+CD_SIMULATION_ARTIFACTS_DIR=.cd-simulation/artifacts

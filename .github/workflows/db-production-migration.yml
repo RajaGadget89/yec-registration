@@ -327,15 +327,9 @@ jobs:
           echo "Testing database connection..."
           supabase db diff --schema public --linked > /dev/null 2>&1 && echo "✅ Connection successful" || echo "⚠️  Connection test failed, continuing..."
 
-          # Fast repair attempt with timeout
+          # Simplified repair attempt (no timeout, no fallback)
           echo "Attempting to repair orphaned remote_schema entries..."
-          timeout 60s yes | supabase migration repair --status reverted 2>&1 || echo "No repair needed or timeout"
-
-          # Quick fallback cleanup (idempotent)
-          echo "Running fallback cleanup..."
-          timeout 30s supabase db query \
-            "UPDATE supabase_migrations.schema_migrations SET status = 'reverted' WHERE name = 'remote_schema' AND status != 'reverted';" \
-            2>/dev/null || echo "No remote_schema entries to update"
+          yes | supabase migration repair --status reverted 2>&1 || echo "No repair needed"
 
           echo "Auto-repair process completed."
 
