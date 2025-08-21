@@ -11,8 +11,8 @@ test.describe('Magic Link Callback Flow', () => {
   });
 
   test('should handle magic link callback successfully', async ({ page }) => {
-    // Navigate to the magic link callback URL with real tokens
-    const magicLinkUrl = 'http://localhost:8080/auth/callback#access_token=eyJhbGciOiJIUzI1NiIsImtpZCI6IkJ5TnFtL3FQVlY1WXkzMWMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3d2d3pocHl2b2d3eXBtcWd2dGp2LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIyZDZjYjU4YS03ODY1LTRmYTAtYjU3ZC04NWZhYjY2ZWYwYjEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU0OTIxMzk0LCJpYXQiOjE3NTQ5MTc3OTQsImVtYWlsIjoicmFqYS5nYWRnZXRzODlAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoib3RwIiwidGltZXN0YW1wIjoxNzU0OTE3Nzk0fV0sInNlc3Npb25faWQiOiI2ODM2YWRhOC0zYTVkLTQ2YTAtYTlmMy0yNjc3YmQzNzY5ODUiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.RiWfXbLJ7uofuu9nWEnb8Wr4Fp5OtjQEzgCm29UMwO8&expires_at=1754921394&expires_in=3600&refresh_token=ktoqwhoridf3&token_type=bearer&type=magiclink';
+    // Navigate to the magic link callback URL with mock tokens
+    const magicLinkUrl = 'http://localhost:8080/auth/callback#access_token=mock_access_token&expires_at=1754921394&expires_in=3600&refresh_token=mock_refresh_token&token_type=bearer&type=magiclink';
 
     // Listen for network requests
     const requestPromise = page.waitForRequest(request => 
@@ -146,7 +146,7 @@ test.describe('Magic Link Callback Flow', () => {
 
   test('should preserve query parameters in redirect', async ({ page }) => {
     // Test with next parameter
-    const magicLinkUrl = 'http://localhost:8080/auth/callback?next=%2Fadmin%2Fdashboard#access_token=eyJhbGciOiJIUzI1NiIsImtpZCI6IkJ5TnFtL3FQVlY1WXkzMWMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3d2d3pocHl2b2d3eXBtcWd2dGp2LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIyZDZjYjU4YS03ODY1LTRmYTAtYjU3ZC04NWZhYjY2ZWYwYjEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU0OTIxMzk0LCJpYXQiOjE3NTQ5MTc3OTQsImVtYWlsIjoicmFqYS5nYWRnZXRzODlAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoib3RwIiwidGltZXN0YW1wIjoxNzU0OTE3Nzk0fV0sInNlc3Npb25faWQiOiI2ODM2YWRhOC0zYTVkLTQ2YTAtYTlmMy0yNjc3YmQzNzY5ODUiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.RiWfXbLJ7uofuu9nWEnb8Wr4Fp5OtjQEzgCm29UMwO8&expires_at=1754921394&expires_in=3600&refresh_token=ktoqwhoridf3&token_type=bearer&type=magiclink';
+    const magicLinkUrl = 'http://localhost:8080/auth/callback?next=%2Fadmin%2Fdashboard#access_token=mock_access_token&expires_at=1754921394&expires_in=3600&refresh_token=mock_refresh_token&token_type=bearer&type=magiclink';
 
     // Listen for network requests
     const responsePromise = page.waitForResponse(response => 
@@ -178,7 +178,7 @@ test.describe('Magic Link Callback Flow', () => {
       }
     });
 
-    const magicLinkUrl = 'http://localhost:8080/auth/callback#access_token=eyJhbGciOiJIUzI1NiIsImtpZCI6IkJ5TnFtL3FQVlY1WXkzMWMiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3d2d3pocHl2b2d3eXBtcWd2dGp2LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiIyZDZjYjU4YS03ODY1LTRmYTAtYjU3ZC04NWZhYjY2ZWYwYjEiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU0OTIxMzk0LCJpYXQiOjE3NTQ5MTc3OTQsImVtYWlsIjoicmFqYS5nYWRnZXRzODlAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoib3RwIiwidGltZXN0YW1wIjoxNzU0OTE3Nzk0fV0sInNlc3Npb25faWQiOiI2ODM2YWRhOC0zYTVkLTQ2YTAtYTlmMy0yNjc3YmQzNzY5ODUiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.RiWfXbLJ7uofuu9nWEnb8Wr4Fp5OtjQEzgCm29UMwO8&expires_at=1754921394&expires_in=3600&refresh_token=ktoqwhoridf3&token_type=bearer&type=magiclink';
+    const magicLinkUrl = 'http://localhost:8080/auth/callback#access_token=mock_access_token&expires_at=1754921394&expires_in=3600&refresh_token=mock_refresh_token&token_type=bearer&type=magiclink';
 
     // Navigate to the callback page
     await page.goto(magicLinkUrl);
