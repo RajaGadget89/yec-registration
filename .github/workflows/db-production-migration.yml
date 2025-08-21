@@ -34,10 +34,10 @@ on:
           - "production"
           - "staging"
 
-# Improved concurrency control - allows one migration at a time
+# Improved concurrency control - prevents cancellation and queues runs
 concurrency:
-  group: production-db-migration
-  cancel-in-progress: true
+  group: db-migration-${{ github.event.inputs.target_environment || 'production' }}-${{ github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -307,9 +307,9 @@ jobs:
           ls -la supabase/migrations/
 
       - name: Auto-repair remote_schema (if present)
+        timeout-minutes: 10
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          # Prevent any interactive prompts from blocking CI
           SUPABASE_NON_INTERACTIVE: "1"
         shell: bash
         run: |
@@ -326,26 +326,16 @@ jobs:
             echo "✅ Database connection successful via Supabase CLI"
           fi
 
-          # Use a simpler approach: try to repair any remote_schema entries directly
           echo "Attempting to repair any orphaned remote_schema entries..."
-          
-          # First, try the official Supabase migration repair command
-          # This will handle the repair automatically if there are orphaned entries
-          # Pipe 'yes' to avoid interactive confirmation if the CLI still asks.
+          # Answer any interactive prompts automatically
           repair_output=$(yes | supabase migration repair --status reverted 2>&1 || echo "No repair needed")
           echo "Migration repair output: $repair_output"
-          
-          if echo "$repair_output" | grep -q "remote_schema\|repaired\|fixed"; then
-            echo "✅ Successfully repaired remote_schema entries using Supabase CLI"
-          else
-            echo "No remote_schema entries found or repair not needed"
-          fi
-          
-          # As a fallback, also try to directly update any remaining remote_schema entries
-          echo "Running fallback cleanup for any remaining remote_schema entries..."
+
+          # Fallback cleanup (idempotent)
           supabase db query \
-            "UPDATE supabase_migrations.schema_migrations SET status = 'reverted' WHERE name = 'remote_schema' AND status != 'reverted';" 2>/dev/null || echo "No remote_schema entries to update"
-          
+            "UPDATE supabase_migrations.schema_migrations SET status = 'reverted' WHERE name = 'remote_schema' AND status != 'reverted';" \
+            2>/dev/null || echo "No remote_schema entries to update"
+
           echo "Auto-repair process completed."
 
       - name: Generate production migration diff
