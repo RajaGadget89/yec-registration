@@ -254,20 +254,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate production secrets
+      - name: Validate production secrets (linked mode)
         run: |
-          if [ -z "${{ secrets.SUPABASE_PROD_DB_URL }}" ]; then
-            echo "❌ Error: SUPABASE_PROD_DB_URL secret is not configured"
-            echo "Please configure the SUPABASE_PROD_DB_URL secret in the repository settings"
-            exit 1
-          fi
-          
-          if [[ ! "${{ secrets.SUPABASE_PROD_DB_URL }}" =~ ^postgres(ql)?:// ]]; then
-            echo "❌ SUPABASE_PROD_DB_URL must be a Postgres connection string (postgres://...), not an https URL"
-            exit 1
-          fi
-          
-          echo "✅ Production database URL is configured"
+          missing=0
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then echo "❌ SUPABASE_ACCESS_TOKEN is missing"; missing=1; fi
+          if [ -z "${{ secrets.SB_PROD_REF }}" ]; then echo "❌ SB_PROD_REF is missing"; missing=1; fi
+          if [ -z "${{ secrets.PROD_DB_PASSWORD }}" ]; then echo "❌ PROD_DB_PASSWORD is missing"; missing=1; fi
+          if [ "$missing" -eq 1 ]; then exit 1; fi
+          echo "✅ Linked-mode secrets are present"
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
@@ -277,9 +271,10 @@ jobs:
       - name: Link to production project
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "Linking to production project..."
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "${{ secrets.PROD_DB_PASSWORD }}"
           echo "✅ Linked to production project"
 
       - name: Sync migrations to supabase/migrations
@@ -434,7 +429,7 @@ jobs:
           SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "Performing dry run of migration..."
-          supabase db push --dry-run
+          supabase db push --linked --dry-run
           echo "✅ Dry run completed successfully"
 
       - name: Apply migrations to production
@@ -444,8 +439,8 @@ jobs:
           SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "Pushing migrations to production..."
-          supabase db push --dry-run
-          supabase db push
+          supabase db push --linked --dry-run
+          supabase db push --linked
           echo "✅ Migrations deployed to production"
 
       - name: No changes to deploy
@@ -464,7 +459,7 @@ jobs:
           echo "Verifying production deployment..."
           
           # Link again to ensure we're connected
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "${{ secrets.PROD_DB_PASSWORD }}"
           
           # Check that migrations were applied
           verification_diff=$(supabase db diff --schema public --linked 2>&1 || echo "Verification complete")
