@@ -261,6 +261,12 @@ jobs:
             echo "Please configure the SUPABASE_PROD_DB_URL secret in the repository settings"
             exit 1
           fi
+          
+          if [[ ! "${{ secrets.SUPABASE_PROD_DB_URL }}" =~ ^postgres(ql)?:// ]]; then
+            echo "❌ SUPABASE_PROD_DB_URL must be a Postgres connection string (postgres://...), not an https URL"
+            exit 1
+          fi
+          
           echo "✅ Production database URL is configured"
 
       - name: Setup Supabase CLI
@@ -313,23 +319,76 @@ jobs:
         timeout-minutes: 5
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
           SUPABASE_NON_INTERACTIVE: "1"
         shell: bash
         run: |
           set -euo pipefail
           echo "Checking for orphaned remote_schema entry on production..."
           
-          # Quick re-link to ensure credentials are fresh
+          # Enhanced credential validation
+          echo "Validating credentials..."
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            echo "❌ Error: SUPABASE_ACCESS_TOKEN is not set"
+            exit 1
+          fi
+          
+          if [ -z "${{ secrets.SUPABASE_PROD_DB_URL }}" ]; then
+            echo "❌ Error: SUPABASE_PROD_DB_URL is not set"
+            exit 1
+          fi
+          
+          # Test access token permissions first
+          echo "Testing access token permissions..."
+          if ! supabase projects list --access-token ${{ secrets.SUPABASE_ACCESS_TOKEN }} | grep -q "${{ secrets.SB_PROD_REF }}"; then
+            echo "❌ Error: Access token does not have permission to access project ${{ secrets.SB_PROD_REF }}"
+            echo "Please ensure the access token has 'Project Owner' or 'Admin' role"
+            exit 1
+          fi
+          echo "✅ Access token permissions verified"
+          
+          # Enhanced project linking with better error handling
           echo "Relinking to production project..."
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }} || echo "Link failed, continuing..."
+          max_attempts=3
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt of $max_attempts..."
+            
+            if supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "${{ secrets.PROD_DB_PASSWORD }}" 2>&1; then
+              echo "✅ Project linking successful"
+              break
+            else
+              echo "⚠️  Link attempt $attempt failed"
+              if [ $attempt -eq $max_attempts ]; then
+                echo "❌ All link attempts failed. Please check:"
+                echo "1. Database password is correct"
+                echo "2. Access token has proper permissions"
+                echo "3. Project reference is correct"
+                exit 1
+              fi
+              attempt=$((attempt + 1))
+              sleep 2
+            fi
+          done
 
-          # Quick connection test (non-blocking)
+          # Enhanced connection test using explicit db-url
           echo "Testing database connection..."
-          supabase db diff --schema public --linked > /dev/null 2>&1 && echo "✅ Connection successful" || echo "⚠️  Connection test failed, continuing..."
+          if supabase db diff --schema public --db-url "$SUPABASE_PROD_DB_URL" > /dev/null 2>&1; then
+            echo "✅ Connection successful"
+          else
+            echo "⚠️  Connection test failed, continuing..."
+            echo "This might be due to network issues or temporary unavailability"
+          fi
 
-          # Simplified repair attempt (no timeout, no fallback)
+          # Enhanced migration repair with better error handling using explicit db-url
           echo "Attempting to repair orphaned remote_schema entries..."
-          yes | supabase migration repair --status reverted 2>&1 || echo "No repair needed"
+          if yes | supabase migration repair --status reverted --db-url "$SUPABASE_PROD_DB_URL" 2>&1; then
+            echo "✅ Migration repair completed successfully"
+          else
+            echo "⚠️  Migration repair failed or not needed"
+            echo "This is not critical - continuing with deployment"
+          fi
 
           echo "Auto-repair process completed."
 
@@ -338,11 +397,12 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "Generating production migration diff..."
           
           # Generate diff and capture output
-          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
+          diff_output=$(supabase db diff --schema public --db-url "$SUPABASE_PROD_DB_URL" 2>&1 || echo "No diff or error")
           
           # Save diff output for debugging
           echo "$diff_output" > migration_diff.txt
@@ -370,9 +430,10 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "Performing dry run of migration..."
-          supabase db push --dry-run
+          supabase db push --db-url "$SUPABASE_PROD_DB_URL" --dry-run
           echo "✅ Dry run completed successfully"
 
       - name: Apply migrations to production
@@ -380,10 +441,11 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "Pushing migrations to production..."
-          supabase db push --dry-run
-          supabase db push
+          supabase db push --db-url "$SUPABASE_PROD_DB_URL" --dry-run
+          supabase db push --db-url "$SUPABASE_PROD_DB_URL"
           echo "✅ Migrations deployed to production"
 
       - name: No changes to deploy
@@ -398,6 +460,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "Verifying production deployment..."
           
@@ -405,7 +468,7 @@ jobs:
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
           
           # Check that migrations were applied
-          verification_diff=$(supabase db diff --schema public --linked 2>&1 || echo "Verification complete")
+          verification_diff=$(supabase db diff --schema public --db-url "$SUPABASE_PROD_DB_URL" 2>&1 || echo "Verification complete")
           
           if [ "$verification_diff" = "No schema changes found" ] || [ "$verification_diff" = "Verification complete" ]; then
             echo "✅ Production deployment verified successfully"
