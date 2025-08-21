@@ -340,9 +340,16 @@ jobs:
           
           # Test access token permissions first
           echo "Testing access token permissions..."
-          if ! supabase projects list --access-token ${{ secrets.SUPABASE_ACCESS_TOKEN }} | grep -q "${{ secrets.SB_PROD_REF }}"; then
-            echo "❌ Error: Access token does not have permission to access project ${{ secrets.SB_PROD_REF }}"
-            echo "Please ensure the access token has 'Project Owner' or 'Admin' role"
+          supabase --version
+          
+          # The CLI reads the token from SUPABASE_ACCESS_TOKEN; no flag needed.
+          if ! supabase projects list >/tmp/sb_projects.txt 2>/tmp/sb_projects.err; then
+            echo "⚠️ supabase projects list failed; showing stderr:"
+            cat /tmp/sb_projects.err
+            exit 1
+          fi
+          if ! grep -q "${{ secrets.SB_PROD_REF }}" /tmp/sb_projects.txt; then
+            echo "❌ Access token cannot see project ${{ secrets.SB_PROD_REF }} (need Owner/Admin)"
             exit 1
           fi
           echo "✅ Access token permissions verified"
