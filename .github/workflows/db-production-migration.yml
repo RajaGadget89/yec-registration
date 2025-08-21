@@ -254,6 +254,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # GitHub-hosted runners can't reliably reach IPv6 DB endpoints; direct --db-url fails with "network is unreachable"
+      # Supabase recommends --linked for platform projects; --db-url is for self-hosted
+      # See: https://supabase.com/docs/reference/cli and https://supabase.com/docs/guides/platform/ipv4
       - name: Validate production secrets
         run: |
           set -euo pipefail
@@ -261,14 +264,7 @@ jobs:
           if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then echo "❌ SUPABASE_ACCESS_TOKEN is missing"; missing=1; fi
           if [ -z "${{ secrets.SB_PROD_REF }}" ]; then echo "❌ SB_PROD_REF is missing"; missing=1; fi
           if [ -z "${{ secrets.PROD_DB_PASSWORD }}" ]; then echo "❌ PROD_DB_PASSWORD is missing"; missing=1; fi
-          if [ -z "${{ secrets.SUPABASE_PROD_DB_URL }}" ]; then echo "❌ SUPABASE_PROD_DB_URL is missing"; missing=1; fi
           if [ "$missing" -eq 1 ]; then exit 1; fi
-          
-          # Validate DB URL format
-          if [[ ! "${{ secrets.SUPABASE_PROD_DB_URL }}" =~ ^postgres(ql)?:// ]]; then
-            echo "❌ SUPABASE_PROD_DB_URL must be a Postgres connection string (postgres://...), not an https URL"
-            exit 1
-          fi
           
           echo "✅ Production secrets are present and valid"
 
@@ -277,14 +273,38 @@ jobs:
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
 
+      # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
       - name: Link to production project
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
         run: |
+          set -euo pipefail
           echo "Linking to production project..."
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "${{ secrets.PROD_DB_PASSWORD }}"
-          echo "✅ Linked to production project"
+          
+          # Small retry logic for project linking
+          max_attempts=3
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "Link attempt $attempt of $max_attempts..."
+            
+            if supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "${{ secrets.PROD_DB_PASSWORD }}" 2>&1; then
+              echo "✅ Project linking successful"
+              break
+            else
+              echo "⚠️  Link attempt $attempt failed"
+              if [ $attempt -eq $max_attempts ]; then
+                echo "❌ All link attempts failed. Please check:"
+                echo "1. Database password is correct"
+                echo "2. Access token has proper permissions"
+                echo "3. Project reference is correct"
+                exit 1
+              fi
+              attempt=$((attempt + 1))
+              sleep 2
+            fi
+          done
 
       - name: Sync migrations to supabase/migrations
         run: |
@@ -319,14 +339,13 @@ jobs:
           echo "Migration files synced:"
           ls -la supabase/migrations/
 
+      # Using --linked mode to avoid IPv6 connection issues; non-blocking to prevent job failure
       - name: Auto-repair remote_schema (if present)
         timeout-minutes: 3
         continue-on-error: true
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
-          PGPASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
@@ -334,29 +353,28 @@ jobs:
           
           # Show diagnostics
           supabase --version
-          echo "Using DB URL: postgresql://<redacted>@... (sslmode=require)"
+          echo "Using linked mode to avoid IPv6 connection issues"
           
-          # Simple connection test
-          supabase db diff --schema public --db-url "$SUPABASE_PROD_DB_URL" >/dev/null 2>&1 || echo "warn: connection test failed"
+          # Simple connection test using linked mode
+          supabase db diff --schema public --linked >/dev/null 2>&1 || echo "warn: connection test failed"
           
-          # Repair orphaned entries
-          yes | supabase migration repair --status reverted --db-url "$SUPABASE_PROD_DB_URL"
+          # Repair orphaned entries using linked mode
+          yes | supabase migration repair --status reverted
           
           echo "Auto-repair process completed."
 
+      # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
       - name: Generate production migration diff
         id: prod_diff
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
-          PGPASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Generating production migration diff..."
           
-          # Generate diff and capture output
-          diff_output=$(supabase db diff --schema public --db-url "$SUPABASE_PROD_DB_URL" 2>&1 || echo "No diff or error")
+          # Generate diff and capture output using linked mode
+          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
           
           # Save diff output for debugging
           echo "$diff_output" > migration_diff.txt
@@ -379,31 +397,29 @@ jobs:
           cat migration_diff.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+      # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
       - name: Dry run migration
         if: steps.prod_diff.outputs.has_changes == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
-          PGPASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Performing dry run of migration..."
-          supabase db push --db-url "$SUPABASE_PROD_DB_URL" --dry-run
+          supabase db push --linked --dry-run
           echo "✅ Dry run completed successfully"
 
+      # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
       - name: Apply migrations to production
         if: steps.prod_diff.outputs.has_changes == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
-          PGPASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Pushing migrations to production..."
-          supabase db push --db-url "$SUPABASE_PROD_DB_URL" --dry-run
-          supabase db push --db-url "$SUPABASE_PROD_DB_URL"
+          supabase db push --linked --dry-run
+          supabase db push --linked
           echo "✅ Migrations deployed to production"
 
       - name: No changes to deploy
@@ -413,32 +429,29 @@ jobs:
           echo "## No Changes Detected" >> $GITHUB_STEP_SUMMARY
           echo "Production database is already up to date." >> $GITHUB_STEP_SUMMARY
 
+      # Using --linked mode to avoid IPv6 connection issues; verify with no-op dry run
       - name: Verify production deployment
         if: steps.prod_diff.outputs.has_changes == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_PROD_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
-          PGPASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Verifying production deployment..."
           
-          # Test connectivity
-          psql "$SUPABASE_PROD_DB_URL" -c "select current_user, current_database();"
+          # Verify with no-op dry run using linked mode
+          verification_output=$(supabase db push --linked --dry-run 2>&1 || echo "Verification failed")
           
-          # Check that migrations were applied
-          verification_diff=$(supabase db diff --schema public --db-url "$SUPABASE_PROD_DB_URL" 2>&1 || echo "Verification complete")
-          
-          if [ "$verification_diff" = "No schema changes found" ] || [ "$verification_diff" = "Verification complete" ]; then
+          if echo "$verification_output" | grep -q "No schema changes found"; then
             echo "✅ Production deployment verified successfully"
             echo "## Deployment Verification" >> $GITHUB_STEP_SUMMARY
             echo "✅ All migrations applied successfully" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ Warning: Some changes may still be pending"
-            echo "Verification diff: $verification_diff"
+            echo "❌ Verification failed - changes may still be pending"
+            echo "Verification output: $verification_output"
             echo "## Deployment Verification" >> $GITHUB_STEP_SUMMARY
-            echo "⚠️ Some changes may still be pending" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Verification failed - changes may still be pending" >> $GITHUB_STEP_SUMMARY
+            exit 1
           fi
 
   # Deploy to staging (if requested)
