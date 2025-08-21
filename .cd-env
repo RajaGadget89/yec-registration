@@ -1,0 +1,31 @@
+# CD Simulation Environment Variables
+# These mirror the GitHub Actions environment
+
+# Supabase Configuration (using staging for safety)
+SUPABASE_URL=https://wvwzhpyvogwypmqgvtjv.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind2d3pocHl2b2d3eXBtcWd2dGp2Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNTQ5NzIwMCwiZXhwIjoyMDUxMDczMjAwfQ.Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8Ej8
+SUPABASE_ACCESS_TOKEN=sbp_50aa27d96ea21426d678c8d2c6e656519f9d2c20
+SUPABASE_PROJECT_REF=wvwzhpyvogwypmqgvtjv
+SUPABASE_DB_PASSWORD=KeeP!WalkinG911
+
+# CD-specific variables
+SUPABASE_NON_INTERACTIVE=1
+SUPABASE_CLI_VERSION=latest
+
+# Application Configuration
+NODE_ENV=test
+SUPABASE_ENV=staging
+NEXT_PUBLIC_APP_URL=http://localhost:8080
+
+# Email Configuration (use test values)
+EMAIL_MODE=DRY_RUN
+RESEND_API_KEY=test-key
+EMAIL_FROM=test@example.com
+
+# Test Configuration
+CRON_SECRET=test-secret
+DISPATCH_DRY_RUN=true
+
+# CD Simulation Configuration
+CD_SIMULATION_TIMEOUT=300000
+CD_SIMULATION_ARTIFACTS_DIR=.cd-simulation/artifacts
