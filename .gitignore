@@ -22,6 +22,7 @@ build/
 .env
 .env*.local
 .env.ci.example
+.env.ci.local
 .env.local
 .cd-env
 
