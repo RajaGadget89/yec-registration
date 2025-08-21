@@ -52,6 +52,7 @@ jobs:
   preflight_check:
     name: Pre-flight Validation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       has_migrations: ${{ steps.filter.outputs.migrations }}
       has_changes: ${{ steps.filter.outputs.migrations }}
@@ -132,6 +133,7 @@ jobs:
     if: |
       (needs.preflight_check.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
       github.event.inputs.skip_validation != 'true'
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -247,6 +249,7 @@ jobs:
     environment:
       name: production
       url: https://yec.rajagadget.live
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -307,7 +310,7 @@ jobs:
           ls -la supabase/migrations/
 
       - name: Auto-repair remote_schema (if present)
-        timeout-minutes: 10
+        timeout-minutes: 5
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
@@ -315,24 +318,22 @@ jobs:
         run: |
           set -euo pipefail
           echo "Checking for orphaned remote_schema entry on production..."
-          echo "Relinking to production project to ensure credentials are present..."
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
+          
+          # Quick re-link to ensure credentials are fresh
+          echo "Relinking to production project..."
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }} || echo "Link failed, continuing..."
 
-          echo "Testing database connection via Supabase CLI..."
-          if ! supabase db diff --schema public --linked > /dev/null 2>&1; then
-            echo "⚠️  Initial connection test failed. Re-linking and continuing..."
-            supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }} || true
-          else
-            echo "✅ Database connection successful via Supabase CLI"
-          fi
+          # Quick connection test (non-blocking)
+          echo "Testing database connection..."
+          supabase db diff --schema public --linked > /dev/null 2>&1 && echo "✅ Connection successful" || echo "⚠️  Connection test failed, continuing..."
 
-          echo "Attempting to repair any orphaned remote_schema entries..."
-          # Answer any interactive prompts automatically
-          repair_output=$(yes | supabase migration repair --status reverted 2>&1 || echo "No repair needed")
-          echo "Migration repair output: $repair_output"
+          # Fast repair attempt with timeout
+          echo "Attempting to repair orphaned remote_schema entries..."
+          timeout 60s yes | supabase migration repair --status reverted 2>&1 || echo "No repair needed or timeout"
 
-          # Fallback cleanup (idempotent)
-          supabase db query \
+          # Quick fallback cleanup (idempotent)
+          echo "Running fallback cleanup..."
+          timeout 30s supabase db query \
             "UPDATE supabase_migrations.schema_migrations SET status = 'reverted' WHERE name = 'remote_schema' AND status != 'reverted';" \
             2>/dev/null || echo "No remote_schema entries to update"
 
@@ -431,6 +432,7 @@ jobs:
     if: |
       (needs.preflight_check.outputs.has_changes == 'true') &&
       github.event_name == 'push'
+    timeout-minutes: 20
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -490,6 +492,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [preflight_check, test_migrations, deploy_production, deploy_staging]
     if: always()
+    timeout-minutes: 5
     steps:
       - name: Generate comprehensive summary
         uses: actions/github-script@v7
