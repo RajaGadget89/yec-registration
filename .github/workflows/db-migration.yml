@@ -1,4 +1,4 @@
-name: Database Migration Pipeline (Optimized)
+name: Database Migration Pipeline
 
 on:
   push:
@@ -51,7 +51,7 @@ env:
 jobs:
   # Detect changes in migration files with impact analysis
   detect_changes:
-    name: Detect Migration Changes & Impact
+    name: Detect Migration Changes
     runs-on: ubuntu-latest
     outputs:
       has_migrations: ${{ steps.filter.outputs.migrations }}
@@ -142,12 +142,12 @@ jobs:
         with:
           script: |
             const contexts = [
-              'Database Migration Pipeline (Optimized) / Validate Migration Files (pull_request)',
-              'Database Migration Pipeline (Optimized) / Test Migrations (Shadow DB) (pull_request)',
-              'Database Migration Pipeline (Optimized) / Deploy to Staging (pull_request)',
-              'Database Migration Pipeline (Optimized) / Deploy to Production (pull_request)',
-              'Database Migration Pipeline (Optimized) / Quick Migration Validation (pull_request)',
-              'Database Migration Pipeline (Optimized) / Full E2E Tests (pull_request)'
+              'Database Migration Pipeline / Validate Migration Files (pull_request)',
+              'Database Migration Pipeline / Test Migrations (Shadow DB) (pull_request)',
+              'Database Migration Pipeline / Deploy to Staging (pull_request)',
+              'Database Migration Pipeline / Deploy to Production (pull_request)',
+              'Database Migration Pipeline / Quick Migration Validation (pull_request)',
+              'Database Migration Pipeline / Full E2E Tests (pull_request)'
             ];
             
             for (const contextName of contexts) {
@@ -180,7 +180,7 @@ jobs:
               repo: context.repo.repo,
               sha,
               state,
-              context: 'Database Migration Pipeline (Optimized) / Detect Migration Changes & Impact (pull_request)',
+              context: 'Database Migration Pipeline / Detect Migration Changes (pull_request)',
               description: `Reported from run ${context.runId}`,
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             })
@@ -252,7 +252,7 @@ jobs:
               repo: context.repo.repo,
               sha,
               state,
-              context: 'Database Migration Pipeline (Optimized) / Validate Migration Files (pull_request)',
+              context: 'Database Migration Pipeline / Validate Migration Files (pull_request)',
               description: `Reported from run ${context.runId}`,
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             })
@@ -337,7 +337,7 @@ jobs:
               repo: context.repo.repo,
               sha,
               state,
-              context: 'Database Migration Pipeline (Optimized) / Test Migrations (Shadow DB) (pull_request)',
+              context: 'Database Migration Pipeline / Test Migrations (Shadow DB) (pull_request)',
               description: `Reported from run ${context.runId}`,
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             })
@@ -420,7 +420,7 @@ jobs:
               repo: context.repo.repo,
               sha,
               state,
-              context: 'Database Migration Pipeline (Optimized) / Deploy to Staging (pull_request)',
+              context: 'Database Migration Pipeline / Deploy to Staging (pull_request)',
               description: `Reported from run ${context.runId}`,
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             })
@@ -506,7 +506,7 @@ jobs:
               repo: context.repo.repo,
               sha,
               state,
-              context: 'Database Migration Pipeline (Optimized) / Deploy to Production (pull_request)',
+              context: 'Database Migration Pipeline / Deploy to Production (pull_request)',
               description: `Reported from run ${context.runId}`,
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             })
@@ -642,7 +642,7 @@ jobs:
               repo: context.repo.repo,
               sha,
               state,
-              context: 'Database Migration Pipeline (Optimized) / Quick Migration Validation (pull_request)',
+              context: 'Database Migration Pipeline / Quick Migration Validation (pull_request)',
               description: `Reported from run ${context.runId}`,
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             })
@@ -818,7 +818,7 @@ jobs:
               repo: context.repo.repo,
               sha,
               state,
-              context: 'Database Migration Pipeline (Optimized) / Full E2E Tests (pull_request)',
+              context: 'Database Migration Pipeline / Full E2E Tests (pull_request)',
               description: `Reported from run ${context.runId}`,
               target_url: `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             })
