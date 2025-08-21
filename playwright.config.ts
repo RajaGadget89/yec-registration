@@ -5,10 +5,10 @@ import fs from 'fs';
 
 // เลือกไฟล์ env ตามสภาพแวดล้อม
 // - CI: ใช้ .env.ci (workflow จะสร้างให้)
-// - Local: ใช้ .env.ci.local ถ้ามี ไม่งั้น fallback เป็น .env.local
+// - Local: ใช้ .env.local เท่านั้น (removed .env.ci.local for security)
 const dotenvPath = process.env.CI
   ? '.env.ci'
-  : (fs.existsSync('.env.ci.local') ? '.env.ci.local' : '.env.local');
+  : '.env.local';
 
 loadDotenv({ path: dotenvPath });
 
