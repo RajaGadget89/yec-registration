@@ -77,7 +77,7 @@ export const BaseLayout: React.FC<BaseLayoutProps> = ({
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src="https://wvwzhpyvogwypmqgvtjv.supabase.co/storage/v1/object/public/yec-assets/logo-full.png"
+                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/yec-assets/logo-full.png`}
                     alt="YEC Day Logo"
                     style={{
                       width: "120px",
