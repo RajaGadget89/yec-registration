@@ -6,7 +6,7 @@ on:
     paths:
       - 'migrations/**'
       - 'supabase/migrations/**'
-      - '.github/workflows/db-migration-optimized.yml'
+      - '.github/workflows/db-migration.yml'
   pull_request:
     branches: [ main, develop, staging, bugfix/recover-core-services-system ]
   workflow_dispatch:
@@ -73,7 +73,7 @@ jobs:
             migrations:
               - 'migrations/**/*.sql'
               - 'supabase/migrations/**/*.sql'
-              - '.github/workflows/db-migration-optimized.yml'
+              - '.github/workflows/db-migration.yml'
 
       - name: Analyze migration impact
         id: impact
