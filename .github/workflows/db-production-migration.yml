@@ -397,6 +397,29 @@ jobs:
           cat migration_diff.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+      # Regression guard: Prevent accidental re-introduction of direct DB connections
+      - name: Verify no direct DB connections in production job
+        if: steps.prod_diff.outputs.has_changes == 'true'
+        run: |
+          set -euo pipefail
+          echo "Checking for accidental direct DB connections..."
+          
+          # Check for --db-url usage in production job
+          if grep -n "\\-\\-db-url" .github/workflows/db-production-migration.yml | grep -v "#"; then
+            echo "❌ ERROR: Found --db-url usage in production job (lines above)"
+            echo "Production job must use --linked mode only to avoid IPv6 connection issues"
+            exit 1
+          fi
+          
+          # Check for SUPABASE_PROD_DB_URL usage in production job
+          if grep -n "SUPABASE_PROD_DB_URL" .github/workflows/db-production-migration.yml | grep -v "#"; then
+            echo "❌ ERROR: Found SUPABASE_PROD_DB_URL usage in production job (lines above)"
+            echo "Production job must not depend on direct DB URL to avoid IPv6 connection issues"
+            exit 1
+          fi
+          
+          echo "✅ No direct DB connections found - using linked mode only"
+
       # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
       - name: Dry run migration
         if: steps.prod_diff.outputs.has_changes == 'true'
