@@ -1,6 +1,6 @@
 export function getProjectRefFromUrl(supabaseUrl: string): string | null {
   try {
-    const host = new URL(supabaseUrl).host; // e.g. wvwzhpyvogwypmqgvtjv.supabase.co
+    const host = new URL(supabaseUrl).host; // e.g. your-project-ref.supabase.co
     return host.split('.')[0] || null;
   } catch {
     return null;
