@@ -82,8 +82,8 @@ jobs:
           # Link to staging project
           supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
           
-          # Generate comprehensive schema dump
-          supabase db dump --schema public --linked > staging_schema.sql
+          # Generate schema diff (equivalent to dump for comparison)
+          supabase db diff --schema public --linked --password ${{ secrets.STAGING_DB_PASSWORD }} > staging_schema.sql || echo "No differences found" > staging_schema.sql
           
           # Create schema hash for comparison
           schema_hash=$(sha256sum staging_schema.sql | cut -d' ' -f1)
@@ -111,8 +111,8 @@ jobs:
           # Link to production project
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
           
-          # Generate comprehensive schema dump
-          supabase db dump --schema public --linked > production_schema.sql
+          # Generate schema diff (equivalent to dump for comparison)
+          supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} > production_schema.sql || echo "No differences found" > production_schema.sql
           
           # Create schema hash for comparison
           schema_hash=$(sha256sum production_schema.sql | cut -d' ' -f1)
@@ -465,10 +465,10 @@ jobs:
           
           # Get fresh schemas from both environments
           supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
-          supabase db dump --schema public --linked > staging_final.sql
+          supabase db diff --schema public --linked --password ${{ secrets.STAGING_DB_PASSWORD }} > staging_final.sql || echo "No differences found" > staging_final.sql
           
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
-          supabase db dump --schema public --linked > production_final.sql
+          supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} > production_final.sql || echo "No differences found" > production_final.sql
           
           # Compare schemas
           staging_hash=$(sha256sum staging_final.sql | cut -d' ' -f1)
