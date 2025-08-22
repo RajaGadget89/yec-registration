@@ -349,8 +349,8 @@ jobs:
           echo "Migration files synced:"
           ls -la supabase/migrations/
 
-      # Using --linked mode to avoid IPv6 connection issues; non-blocking to prevent job failure
-      - name: Auto-repair remote_schema (if present)
+      # Using --linked mode to avoid IPv6 connection issues; read-only diagnostics only
+      - name: Production connection diagnostics (read-only)
         timeout-minutes: 5
         continue-on-error: true
         env:
@@ -359,7 +359,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "Auto-repair: Checking for orphaned remote_schema entries..."
+          echo "Production connection diagnostics (read-only)..."
           
           # Re-link to guarantee context for this step (workaround for matrix/runner shells losing state)
           echo "Re-linking to production project..."
@@ -372,10 +372,7 @@ jobs:
           # Connection smoke test
           supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" >/dev/null 2>&1 || echo "warn: connection test failed"
           
-          # Non-interactive repair
-          yes | supabase migration repair --status reverted --linked --password "${{ secrets.PROD_DB_PASSWORD }}" || echo "repair skipped"
-          
-          echo "Auto-repair process completed."
+          echo "Production connection diagnostics completed."
 
       # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
       - name: Generate production migration diff
@@ -456,6 +453,12 @@ jobs:
             echo "::warning::Detected raw CREATE POLICY; ensure it's wrapped with pg_policies guard per Playbook"
           fi
           
+          # Triggers must be guarded via DO $$ ... pg_trigger guard
+          if grep -RIn --include="*.sql" -E "^[[:space:]]*CREATE[[:space:]]+TRIGGER[[:space:]]" migrations/; then
+            echo "::error::Found raw CREATE TRIGGER; wrap in DO $$ IF NOT EXISTS(SELECT 1 FROM pg_trigger ...) THEN CREATE TRIGGER ... END IF; END $$;"
+            bad=1
+          fi
+          
           exit $bad
 
       # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
@@ -469,6 +472,34 @@ jobs:
           echo "Performing dry run of migration..."
           supabase db push --linked --dry-run --password "${{ secrets.PROD_DB_PASSWORD }}"
           echo "✅ Dry run completed successfully"
+
+      # Chain sanity check: prevent re-apply of historical migrations
+      - name: Chain sanity check (prevent re-apply of 001)
+        if: steps.prod_diff.outputs.has_changes == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_NON_INTERACTIVE: "1"
+        run: |
+          set -euo pipefail
+          echo "Chain sanity check: preventing re-apply of historical migrations..."
+          
+          # Capture dry-run output for analysis
+          supabase db push --linked --dry-run --password "${{ secrets.PROD_DB_PASSWORD }}" | tee prod_dry_run.txt
+          
+          # Check if dry-run would re-apply 001_initial_schema.sql (or any 001 migration)
+          if grep -q "_001_" prod_dry_run.txt; then
+            echo "::error::Production chain appears untracked (would re-apply 001). Refuse to deploy. Run one-time repair to mark historical migrations as applied."
+            echo "## Chain Sanity Check Failed" >> $GITHUB_STEP_SUMMARY
+            echo "Production database appears to have untracked migration chain." >> $GITHUB_STEP_SUMMARY
+            echo "**Dry-run output:**" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat prod_dry_run.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "**Action required:** Run one-time repair to mark historical migrations as applied." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+          
+          echo "✅ Chain sanity check passed - no historical migrations would be re-applied"
 
       # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
       - name: Apply migrations to production
@@ -538,6 +569,14 @@ jobs:
         with:
           name: prod-verify-diff
           path: verify_diff.txt
+          retention-days: 7
+
+      - name: Upload chain sanity check artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-chain-sanity-check
+          path: prod_dry_run.txt
           retention-days: 7
 
   # Deploy to staging (if requested)
