@@ -76,14 +76,17 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
+          STAGING_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
         run: |
+          set -euo pipefail
           echo "🔍 Discovering staging schema..."
           
           # Link to staging project
-          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password "${{ secrets.STAGING_DB_PASSWORD }}"
+          echo "Linking to staging project..."
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password "$STAGING_PASSWORD"
           
           # Generate schema diff (equivalent to dump for comparison)
-          supabase db diff --schema public --linked --password "${{ secrets.STAGING_DB_PASSWORD }}" > staging_schema.sql || echo "No differences found" > staging_schema.sql
+          supabase db diff --schema public --linked --password "$STAGING_PASSWORD" > staging_schema.sql || echo "No differences found" > staging_schema.sql
           
           # Create schema hash for comparison
           schema_hash=$(sha256sum staging_schema.sql | cut -d' ' -f1)
@@ -105,14 +108,17 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
+          PROD_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
+          set -euo pipefail
           echo "🔍 Discovering production schema..."
           
           # Link to production project
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "${{ secrets.PROD_DB_PASSWORD }}"
+          echo "Linking to production project..."
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "$PROD_PASSWORD"
           
           # Generate schema diff (equivalent to dump for comparison)
-          supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" > production_schema.sql || echo "No differences found" > production_schema.sql
+          supabase db diff --schema public --linked --password "$PROD_PASSWORD" > production_schema.sql || echo "No differences found" > production_schema.sql
           
           # Create schema hash for comparison
           schema_hash=$(sha256sum production_schema.sql | cut -d' ' -f1)
@@ -232,6 +238,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
         run: |
+          set -euo pipefail
           echo "🔍 Validating schema integrity..."
           
           # Link to staging for validation
@@ -312,6 +319,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
         run: |
+          set -euo pipefail
           echo "🔧 Generating schema repair migration..."
           
           # Link to staging (source of truth)
@@ -405,6 +413,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
         run: |
+          set -euo pipefail
           echo "🔄 Syncing migrations to ${{ steps.target_env.outputs.target_env }}..."
           
           # Sync migration files
@@ -461,6 +470,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
         run: |
+          set -euo pipefail
           echo "🔍 Verifying final schema parity..."
           
           # Get fresh schemas from both environments
