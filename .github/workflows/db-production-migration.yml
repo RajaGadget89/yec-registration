@@ -306,6 +306,17 @@ jobs:
             fi
           done
 
+      # Safety guard: Quick non-interactive probe to surface any connection issues
+      - name: Probe linked connection
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_NON_INTERACTIVE: "1"
+          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "Probing linked connection..."
+          timeout 20s supabase db diff --schema public --linked >/dev/null || echo "::warning::linked diff timed out"
+
       - name: Sync migrations to supabase/migrations
         run: |
           echo "Syncing migrations to supabase/migrations directory..."
@@ -346,6 +357,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
+          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
@@ -369,6 +381,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
+          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Generating production migration diff..."
@@ -420,12 +433,40 @@ jobs:
           
           echo "✅ No direct DB connections found - using linked mode only"
 
+      # Playbook guard-lint: prevent common non-idempotent SQL from entering prod
+      - name: Playbook guard-lint (idempotency/drift-safe checks)
+        if: steps.prod_diff.outputs.has_changes == 'true'
+        run: |
+          set -euo pipefail
+          echo "🔎 Playbook guard-lint (idempotency/drift-safe checks)"
+          bad=0
+          
+          # Columns without IF NOT EXISTS
+          if grep -RIn --include="*.sql" -E "ADD[[:space:]]+COLUMN(?!.*IF[[:space:]]+NOT[[:space:]]+EXISTS)" migrations/; then
+            echo "::error::Found ADD COLUMN without IF NOT EXISTS"
+            bad=1
+          fi
+          
+          # Indexes without IF NOT EXISTS
+          if grep -RIn --include="*.sql" -E "CREATE[[:space:]]+(UNIQUE[[:space:]]+)?INDEX(?!.*IF[[:space:]]+NOT[[:space:]]+EXISTS)" migrations/; then
+            echo "::error::Found CREATE INDEX without IF NOT EXISTS"
+            bad=1
+          fi
+          
+          # Heuristic for policies: flag plain CREATE POLICY lines (devs must wrap in DO $$ ... pg_policies guard)
+          if grep -RIn --include="*.sql" -E "^[[:space:]]*CREATE[[:space:]]+POLICY[[:space:]]" migrations/; then
+            echo "::warning::Detected raw CREATE POLICY; ensure it's wrapped with pg_policies guard per Playbook"
+          fi
+          
+          exit $bad
+
       # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
       - name: Dry run migration
         if: steps.prod_diff.outputs.has_changes == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
+          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Performing dry run of migration..."
@@ -438,6 +479,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
+          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Pushing migrations to production..."
@@ -458,6 +500,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
+          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Verifying production deployment..."
