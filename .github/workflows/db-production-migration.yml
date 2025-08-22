@@ -314,7 +314,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Probing linked connection..."
-          timeout 20s supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" >/dev/null || echo "::warning::linked diff timed out"
+          timeout 20s supabase db diff --schema public --linked > /dev/null 2>&1 || echo "::warning::linked diff timed out"
 
       - name: Sync migrations to supabase/migrations
         run: |
@@ -365,11 +365,11 @@ jobs:
           supabase --version
           echo "Using linked mode to avoid IPv6 connection issues"
           
-          # Simple connection test using linked mode with password
-          supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" >/dev/null 2>&1 || echo "warn: connection test failed"
+          # Simple connection test using linked mode
+          supabase db diff --schema public --linked >/dev/null 2>&1 || echo "warn: connection test failed"
           
-          # Repair orphaned entries using linked mode with password
-          yes | supabase migration repair --status reverted --linked --password "${{ secrets.PROD_DB_PASSWORD }}" || echo "repair skipped"
+          # Repair orphaned entries using linked mode
+          yes | supabase migration repair --status reverted --linked || echo "repair skipped"
           
           echo "Auto-repair process completed."
 
@@ -383,8 +383,8 @@ jobs:
           set -euo pipefail
           echo "Generating production migration diff..."
           
-          # Generate diff and capture output using linked mode with password
-          diff_output=$(supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" 2>&1 || echo "No diff or error")
+          # Generate diff and capture output using linked mode
+          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
           
           # Save diff output for debugging
           echo "$diff_output" > migration_diff.txt
@@ -463,7 +463,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "Performing dry run of migration..."
-          supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}" --dry-run
+          supabase db push --linked --dry-run
           echo "✅ Dry run completed successfully"
 
       # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
@@ -475,8 +475,8 @@ jobs:
         run: |
           set -euo pipefail
           echo "Pushing migrations to production..."
-          supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}" --dry-run
-          supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}"
+          supabase db push --linked --dry-run
+          supabase db push --linked
           echo "✅ Migrations deployed to production"
 
       - name: No changes to deploy
@@ -495,19 +495,19 @@ jobs:
         run: |
           set -euo pipefail
           echo "Verifying production deployment..."
-          
-          # Verify with no-op dry run using linked mode with password
-          verification_output=$(supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}" --dry-run 2>&1 || echo "Verification failed")
-          
+
+          # Non-interactive, linked mode verification (no --password here)
+          verification_output=$(supabase db diff --schema public --linked 2>&1 || true)
+          echo "$verification_output"
+
           if echo "$verification_output" | grep -q "No schema changes found"; then
             echo "✅ Production deployment verified successfully"
             echo "## Deployment Verification" >> $GITHUB_STEP_SUMMARY
             echo "✅ All migrations applied successfully" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Verification failed - changes may still be pending"
-            echo "Verification output: $verification_output"
+            echo "❌ Unexpected diff after deployment"
             echo "## Deployment Verification" >> $GITHUB_STEP_SUMMARY
-            echo "❌ Verification failed - changes may still be pending" >> $GITHUB_STEP_SUMMARY
+            echo "❌ Unexpected diff after deployment" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
