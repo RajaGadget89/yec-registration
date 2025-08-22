@@ -431,10 +431,22 @@ jobs:
           # Generate migration diff
           diff_output=$(supabase db diff --schema public --linked --password "${{ steps.target_env.outputs.db_password }}" 2>&1 || echo "No diff or error")
           
+          # Check if we should proceed with migrations
+          should_proceed=false
           if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
             echo "📦 Changes detected, applying migrations..."
-            
-            # PRE-MIGRATION CONFLICT RESOLUTION
+            should_proceed=true
+          elif [ "${{ github.event.inputs.force_sync }}" = "true" ]; then
+            echo "🚀 Force sync enabled, applying migrations regardless of diff..."
+            should_proceed=true
+          else
+            echo "✅ No changes to apply"
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "summary=No changes required for ${{ steps.target_env.outputs.target_env }}" >> $GITHUB_OUTPUT
+          fi
+          
+          if [ "$should_proceed" = "true" ]; then
+            # PRE-MIGRATION CONFLICT RESOLUTION (ALWAYS RUN FOR FORCE SYNC)
             echo "🔧 Pre-migration conflict resolution..."
             
             # Get the connection string for direct SQL execution
@@ -471,10 +483,6 @@ jobs:
             echo "✅ Migrations applied successfully"
             echo "success=true" >> $GITHUB_OUTPUT
             echo "summary=Migrations applied successfully to ${{ steps.target_env.outputs.target_env }}" >> $GITHUB_OUTPUT
-          else
-            echo "✅ No changes to apply"
-            echo "success=true" >> $GITHUB_OUTPUT
-            echo "summary=No changes required for ${{ steps.target_env.outputs.target_env }}" >> $GITHUB_OUTPUT
           fi
 
   # Phase 5: Post-Sync Validation
