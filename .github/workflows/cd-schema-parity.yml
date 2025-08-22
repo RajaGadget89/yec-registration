@@ -53,6 +53,7 @@ jobs:
   schema_discovery:
     name: Schema Discovery & Analysis
     runs-on: ubuntu-latest
+    environment: production
     outputs:
       staging_schema_hash: ${{ steps.staging_schema.outputs.schema_hash }}
       production_schema_hash: ${{ steps.production_schema.outputs.schema_hash }}
@@ -212,6 +213,7 @@ jobs:
   schema_validation:
     name: Schema Parity Validation
     runs-on: ubuntu-latest
+    environment: production
     needs: schema_discovery
     if: |
       always() && 
@@ -293,6 +295,7 @@ jobs:
   schema_repair:
     name: Schema Drift Repair
     runs-on: ubuntu-latest
+    environment: production
     needs: [schema_discovery, schema_validation]
     if: |
       always() && 
@@ -451,6 +454,7 @@ jobs:
   post_sync_validation:
     name: Post-Sync Validation
     runs-on: ubuntu-latest
+    environment: production
     needs: [schema_discovery, schema_sync]
     if: |
       always() && 
@@ -519,6 +523,7 @@ jobs:
   cd_summary:
     name: CD Summary & Reporting
     runs-on: ubuntu-latest
+    environment: production
     needs: [schema_discovery, schema_validation, schema_repair, schema_sync, post_sync_validation]
     if: always()
     steps:
