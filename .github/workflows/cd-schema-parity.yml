@@ -443,8 +443,34 @@ jobs:
             if echo "$dry_run_output" | grep -q "already exists"; then
               echo "⚠️ Some objects already exist, attempting to resolve conflicts..."
               
-              # Skip dropping objects - let the migration handle conflicts
-              echo "🔧 Skipping object drops - letting migration handle conflicts..."
+              # Drop conflicting objects before applying migrations
+              echo "🔧 Dropping conflicting objects..."
+              
+              # Get the connection string for direct SQL execution
+              # Use the project ref to construct connection string
+              if [ "${{ steps.target_env.outputs.target_env }}" = "production" ]; then
+                connection_string="postgresql://postgres:${{ secrets.PROD_DB_PASSWORD }}@db.${{ secrets.SB_PROD_REF }}.supabase.co:5432/postgres"
+              else
+                connection_string="postgresql://postgres:${{ secrets.STAGING_DB_PASSWORD }}@db.${{ secrets.SB_STAGING_REF }}.supabase.co:5432/postgres"
+              fi
+              
+              if [ -n "$connection_string" ]; then
+                echo "🔧 Dropping conflicting triggers and functions..."
+                
+                # Drop triggers that might conflict
+                psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_creation ON deep_link_tokens CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
+                psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_usage ON deep_link_tokens CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
+                psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_audit ON deep_link_token_audit CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
+                
+                # Drop functions that might conflict
+                psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_creation() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+                psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_usage() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+                psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_audit() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+                
+                echo "✅ Conflicting objects dropped"
+              else
+                echo "⚠️ Could not get connection string, proceeding without dropping objects"
+              fi
               
               # Try to apply with conflict resolution and force
               echo "y" | supabase db push --password "${{ steps.target_env.outputs.db_password }}" --debug
