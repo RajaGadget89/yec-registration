@@ -311,11 +311,10 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Probing linked connection..."
-          timeout 20s supabase db diff --schema public --linked >/dev/null || echo "::warning::linked diff timed out"
+          timeout 20s supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" >/dev/null || echo "::warning::linked diff timed out"
 
       - name: Sync migrations to supabase/migrations
         run: |
@@ -357,7 +356,6 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
@@ -367,11 +365,11 @@ jobs:
           supabase --version
           echo "Using linked mode to avoid IPv6 connection issues"
           
-          # Simple connection test using linked mode
-          supabase db diff --schema public --linked >/dev/null 2>&1 || echo "warn: connection test failed"
+          # Simple connection test using linked mode with password
+          supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" >/dev/null 2>&1 || echo "warn: connection test failed"
           
-          # Repair orphaned entries using linked mode
-          yes | supabase migration repair --status reverted
+          # Repair orphaned entries using linked mode with password
+          yes | supabase migration repair --status reverted --linked --password "${{ secrets.PROD_DB_PASSWORD }}" || echo "repair skipped"
           
           echo "Auto-repair process completed."
 
@@ -381,13 +379,12 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Generating production migration diff..."
           
-          # Generate diff and capture output using linked mode
-          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
+          # Generate diff and capture output using linked mode with password
+          diff_output=$(supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" 2>&1 || echo "No diff or error")
           
           # Save diff output for debugging
           echo "$diff_output" > migration_diff.txt
@@ -415,23 +412,20 @@ jobs:
         if: steps.prod_diff.outputs.has_changes == 'true'
         run: |
           set -euo pipefail
-          echo "Checking for accidental direct DB connections..."
+          echo "Checking for accidental direct DB connections in production job block..."
           
-          # Check for --db-url usage in production job
-          if grep -n "\\-\\-db-url" .github/workflows/db-production-migration.yml | grep -v "#"; then
-            echo "❌ ERROR: Found --db-url usage in production job (lines above)"
-            echo "Production job must use --linked mode only to avoid IPv6 connection issues"
+          # Scope the check to only the production job block to avoid false positives from Shadow/CI jobs
+          awk '
+            in_block && /^[^[:space:]]/ { exit }     # next top-level job => stop
+            /^deploy_production:/ { in_block=1 }     # start
+            in_block { print }
+          ' .github/workflows/db-production-migration.yml \
+          | grep -n -- '--db-url\|SUPABASE_PROD_DB_URL' && {
+            echo "❌ ERROR: Found direct DB connection usage in production job"
+            echo "Production job must use --linked --password mode only to avoid IPv6 connection issues"
             exit 1
-          fi
-          
-          # Check for SUPABASE_PROD_DB_URL usage in production job
-          if grep -n "SUPABASE_PROD_DB_URL" .github/workflows/db-production-migration.yml | grep -v "#"; then
-            echo "❌ ERROR: Found SUPABASE_PROD_DB_URL usage in production job (lines above)"
-            echo "Production job must not depend on direct DB URL to avoid IPv6 connection issues"
-            exit 1
-          fi
-          
-          echo "✅ No direct DB connections found - using linked mode only"
+          }
+          echo "✅ No direct DB connections found in production job"
 
       # Playbook guard-lint: prevent common non-idempotent SQL from entering prod
       - name: Playbook guard-lint (idempotency/drift-safe checks)
@@ -466,11 +460,10 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Performing dry run of migration..."
-          supabase db push --linked --dry-run
+          supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}" --dry-run
           echo "✅ Dry run completed successfully"
 
       # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
@@ -479,12 +472,11 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Pushing migrations to production..."
-          supabase db push --linked --dry-run
-          supabase db push --linked
+          supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}" --dry-run
+          supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}"
           echo "✅ Migrations deployed to production"
 
       - name: No changes to deploy
@@ -500,13 +492,12 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "Verifying production deployment..."
           
-          # Verify with no-op dry run using linked mode
-          verification_output=$(supabase db push --linked --dry-run 2>&1 || echo "Verification failed")
+          # Verify with no-op dry run using linked mode with password
+          verification_output=$(supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}" --dry-run 2>&1 || echo "Verification failed")
           
           if echo "$verification_output" | grep -q "No schema changes found"; then
             echo "✅ Production deployment verified successfully"
