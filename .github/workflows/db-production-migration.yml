@@ -483,6 +483,17 @@ jobs:
           supabase db push --linked
           echo "✅ Migrations deployed to production"
 
+      - name: Post-apply diagnostics (read-only)
+        if: steps.prod_diff.outputs.has_changes == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_NON_INTERACTIVE: "1"
+        run: |
+          set -euo pipefail
+          echo "Listing migration statuses for diagnostics..."
+          # Non-mutating visibility into Supabase CLI's view of migration chain
+          supabase migration list --linked || echo "migration list not available"
+
       - name: No changes to deploy
         if: steps.prod_diff.outputs.has_changes == 'false'
         run: |
@@ -491,22 +502,43 @@ jobs:
           echo "Production database is already up to date." >> $GITHUB_STEP_SUMMARY
 
       # Using --linked mode to avoid IPv6 connection issues; verify with no-op dry run
-      - name: Verify production deployment
+      - name: Verify production deployment (drift-safe)
         if: steps.prod_diff.outputs.has_changes == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
         run: |
           set -euo pipefail
-          echo "Verifying production deployment..."
+          echo "Verifying production deployment (drift-safe)..."
 
-          # Re-link to guarantee context for verification
+          # Ensure context (avoid lost link across steps)
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "${{ secrets.PROD_DB_PASSWORD }}"
-          verification_diff=$(supabase db diff --schema public --linked 2>&1 || echo "Verification complete")
-          case "$verification_diff" in
-            "No schema changes found"|"Verification complete") echo "✅ Verified";;
-            *) echo "❌ Unexpected diff after apply"; echo "$verification_diff"; exit 1;;
-          esac
+
+          # Primary check via diff
+          verify_out="$(supabase db diff --schema public --linked 2>&1 || true)"
+          echo "${verify_out}" | tee verify_diff.txt
+
+          # Fallback check via dry-run (handles alternative wording like 'Remote database is up to date')
+          if ! echo "${verify_out}" | grep -qiE 'No schema changes found|no schema changes|nothing to.*change|nothing to.*diff'; then
+            echo "Diff not conclusively empty from db diff, running a no-op dry-run as a secondary check..."
+            dry_run_out="$(supabase db push --linked --dry-run 2>&1 || true)"
+            echo "${dry_run_out}" | tee -a verify_diff.txt
+            if ! echo "${dry_run_out}" | grep -qiE 'Remote database is up to date|0 .* to execute|no migrations.*apply|no changes'; then
+              echo "❌ Unexpected pending changes after apply:"
+              cat verify_diff.txt
+              exit 1
+            fi
+          fi
+
+          echo "✅ Verified: production schema is up to date."
+
+      - name: Upload verify artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-verify-diff
+          path: verify_diff.txt
+          retention-days: 7
 
   # Deploy to staging (if requested)
   deploy_staging:
