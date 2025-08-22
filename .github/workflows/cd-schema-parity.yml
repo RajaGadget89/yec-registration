@@ -82,7 +82,7 @@ jobs:
           supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
           
           # Generate comprehensive schema dump
-          supabase db dump --schema public --data-only=false --schema-only=true --linked > staging_schema.sql
+          supabase db dump --schema public --linked > staging_schema.sql
           
           # Create schema hash for comparison
           schema_hash=$(sha256sum staging_schema.sql | cut -d' ' -f1)
@@ -110,7 +110,7 @@ jobs:
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
           
           # Generate comprehensive schema dump
-          supabase db dump --schema public --data-only=false --schema-only=true --linked > production_schema.sql
+          supabase db dump --schema public --linked > production_schema.sql
           
           # Create schema hash for comparison
           schema_hash=$(sha256sum production_schema.sql | cut -d' ' -f1)
@@ -240,7 +240,7 @@ jobs:
           
           # Test 1: Verify all tables exist and are accessible
           echo "Test 1: Table accessibility..."
-          table_test=$(supabase db diff --schema public --linked 2>&1 || echo "Table test failed")
+          table_test=$(supabase db diff --schema public --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Table test failed")
           if echo "$table_test" | grep -q "error\|Error\|ERROR"; then
             validation_errors=$((validation_errors + 1))
             validation_details="$validation_details Table accessibility issues detected;"
@@ -459,10 +459,10 @@ jobs:
           
           # Get fresh schemas from both environments
           supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
-          supabase db dump --schema public --data-only=false --schema-only=true --linked > staging_final.sql
+          supabase db dump --schema public --linked > staging_final.sql
           
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
-          supabase db dump --schema public --data-only=false --schema-only=true --linked > production_final.sql
+          supabase db dump --schema public --linked > production_final.sql
           
           # Compare schemas
           staging_hash=$(sha256sum staging_final.sql | cut -d' ' -f1)
