@@ -9,7 +9,6 @@ on:
         default: 'production'
         type: choice
         options:
-          - staging
           - production
       skip_tests:
         description: 'Skip migration tests (not recommended)'
@@ -243,66 +242,7 @@ jobs:
         if: always()
         run: supabase stop
 
-  # Deploy to staging environment (if staging selected)
-  deploy_staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: detect_changes
-    if: |
-      (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
-      github.event.inputs.target_environment == 'staging'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: ${{ env.SUPABASE_CLI_VERSION }}
-
-      - name: Link to staging project
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
-
-      - name: Sync migrations to supabase/migrations
-        run: |
-          mkdir -p supabase/migrations
-          rsync -a --delete migrations/ supabase/migrations/
-
-      - name: Generate migration diff
-        id: diff
-        run: |
-          echo "Generating migration diff..."
-          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "No diff or error")
-          echo "diff_output<<EOF" >> $GITHUB_OUTPUT
-          echo "$diff_output" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Push migrations to staging
-        if: steps.diff.outputs.has_changes == 'true'
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          echo "Pushing migrations to staging..."
-          supabase db push --dry-run --password ${{ secrets.STAGING_DB_PASSWORD }}
-          supabase db push --password ${{ secrets.STAGING_DB_PASSWORD }}
-          echo "✅ Migrations deployed to staging"
-
-      - name: No changes to deploy
-        if: steps.diff.outputs.has_changes == 'false'
-        run: |
-          echo "No database changes detected. Skipping deployment."
 
   # Deploy to production (manual approval required)
   deploy_production:
@@ -372,10 +312,9 @@ jobs:
   quick_migration_validation:
     name: Quick Migration Validation
     runs-on: ubuntu-latest
-    needs: [detect_changes, deploy_staging, deploy_production]
+    needs: [detect_changes, deploy_production]
     if: |
-      (needs.deploy_staging.result == 'success' || needs.deploy_staging.result == 'skipped') &&
-      (needs.deploy_production.result == 'success' || needs.deploy_production.result == 'skipped')
+      needs.deploy_production.result == 'success' || needs.deploy_production.result == 'skipped'
     timeout-minutes: 5
     concurrency:
       group: quick-validation-${{ github.ref }}
@@ -386,8 +325,6 @@ jobs:
       - name: Debug quick validation condition
         run: |
           echo "🔍 DEBUG: Quick migration validation job condition check:"
-          echo "always(): true (always runs)"
-          echo "deploy_staging.result: '${{ needs.deploy_staging.result }}'"
           echo "deploy_production.result: '${{ needs.deploy_production.result }}'"
           echo "email_related_changes: '${{ needs.detect_changes.outputs.email_related_changes }}'"
           echo "schema_only_changes: '${{ needs.detect_changes.outputs.schema_only_changes }}'"
@@ -638,7 +575,7 @@ jobs:
   deployment_summary:
     name: CD Standard Migration Summary
     runs-on: ubuntu-latest
-    needs: [deploy_staging, deploy_production, quick_migration_validation, full_e2e_tests]
+    needs: [deploy_production, quick_migration_validation, full_e2e_tests]
     if: always()
     steps:
       - name: Checkout code
