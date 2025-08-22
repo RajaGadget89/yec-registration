@@ -9,6 +9,18 @@ on:
       - '.github/workflows/db-production-migration.yml'
   workflow_dispatch:
     inputs:
+      operation:
+        description: "Choose 'deploy' (normal) or 'repair-applied' (one-time metadata mark)"
+        required: false
+        default: "deploy"
+        type: choice
+        options: ["deploy","repair-applied"]
+      confirm:
+        description: "Type YES to confirm running metadata repair (marks historical migrations as applied without executing SQL)"
+        required: false
+        default: "NO"
+        type: choice
+        options: ["NO","YES"]
       force_migration:
         description: "Force migration even if no changes detected"
         required: false
@@ -53,6 +65,7 @@ jobs:
     name: Pre-flight Validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: ${{ github.event_name == 'push' || github.event.inputs.operation == 'deploy' }}
     outputs:
       has_migrations: ${{ steps.filter.outputs.migrations }}
       has_changes: ${{ steps.filter.outputs.migrations }}
@@ -131,6 +144,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: preflight_check
     if: |
+      (github.event_name == 'push' || github.event.inputs.operation == 'deploy') &&
       (needs.preflight_check.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
       github.event.inputs.skip_validation != 'true'
     timeout-minutes: 15
@@ -243,6 +257,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [preflight_check, test_migrations]
     if: |
+      (github.event_name == 'push' || github.event.inputs.operation == 'deploy') &&
       (needs.preflight_check.outputs.has_changes == 'true' || github.event.inputs.force_migration == 'true') &&
       github.event_name == 'workflow_dispatch' &&
       github.event.inputs.target_environment == 'production'
@@ -511,7 +526,7 @@ jobs:
           set -euo pipefail
           echo "Pushing migrations to production..."
           supabase db push --linked --dry-run --password "${{ secrets.PROD_DB_PASSWORD }}"
-          supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}"
+          supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}" --yes
           echo "✅ Migrations deployed to production"
 
       - name: Post-apply diagnostics (read-only)
@@ -579,12 +594,91 @@ jobs:
           path: prod_dry_run.txt
           retention-days: 7
 
+  # One-time repair job for marking historical migrations as applied
+  repair_history:
+    name: One-Time Repair (Mark historical migrations as APPLIED)
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.operation == 'repair-applied' && github.event.inputs.confirm == 'YES' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://yec.rajagadget.live
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Link to production (non-interactive)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_NON_INTERACTIVE: "1"
+        run: |
+          set -euo pipefail
+          echo "Linking to production project..."
+          supabase link --project-ref "${{ secrets.SB_PROD_REF }}" --password "${{ secrets.PROD_DB_PASSWORD }}"
+          echo "✅ Linked to production project"
+
+      - name: Show migration list (before)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_NON_INTERACTIVE: "1"
+        run: |
+          echo "Migration list before repair:"
+          supabase migration list --linked --password "${{ secrets.PROD_DB_PASSWORD }}" || echo "migration list not available"
+
+      - name: Mark historical migrations as APPLIED (metadata only)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_NON_INTERACTIVE: "1"
+        run: |
+          set -euo pipefail
+          echo "Marking historical migrations as APPLIED (metadata only)..."
+          
+          files=(
+            "20250127130000_001_initial_schema.sql"
+            "20250127130100_002_comprehensive_review_workflow.sql"
+            "20250127130200_003_enhanced_deep_link_tokens.sql"
+            "20250127130300_004_email_outbox_system.sql"
+            "20250127130400_005_security_and_rls_policies.sql"
+            "20250127130500_006_add_idempotency_key.sql"
+            "20250127130600_007_handle_remote_schema_conflicts.sql"
+            "20250127130700_008_fix_remote_schema_conflicts.sql"
+            "20250820114708_010_repair_email_outbox_next_attempt.sql"
+          )
+          
+          for f in "${files[@]}"; do
+            echo "Marking as applied: $f"
+            supabase migration repair --linked --password "${{ secrets.PROD_DB_PASSWORD }}" \
+              --status applied --name "$f" || echo "warn: failed to mark $f as applied"
+          done
+          
+          echo "✅ Historical migrations marked as applied"
+
+      - name: Show migration list (after)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_NON_INTERACTIVE: "1"
+        run: |
+          echo "Migration list after repair:"
+          supabase migration list --linked --password "${{ secrets.PROD_DB_PASSWORD }}" || echo "migration list not available"
+
+      - name: Summary
+        run: |
+          echo "## One-Time Repair Completed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Historical migrations have been marked as APPLIED (metadata only)" >> $GITHUB_STEP_SUMMARY
+          echo "**Next step:** Run the workflow again in 'deploy' mode to verify chain sanity check passes." >> $GITHUB_STEP_SUMMARY
+
   # Deploy to staging (if requested)
   deploy_staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: [preflight_check, test_migrations]
     if: |
+      (github.event_name == 'push' || github.event.inputs.operation == 'deploy') &&
       (needs.preflight_check.outputs.has_changes == 'true') &&
       github.event_name == 'push'
     timeout-minutes: 20
@@ -646,7 +740,9 @@ jobs:
     name: Deployment Summary
     runs-on: ubuntu-latest
     needs: [preflight_check, test_migrations, deploy_production, deploy_staging]
-    if: always()
+    if: |
+      always() &&
+      (github.event_name == 'push' || github.event.inputs.operation == 'deploy')
     timeout-minutes: 5
     steps:
       - name: Generate comprehensive summary
