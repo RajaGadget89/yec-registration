@@ -434,50 +434,39 @@ jobs:
           if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
             echo "📦 Changes detected, applying migrations..."
             
-            # Dry run first
-            echo "🔍 Performing dry run..."
-            dry_run_output=$(supabase db push --dry-run --password "${{ steps.target_env.outputs.db_password }}" 2>&1 || echo "Dry run completed")
-            echo "Dry run result: $dry_run_output"
+            # PRE-MIGRATION CONFLICT RESOLUTION
+            echo "🔧 Pre-migration conflict resolution..."
             
-            # Check if there are any conflicts
-            if echo "$dry_run_output" | grep -q "already exists"; then
-              echo "⚠️ Some objects already exist, attempting to resolve conflicts..."
-              
-              # Drop conflicting objects before applying migrations
-              echo "🔧 Dropping conflicting objects..."
-              
-              # Get the connection string for direct SQL execution
-              # Use the project ref to construct connection string
-              if [ "${{ steps.target_env.outputs.target_env }}" = "production" ]; then
-                connection_string="postgresql://postgres:${{ secrets.PROD_DB_PASSWORD }}@db.${{ secrets.SB_PROD_REF }}.supabase.co:5432/postgres"
-              else
-                connection_string="postgresql://postgres:${{ secrets.STAGING_DB_PASSWORD }}@db.${{ secrets.SB_STAGING_REF }}.supabase.co:5432/postgres"
-              fi
-              
-              if [ -n "$connection_string" ]; then
-                echo "🔧 Dropping conflicting triggers and functions..."
-                
-                # Drop triggers that might conflict
-                psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_creation ON deep_link_tokens CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
-                psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_usage ON deep_link_tokens CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
-                psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_audit ON deep_link_token_audit CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
-                
-                # Drop functions that might conflict
-                psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_creation() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
-                psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_usage() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
-                psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_audit() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
-                
-                echo "✅ Conflicting objects dropped"
-              else
-                echo "⚠️ Could not get connection string, proceeding without dropping objects"
-              fi
-              
-              # Try to apply with conflict resolution and force
-              echo "y" | supabase db push --password "${{ steps.target_env.outputs.db_password }}" --debug
+            # Get the connection string for direct SQL execution
+            if [ "${{ steps.target_env.outputs.target_env }}" = "production" ]; then
+              connection_string="postgresql://postgres:${{ secrets.PROD_DB_PASSWORD }}@db.${{ secrets.SB_PROD_REF }}.supabase.co:5432/postgres"
             else
-              # Apply migrations normally with explicit yes
-              echo "y" | supabase db push --password "${{ steps.target_env.outputs.db_password }}"
+              connection_string="postgresql://postgres:${{ secrets.STAGING_DB_PASSWORD }}@db.${{ secrets.SB_STAGING_REF }}.supabase.co:5432/postgres"
             fi
+            
+            if [ -n "$connection_string" ]; then
+              echo "🔧 Pre-emptively dropping potentially conflicting objects..."
+              
+              # Drop triggers that might conflict (BEFORE migration starts)
+              echo "Dropping triggers..."
+              psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_creation ON deep_link_tokens CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
+              psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_usage ON deep_link_tokens CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
+              psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_audit ON deep_link_token_audit CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
+              
+              # Drop functions that might conflict (BEFORE migration starts)
+              echo "Dropping functions..."
+              psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_creation() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+              psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_usage() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+              psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_audit() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+              
+              echo "✅ Pre-migration cleanup completed"
+            else
+              echo "⚠️ Could not get connection string, proceeding without pre-cleanup"
+            fi
+            
+            # Now apply migrations with clean slate
+            echo "🚀 Applying migrations after pre-cleanup..."
+            echo "y" | supabase db push --password "${{ steps.target_env.outputs.db_password }}"
             
             echo "✅ Migrations applied successfully"
             echo "success=true" >> $GITHUB_OUTPUT
