@@ -144,8 +144,6 @@ jobs:
             const contexts = [
               'Database Migration Pipeline / Validate Migration Files (pull_request)',
               'Database Migration Pipeline / Test Migrations (Shadow DB) (pull_request)',
-              'Database Migration Pipeline / Deploy to Staging (pull_request)',
-              'Database Migration Pipeline / Deploy to Production (pull_request)',
               'Database Migration Pipeline / Quick Migration Validation (pull_request)',
               'Database Migration Pipeline / Full E2E Tests (pull_request)'
             ];
