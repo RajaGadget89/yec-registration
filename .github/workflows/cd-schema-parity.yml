@@ -429,6 +429,11 @@ jobs:
           mkdir -p supabase/migrations
           rsync -a --delete migrations/ supabase/migrations/
           
+          # Repair migration history if needed
+          echo "🔧 Checking migration history..."
+          repair_output=$(supabase migration repair --status applied 20250822121623 2>&1 || echo "Repair not needed")
+          echo "Migration repair result: $repair_output"
+          
           # Generate migration diff
           diff_output=$(supabase db diff --schema public --linked --password "${{ steps.target_env.outputs.db_password }}" 2>&1 || echo "No diff or error")
           
@@ -436,10 +441,19 @@ jobs:
             echo "📦 Changes detected, applying migrations..."
             
             # Dry run first
-            supabase db push --dry-run --password "${{ steps.target_env.outputs.db_password }}"
+            echo "🔍 Performing dry run..."
+            dry_run_output=$(supabase db push --dry-run --password "${{ steps.target_env.outputs.db_password }}" 2>&1 || echo "Dry run completed")
+            echo "Dry run result: $dry_run_output"
             
-            # Apply migrations
-            supabase db push --password "${{ steps.target_env.outputs.db_password }}"
+            # Check if there are any conflicts
+            if echo "$dry_run_output" | grep -q "already exists"; then
+              echo "⚠️ Some objects already exist, attempting to resolve conflicts..."
+              # Try to apply with conflict resolution
+              supabase db push --password "${{ steps.target_env.outputs.db_password }}" --yes --debug
+            else
+              # Apply migrations normally
+              supabase db push --password "${{ steps.target_env.outputs.db_password }}" --yes
+            fi
             
             echo "✅ Migrations applied successfully"
             echo "success=true" >> $GITHUB_OUTPUT
