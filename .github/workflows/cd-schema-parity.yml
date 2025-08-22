@@ -108,17 +108,23 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
-          PROD_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           echo "🔍 Discovering production schema..."
           
+          # Debug: Check if password secret is available
+          if [ -z "${{ secrets.PROD_DB_PASSWORD }}" ]; then
+            echo "❌ ERROR: PROD_DB_PASSWORD secret is empty or not set"
+            exit 1
+          fi
+          echo "✅ PROD_DB_PASSWORD secret is available"
+          
           # Link to production project
           echo "Linking to production project..."
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "$PROD_PASSWORD"
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "${{ secrets.PROD_DB_PASSWORD }}"
           
           # Generate schema diff (equivalent to dump for comparison)
-          supabase db diff --schema public --linked > production_schema.sql || echo "No differences found" > production_schema.sql
+          supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" > production_schema.sql || echo "No differences found" > production_schema.sql
           
           # Create schema hash for comparison
           schema_hash=$(sha256sum production_schema.sql | cut -d' ' -f1)
@@ -250,7 +256,7 @@ jobs:
           
           # Test 1: Verify all tables exist and are accessible
           echo "Test 1: Table accessibility..."
-          table_test=$(supabase db diff --schema public --linked 2>&1 || echo "Table test failed")
+          table_test=$(supabase db diff --schema public --linked --password "${{ secrets.STAGING_DB_PASSWORD }}" 2>&1 || echo "Table test failed")
           if echo "$table_test" | grep -q "error\|Error\|ERROR"; then
             validation_errors=$((validation_errors + 1))
             validation_details="$validation_details Table accessibility issues detected;"
@@ -421,7 +427,7 @@ jobs:
           rsync -a --delete migrations/ supabase/migrations/
           
           # Generate migration diff
-          diff_output=$(supabase db diff --schema public --linked 2>&1 || echo "No diff or error")
+          diff_output=$(supabase db diff --schema public --linked --password "${{ steps.target_env.outputs.db_password }}" 2>&1 || echo "No diff or error")
           
           if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
             echo "📦 Changes detected, applying migrations..."
@@ -475,10 +481,10 @@ jobs:
           
           # Get fresh schemas from both environments
           supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password "${{ secrets.STAGING_DB_PASSWORD }}"
-          supabase db diff --schema public --linked > staging_final.sql || echo "No differences found" > staging_final.sql
+          supabase db diff --schema public --linked --password "${{ secrets.STAGING_DB_PASSWORD }}" > staging_final.sql || echo "No differences found" > staging_final.sql
           
           supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "${{ secrets.PROD_DB_PASSWORD }}"
-          supabase db diff --schema public --linked > production_final.sql || echo "No differences found" > production_final.sql
+          supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" > production_final.sql || echo "No differences found" > production_final.sql
           
           # Compare schemas
           staging_hash=$(sha256sum staging_final.sql | cut -d' ' -f1)
