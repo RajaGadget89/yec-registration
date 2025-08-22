@@ -642,65 +642,52 @@ jobs:
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
 
-      - name: Link to production (non-interactive)
+      - name: Link to production project (repair)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
         run: |
           set -euo pipefail
-          echo "Linking to production project..."
           supabase link --project-ref "${{ secrets.SB_PROD_REF }}" --password "${{ secrets.PROD_DB_PASSWORD }}"
-          echo "✅ Linked to production project"
 
-      - name: Show migration list (before)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_NON_INTERACTIVE: "1"
-        run: |
-          echo "Migration list before repair:"
-          supabase migration list --linked --password "${{ secrets.PROD_DB_PASSWORD }}" || echo "migration list not available"
-
-      - name: Mark historical migrations as APPLIED (metadata only)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_NON_INTERACTIVE: "1"
+      - name: Compute pending migrations (dry-run; read-only)
+        id: pending
         run: |
           set -euo pipefail
-          echo "Marking historical migrations as APPLIED (metadata only)..."
-          
-          files=(
-            "20250127130000_001_initial_schema.sql"
-            "20250127130100_002_comprehensive_review_workflow.sql"
-            "20250127130200_003_enhanced_deep_link_tokens.sql"
-            "20250127130300_004_email_outbox_system.sql"
-            "20250127130400_005_security_and_rls_policies.sql"
-            "20250127130500_006_add_idempotency_key.sql"
-            "20250127130600_007_handle_remote_schema_conflicts.sql"
-            "20250127130700_008_fix_remote_schema_conflicts.sql"
-            "20250820114708_010_repair_email_outbox_next_attempt.sql"
-          )
-          
-          for f in "${files[@]}"; do
-            echo "Marking as applied: $f"
-            supabase migration repair --linked --password "${{ secrets.PROD_DB_PASSWORD }}" \
-              --status applied --name "$f" || echo "warn: failed to mark $f as applied"
-          done
-          
-          echo "✅ Historical migrations marked as applied"
+          supabase db push --linked --dry-run --password "${{ secrets.PROD_DB_PASSWORD }}" | tee prod_dry_run.txt
+          awk '/Would push these migrations:/{f=1;next} f && NF{print $1} /^$/{f=0}' prod_dry_run.txt > pending_migrations.txt || true
+          count=$(wc -l < pending_migrations.txt 2>/dev/null || echo 0)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Pending count: $count"
 
-      - name: Show migration list (after)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_NON_INTERACTIVE: "1"
+      - name: Mark pending migrations as APPLIED (metadata only; no SQL)
+        if: steps.pending.outputs.count != '0'
         run: |
-          echo "Migration list after repair:"
-          supabase migration list --linked --password "${{ secrets.PROD_DB_PASSWORD }}" || echo "migration list not available"
+          set -euo pipefail
+          failures=0
+          while read -r f; do
+            [ -z "$f" ] && continue
+            ver="${f%%_*}"  # timestamp prefix before first underscore
+            echo "Marking $f (version=$ver) as APPLIED"
+            # Try by name first; fall back to version for older/newer CLI variants
+            supabase migration repair --linked --password "${{ secrets.PROD_DB_PASSWORD }}" --status applied --name "$f" || \
+            supabase migration repair --linked --password "${{ secrets.PROD_DB_PASSWORD }}" --status applied --version "$ver" || failures=$((failures+1))
+          done < pending_migrations.txt
 
-      - name: Summary
-        run: |
-          echo "## One-Time Repair Completed" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Historical migrations have been marked as APPLIED (metadata only)" >> $GITHUB_STEP_SUMMARY
-          echo "**Next step:** Run the workflow again in 'deploy' mode to verify chain sanity check passes." >> $GITHUB_STEP_SUMMARY
+          if [ "$failures" -gt 0 ]; then
+            echo "❌ Some entries could not be marked applied"; exit 1
+          fi
+          echo "✅ Metadata repair complete"
+
+      - name: Upload repair evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repair-pending-evidence
+          path: |
+            prod_dry_run.txt
+            pending_migrations.txt
+          retention-days: 7
 
   # Deploy to staging (if requested)
   deploy_staging:
