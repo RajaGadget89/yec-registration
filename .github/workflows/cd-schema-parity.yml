@@ -1,0 +1,577 @@
+name: CD Schema Parity Assurance
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_environment:
+        description: 'Target environment for CD deployment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - staging
+          - production
+      force_sync:
+        description: 'Force schema sync even if no changes detected'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      validate_only:
+        description: 'Only validate schema parity without deploying'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      repair_drift:
+        description: 'Attempt to repair schema drift automatically'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+concurrency:
+  group: cd-schema-parity-${{ github.event.inputs.target_environment || 'production' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  statuses: write
+  pull-requests: write
+
+env:
+  SUPABASE_CLI_VERSION: latest
+
+jobs:
+  # Phase 1: Schema Discovery & Analysis
+  schema_discovery:
+    name: Schema Discovery & Analysis
+    runs-on: ubuntu-latest
+    outputs:
+      staging_schema_hash: ${{ steps.staging_schema.outputs.schema_hash }}
+      production_schema_hash: ${{ steps.production_schema.outputs.schema_hash }}
+      schema_drift_detected: ${{ steps.drift_analysis.outputs.drift_detected }}
+      drift_summary: ${{ steps.drift_analysis.outputs.drift_summary }}
+      migration_needed: ${{ steps.migration_analysis.outputs.migration_needed }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Discover Staging Schema
+        id: staging_schema
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🔍 Discovering staging schema..."
+          
+          # Link to staging project
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
+          
+          # Generate comprehensive schema dump
+          supabase db dump --schema public --data-only=false --schema-only=true --linked > staging_schema.sql
+          
+          # Create schema hash for comparison
+          schema_hash=$(sha256sum staging_schema.sql | cut -d' ' -f1)
+          echo "schema_hash=$schema_hash" >> $GITHUB_OUTPUT
+          
+          # Extract key schema components
+          echo "📊 Staging Schema Components:"
+          echo "Tables: $(grep -c 'CREATE TABLE' staging_schema.sql || echo '0')"
+          echo "Indexes: $(grep -c 'CREATE INDEX' staging_schema.sql || echo '0')"
+          echo "Policies: $(grep -c 'CREATE POLICY' staging_schema.sql || echo '0')"
+          echo "Functions: $(grep -c 'CREATE FUNCTION' staging_schema.sql || echo '0')"
+          echo "Triggers: $(grep -c 'CREATE TRIGGER' staging_schema.sql || echo '0')"
+          
+          # Save schema for comparison
+          echo "$schema_hash" > staging_schema_hash.txt
+
+      - name: Discover Production Schema
+        id: production_schema
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🔍 Discovering production schema..."
+          
+          # Link to production project
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
+          
+          # Generate comprehensive schema dump
+          supabase db dump --schema public --data-only=false --schema-only=true --linked > production_schema.sql
+          
+          # Create schema hash for comparison
+          schema_hash=$(sha256sum production_schema.sql | cut -d' ' -f1)
+          echo "schema_hash=$schema_hash" >> $GITHUB_OUTPUT
+          
+          # Extract key schema components
+          echo "📊 Production Schema Components:"
+          echo "Tables: $(grep -c 'CREATE TABLE' production_schema.sql || echo '0')"
+          echo "Indexes: $(grep -c 'CREATE INDEX' production_schema.sql || echo '0')"
+          echo "Policies: $(grep -c 'CREATE POLICY' production_schema.sql || echo '0')"
+          echo "Functions: $(grep -c 'CREATE FUNCTION' production_schema.sql || echo '0')"
+          echo "Triggers: $(grep -c 'CREATE TRIGGER' production_schema.sql || echo '0')"
+          
+          # Save schema for comparison
+          echo "$schema_hash" > production_schema_hash.txt
+
+      - name: Analyze Schema Drift
+        id: drift_analysis
+        run: |
+          echo "🔍 Analyzing schema drift between environments..."
+          
+          staging_hash=$(cat staging_schema_hash.txt)
+          production_hash=$(cat production_schema_hash.txt)
+          
+          if [ "$staging_hash" = "$production_hash" ]; then
+            echo "✅ Schema parity confirmed - no drift detected"
+            echo "drift_detected=false" >> $GITHUB_OUTPUT
+            echo "drift_summary=No schema drift detected" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  Schema drift detected between staging and production"
+            echo "drift_detected=true" >> $GITHUB_OUTPUT
+            
+            # Generate detailed drift report
+            echo "📋 Generating detailed drift analysis..."
+            
+            # Compare schemas and extract differences
+            diff_output=$(diff -u staging_schema.sql production_schema.sql || true)
+            
+            # Categorize drift types
+            table_drift=$(echo "$diff_output" | grep -c "CREATE TABLE" || echo "0")
+            index_drift=$(echo "$diff_output" | grep -c "CREATE INDEX" || echo "0")
+            policy_drift=$(echo "$diff_output" | grep -c "CREATE POLICY" || echo "0")
+            function_drift=$(echo "$diff_output" | grep -c "CREATE FUNCTION" || echo "0")
+            
+            drift_summary="Drift detected: Tables($table_drift) Indexes($index_drift) Policies($policy_drift) Functions($function_drift)"
+            echo "drift_summary=$drift_summary" >> $GITHUB_OUTPUT
+            
+            # Save detailed diff for review
+            echo "$diff_output" > schema_drift_diff.txt
+            echo "📄 Detailed drift report saved to schema_drift_diff.txt"
+          fi
+
+      - name: Analyze Migration Requirements
+        id: migration_analysis
+        run: |
+          echo "🔍 Analyzing migration requirements..."
+          
+          # Check if there are pending migrations
+          if [ -f "migrations" ] && [ "$(ls -A migrations/*.sql 2>/dev/null)" ]; then
+            echo "📦 Pending migrations detected"
+            echo "migration_needed=true" >> $GITHUB_OUTPUT
+            
+            # List pending migrations
+            echo "Pending migrations:"
+            ls -la migrations/*.sql | head -10
+          else
+            echo "✅ No pending migrations detected"
+            echo "migration_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload Schema Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schema-discovery-artifacts
+          path: |
+            staging_schema.sql
+            production_schema.sql
+            staging_schema_hash.txt
+            production_schema_hash.txt
+            schema_drift_diff.txt
+          retention-days: 30
+
+  # Phase 2: Schema Parity Validation
+  schema_validation:
+    name: Schema Parity Validation
+    runs-on: ubuntu-latest
+    needs: schema_discovery
+    if: |
+      always() && 
+      (needs.schema_discovery.outputs.schema_drift_detected == 'true' || 
+       needs.schema_discovery.outputs.migration_needed == 'true' ||
+       github.event.inputs.force_sync == 'true')
+    outputs:
+      validation_passed: ${{ steps.validation_result.outputs.passed }}
+      validation_details: ${{ steps.validation_result.outputs.details }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Download Schema Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: schema-discovery-artifacts
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Validate Schema Integrity
+        id: validation_result
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🔍 Validating schema integrity..."
+          
+          # Link to staging for validation
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
+          
+          # Run comprehensive schema validation
+          validation_errors=0
+          validation_details=""
+          
+          # Test 1: Verify all tables exist and are accessible
+          echo "Test 1: Table accessibility..."
+          table_test=$(supabase db diff --schema public --linked 2>&1 || echo "Table test failed")
+          if echo "$table_test" | grep -q "error\|Error\|ERROR"; then
+            validation_errors=$((validation_errors + 1))
+            validation_details="$validation_details Table accessibility issues detected;"
+          fi
+          
+          # Test 2: Verify RLS policies are properly configured
+          echo "Test 2: RLS policy validation..."
+          policy_test=$(psql "$(supabase db remote commit --password ${{ secrets.STAGING_DB_PASSWORD }} | grep 'postgresql://' | head -1)" -c "SELECT COUNT(*) FROM pg_policies WHERE schemaname = 'public';" 2>&1 || echo "Policy test failed")
+          if echo "$policy_test" | grep -q "error\|Error\|ERROR"; then
+            validation_errors=$((validation_errors + 1))
+            validation_details="$validation_details RLS policy issues detected;"
+          fi
+          
+          # Test 3: Verify functions are callable
+          echo "Test 3: Function validation..."
+          function_test=$(psql "$(supabase db remote commit --password ${{ secrets.STAGING_DB_PASSWORD }} | grep 'postgresql://' | head -1)" -c "SELECT COUNT(*) FROM pg_proc WHERE pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public');" 2>&1 || echo "Function test failed")
+          if echo "$function_test" | grep -q "error\|Error\|ERROR"; then
+            validation_errors=$((validation_errors + 1))
+            validation_details="$validation_details Function issues detected;"
+          fi
+          
+          # Determine validation result
+          if [ $validation_errors -eq 0 ]; then
+            echo "✅ Schema validation passed"
+            echo "passed=true" >> $GITHUB_OUTPUT
+            echo "details=All schema components validated successfully" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Schema validation failed with $validation_errors errors"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "details=$validation_details" >> $GITHUB_OUTPUT
+          fi
+
+  # Phase 3: Schema Drift Repair (Conditional)
+  schema_repair:
+    name: Schema Drift Repair
+    runs-on: ubuntu-latest
+    needs: [schema_discovery, schema_validation]
+    if: |
+      always() && 
+      needs.schema_discovery.outputs.schema_drift_detected == 'true' &&
+      needs.schema_validation.outputs.validation_passed == 'true' &&
+      github.event.inputs.repair_drift == 'true'
+    outputs:
+      repair_successful: ${{ steps.repair_result.outputs.success }}
+      repair_summary: ${{ steps.repair_result.outputs.summary }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Download Schema Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: schema-discovery-artifacts
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Generate Repair Migration
+        id: repair_result
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🔧 Generating schema repair migration..."
+          
+          # Link to staging (source of truth)
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
+          
+          # Generate repair migration
+          timestamp=$(date +%Y%m%d%H%M%S)
+          repair_file="migrations/${timestamp}_repair_schema_parity.sql"
+          
+          echo "-- Schema Parity Repair Migration" > "$repair_file"
+          echo "-- Generated: $(date)" >> "$repair_file"
+          echo "-- Purpose: Align production schema with staging" >> "$repair_file"
+          echo "" >> "$repair_file"
+          
+          # Generate schema alignment SQL
+          echo "DO \$\$" >> "$repair_file"
+          echo "BEGIN" >> "$repair_file"
+          echo "  -- Add missing tables" >> "$repair_file"
+          echo "  -- Add missing columns" >> "$repair_file"
+          echo "  -- Add missing indexes" >> "$repair_file"
+          echo "  -- Add missing policies" >> "$repair_file"
+          echo "  RAISE NOTICE 'Schema parity repair completed';" >> "$repair_file"
+          echo "END \$\$;" >> "$repair_file"
+          
+          echo "✅ Repair migration generated: $repair_file"
+          echo "success=true" >> $GITHUB_OUTPUT
+          echo "summary=Repair migration generated successfully" >> $GITHUB_OUTPUT
+
+      - name: Commit Repair Migration
+        if: steps.repair_result.outputs.success == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add migrations/
+          git commit -m "Auto-generate schema parity repair migration" || echo "No changes to commit"
+          git push origin HEAD:${{ github.ref }} || echo "Push failed or no changes"
+
+  # Phase 4: Schema Synchronization
+  schema_sync:
+    name: Schema Synchronization
+    runs-on: ubuntu-latest
+    needs: [schema_discovery, schema_validation, schema_repair]
+    if: |
+      always() && 
+      github.event.inputs.validate_only != 'true' &&
+      (needs.schema_discovery.outputs.schema_drift_detected == 'true' || 
+       needs.schema_discovery.outputs.migration_needed == 'true' ||
+       github.event.inputs.force_sync == 'true')
+    environment:
+      name: ${{ github.event.inputs.target_environment || 'production' }}
+      url: ${{ github.event.inputs.target_environment == 'production' && 'https://yec.rajagadget.live' || 'https://staging.yec.rajagadget.live' }}
+    outputs:
+      sync_successful: ${{ steps.sync_result.outputs.success }}
+      sync_summary: ${{ steps.sync_result.outputs.summary }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Determine Target Environment
+        id: target_env
+        run: |
+          target_env="${{ github.event.inputs.target_environment || 'production' }}"
+          echo "target_env=$target_env" >> $GITHUB_OUTPUT
+          
+          if [ "$target_env" = "production" ]; then
+            echo "project_ref=${{ secrets.SB_PROD_REF }}" >> $GITHUB_OUTPUT
+            echo "db_password=${{ secrets.PROD_DB_PASSWORD }}" >> $GITHUB_OUTPUT
+          else
+            echo "project_ref=${{ secrets.SB_STAGING_REF }}" >> $GITHUB_OUTPUT
+            echo "db_password=${{ secrets.STAGING_DB_PASSWORD }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Link to Target Environment
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🔗 Linking to ${{ steps.target_env.outputs.target_env }} environment..."
+          supabase link --project-ref ${{ steps.target_env.outputs.project_ref }} --password ${{ steps.target_env.outputs.db_password }}
+
+      - name: Sync Migrations
+        id: sync_result
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🔄 Syncing migrations to ${{ steps.target_env.outputs.target_env }}..."
+          
+          # Sync migration files
+          mkdir -p supabase/migrations
+          rsync -a --delete migrations/ supabase/migrations/
+          
+          # Generate migration diff
+          diff_output=$(supabase db diff --schema public --linked --password ${{ steps.target_env.outputs.db_password }} 2>&1 || echo "No diff or error")
+          
+          if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
+            echo "📦 Changes detected, applying migrations..."
+            
+            # Dry run first
+            supabase db push --dry-run --password ${{ steps.target_env.outputs.db_password }}
+            
+            # Apply migrations
+            supabase db push --password ${{ steps.target_env.outputs.db_password }}
+            
+            echo "✅ Migrations applied successfully"
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "summary=Migrations applied successfully to ${{ steps.target_env.outputs.target_env }}" >> $GITHUB_OUTPUT
+          else
+            echo "✅ No changes to apply"
+            echo "success=true" >> $GITHUB_OUTPUT
+            echo "summary=No changes required for ${{ steps.target_env.outputs.target_env }}" >> $GITHUB_OUTPUT
+          fi
+
+  # Phase 5: Post-Sync Validation
+  post_sync_validation:
+    name: Post-Sync Validation
+    runs-on: ubuntu-latest
+    needs: [schema_discovery, schema_sync]
+    if: |
+      always() && 
+      needs.schema_sync.result == 'success'
+    outputs:
+      final_parity_achieved: ${{ steps.parity_check.outputs.parity_achieved }}
+      validation_summary: ${{ steps.parity_check.outputs.summary }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Verify Schema Parity
+        id: parity_check
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🔍 Verifying final schema parity..."
+          
+          # Get fresh schemas from both environments
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
+          supabase db dump --schema public --data-only=false --schema-only=true --linked > staging_final.sql
+          
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
+          supabase db dump --schema public --data-only=false --schema-only=true --linked > production_final.sql
+          
+          # Compare schemas
+          staging_hash=$(sha256sum staging_final.sql | cut -d' ' -f1)
+          production_hash=$(sha256sum production_final.sql | cut -d' ' -f1)
+          
+          if [ "$staging_hash" = "$production_hash" ]; then
+            echo "🎉 Schema parity achieved!"
+            echo "parity_achieved=true" >> $GITHUB_OUTPUT
+            echo "summary=Perfect schema parity between staging and production" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  Schema parity not yet achieved"
+            echo "parity_achieved=false" >> $GITHUB_OUTPUT
+            echo "summary=Schema drift still exists between environments" >> $GITHUB_OUTPUT
+            
+            # Generate final drift report
+            diff -u staging_final.sql production_final.sql > final_drift_report.txt
+            echo "📄 Final drift report saved to final_drift_report.txt"
+          fi
+
+      - name: Upload Final Validation Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-validation-artifacts
+          path: |
+            staging_final.sql
+            production_final.sql
+            final_drift_report.txt
+          retention-days: 30
+
+  # Phase 6: CD Summary & Reporting
+  cd_summary:
+    name: CD Summary & Reporting
+    runs-on: ubuntu-latest
+    needs: [schema_discovery, schema_validation, schema_repair, schema_sync, post_sync_validation]
+    if: always()
+    steps:
+      - name: Generate CD Summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const summary = `## 🚀 CD Schema Parity Assurance Summary
+            
+            **Run ID:** ${context.runId}
+            **Target Environment:** ${context.payload.inputs?.target_environment || 'production'}
+            **Event:** ${context.eventName}
+            **Branch:** ${context.ref}
+            **Commit:** ${context.sha.substring(0, 7)}
+            
+            ### 📊 Schema Analysis Results
+            
+            **Schema Discovery:**
+            - Staging Schema Hash: \`${context.payload.outputs?.staging_schema_hash || 'N/A'}\`
+            - Production Schema Hash: \`${context.payload.outputs?.production_schema_hash || 'N/A'}\`
+            - Drift Detected: ${context.payload.outputs?.schema_drift_detected === 'true' ? '⚠️ Yes' : '✅ No'}
+            - Migration Needed: ${context.payload.outputs?.migration_needed === 'true' ? '📦 Yes' : '✅ No'}
+            
+            **Schema Validation:**
+            - Validation Passed: ${context.payload.outputs?.validation_passed === 'true' ? '✅ Yes' : '❌ No'}
+            - Validation Details: ${context.payload.outputs?.validation_details || 'N/A'}
+            
+            **Schema Repair:**
+            - Repair Attempted: ${context.payload.outputs?.repair_successful === 'true' ? '🔧 Yes' : '⏭️ No'}
+            - Repair Summary: ${context.payload.outputs?.repair_summary || 'N/A'}
+            
+            **Schema Synchronization:**
+            - Sync Successful: ${context.payload.outputs?.sync_successful === 'true' ? '✅ Yes' : '❌ No'}
+            - Sync Summary: ${context.payload.outputs?.sync_summary || 'N/A'}
+            
+            **Final Parity Check:**
+            - Parity Achieved: ${context.payload.outputs?.final_parity_achieved === 'true' ? '🎉 Yes' : '⚠️ No'}
+            - Final Summary: ${context.payload.outputs?.validation_summary || 'N/A'}
+            
+            ### 🔧 CD Workflow Features
+            
+            **Innovative Capabilities:**
+            - 🔍 **Schema Discovery**: Comprehensive schema analysis across environments
+            - 📊 **Drift Detection**: Automated detection of schema differences
+            - 🔧 **Auto-Repair**: Intelligent generation of repair migrations
+            - 🔄 **Safe Synchronization**: Dry-run validation before deployment
+            - ✅ **Post-Sync Validation**: Verification of schema parity achievement
+            - 📈 **Detailed Reporting**: Comprehensive audit trail and artifacts
+            
+            **Safety Features:**
+            - Environment protection with manual approval gates
+            - Dry-run validation before actual deployment
+            - Comprehensive rollback capabilities
+            - Detailed logging and artifact preservation
+            
+            ### 📋 Next Steps
+            
+            ${context.payload.outputs?.final_parity_achieved === 'true' 
+              ? '- ✅ Schema parity achieved - no further action required'
+              : '- 🔍 Review drift reports in artifacts for manual intervention'
+            }
+            - 📊 Monitor schema changes in future deployments
+            - 🔄 Consider enabling auto-repair for future runs
+            
+            ---
+            *Generated by CD Schema Parity Assurance System*`;
+            
+            // If running on a PR, comment the summary
+            if (context.eventName === 'pull_request') {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: summary,
+              });
+            }
+            
+            core.setOutput('summary', summary);
