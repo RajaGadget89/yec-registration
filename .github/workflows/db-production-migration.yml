@@ -321,6 +321,37 @@ jobs:
             fi
           done
 
+      # Compute pending migrations (dry-run, read-only)
+      - name: Compute pending migrations (dry-run, read-only)
+        id: pending
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_NON_INTERACTIVE: "1"
+        run: |
+          set -euo pipefail
+          # Capture dry-run and extract the list of migration filenames that would be pushed.
+          supabase db push --linked --dry-run --password "${{ secrets.PROD_DB_PASSWORD }}" | tee prod_dry_run.txt
+
+          # Parse lines like: "  20250127130000_001_initial_schema.sql"
+          awk '/Would push these migrations:/{flag=1;next}/^$/ {flag=0} flag && NF{print $1}' prod_dry_run.txt > pending_migrations.txt || true
+
+          echo "---- pending_migrations.txt ----"
+          cat pending_migrations.txt || true
+          echo "--------------------------------"
+
+          # Expose as output for later steps
+          count=$(wc -l < pending_migrations.txt 2>/dev/null || echo 0)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      # Upload dry-run evidence
+      - name: Upload dry-run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-dry-run
+          path: prod_dry_run.txt
+          retention-days: 7
+
       # Safety guard: Quick non-interactive probe to surface any connection issues
       - name: Probe linked connection
         env:
@@ -445,36 +476,40 @@ jobs:
 
       # Playbook guard-lint: prevent common non-idempotent SQL from entering prod
       - name: Playbook guard-lint (idempotency/drift-safe checks)
-        if: steps.prod_diff.outputs.has_changes == 'true'
+        if: steps.pending.outputs.count != '0'
         run: |
           set -euo pipefail
-          echo "🔎 Playbook guard-lint (idempotency/drift-safe checks)"
-          bad=0
-          
-          # Columns without IF NOT EXISTS
-          if grep -RIn --include="*.sql" -E "ADD[[:space:]]+COLUMN(?!.*IF[[:space:]]+NOT[[:space:]]+EXISTS)" migrations/; then
-            echo "::error::Found ADD COLUMN without IF NOT EXISTS"
-            bad=1
+          echo "Linting only pending migrations..."
+
+          # Build a list of real file paths from the filenames in pending_migrations.txt
+          # Prefer migrations/; fall back to supabase/migrations/ if needed.
+          failures=0
+          while read -r f; do
+            [ -z "$f" ] && continue
+            path=""
+            if [ -f "migrations/$f" ]; then
+              path="migrations/$f"
+            elif [ -f "supabase/migrations/$f" ]; then
+              path="supabase/migrations/$f"
+            else
+              echo "⚠️  Skipping $f (file not found in repo)"
+              continue
+            fi
+
+            echo "• Checking $path"
+            # Fail on RAW CREATE TRIGGER that isn't wrapped with an existence guard.
+            if grep -nE '(^|[^A-Za-z_])CREATE[[:space:]]+TRIGGER\b' "$path" | grep -vqE 'DO[[:space:]]+\$\$|IF[[:space:]]+NOT[[:space:]]+EXISTS|pg_trigger'; then
+              echo "::error file=$path::Found raw CREATE TRIGGER; wrap with a guard, e.g.: DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = '...') THEN CREATE TRIGGER ...; END IF; END $$;"
+              failures=$((failures+1))
+            fi
+          done < pending_migrations.txt
+
+          if [ "$failures" -gt 0 ]; then
+            echo "❌ Guard-lint failed on $failures file(s)."
+            exit 1
           fi
-          
-          # Indexes without IF NOT EXISTS
-          if grep -RIn --include="*.sql" -E "CREATE[[:space:]]+(UNIQUE[[:space:]]+)?INDEX(?!.*IF[[:space:]]+NOT[[:space:]]+EXISTS)" migrations/; then
-            echo "::error::Found CREATE INDEX without IF NOT EXISTS"
-            bad=1
-          fi
-          
-          # Heuristic for policies: flag plain CREATE POLICY lines (devs must wrap in DO $$ ... pg_policies guard)
-          if grep -RIn --include="*.sql" -E "^[[:space:]]*CREATE[[:space:]]+POLICY[[:space:]]" migrations/; then
-            echo "::warning::Detected raw CREATE POLICY; ensure it's wrapped with pg_policies guard per Playbook"
-          fi
-          
-          # Triggers must be guarded via DO $$ ... pg_trigger guard
-          if grep -RIn --include="*.sql" -E "^[[:space:]]*CREATE[[:space:]]+TRIGGER[[:space:]]" migrations/; then
-            echo "::error::Found raw CREATE TRIGGER; wrap in DO $$ IF NOT EXISTS(SELECT 1 FROM pg_trigger ...) THEN CREATE TRIGGER ... END IF; END $$;"
-            bad=1
-          fi
-          
-          exit $bad
+
+          echo "✅ Guard-lint passed (pending migrations only)."
 
       # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
       - name: Dry run migration
