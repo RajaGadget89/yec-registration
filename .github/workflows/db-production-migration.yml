@@ -478,7 +478,7 @@ jobs:
 
       # Using --linked mode to avoid IPv6 connection issues on GitHub-hosted runners
       - name: Dry run migration
-        if: steps.prod_diff.outputs.has_changes == 'true'
+        if: steps.prod_diff.outputs.has_changes == 'true' || github.event.inputs.force_migration == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
@@ -490,7 +490,7 @@ jobs:
 
       # Chain sanity check: prevent re-apply of historical migrations
       - name: Chain sanity check (prevent re-apply of 001)
-        if: steps.prod_diff.outputs.has_changes == 'true'
+        if: steps.prod_diff.outputs.has_changes == 'true' || github.event.inputs.force_migration == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
@@ -525,7 +525,6 @@ jobs:
         run: |
           set -euo pipefail
           echo "Pushing migrations to production..."
-          supabase db push --linked --dry-run --password "${{ secrets.PROD_DB_PASSWORD }}"
           supabase db push --linked --password "${{ secrets.PROD_DB_PASSWORD }}" --yes
           echo "✅ Migrations deployed to production"
 
@@ -549,7 +548,7 @@ jobs:
 
       # Using --linked mode to avoid IPv6 connection issues; verify with no-op dry run
       - name: Verify production deployment (drift-safe)
-        if: steps.prod_diff.outputs.has_changes == 'true'
+        if: steps.prod_diff.outputs.has_changes == 'true' || github.event.inputs.force_migration == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_NON_INTERACTIVE: "1"
@@ -557,21 +556,23 @@ jobs:
           set -euo pipefail
           echo "Verifying production deployment (drift-safe)..."
 
-          # Ensure context (avoid lost link across steps)
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password "${{ secrets.PROD_DB_PASSWORD }}"
+          # Make sure we are linked and non-interactive
+          supabase link --project-ref "${{ secrets.SB_PROD_REF }}" --password "${{ secrets.PROD_DB_PASSWORD }}"
 
-          # Primary check via diff
-          verify_out="$(supabase db diff --schema public --linked --password \"${{ secrets.PROD_DB_PASSWORD }}\" 2>&1 || true)"
+          # Primary check: diff
+          verify_out="$(supabase db diff --schema public --linked --password "${{ secrets.PROD_DB_PASSWORD }}" 2>&1 || true)"
           echo "${verify_out}" | tee verify_diff.txt
 
-          # Fallback check via dry-run (handles alternative wording like 'Remote database is up to date')
+          # If the diff output isn't conclusively empty, fall back to a dry-run check
           if ! echo "${verify_out}" | grep -qiE 'No schema changes found|no schema changes|nothing to.*change|nothing to.*diff'; then
-            echo "Diff not conclusively empty from db diff, running a no-op dry-run as a secondary check..."
-            dry_run_out="$(supabase db push --linked --dry-run --password \"${{ secrets.PROD_DB_PASSWORD }}\" 2>&1 || true)"
+            echo "Diff inconclusive; running dry-run..."
+            dry_run_out="$(supabase db push --linked --dry-run --password "${{ secrets.PROD_DB_PASSWORD }}" 2>&1 || true)"
             echo "${dry_run_out}" | tee -a verify_diff.txt
+
+            # Treat as PASS when clearly up to date; otherwise fail with captured evidence
             if ! echo "${dry_run_out}" | grep -qiE 'Remote database is up to date|0 .* to execute|no migrations.*apply|no changes'; then
-              echo "❌ Unexpected pending changes after apply:"
-              cat verify_diff.txt
+              echo "❌ Unexpected pending changes detected:"
+              tail -n +1 verify_diff.txt
               exit 1
             fi
           fi
