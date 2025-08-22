@@ -2,13 +2,13 @@ name: Database Migration Pipeline
 
 on:
   push:
-    branches: [ develop, staging, bugfix/recover-core-services-system ]
+    branches: [ develop, staging, bugfix/*, fix/*, feature/* ]
     paths:
       - 'migrations/**'
       - 'supabase/migrations/**'
       - '.github/workflows/db-migration.yml'
   pull_request:
-    branches: [ main, develop, staging, bugfix/recover-core-services-system ]
+    branches: [ main, develop, staging, bugfix/*, fix/*, feature/* ]
   workflow_dispatch:
     inputs:
       target_environment:
@@ -663,15 +663,13 @@ jobs:
       - name: Debug full E2E condition
         run: |
           echo "🔍 DEBUG: Full E2E tests job condition check:"
-          echo "always(): true (always runs)"
           echo "quick_migration_validation.result: '${{ needs.quick_migration_validation.result }}'"
           echo "email_related_changes: '${{ needs.detect_changes.outputs.email_related_changes }}'"
-          echo "Condition: always() && needs.quick_migration_validation.result == 'success' && needs.detect_changes.outputs.email_related_changes == 'true'"
+          echo "Condition: needs.quick_migration_validation.result == 'success' && needs.detect_changes.outputs.email_related_changes == 'true'"
           echo "Condition evaluation:"
-          echo "  always(): true"
           echo "  quick_validation check: ${{ needs.quick_migration_validation.result == 'success' }}"
           echo "  email_related check: ${{ needs.detect_changes.outputs.email_related_changes == 'true' }}"
-          echo "  Final result: ${{ always() && needs.quick_migration_validation.result == 'success' && needs.detect_changes.outputs.email_related_changes == 'true' }}"
+          echo "  Final result: ${{ needs.quick_migration_validation.result == 'success' && needs.detect_changes.outputs.email_related_changes == 'true' }}"
 
       - name: Checkout code
         uses: actions/checkout@v4
