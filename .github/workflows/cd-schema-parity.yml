@@ -421,9 +421,12 @@ jobs:
           set -euo pipefail
           echo "🔄 Syncing migrations to ${{ steps.target_env.outputs.target_env }}..."
           
-          # Sync migration files
-          mkdir -p supabase/migrations
-          rsync -a --delete migrations/ supabase/migrations/
+                      # Sync migration files (ensure only local migrations are applied)
+            mkdir -p supabase/migrations
+            rsync -a --delete migrations/ supabase/migrations/
+            
+            # Remove any remote migrations that might have been copied
+            find supabase/migrations/ -name "*remote_commit*" -delete 2>/dev/null || true
           
           # Skip migration repair for now - focus on direct push
           echo "🔧 Skipping migration repair - using direct push approach..."
@@ -459,21 +462,41 @@ jobs:
             if [ -n "$connection_string" ]; then
               echo "🔧 Pre-emptively dropping potentially conflicting objects..."
               
-              # Drop triggers that might conflict (BEFORE migration starts)
-              echo "Dropping triggers..."
+              # Drop ALL triggers that might conflict (BEFORE migration starts)
+              echo "Dropping all deep link triggers..."
               psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_creation ON deep_link_tokens CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
               psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_usage ON deep_link_tokens CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
               psql "$connection_string" -c "DROP TRIGGER IF EXISTS trigger_log_deep_link_token_audit ON deep_link_token_audit CASCADE;" 2>/dev/null || echo "Trigger drop failed or not needed"
               
-              # Drop functions that might conflict (BEFORE migration starts)
-              echo "Dropping functions..."
+              # Drop ALL functions that might conflict (BEFORE migration starts)
+              echo "Dropping all deep link functions..."
               psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_creation() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
               psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_usage() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
               psql "$connection_string" -c "DROP FUNCTION IF EXISTS log_deep_link_token_audit() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
               
+              # Drop other potentially conflicting functions
+              echo "Dropping other potentially conflicting functions..."
+              psql "$connection_string" -c "DROP FUNCTION IF EXISTS generate_secure_deep_link_token(UUID, TEXT, TEXT, INTEGER) CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+              psql "$connection_string" -c "DROP FUNCTION IF EXISTS validate_and_consume_deep_link_token(TEXT, UUID, TEXT, TEXT, TEXT) CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+              psql "$connection_string" -c "DROP FUNCTION IF EXISTS cleanup_expired_deep_link_tokens() CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+              psql "$connection_string" -c "DROP FUNCTION IF EXISTS get_deep_link_token_stats(INTEGER) CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+              psql "$connection_string" -c "DROP FUNCTION IF EXISTS generate_simple_deep_link_token(TEXT, TEXT, UUID, INTEGER) CASCADE;" 2>/dev/null || echo "Function drop failed or not needed"
+              
+              # Drop potentially conflicting tables (they will be recreated)
+              echo "Dropping potentially conflicting tables..."
+              psql "$connection_string" -c "DROP TABLE IF EXISTS deep_link_token_audit CASCADE;" 2>/dev/null || echo "Table drop failed or not needed"
+              psql "$connection_string" -c "DROP TABLE IF EXISTS deep_link_tokens CASCADE;" 2>/dev/null || echo "Table drop failed or not needed"
+              
               echo "✅ Pre-migration cleanup completed"
             else
               echo "⚠️ Could not get connection string, proceeding without pre-cleanup"
+            fi
+            
+            # Clean up any remote migrations that shouldn't be applied
+            echo "🧹 Cleaning up remote migrations..."
+            if [ -f "supabase/migrations/20250822121623_remote_commit.sql" ]; then
+              echo "Removing remote commit migration..."
+              rm -f supabase/migrations/20250822121623_remote_commit.sql
             fi
             
             # Now apply migrations with clean slate
