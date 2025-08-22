@@ -75,7 +75,7 @@ jobs:
         id: staging_schema
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "🔍 Discovering staging schema..."
           
@@ -104,7 +104,7 @@ jobs:
         id: production_schema
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PGPASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "🔍 Discovering production schema..."
           
@@ -230,7 +230,7 @@ jobs:
         id: validation_result
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "🔍 Validating schema integrity..."
           
@@ -310,7 +310,7 @@ jobs:
         id: repair_result
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PGPASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "🔧 Generating schema repair migration..."
           
@@ -403,7 +403,7 @@ jobs:
         id: sync_result
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PGPASSWORD: ${{ steps.target_env.outputs.db_password }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "🔄 Syncing migrations to ${{ steps.target_env.outputs.target_env }}..."
           
@@ -459,17 +459,16 @@ jobs:
         id: parity_check
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          PGPASSWORD_STAGING: ${{ secrets.STAGING_DB_PASSWORD }}
-          PGPASSWORD_PROD: ${{ secrets.PROD_DB_PASSWORD }}
+          SUPABASE_NON_INTERACTIVE: "1"
         run: |
           echo "🔍 Verifying final schema parity..."
           
           # Get fresh schemas from both environments
-          PGPASSWORD=$PGPASSWORD_STAGING supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
-          PGPASSWORD=$PGPASSWORD_STAGING supabase db dump --schema public --linked > staging_final.sql
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
+          supabase db dump --schema public --linked > staging_final.sql
           
-          PGPASSWORD=$PGPASSWORD_PROD supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
-          PGPASSWORD=$PGPASSWORD_PROD supabase db dump --schema public --linked > production_final.sql
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
+          supabase db dump --schema public --linked > production_final.sql
           
           # Compare schemas
           staging_hash=$(sha256sum staging_final.sql | cut -d' ' -f1)
