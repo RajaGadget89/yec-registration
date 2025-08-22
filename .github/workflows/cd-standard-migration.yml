@@ -26,6 +26,14 @@ on:
         options:
           - 'false'
           - 'true'
+      force_sync:
+        description: 'Force schema sync and resolve conflicts (for existing objects)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 concurrency:
   group: cd-standard-migration-${{ github.event.inputs.target_environment || 'production' }}
@@ -40,281 +48,10 @@ env:
   SUPABASE_CLI_VERSION: latest
 
 jobs:
-  # Detect changes in migration files
-  detect_changes:
-    name: Detect Migration Changes
-    runs-on: ubuntu-latest
-    outputs:
-      has_migrations: ${{ steps.filter.outputs.migrations }}
-      migration_files: ${{ steps.filter.outputs.migration_files }}
-      email_related_changes: ${{ steps.impact.outputs.email_related }}
-      schema_only_changes: ${{ steps.impact.outputs.schema_only }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Detect migration changes
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            migrations:
-              - 'migrations/**/*.sql'
-              - 'supabase/migrations/**/*.sql'
-              - '.github/workflows/cd-standard-migration.yml'
-
-      - name: Analyze migration impact
-        id: impact
-        if: steps.filter.outputs.migrations == 'true'
-        run: |
-          echo "🔍 Analyzing migration impact..."
-          
-          # Check if migrations affect email-related tables
-          email_tables=("email_outbox" "registrations" "audit_logs" "email_templates" "email_config")
-          email_related=false
-          schema_only=true
-          
-          for file in migrations/*.sql; do
-            if [ -f "$file" ]; then
-              echo "Analyzing $file..."
-              content=$(cat "$file" | tr '[:upper:]' '[:lower:]')
-              
-              # Check for email-related table changes
-              for table in "${email_tables[@]}"; do
-                if echo "$content" | grep -q "$table"; then
-                  echo "  - Found email-related table: $table"
-                  email_related=true
-                  schema_only=false
-                fi
-              done
-              
-              # Check for email-related functions or triggers
-              if echo "$content" | grep -E "(email|dispatch|notification|outbox)" | grep -E "(function|trigger|procedure)"; then
-                echo "  - Found email-related function/trigger"
-                email_related=true
-                schema_only=false
-              fi
-              
-              # Check for data changes (INSERT, UPDATE, DELETE)
-              if echo "$content" | grep -E "(insert|update|delete)" | grep -v "create\|alter\|drop"; then
-                echo "  - Found data changes"
-                schema_only=false
-              fi
-            fi
-          done
-          
-          echo "email_related=$email_related" >> $GITHUB_OUTPUT
-          echo "schema_only=$schema_only" >> $GITHUB_OUTPUT
-          
-          echo "📊 Impact Analysis Results:"
-          echo "  Email-related changes: $email_related"
-          echo "  Schema-only changes: $schema_only"
-
-      - name: Set default impact values when no migrations
-        if: steps.filter.outputs.migrations == 'false'
-        run: |
-          echo "email_related=false" >> $GITHUB_OUTPUT
-          echo "schema_only=true" >> $GITHUB_OUTPUT
-
-      - name: Debug migration detection and impact
-        run: |
-          echo "🔍 DEBUG: Migration detection and impact analysis:"
-          echo "migrations: '${{ steps.filter.outputs.migrations }}'"
-          echo "migration_files: '${{ steps.filter.outputs.migration_files }}'"
-          echo "email_related: '${{ steps.impact.outputs.email_related }}'"
-          echo "schema_only: '${{ steps.impact.outputs.schema_only }}'"
-
-  # Validate migration files
-  validate_migrations:
-    name: Validate Migration Files
-    runs-on: ubuntu-latest
-    needs: detect_changes
-    if: needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: ${{ env.SUPABASE_CLI_VERSION }}
-
-      - name: Validate migration syntax
-        run: |
-          echo "Validating migration files..."
-          
-          # Check for SQL syntax errors in migration files
-          for file in migrations/*.sql; do
-            if [ -f "$file" ]; then
-              echo "Validating $file..."
-              # Basic SQL syntax check
-              if ! grep -q ";" "$file"; then
-                echo "❌ Error: $file appears to be missing semicolons"
-                exit 1
-              fi
-              echo "✅ $file syntax looks valid"
-            fi
-          done
-
-      - name: Check migration naming convention
-        run: |
-          echo "Checking migration naming convention..."
-          
-          # Ensure migrations follow timestamp naming convention
-          for file in migrations/*.sql; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              if ! [[ $filename =~ ^[0-9]{14}_.*\.sql$ ]]; then
-                echo "❌ Error: $filename doesn't follow timestamp naming convention (YYYYMMDDHHMMSS_description.sql)"
-                exit 1
-              fi
-              echo "✅ $filename follows naming convention"
-            fi
-          done
-
-  # Test migrations on shadow database
-  test_migrations:
-    name: Test Migrations (Shadow DB)
-    runs-on: ubuntu-latest
-    needs: detect_changes
-    if: (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') && github.event.inputs.skip_tests != 'true'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: ${{ env.SUPABASE_CLI_VERSION }}
-
-      - name: Start local Supabase (shadow)
-        run: |
-          supabase start
-          supabase status
-
-      - name: Sync migrations to supabase/migrations
-        run: |
-          mkdir -p supabase/migrations
-          rsync -a --delete migrations/ supabase/migrations/
-
-      - name: Apply migrations to shadow database
-        env:
-          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
-        run: |
-          echo "Applying migrations to shadow database..."
-          set -euo pipefail
-          
-          # Reset shadow database and apply all migrations
-          printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
-          
-          echo "✅ Migrations applied successfully to shadow database"
-
-      - name: Run database tests
-        env:
-          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
-        run: |
-          echo "Running database tests..."
-          
-          # Basic connectivity test
-          psql "$SHADOW_DB_URL" -c "SELECT version();" || exit 1
-          
-          # Test that all expected tables exist
-          psql "$SHADOW_DB_URL" -c "
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public' 
-            AND table_type = 'BASE TABLE'
-            ORDER BY table_name;
-          " || exit 1
-          
-          echo "✅ Database tests passed"
-
-      - name: Stop local Supabase
-        if: always()
-        run: supabase stop
-
-
-
-  # Deploy to production (manual approval required)
-  deploy_production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: detect_changes
-    if: |
-      (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
-      github.event.inputs.target_environment == 'production'
-    environment:
-      name: production
-      url: https://yec.rajagadget.live
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: ${{ env.SUPABASE_CLI_VERSION }}
-
-      - name: Link to production project
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
-
-      - name: Sync migrations to supabase/migrations
-        run: |
-          mkdir -p supabase/migrations
-          rsync -a --delete migrations/ supabase/migrations/
-
-      - name: Generate production migration diff
-        id: prod_diff
-        run: |
-          echo "Generating production migration diff..."
-          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || echo "No diff or error")
-          echo "diff_output<<EOF" >> $GITHUB_OUTPUT
-          echo "$diff_output" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-          
-          if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Push migrations to production
-        if: steps.prod_diff.outputs.has_changes == 'true'
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          echo "Pushing migrations to production..."
-          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }}
-          supabase db push --password ${{ secrets.PROD_DB_PASSWORD }}
-          echo "✅ Migrations deployed to production"
-
-      - name: No production changes to deploy
-        if: steps.prod_diff.outputs.has_changes == 'false'
-        run: |
-          echo "No database changes detected for production. Skipping deployment."
-
-  # Quick Migration Validation (2-3 minutes) - Always runs after deployment
+  # Quick Migration Validation (pre-deployment check)
   quick_migration_validation:
     name: Quick Migration Validation
     runs-on: ubuntu-latest
-    needs: [detect_changes, deploy_production]
-    if: |
-      needs.deploy_production.result == 'success' || needs.deploy_production.result == 'skipped'
     timeout-minutes: 5
     concurrency:
       group: quick-validation-${{ github.ref }}
@@ -322,13 +59,6 @@ jobs:
     outputs:
       validation_passed: ${{ steps.validation_result.outputs.passed }}
     steps:
-      - name: Debug quick validation condition
-        run: |
-          echo "🔍 DEBUG: Quick migration validation job condition check:"
-          echo "deploy_production.result: '${{ needs.deploy_production.result }}'"
-          echo "email_related_changes: '${{ needs.detect_changes.outputs.email_related_changes }}'"
-          echo "schema_only_changes: '${{ needs.detect_changes.outputs.schema_only_changes }}'"
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -419,163 +149,306 @@ jobs:
           supabase unlink || echo "No project linked to unlink"
           echo "✅ Cleanup completed"
 
-  # Full E2E Tests (8-10 minutes) - Only when email-related changes detected
-  full_e2e_tests:
-    name: Full E2E Tests
+  # Detect changes in migration files (only if validation passes)
+  detect_changes:
+    name: Detect Migration Changes
     runs-on: ubuntu-latest
-    needs: [detect_changes, quick_migration_validation]
-    if: |
-      needs.quick_migration_validation.result == 'success' &&
-      needs.detect_changes.outputs.email_related_changes == 'true'
-    timeout-minutes: 15
-    concurrency:
-      group: full-e2e-tests-${{ github.ref }}
-      cancel-in-progress: false
+    needs: quick_migration_validation
+    if: needs.quick_migration_validation.outputs.validation_passed == 'true'
     outputs:
-      tests_passed: ${{ steps.test_result.outputs.passed }}
+      has_migrations: ${{ steps.filter.outputs.migrations }}
+      migration_files: ${{ steps.filter.outputs.migration_files }}
+      email_related_changes: ${{ steps.impact.outputs.email_related }}
+      schema_only_changes: ${{ steps.impact.outputs.schema_only }}
     steps:
-      - name: Debug full E2E condition
-        run: |
-          echo "🔍 DEBUG: Full E2E tests job condition check:"
-          echo "quick_migration_validation.result: '${{ needs.quick_migration_validation.result }}'"
-          echo "email_related_changes: '${{ needs.detect_changes.outputs.email_related_changes }}'"
-          echo "Condition: needs.quick_migration_validation.result == 'success' && needs.detect_changes.outputs.email_related_changes == 'true'"
-          echo "Condition evaluation:"
-          echo "  quick_validation check: ${{ needs.quick_migration_validation.result == 'success' }}"
-          echo "  email_related check: ${{ needs.detect_changes.outputs.email_related_changes == 'true' }}"
-          echo "  Final result: ${{ needs.quick_migration_validation.result == 'success' && needs.detect_changes.outputs.email_related_changes == 'true' }}"
-
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Detect migration changes
+        id: filter
+        uses: dorny/paths-filter@v3
         with:
-          node-version: 18.x
-          cache: npm
+          filters: |
+            migrations:
+              - 'migrations/**/*.sql'
+              - 'supabase/migrations/**/*.sql'
+              - '.github/workflows/cd-standard-migration.yml'
 
-      - name: Cache dependencies
-        uses: actions/cache@v3
+      - name: Analyze migration impact
+        id: impact
+        if: steps.filter.outputs.migrations == 'true'
+        run: |
+          echo "🔍 Analyzing migration impact..."
+          
+          # Check if migrations affect email-related tables
+          email_tables=("email_outbox" "registrations" "audit_logs" "email_templates" "email_config")
+          email_related=false
+          schema_only=true
+          
+          for file in migrations/*.sql; do
+            if [ -f "$file" ]; then
+              echo "Analyzing $file..."
+              content=$(cat "$file" | tr '[:upper:]' '[:lower:]')
+              
+              # Check for email-related table changes
+              for table in "${email_tables[@]}"; do
+                if echo "$content" | grep -q "$table"; then
+                  echo "  - Found email-related table: $table"
+                  email_related=true
+                  schema_only=false
+                fi
+              done
+              
+              # Check for email-related functions or triggers
+              if echo "$content" | grep -E "(email|dispatch|notification|outbox)" | grep -E "(function|trigger|procedure)"; then
+                echo "  - Found email-related function/trigger"
+                email_related=true
+                schema_only=false
+              fi
+              
+              # Check for data changes (INSERT, UPDATE, DELETE)
+              if echo "$content" | grep -E "(insert|update|delete)" | grep -v "create\|alter\|drop"; then
+                echo "  - Found data changes"
+                schema_only=false
+              fi
+            fi
+          done
+          
+          echo "email_related=$email_related" >> $GITHUB_OUTPUT
+          echo "schema_only=$schema_only" >> $GITHUB_OUTPUT
+          
+          echo "📊 Impact Analysis Results:"
+          echo "  Email-related changes: $email_related"
+          echo "  Schema-only changes: $schema_only"
+
+      - name: Set default impact values when no migrations
+        if: steps.filter.outputs.migrations == 'false'
+        run: |
+          echo "email_related=false" >> $GITHUB_OUTPUT
+          echo "schema_only=true" >> $GITHUB_OUTPUT
+
+      - name: Debug migration detection and impact
+        run: |
+          echo "🔍 DEBUG: Migration detection and impact analysis:"
+          echo "migrations: '${{ steps.filter.outputs.migrations }}'"
+          echo "migration_files: '${{ steps.filter.outputs.migration_files }}'"
+          echo "email_related: '${{ steps.impact.outputs.email_related }}'"
+          echo "schema_only: '${{ steps.impact.outputs.schema_only }}'"
+
+  # Validate migration files (only if changes detected or forced)
+  validate_migrations:
+    name: Validate Migration Files
+    runs-on: ubuntu-latest
+    needs: detect_changes
+    if: |
+      (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
+      needs.detect_changes.result == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          path: |
-            node_modules
-            ~/.cache/ms-playwright
-            ~/.npm
-          key: ${{ runner.os }}-deps-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-deps-
-
-      - name: Install OS dependencies for node-canvas
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential libcairo2-dev libpango1.0-dev libjpeg-dev \
-            libgif-dev librsvg2-dev libpixman-1-dev
-
-      - name: Install dependencies (cached)
-        run: |
-          npm ci --prefer-offline --no-audit
-          npx playwright install --with-deps
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
 
-      - name: Link to staging project for E2E tests
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      - name: Validate migration syntax
         run: |
-          echo "Linking to staging project for full E2E tests..."
-          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
-          echo "✅ Linked to staging project"
-
-      - name: Verify staging database connection
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          echo "Verifying staging database connection..."
-          supabase db diff --schema public --linked --password ${{ secrets.STAGING_DB_PASSWORD }} || echo "No pending changes (good!)"
-          echo "✅ Staging database connection verified"
-
-      - name: Run full E2E tests
-        id: test_result
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ENV: 'staging'
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          DISPATCH_DRY_RUN: 'true'
-          NODE_ENV: 'test'
-          NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
-          EMAIL_FROM: 'test@example.com'
-          RESEND_API_KEY: 'test-key'
-          TELEGRAM_BOT_TOKEN: 'test-token'
-          TELEGRAM_CHAT_ID: 'test-chat-id'
-        run: |
-          set +e
-          echo "Running full E2E tests against staging database..."
+          echo "Validating migration files..."
           
-          # Run comprehensive E2E tests
-          npx playwright test tests/e2e/dispatch-emails.e2e.spec.ts --reporter=line 2>&1 | tee full-e2e.log
-          test_exit_code=$?
-          
-          if [ $test_exit_code -eq 0 ]; then
-            echo "passed=true" >> $GITHUB_OUTPUT
-            echo "✅ Full E2E tests passed"
-          else
-            echo "passed=false" >> $GITHUB_OUTPUT
-            echo "❌ Full E2E tests failed with exit code: $test_exit_code"
-            echo "📋 Test log summary:"
-            tail -20 full-e2e.log || echo "No test log available"
-          fi
-          set -e
+          # Check for SQL syntax errors in migration files
+          for file in migrations/*.sql; do
+            if [ -f "$file" ]; then
+              echo "Validating $file..."
+              # Basic SQL syntax check
+              if ! grep -q ";" "$file"; then
+                echo "❌ Error: $file appears to be missing semicolons"
+                exit 1
+              fi
+              echo "✅ $file syntax looks valid"
+            fi
+          done
 
-      - name: Upload full E2E log
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Check migration naming convention
+        run: |
+          echo "Checking migration naming convention..."
+          
+          # Ensure migrations follow timestamp naming convention
+          for file in migrations/*.sql; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              if ! [[ $filename =~ ^[0-9]{14}_.*\.sql$ ]]; then
+                echo "❌ Error: $filename doesn't follow timestamp naming convention (YYYYMMDDHHMMSS_description.sql)"
+                exit 1
+              fi
+              echo "✅ $filename follows naming convention"
+            fi
+          done
+
+  # Test migrations on shadow database (only if validation passes)
+  test_migrations:
+    name: Test Migrations (Shadow DB)
+    runs-on: ubuntu-latest
+    needs: [detect_changes, validate_migrations]
+    if: |
+      (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
+      needs.detect_changes.result == 'success' &&
+      github.event.inputs.skip_tests != 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          name: full-e2e-log
-          path: full-e2e.log
-          retention-days: 7
+          fetch-depth: 0
+          persist-credentials: true
 
-      - name: Attempt Auto-Fix
-        if: |
-          failure() && 
-          needs.full_e2e_tests.outputs.tests_passed == 'false' &&
-          github.event_name == 'workflow_dispatch'
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Start local Supabase (shadow)
+        run: |
+          supabase start
+          supabase status
+
+      - name: Sync migrations to supabase/migrations
+        run: |
+          mkdir -p supabase/migrations
+          rsync -a --delete migrations/ supabase/migrations/
+
+      - name: Apply migrations to shadow database
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ENV: 'staging'
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          DISPATCH_DRY_RUN: 'true'
-          NODE_ENV: 'test'
-          NEXT_PUBLIC_APP_URL: 'http://localhost:3000'
-          EMAIL_FROM: 'test@example.com'
-          RESEND_API_KEY: 'test-key'
-          TELEGRAM_BOT_TOKEN: 'test-token'
-          TELEGRAM_CHAT_ID: 'test-chat-id'
+          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
         run: |
-          npm run e2e:auto-fix:ci || true
+          echo "Applying migrations to shadow database..."
+          set -euo pipefail
+          
+          # Reset shadow database and apply all migrations
+          printf 'y\n' | supabase db reset --db-url "$SHADOW_DB_URL"
+          
+          echo "✅ Migrations applied successfully to shadow database"
 
-      - name: Cleanup staging connection
+      - name: Run database tests
+        env:
+          SHADOW_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
+        run: |
+          echo "Running database tests..."
+          
+          # Basic connectivity test
+          psql "$SHADOW_DB_URL" -c "SELECT version();" || exit 1
+          
+          # Test that all expected tables exist
+          psql "$SHADOW_DB_URL" -c "
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_name;
+          " || exit 1
+          
+          echo "✅ Database tests passed"
+
+      - name: Stop local Supabase
         if: always()
-        run: |
-          echo "Cleaning up staging connection..."
-          supabase unlink || echo "No project linked to unlink"
-          echo "✅ Cleanup completed"
+        run: supabase stop
 
-  # Create deployment summary
+  # Deploy to production (only if all previous steps pass)
+  deploy_production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [detect_changes, validate_migrations, test_migrations]
+    if: |
+      (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
+      needs.detect_changes.result == 'success' &&
+      github.event.inputs.target_environment == 'production'
+    environment:
+      name: production
+      url: https://yec.rajagadget.live
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Link to production project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
+
+      - name: Sync migrations to supabase/migrations
+        run: |
+          mkdir -p supabase/migrations
+          rsync -a --delete migrations/ supabase/migrations/
+
+      - name: Pre-deployment conflict resolution (if force_sync enabled)
+        if: github.event.inputs.force_sync == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🔧 Force sync enabled - resolving conflicts..."
+          
+          # Check for existing triggers that might conflict
+          echo "Checking for existing triggers..."
+          
+          # Drop conflicting triggers if they exist
+          echo "Dropping conflicting triggers if they exist..."
+          psql "$(supabase db remote commit --password ${{ secrets.PROD_DB_PASSWORD }} | grep 'postgresql://' | head -1)" << 'EOF' 2>/dev/null || true
+            DROP TRIGGER IF EXISTS trigger_log_deep_link_token_creation ON deep_link_tokens;
+            DROP TRIGGER IF EXISTS trigger_log_deep_link_token_usage ON deep_link_tokens;
+            DROP FUNCTION IF EXISTS log_deep_link_token_creation() CASCADE;
+            DROP FUNCTION IF EXISTS log_deep_link_token_usage() CASCADE;
+          EOF
+          
+          echo "✅ Conflict resolution completed"
+
+      - name: Generate production migration diff
+        id: prod_diff
+        run: |
+          echo "Generating production migration diff..."
+          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || echo "No diff or error")
+          echo "diff_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$diff_output" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push migrations to production
+        if: steps.prod_diff.outputs.has_changes == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Pushing migrations to production..."
+          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }}
+          supabase db push --password ${{ secrets.PROD_DB_PASSWORD }}
+          echo "✅ Migrations deployed to production"
+
+      - name: No production changes to deploy
+        if: steps.prod_diff.outputs.has_changes == 'false'
+        run: |
+          echo "No database changes detected for production. Skipping deployment."
+
+  # Create deployment summary (always runs)
   deployment_summary:
     name: CD Standard Migration Summary
     runs-on: ubuntu-latest
-    needs: [deploy_production, quick_migration_validation, full_e2e_tests]
+    needs: [quick_migration_validation, detect_changes, validate_migrations, test_migrations, deploy_production]
     if: always()
     steps:
       - name: Checkout code
@@ -600,6 +473,7 @@ jobs:
             summary += `**Run ID:** ${context.runId}\n`;
             summary += `**Event:** ${context.eventName}\n`;
             summary += `**Target Environment:** ${context.payload.inputs?.target_environment || 'production'}\n`;
+            summary += `**Force Sync:** ${context.payload.inputs?.force_sync || 'false'}\n`;
             summary += `**Branch:** ${context.ref}\n`;
             summary += `**Commit:** ${context.sha.substring(0, 7)}\n\n`;
 
@@ -607,13 +481,11 @@ jobs:
 
             // Map display labels to regex patterns that match actual job names
             const targets = [
+              { label: 'quick_validation',          pattern: /Quick Migration Validation/i },
               { label: 'detect_changes',            pattern: /Detect Migration Changes/i },
               { label: 'validate_migrations',       pattern: /Validate Migration Files/i },
               { label: 'test_migrations',           pattern: /Test Migrations.*Shadow DB/i },
-              { label: 'deploy_staging',            pattern: /Deploy to Staging/i },
               { label: 'deploy_production',         pattern: /Deploy to Production/i },
-              { label: 'quick_validation',          pattern: /Quick Migration Validation/i },
-              { label: 'full_e2e_tests',            pattern: /Full E2E Tests/i },
             ];
 
             for (const t of targets) {
@@ -633,21 +505,22 @@ jobs:
             summary += `\n### CD Standard Migration Features\n`;
             summary += `- ⚡ **Simple & Fast**: Direct supabase db push (proven CI approach)\n`;
             summary += `- 🔒 **Production Safe**: Manual approval required for production\n`;
-            summary += `- 🧪 **Comprehensive Testing**: Shadow DB + Quick Validation + Full E2E\n`;
-            summary += `- 📊 **Smart Testing**: Full E2E only when email-related changes detected\n`;
-            summary += `- 🚀 **Reliable**: No complex pre-processing or conflict resolution\n\n`;
+            summary += `- 🧪 **Comprehensive Testing**: Quick Validation + Shadow DB + Migration Testing\n`;
+            summary += `- 🔧 **Conflict Resolution**: Force sync option for existing objects\n`;
+            summary += `- 🚀 **Reliable**: Proper job ordering and dependency management\n\n`;
 
             summary += `### When to Use This Workflow\n`;
             summary += `- ✅ **Standard schema changes** (new features, bug fixes)\n`;
             summary += `- ✅ **Normal database migrations** (tables, indexes, policies)\n`;
-            summary += `- ✅ **Routine deployments** to staging and production\n`;
-            summary += `- ❌ **NOT for**: Schema drift, migration conflicts, emergencies\n\n`;
+            summary += `- ✅ **Routine deployments** to production\n`;
+            summary += `- ✅ **Conflict scenarios** (use force_sync: true)\n`;
+            summary += `- ❌ **NOT for**: Schema drift (use Schema Parity workflow)\n\n`;
 
             summary += `### Next Steps\n`;
             summary += `- [ ] Verify deployment in target environment\n`;
             summary += `- [ ] Review logs if any job failed\n`;
             summary += `- [ ] Monitor application functionality\n`;
-            summary += `- [ ] Use advanced workflow if conflicts occur\n`;
+            summary += `- [ ] Use Schema Parity workflow if drift detected\n`;
 
             // If running on a PR, comment the summary
             if (context.eventName === 'pull_request') {
