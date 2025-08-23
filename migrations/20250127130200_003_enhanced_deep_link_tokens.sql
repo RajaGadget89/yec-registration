@@ -242,6 +242,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Drop trigger if it exists to avoid conflicts
+DROP TRIGGER IF EXISTS trigger_log_deep_link_token_creation ON deep_link_tokens;
+
 CREATE TRIGGER trigger_log_deep_link_token_creation
   AFTER INSERT ON deep_link_tokens
   FOR EACH ROW
@@ -278,6 +281,9 @@ BEGIN
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Drop trigger if it exists to avoid conflicts
+DROP TRIGGER IF EXISTS trigger_log_deep_link_token_usage ON deep_link_tokens;
 
 CREATE TRIGGER trigger_log_deep_link_token_usage
   AFTER UPDATE ON deep_link_tokens
