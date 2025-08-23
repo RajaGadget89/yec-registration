@@ -66,7 +66,12 @@
     "test:audit:headed": "npx playwright install && npx playwright test --grep='@audit' --headed",
     "test:audit:report": "playwright show-report",
     "format": "prettier --write \"{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "format:check": "prettier -c \"{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}\""
+    "format:check": "prettier -c \"{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "security:scan": "./scripts/scan-credentials.sh",
+    "security:scan:strict": "./scripts/scan-credentials.sh --strict",
+    "security:scan:history": "./scripts/scan-credentials.sh --history",
+    "security:scan:fix": "./scripts/scan-credentials.sh --fix",
+    "pre-cicd": "./pre-cicd-check.sh"
   },
   "dependencies": {
     "@react-email/render": "^1.2.0",

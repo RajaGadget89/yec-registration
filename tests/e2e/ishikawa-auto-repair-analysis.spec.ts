@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 
-// Test credentials (using staging for safety)
+// Test credentials (using staging for safety) - USING ENVIRONMENT VARIABLES
 const CREDENTIALS = {
-  SUPABASE_ACCESS_TOKEN: 'sbp_a20c8c474b50f72c46e4f28e2a050ff96074651b',
-  SB_PROD_REF: 'wwwzhpyvogwypmqgvtjv',
-  PROD_DB_PASSWORD: 'Share!Point911',
-  SUPABASE_PROD_DB_URL: 'https://wwwzhpyvogwypmqgvtjv.supabase.co'
+  SUPABASE_ACCESS_TOKEN: process.env.SUPABASE_ACCESS_TOKEN || 'sbp_test_token_placeholder',
+  SB_PROD_REF: process.env.SB_PROD_REF || 'test_prod_ref_placeholder',
+  PROD_DB_PASSWORD: process.env.PROD_DB_PASSWORD || 'test_prod_password_placeholder',
+  SUPABASE_PROD_DB_URL: process.env.SUPABASE_PROD_DB_URL || 'https://test.supabase.co'
 };
 
 // Helper function to execute commands with detailed monitoring
