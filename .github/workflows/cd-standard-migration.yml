@@ -158,8 +158,8 @@ jobs:
     outputs:
       has_migrations: ${{ steps.filter.outputs.migrations }}
       migration_files: ${{ steps.filter.outputs.migration_files }}
-      email_related_changes: ${{ steps.impact.outputs.email_related }}
-      schema_only_changes: ${{ steps.impact.outputs.schema_only }}
+      email_related_changes: ${{ steps.impact_analysis.outputs.email_related }}
+      schema_only_changes: ${{ steps.impact_analysis.outputs.schema_only }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -178,44 +178,50 @@ jobs:
               - '.github/workflows/cd-standard-migration.yml'
 
       - name: Analyze migration impact
-        id: impact
-        if: steps.filter.outputs.migrations == 'true'
+        id: impact_analysis
         run: |
           echo "🔍 Analyzing migration impact..."
           
-          # Check if migrations affect email-related tables
-          email_tables=("email_outbox" "registrations" "audit_logs" "email_templates" "email_config")
+          # Initialize default values
           email_related=false
           schema_only=true
           
-          for file in migrations/*.sql; do
-            if [ -f "$file" ]; then
-              echo "Analyzing $file..."
-              content=$(cat "$file" | tr '[:upper:]' '[:lower:]')
-              
-              # Check for email-related table changes
-              for table in "${email_tables[@]}"; do
-                if echo "$content" | grep -q "$table"; then
-                  echo "  - Found email-related table: $table"
+          # Only analyze if migrations are detected
+          if [ "${{ steps.filter.outputs.migrations }}" == "true" ]; then
+            # Check if migrations affect email-related tables
+            email_tables=("email_outbox" "registrations" "audit_logs" "email_templates" "email_config")
+            
+            for file in migrations/*.sql; do
+              if [ -f "$file" ]; then
+                echo "Analyzing $file..."
+                content=$(cat "$file" | tr '[:upper:]' '[:lower:]')
+                
+                # Check for email-related table changes
+                for table in "${email_tables[@]}"; do
+                  if echo "$content" | grep -q "$table"; then
+                    echo "  - Found email-related table: $table"
+                    email_related=true
+                    schema_only=false
+                  fi
+                done
+                
+                # Check for email-related functions or triggers
+                if echo "$content" | grep -E "(email|dispatch|notification|outbox)" | grep -E "(function|trigger|procedure)"; then
+                  echo "  - Found email-related function/trigger"
                   email_related=true
                   schema_only=false
                 fi
-              done
-              
-              # Check for email-related functions or triggers
-              if echo "$content" | grep -E "(email|dispatch|notification|outbox)" | grep -E "(function|trigger|procedure)"; then
-                echo "  - Found email-related function/trigger"
-                email_related=true
-                schema_only=false
+                
+                # Check for data changes (INSERT, UPDATE, DELETE)
+                if echo "$content" | grep -E "(insert|update|delete)" | grep -v "create\|alter\|drop"; then
+                  echo "  - Found data changes"
+                  schema_only=false
+                fi
               fi
-              
-              # Check for data changes (INSERT, UPDATE, DELETE)
-              if echo "$content" | grep -E "(insert|update|delete)" | grep -v "create\|alter\|drop"; then
-                echo "  - Found data changes"
-                schema_only=false
-              fi
-            fi
-          done
+            done
+          else
+            echo "No migrations detected - using default values"
+          fi
           
           echo "email_related=$email_related" >> $GITHUB_OUTPUT
           echo "schema_only=$schema_only" >> $GITHUB_OUTPUT
@@ -224,19 +230,13 @@ jobs:
           echo "  Email-related changes: $email_related"
           echo "  Schema-only changes: $schema_only"
 
-      - name: Set default impact values when no migrations
-        if: steps.filter.outputs.migrations == 'false'
-        run: |
-          echo "email_related=false" >> $GITHUB_OUTPUT
-          echo "schema_only=true" >> $GITHUB_OUTPUT
-
       - name: Debug migration detection and impact
         run: |
           echo "🔍 DEBUG: Migration detection and impact analysis:"
           echo "migrations: '${{ steps.filter.outputs.migrations }}'"
           echo "migration_files: '${{ steps.filter.outputs.migration_files }}'"
-          echo "email_related: '${{ steps.impact.outputs.email_related }}'"
-          echo "schema_only: '${{ steps.impact.outputs.schema_only }}'"
+          echo "email_related: '${{ steps.impact_analysis.outputs.email_related }}'"
+          echo "schema_only: '${{ steps.impact_analysis.outputs.schema_only }}'"
 
   # Validate migration files (only if changes detected or forced)
   validate_migrations:
@@ -393,21 +393,26 @@ jobs:
         run: |
           echo "Verifying staging database has required schema..."
           
-          # Use Supabase CLI to check schema instead of direct psql connection
-          echo "Checking staging database schema using Supabase CLI..."
+          # Use direct connection approach (drift-safe, idempotent)
+          # This avoids the unreliable supabase db remote commit command
+          echo "Using direct database connection for schema validation..."
           
-          # Get the database connection string from Supabase CLI
-          db_url=$(supabase db remote commit --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 | grep 'postgresql://' | head -1 || echo "")
+          # Direct connection with Supabase project context (proven reliable method)
+          db_url="postgresql://postgres:${{ secrets.STAGING_DB_PASSWORD }}@db.${{ secrets.SB_STAGING_REF }}.supabase.co:5432/postgres"
           
-          if [ -z "$db_url" ]; then
-            echo "❌ Failed to get database connection from Supabase CLI"
+          echo "Using database connection: $db_url"
+          
+          # Test connectivity first
+          echo "Testing database connectivity..."
+          if ! psql "$db_url" -c "SELECT 1;" >/dev/null 2>&1; then
+            echo "❌ Database connectivity test failed"
             echo "passed=false" >> $GITHUB_OUTPUT
             exit 1
           fi
           
-          echo "Using database connection: $db_url"
+          echo "✅ Database connectivity confirmed"
           
-          # Check for required columns using the Supabase CLI connection
+          # Check for required columns using direct connection
           echo "Checking email_outbox table schema..."
           has_attempts=$(psql "$db_url" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'email_outbox' AND column_name = 'attempts')" 2>/dev/null | tr -d ' ')
           has_max_attempts=$(psql "$db_url" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'email_outbox' AND column_name = 'max_attempts')" 2>/dev/null | tr -d ' ')
@@ -429,28 +434,9 @@ jobs:
             echo "✅ Staging database has required schema"
             echo "passed=true" >> $GITHUB_OUTPUT
           else
-            echo "⚠️  Supabase CLI connection method failed, trying fallback method..."
-            
-            # Fallback: Try direct connection with Supabase project context
-            fallback_connection="postgresql://postgres:${{ secrets.STAGING_DB_PASSWORD }}@db.${{ secrets.SB_STAGING_REF }}.supabase.co:5432/postgres"
-            
-            echo "Trying fallback connection: $fallback_connection"
-            
-            has_attempts_fallback=$(psql "$fallback_connection" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'email_outbox' AND column_name = 'attempts')" 2>/dev/null | tr -d ' ')
-            has_max_attempts_fallback=$(psql "$fallback_connection" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'email_outbox' AND column_name = 'max_attempts')" 2>/dev/null | tr -d ' ')
-            
-            echo "Fallback validation results:"
-            echo "  attempts column exists: $has_attempts_fallback"
-            echo "  max_attempts column exists: $has_max_attempts_fallback"
-            
-            if [ "$has_attempts_fallback" = "t" ] && [ "$has_max_attempts_fallback" = "t" ]; then
-              echo "✅ Staging database has required schema (fallback method)"
-              echo "passed=true" >> $GITHUB_OUTPUT
-            else
-              echo "❌ Staging database missing required schema (both methods failed)"
-              echo "passed=false" >> $GITHUB_OUTPUT
-              exit 1
-            fi
+            echo "❌ Staging database missing required schema"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
           fi
 
       - name: Cleanup staging connection
@@ -464,7 +450,7 @@ jobs:
   deploy_production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [detect_changes, validate_migrations, test_migrations, validate_staging_deployment]
+    needs: [quick_migration_validation, detect_changes, validate_migrations, test_migrations, validate_staging_deployment]
     if: |
       (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
       needs.detect_changes.result == 'success' &&
