@@ -358,14 +358,77 @@ jobs:
         if: always()
         run: supabase stop
 
-  # Deploy to production (only if all previous steps pass)
-  deploy_production:
-    name: Deploy to Production
+  # Validate staging deployment (safety check before production)
+  validate_staging_deployment:
+    name: Validate Staging Deployment
     runs-on: ubuntu-latest
     needs: [detect_changes, validate_migrations, test_migrations]
     if: |
       (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
       needs.detect_changes.result == 'success' &&
+      github.event.inputs.target_environment == 'production'
+    outputs:
+      staging_validated: ${{ steps.validation_result.outputs.passed }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Link to staging project for validation
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Linking to staging project for pre-production validation..."
+          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
+
+      - name: Verify staging database schema
+        id: validation_result
+        run: |
+          echo "Verifying staging database has required schema..."
+          
+          # Check if email_outbox table has required columns
+          connection_string="postgresql://postgres:${{ secrets.STAGING_DB_PASSWORD }}@db.${{ secrets.SB_STAGING_REF }}.supabase.co:5432/postgres"
+          
+          # Check for required columns
+          has_attempts=$(psql "$connection_string" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'email_outbox' AND column_name = 'attempts')" 2>/dev/null | tr -d ' ')
+          has_max_attempts=$(psql "$connection_string" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'email_outbox' AND column_name = 'max_attempts')" 2>/dev/null | tr -d ' ')
+          
+          echo "Staging validation results:"
+          echo "  attempts column exists: $has_attempts"
+          echo "  max_attempts column exists: $has_max_attempts"
+          
+          if [ "$has_attempts" = "t" ] && [ "$has_max_attempts" = "t" ]; then
+            echo "✅ Staging database has required schema"
+            echo "passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Staging database missing required schema"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Cleanup staging connection
+        if: always()
+        run: |
+          echo "Cleaning up staging connection..."
+          supabase unlink || echo "No project linked to unlink"
+          echo "✅ Cleanup completed"
+
+  # Deploy to production (only if staging validation passes)
+  deploy_production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [detect_changes, validate_migrations, test_migrations, validate_staging_deployment]
+    if: |
+      (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
+      needs.detect_changes.result == 'success' &&
+      needs.validate_staging_deployment.outputs.staging_validated == 'true' &&
       github.event.inputs.target_environment == 'production'
     environment:
       name: production
@@ -435,8 +498,21 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           echo "Pushing migrations to production..."
-          supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }}
-          supabase db push --password ${{ secrets.PROD_DB_PASSWORD }}
+          
+          # First, try a dry run to see what would happen
+          echo "Running dry run to check migration requirements..."
+          dry_run_output=$(supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || true)
+          echo "Dry run output: $dry_run_output"
+          
+          # Check if we need to use --include-all flag
+          if echo "$dry_run_output" | grep -q "Found local migration files to be inserted before the last migration"; then
+            echo "Migration order issue detected. Using --include-all flag..."
+            supabase db push --include-all --password ${{ secrets.PROD_DB_PASSWORD }}
+          else
+            echo "Standard migration push..."
+            supabase db push --password ${{ secrets.PROD_DB_PASSWORD }}
+          fi
+          
           echo "✅ Migrations deployed to production"
 
       - name: No production changes to deploy
@@ -448,7 +524,7 @@ jobs:
   deployment_summary:
     name: CD Standard Migration Summary
     runs-on: ubuntu-latest
-    needs: [quick_migration_validation, detect_changes, validate_migrations, test_migrations, deploy_production]
+    needs: [quick_migration_validation, detect_changes, validate_migrations, test_migrations, validate_staging_deployment, deploy_production]
     if: always()
     steps:
       - name: Checkout code
@@ -485,6 +561,7 @@ jobs:
               { label: 'detect_changes',            pattern: /Detect Migration Changes/i },
               { label: 'validate_migrations',       pattern: /Validate Migration Files/i },
               { label: 'test_migrations',           pattern: /Test Migrations.*Shadow DB/i },
+              { label: 'validate_staging',          pattern: /Validate Staging Deployment/i },
               { label: 'deploy_production',         pattern: /Deploy to Production/i },
             ];
 
