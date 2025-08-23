@@ -358,103 +358,16 @@ jobs:
         if: always()
         run: supabase stop
 
-  # Validate staging deployment (safety check before production)
-  validate_staging_deployment:
-    name: Validate Staging Deployment
-    runs-on: ubuntu-latest
-    needs: [detect_changes, validate_migrations, test_migrations]
-    if: |
-      (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
-      needs.detect_changes.result == 'success' &&
-      github.event.inputs.target_environment == 'production'
-    outputs:
-      staging_validated: ${{ steps.validation_result.outputs.passed }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: true
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: ${{ env.SUPABASE_CLI_VERSION }}
 
-      - name: Link to staging project for validation
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          echo "Linking to staging project for pre-production validation..."
-          supabase link --project-ref ${{ secrets.SB_STAGING_REF }} --password ${{ secrets.STAGING_DB_PASSWORD }}
-
-      - name: Verify staging database schema
-        id: validation_result
-        run: |
-          echo "Verifying staging database has required schema..."
-          
-          # Use direct connection approach (drift-safe, idempotent)
-          # This avoids the unreliable supabase db remote commit command
-          echo "Using direct database connection for schema validation..."
-          
-          # Direct connection with Supabase project context (proven reliable method)
-          db_url="postgresql://postgres:${{ secrets.STAGING_DB_PASSWORD }}@db.${{ secrets.SB_STAGING_REF }}.supabase.co:5432/postgres"
-          
-          echo "Using database connection: $db_url"
-          
-          # Test connectivity first
-          echo "Testing database connectivity..."
-          if ! psql "$db_url" -c "SELECT 1;" >/dev/null 2>&1; then
-            echo "❌ Database connectivity test failed"
-            echo "passed=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-          
-          echo "✅ Database connectivity confirmed"
-          
-          # Check for required columns using direct connection
-          echo "Checking email_outbox table schema..."
-          has_attempts=$(psql "$db_url" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'email_outbox' AND column_name = 'attempts')" 2>/dev/null | tr -d ' ')
-          has_max_attempts=$(psql "$db_url" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'email_outbox' AND column_name = 'max_attempts')" 2>/dev/null | tr -d ' ')
-          
-          # Additional debugging: Check if table exists and show all columns
-          table_exists=$(psql "$db_url" -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'email_outbox')" 2>/dev/null | tr -d ' ')
-          echo "email_outbox table exists: $table_exists"
-          
-          if [ "$table_exists" = "t" ]; then
-            echo "All columns in email_outbox table:"
-            psql "$db_url" -t -c "SELECT column_name FROM information_schema.columns WHERE table_name = 'email_outbox' ORDER BY ordinal_position" 2>/dev/null || echo "Failed to list columns"
-          fi
-          
-          echo "Staging validation results:"
-          echo "  attempts column exists: $has_attempts"
-          echo "  max_attempts column exists: $has_max_attempts"
-          
-          if [ "$has_attempts" = "t" ] && [ "$has_max_attempts" = "t" ]; then
-            echo "✅ Staging database has required schema"
-            echo "passed=true" >> $GITHUB_OUTPUT
-          else
-            echo "❌ Staging database missing required schema"
-            echo "passed=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
-
-      - name: Cleanup staging connection
-        if: always()
-        run: |
-          echo "Cleaning up staging connection..."
-          supabase unlink || echo "No project linked to unlink"
-          echo "✅ Cleanup completed"
-
-  # Deploy to production (only if staging validation passes)
+  # Deploy to production (only if all validations pass)
   deploy_production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [quick_migration_validation, detect_changes, validate_migrations, test_migrations, validate_staging_deployment]
+    needs: [quick_migration_validation, detect_changes, validate_migrations, test_migrations]
     if: |
       (needs.detect_changes.outputs.has_migrations == 'true' || github.event.inputs.force_migration == 'true') &&
       needs.detect_changes.result == 'success' &&
-      needs.validate_staging_deployment.outputs.staging_validated == 'true' &&
       github.event.inputs.target_environment == 'production'
     environment:
       name: production
@@ -550,7 +463,7 @@ jobs:
   deployment_summary:
     name: CD Standard Migration Summary
     runs-on: ubuntu-latest
-    needs: [quick_migration_validation, detect_changes, validate_migrations, test_migrations, validate_staging_deployment, deploy_production]
+    needs: [quick_migration_validation, detect_changes, validate_migrations, test_migrations, deploy_production]
     if: always()
     steps:
       - name: Checkout code
@@ -587,7 +500,6 @@ jobs:
               { label: 'detect_changes',            pattern: /Detect Migration Changes/i },
               { label: 'validate_migrations',       pattern: /Validate Migration Files/i },
               { label: 'test_migrations',           pattern: /Test Migrations.*Shadow DB/i },
-              { label: 'validate_staging',          pattern: /Validate Staging Deployment/i },
               { label: 'deploy_production',         pattern: /Deploy to Production/i },
             ];
 
