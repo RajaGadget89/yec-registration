@@ -92,3 +92,7 @@ restore.sh
 # ===========================
 # Supabase
 # supabase/migrations/
+backup-manager.sh
+backup.sh.original
+backups/
+restore.sh
