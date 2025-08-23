@@ -484,8 +484,21 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           echo "Pushing migrations to staging..."
-          supabase db push --dry-run --password ${{ secrets.STAGING_DB_PASSWORD }}
-          supabase db push --password ${{ secrets.STAGING_DB_PASSWORD }}
+          
+          # First, try a dry run to see what would happen
+          echo "Running dry run to check migration requirements..."
+          dry_run_output=$(supabase db push --dry-run --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || true)
+          echo "Dry run output: $dry_run_output"
+          
+          # Check if we need to use --include-all flag
+          if echo "$dry_run_output" | grep -q "Found local migration files to be inserted before the last migration"; then
+            echo "Migration order issue detected. Using --include-all flag..."
+            supabase db push --include-all --password ${{ secrets.STAGING_DB_PASSWORD }}
+          else
+            echo "Standard migration push..."
+            supabase db push --password ${{ secrets.STAGING_DB_PASSWORD }}
+          fi
+          
           echo "✅ Migrations deployed to staging"
 
       - name: No changes to deploy
