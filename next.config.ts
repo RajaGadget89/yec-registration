@@ -2,13 +2,18 @@ import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
 
-// ดึงโดเมนจาก ENV หรือตั้งค่าตรง ๆ ก็ได้
-const supabaseDomain = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/^https?:\/\//, "") || "wwwzhpyvogwypmqgvtjv.supabase.co";
+// Use environment variable for Supabase domain - no hardcoded fallback
+const supabaseDomain = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/^https?:\/\//, "");
+
+// Validate that the environment variable is set
+if (!supabaseDomain) {
+  console.warn("⚠️  NEXT_PUBLIC_SUPABASE_URL environment variable is not set");
+}
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
-    domains: [supabaseDomain],
+    domains: supabaseDomain ? [supabaseDomain] : [],
   },
   async headers() {
     return [
