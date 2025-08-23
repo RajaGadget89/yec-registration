@@ -82,6 +82,13 @@ documents/
 tmp/
 scripts/
 
+# =======================================
+# Backup
+backups/
+backup-manager.sh
+backup.sh.original
+restore.sh
+
 # ===========================
 # Supabase
 # supabase/migrations/
