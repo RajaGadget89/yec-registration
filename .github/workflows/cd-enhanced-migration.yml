@@ -144,12 +144,116 @@ jobs:
           echo "🧹 Cleaning up staging connection..."
           supabase unlink || echo "No project linked to unlink"
 
-  # PHASE 2: Production Health Check (1-2 minutes)
-  production_health_check:
-    name: Production Health Check
+  # PHASE 2: Migration Detection (1-2 minutes)
+  detect_migrations:
+    name: Detect Migration Changes
     runs-on: ubuntu-latest
     needs: pre_deployment_safety
     if: needs.pre_deployment_safety.outputs.safety_passed == 'true'
+    timeout-minutes: 3
+    outputs:
+      has_migrations: ${{ steps.migration_detection.outputs.has_migrations }}
+      migration_files: ${{ steps.migration_detection.outputs.migration_files }}
+      email_related_changes: ${{ steps.migration_detection.outputs.email_related }}
+      schema_only_changes: ${{ steps.migration_detection.outputs.schema_only }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Link to production for migration detection
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "🔍 Linking to production for migration detection..."
+          supabase link --project-ref ${{ secrets.SB_PROD_REF }} --password ${{ secrets.PROD_DB_PASSWORD }}
+
+      - name: Detect migration changes
+        id: migration_detection
+        run: |
+          echo "🔍 Detecting migration changes..."
+          
+          # Check if there are any migration files
+          if [ ! -d "migrations" ] || [ -z "$(ls -A migrations/*.sql 2>/dev/null)" ]; then
+            echo "📭 No migration files found"
+            echo "has_migrations=false" >> $GITHUB_OUTPUT
+            echo "migration_files=" >> $GITHUB_OUTPUT
+            echo "email_related=false" >> $GITHUB_OUTPUT
+            echo "schema_only=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Get list of migration files
+          migration_files=$(find migrations -name "*.sql" -type f | sort | tr '\n' ',' | sed 's/,$//')
+          echo "📦 Found migration files: $migration_files"
+          
+          # Check if there are differences between local and remote
+          echo "🔍 Checking for differences between local and remote..."
+          diff_output=$(supabase db diff --schema public --linked --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || echo "No diff or error")
+          
+          if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
+            echo "✅ Migration changes detected"
+            echo "has_migrations=true" >> $GITHUB_OUTPUT
+            echo "migration_files=$migration_files" >> $GITHUB_OUTPUT
+            
+            # Analyze migration impact
+            echo "🔍 Analyzing migration impact..."
+            email_related=false
+            schema_only=true
+            
+            # Check if migrations affect email-related tables
+            email_tables=("email_outbox" "registrations" "audit_logs" "email_templates" "email_config")
+            
+            for file in migrations/*.sql; do
+              if [ -f "$file" ]; then
+                echo "Analyzing $file..."
+                content=$(cat "$file" | tr '[:upper:]' '[:lower:]')
+                
+                for table in "${email_tables[@]}"; do
+                  if echo "$content" | grep -q "$table"; then
+                    echo "  - Affects email-related table: $table"
+                    email_related=true
+                    schema_only=false
+                  fi
+                done
+              fi
+            done
+            
+            echo "📊 Migration Impact Analysis:"
+            echo "  Email-related changes: $email_related"
+            echo "  Schema-only changes: $schema_only"
+            
+            echo "email_related=$email_related" >> $GITHUB_OUTPUT
+            echo "schema_only=$schema_only" >> $GITHUB_OUTPUT
+          else
+            echo "✅ No migration changes detected"
+            echo "has_migrations=false" >> $GITHUB_OUTPUT
+            echo "migration_files=$migration_files" >> $GITHUB_OUTPUT
+            echo "email_related=false" >> $GITHUB_OUTPUT
+            echo "schema_only=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Cleanup production connection
+        if: always()
+        run: |
+          echo "🧹 Cleaning up production connection..."
+          supabase unlink || echo "No project linked to unlink"
+
+  # PHASE 3: Production Health Check (1-2 minutes)
+  production_health_check:
+    name: Production Health Check
+    runs-on: ubuntu-latest
+    needs: [pre_deployment_safety, detect_migrations]
+    if: |
+      needs.pre_deployment_safety.outputs.safety_passed == 'true' &&
+      needs.detect_migrations.outputs.has_migrations == 'true'
     timeout-minutes: 3
     outputs:
       production_healthy: ${{ steps.health_result.outputs.healthy }}
@@ -223,14 +327,14 @@ jobs:
           echo "🧹 Cleaning up production connection..."
           supabase unlink || echo "No project linked to unlink"
 
-  # PHASE 3: Migration Execution (3-5 minutes)
+  # PHASE 4: Migration Execution (3-5 minutes)
   execute_migration:
     name: Execute Migration
     runs-on: ubuntu-latest
-    needs: [pre_deployment_safety, production_health_check]
+    needs: [pre_deployment_safety, detect_migrations, production_health_check]
     if: |
       needs.pre_deployment_safety.outputs.safety_passed == 'true' &&
-      needs.pre_deployment_safety.outputs.deployment_ready == 'true' &&
+      needs.detect_migrations.outputs.has_migrations == 'true' &&
       needs.production_health_check.outputs.production_healthy == 'true'
     environment:
       name: production
@@ -315,7 +419,7 @@ jobs:
           echo "🧹 Cleaning up production connection..."
           supabase unlink || echo "No project linked to unlink"
 
-  # PHASE 4: Post-Deployment Verification (2-3 minutes)
+  # PHASE 5: Post-Deployment Verification (2-3 minutes)
   post_deployment_verification:
     name: Post-Deployment Verification
     runs-on: ubuntu-latest
@@ -422,7 +526,7 @@ jobs:
           echo "🧹 Cleaning up production connection..."
           supabase unlink || echo "No project linked to unlink"
 
-  # PHASE 5: Emergency Rollback (if needed)
+  # PHASE 6: Emergency Rollback (if needed)
   emergency_rollback:
     name: Emergency Rollback
     runs-on: ubuntu-latest
@@ -475,11 +579,11 @@ jobs:
           echo "🧹 Cleaning up production connection..."
           supabase unlink || echo "No project linked to unlink"
 
-  # PHASE 6: Deployment Summary (always runs)
+  # PHASE 7: Deployment Summary (always runs)
   deployment_summary:
     name: Enhanced Deployment Summary
     runs-on: ubuntu-latest
-    needs: [pre_deployment_safety, production_health_check, execute_migration, post_deployment_verification, emergency_rollback]
+    needs: [pre_deployment_safety, detect_migrations, production_health_check, execute_migration, post_deployment_verification, emergency_rollback]
     if: always()
     steps:
       - name: Checkout code
@@ -512,6 +616,7 @@ jobs:
             // Map display labels to regex patterns that match actual job names
             const targets = [
               { label: 'pre_deployment_safety',      pattern: /Pre-Deployment Safety Check/i },
+              { label: 'detect_migrations',          pattern: /Detect Migration Changes/i },
               { label: 'production_health_check',    pattern: /Production Health Check/i },
               { label: 'execute_migration',          pattern: /Execute Migration/i },
               { label: 'post_deployment_verification', pattern: /Post-Deployment Verification/i },
@@ -533,12 +638,12 @@ jobs:
             }
 
             summary += `\n### Enhanced Migration Features\n`;
-            summary += `- 🛡️ **Multi-Phase Safety:** Pre-deployment, health check, execution, verification\n`;
+            summary += `- 🛡️ **Multi-Phase Safety:** Pre-deployment, migration detection, health check, execution, verification\n`;
             summary += `- 🚨 **Emergency Mode:** Bypass safety checks for urgent deployments\n`;
             summary += `- 🔄 **Rollback Protection:** Automatic rollback triggers on failure\n`;
             summary += `- 📊 **Comprehensive Monitoring:** Health checks, integrity verification\n`;
-            summary += `- ⚡ **Time Optimized:** Parallel execution where possible\n`;
-            summary += `- 🎯 **Minimal Options:** Simple, clear deployment choices\n\n`;
+            summary += `- ⚡ **Time Optimized:** Skip expensive operations when no migrations detected\n`;
+            summary += `- 🎯 **Sequential Strategy:** Proper job dependencies ensure correct execution order\n\n`;
 
             summary += `### Deployment Modes\n`;
             summary += `- **Safe Mode:** Full safety checks, migration order validation\n`;
