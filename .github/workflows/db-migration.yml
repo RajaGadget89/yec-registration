@@ -169,8 +169,8 @@ jobs:
     outputs:
       has_migrations: ${{ steps.filter.outputs.migrations }}
       migration_files: ${{ steps.filter.outputs.migration_files }}
-      email_related_changes: ${{ steps.impact.outputs.email_related }}
-      schema_only_changes: ${{ steps.impact.outputs.schema_only }}
+      email_related_changes: ${{ steps.impact_analysis.outputs.email_related }}
+      schema_only_changes: ${{ steps.impact_analysis.outputs.schema_only }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -189,44 +189,50 @@ jobs:
               - '.github/workflows/db-migration.yml'
 
       - name: Analyze migration impact
-        id: impact
-        if: steps.filter.outputs.migrations == 'true'
+        id: impact_analysis
         run: |
           echo "🔍 Analyzing migration impact..."
           
-          # Check if migrations affect email-related tables
-          email_tables=("email_outbox" "registrations" "audit_logs" "email_templates" "email_config")
+          # Initialize default values
           email_related=false
           schema_only=true
           
-          for file in migrations/*.sql; do
-            if [ -f "$file" ]; then
-              echo "Analyzing $file..."
-              content=$(cat "$file" | tr '[:upper:]' '[:lower:]')
-              
-              # Check for email-related table changes
-              for table in "${email_tables[@]}"; do
-                if echo "$content" | grep -q "$table"; then
-                  echo "  - Found email-related table: $table"
+          # Only analyze if migrations are detected
+          if [ "${{ steps.filter.outputs.migrations }}" == "true" ]; then
+            # Check if migrations affect email-related tables
+            email_tables=("email_outbox" "registrations" "audit_logs" "email_templates" "email_config")
+            
+            for file in migrations/*.sql; do
+              if [ -f "$file" ]; then
+                echo "Analyzing $file..."
+                content=$(cat "$file" | tr '[:upper:]' '[:lower:]')
+                
+                # Check for email-related table changes
+                for table in "${email_tables[@]}"; do
+                  if echo "$content" | grep -q "$table"; then
+                    echo "  - Found email-related table: $table"
+                    email_related=true
+                    schema_only=false
+                  fi
+                done
+                
+                # Check for email-related functions or triggers
+                if echo "$content" | grep -E "(email|dispatch|notification|outbox)" | grep -E "(function|trigger|procedure)"; then
+                  echo "  - Found email-related function/trigger"
                   email_related=true
                   schema_only=false
                 fi
-              done
-              
-              # Check for email-related functions or triggers
-              if echo "$content" | grep -E "(email|dispatch|notification|outbox)" | grep -E "(function|trigger|procedure)"; then
-                echo "  - Found email-related function/trigger"
-                email_related=true
-                schema_only=false
+                
+                # Check for data changes (INSERT, UPDATE, DELETE)
+                if echo "$content" | grep -E "(insert|update|delete)" | grep -v "create\|alter\|drop"; then
+                  echo "  - Found data changes"
+                  schema_only=false
+                fi
               fi
-              
-              # Check for data changes (INSERT, UPDATE, DELETE)
-              if echo "$content" | grep -E "(insert|update|delete)" | grep -v "create\|alter\|drop"; then
-                echo "  - Found data changes"
-                schema_only=false
-              fi
-            fi
-          done
+            done
+          else
+            echo "No migrations detected - using default values"
+          fi
           
           echo "email_related=$email_related" >> $GITHUB_OUTPUT
           echo "schema_only=$schema_only" >> $GITHUB_OUTPUT
@@ -235,19 +241,13 @@ jobs:
           echo "  Email-related changes: $email_related"
           echo "  Schema-only changes: $schema_only"
 
-      - name: Set default impact values when no migrations
-        if: steps.filter.outputs.migrations == 'false'
-        run: |
-          echo "email_related=false" >> $GITHUB_OUTPUT
-          echo "schema_only=true" >> $GITHUB_OUTPUT
-
       - name: Debug migration detection and impact
         run: |
           echo "🔍 DEBUG: Migration detection and impact analysis:"
           echo "migrations: '${{ steps.filter.outputs.migrations }}'"
           echo "migration_files: '${{ steps.filter.outputs.migration_files }}'"
-          echo "email_related: '${{ steps.impact.outputs.email_related }}'"
-          echo "schema_only: '${{ steps.impact.outputs.schema_only }}'"
+          echo "email_related: '${{ steps.impact_analysis.outputs.email_related }}'"
+          echo "schema_only: '${{ steps.impact_analysis.outputs.schema_only }}'"
           
           # Early exit if no migrations detected (unless forced)
           if [ "${{ steps.filter.outputs.migrations }}" != "true" ] && [ "${{ github.event.inputs.force_migration }}" != "true" ]; then
@@ -537,7 +537,7 @@ jobs:
   full_e2e_tests:
     name: Full E2E Tests
     runs-on: ubuntu-latest
-    needs: [quick_migration_validation, detect_changes, deploy_staging]
+    needs: [quick_migration_validation, detect_changes, validate_migrations, test_migrations, deploy_staging]
     if: |
       needs.quick_migration_validation.outputs.validation_passed == 'true' &&
       needs.detect_changes.outputs.has_migrations == 'true' &&
@@ -704,7 +704,7 @@ jobs:
   deployment_summary:
     name: Deployment Summary
     runs-on: ubuntu-latest
-    needs: [quick_migration_validation]
+    needs: [quick_migration_validation, detect_changes, validate_migrations, test_migrations, deploy_staging, full_e2e_tests]
     if: always()
     steps:
       - name: Checkout code
