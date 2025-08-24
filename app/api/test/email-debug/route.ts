@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     let sendResult;
     try {
       const { data, error } = await resend.emails.send({
-        from: "YEC <noreply@rajagadget.live>", // Use verified domain
+        from: getEmailFromAddress(), // Use centralized email configuration
         to: "test@example.com",
         subject: "YEC Email System Test",
         html: "<p>This is a test email to verify the email system is working.</p>",

@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { getEmailFromAddress } from "./config";
 
 /**
  * Send email notification using Resend
@@ -22,7 +23,7 @@ export async function sendEmail(
   try {
     const resend = new Resend(resendApiKey);
     const { error } = await resend.emails.send({
-      from: "YEC <info@rajagadget.live>",
+      from: getEmailFromAddress(), // Use centralized email configuration
       to,
       subject,
       html,
@@ -116,8 +117,8 @@ export const emailTemplates = {
         <p>You will receive further details about the event schedule and logistics soon.</p>
         <p>คุณจะได้รับรายละเอียดเพิ่มเติมเกี่ยวกับกำหนดการและ logistics ของงานในเร็วๆ นี้</p>
         
-        <p>If you have any questions, please contact us at info@yecday.com</p>
-        <p>หากมีคำถามใดๆ กรุณาติดต่อเราได้ที่ info@yecday.com</p>
+        <p>If you have any questions, please contact us at ${getEmailFromAddress()}</p>
+        <p>หากมีคำถามใดๆ กรุณาติดต่อเราได้ที่ ${getEmailFromAddress()}</p>
         
         <p>Best regards / ขอแสดงความนับถือ,<br>
         YEC Day Team</p>
@@ -140,8 +141,8 @@ export const emailTemplates = {
           <strong>Registration ID / รหัสลงทะเบียน:</strong> ${registrationId}
         </div>
         
-        <p>If you believe this is an error or have questions, please contact us at info@yecday.com</p>
-        <p>หากคุณคิดว่านี่เป็นข้อผิดพลาดหรือมีคำถาม กรุณาติดต่อเราได้ที่ info@yecday.com</p>
+        <p>If you believe this is an error or have questions, please contact us at ${getEmailFromAddress()}</p>
+        <p>หากคุณคิดว่านี่เป็นข้อผิดพลาดหรือมีคำถาม กรุณาติดต่อเราได้ที่ ${getEmailFromAddress()}</p>
         
         <p>Best regards / ขอแสดงความนับถือ,<br>
         YEC Day Team</p>
@@ -167,8 +168,8 @@ export const emailTemplates = {
         <p>Please review and update your registration information at your earliest convenience.</p>
         <p>กรุณาตรวจสอบและอัปเดตข้อมูลการลงทะเบียนของคุณโดยเร็วที่สุดเท่าที่จะทำได้</p>
         
-        <p>If you have any questions, please contact us at info@yecday.com</p>
-        <p>หากมีคำถามใดๆ กรุณาติดต่อเราได้ที่ info@yecday.com</p>
+        <p>If you have any questions, please contact us at ${getEmailFromAddress()}</p>
+        <p>หากมีคำถามใดๆ กรุณาติดต่อเราได้ที่ ${getEmailFromAddress()}</p>
         
         <p>Best regards / ขอแสดงความนับถือ,<br>
         YEC Day Team</p>
