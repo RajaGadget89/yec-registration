@@ -55,7 +55,14 @@ export async function GET(request: NextRequest) {
   const appUrl = getAppUrl();
   const redirectTo = `${appUrl}/auth/callback`;
 
-  console.log("[magic-link] Generating magic link for:", { email, redirectTo });
+  console.log("[magic-link] Generating magic link for:", {
+    email,
+    redirectTo,
+    appUrl,
+    envAppUrl: process.env.NEXT_PUBLIC_APP_URL,
+    requestUrl: request.url,
+    requestOrigin: new URL(request.url).origin,
+  });
 
   try {
     const supabase = getSupabaseServiceClient();
@@ -98,6 +105,12 @@ export async function GET(request: NextRequest) {
       email: authUser.email,
     });
 
+    console.log("[magic-link] Calling supabase.auth.admin.generateLink with:", {
+      type: "magiclink",
+      email,
+      redirectTo,
+    });
+
     const { data, error } = await supabase.auth.admin.generateLink({
       type: "magiclink",
       email,
@@ -125,6 +138,7 @@ export async function GET(request: NextRequest) {
       actionLink: data.properties.action_link,
       email,
       redirectTo,
+      dataProperties: data.properties,
     });
 
     return NextResponse.json({
@@ -132,19 +146,21 @@ export async function GET(request: NextRequest) {
       actionLink: data.properties.action_link,
       email,
       redirectTo,
+      debug: {
+        appUrl,
+        envAppUrl: process.env.NEXT_PUBLIC_APP_URL,
+        requestOrigin: new URL(request.url).origin,
+      },
     });
-  } catch (error: unknown) {
+  } catch (error) {
     console.error("[magic-link] Unexpected error:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unexpected error occurred";
     return NextResponse.json(
       {
         ok: false,
         reason: "UNEXPECTED_ERROR",
-        message: errorMessage,
-        hint: "Check Supabase service role key and network connectivity",
-        redirectTo,
+        message: error instanceof Error ? error.message : "Unknown error",
         email,
+        redirectTo,
       },
       { status: 500 },
     );

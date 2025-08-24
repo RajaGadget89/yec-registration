@@ -94,10 +94,14 @@ export async function GET(request: NextRequest) {
     if (!isCronAuthorized) {
       const adminCheck = validateAdminAccess(request);
       if (!adminCheck.valid) {
-        console.log("[dispatch-emails] GET request unauthorized - no CRON_SECRET and no valid admin access");
+        console.log(
+          "[dispatch-emails] GET request unauthorized - no CRON_SECRET and no valid admin access",
+        );
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      console.log(`[dispatch-emails] GET request authorized via admin access: ${adminCheck.adminEmail}`);
+      console.log(
+        `[dispatch-emails] GET request authorized via admin access: ${adminCheck.adminEmail}`,
+      );
     } else {
       console.log("[dispatch-emails] GET request authorized via CRON_SECRET");
     }
