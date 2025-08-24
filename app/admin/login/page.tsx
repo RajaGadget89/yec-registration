@@ -5,6 +5,18 @@ import Link from "next/link";
 import { Lock, Mail, AlertCircle, CheckCircle } from "lucide-react";
 import { getSupabaseAuth } from "../../lib/auth-client";
 
+// Client-side function to get app URL with Vercel preview support
+function getClientAppUrl(): string {
+  // Check if we're in a Vercel preview environment
+  if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
+    // For Vercel preview, use the current origin
+    return window.location.origin;
+  }
+  
+  // Fallback to environment variable or current origin
+  return process.env.NEXT_PUBLIC_APP_URL || window.location.origin || "http://localhost:8080";
+}
+
 // Force dynamic rendering for login page
 export const dynamic = "force-dynamic";
 
@@ -47,10 +59,7 @@ export default function AdminLoginPage() {
       const nextParam = urlParams.get("next");
 
       // Build redirect URL with next parameter if present
-      const baseRedirectUrl =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        window.location.origin ||
-        "http://localhost:8080";
+      const baseRedirectUrl = getClientAppUrl();
       const redirectUrl = nextParam
         ? `${baseRedirectUrl}/auth/callback?next=${encodeURIComponent(nextParam)}`
         : `${baseRedirectUrl}/auth/callback`;
@@ -63,6 +72,7 @@ export default function AdminLoginPage() {
         nextParam,
         windowLocation: window.location.href,
         windowOrigin: window.location.origin,
+        clientAppUrl: getClientAppUrl(),
         envAppUrl: process.env.NEXT_PUBLIC_APP_URL,
         vercelUrl: process.env.VERCEL_URL,
         vercelEnv: process.env.VERCEL_ENV,
