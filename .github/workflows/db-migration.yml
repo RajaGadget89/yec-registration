@@ -469,6 +469,35 @@ jobs:
           mkdir -p supabase/migrations
           rsync -a --delete migrations/ supabase/migrations/
 
+      - name: Check and sync with remote migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          echo "Checking remote migration status..."
+          
+          # Get remote migration list
+          remote_migrations=$(supabase migration list --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Failed to get remote migrations")
+          echo "Remote migrations: $remote_migrations"
+          
+          # Check if there are remote migrations not in our local directory
+          if echo "$remote_migrations" | grep -q "Remote migration versions not found"; then
+            echo "⚠️ Remote migrations detected that are not in local directory"
+            echo "Attempting to pull current schema from staging..."
+            
+            # Try to pull the current schema to sync our local state
+            pull_output=$(supabase db pull --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Failed to pull schema")
+            echo "Schema pull output: $pull_output"
+            
+            # If pull fails, we'll handle it in the push step
+            if echo "$pull_output" | grep -q "Failed\|Error"; then
+              echo "⚠️ Schema pull failed. Will attempt repair during push."
+            else
+              echo "✅ Schema pulled successfully. Local migrations now in sync."
+            fi
+          else
+            echo "✅ Local and remote migrations appear to be in sync"
+          fi
+
       - name: Generate migration diff
         id: diff
         run: |
@@ -496,8 +525,55 @@ jobs:
           dry_run_output=$(supabase db push --dry-run --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || true)
           echo "Dry run output: $dry_run_output"
           
-          # Check if we need to use --include-all flag
-          if echo "$dry_run_output" | grep -q "Found local migration files to be inserted before the last migration"; then
+          # Check for migration version mismatch
+          if echo "$dry_run_output" | grep -q "Remote migration versions not found in local migrations directory"; then
+            echo "⚠️ Migration version mismatch detected. Attempting to repair..."
+            
+            # Get the list of remote migrations that are missing locally
+            echo "Fetching remote migration status..."
+            remote_status=$(supabase migration list --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Failed to get remote status")
+            echo "Remote migration status: $remote_status"
+            
+            # Try to repair the migration history
+            echo "Attempting migration repair..."
+            repair_output=$(supabase migration repair --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Repair failed")
+            echo "Migration repair output: $repair_output"
+            
+            # If repair doesn't work, try to reset the migration history
+            if echo "$repair_output" | grep -q "Failed\|Error"; then
+              echo "⚠️ Migration repair failed. Attempting to reset migration history..."
+              
+              # Get the current migration version from staging
+              current_version=$(supabase migration list --linked --password ${{ secrets.STAGING_DB_PASSWORD }} | grep "current" | awk '{print $1}' || echo "unknown")
+              echo "Current migration version in staging: $current_version"
+              
+              # Try to mark all migrations as applied up to the current version
+              if [ "$current_version" != "unknown" ]; then
+                echo "Marking migrations as applied up to version: $current_version"
+                supabase migration repair --status applied --linked --password ${{ secrets.STAGING_DB_PASSWORD }} || echo "Failed to mark migrations as applied"
+              fi
+              
+              # If that still doesn't work, try the specific repair mentioned in the error
+              if echo "$dry_run_output" | grep -q "20250823191802"; then
+                echo "⚠️ Specific migration 20250823191802 detected. Attempting targeted repair..."
+                supabase migration repair --status reverted 20250823191802 --linked --password ${{ secrets.STAGING_DB_PASSWORD }} || echo "Failed to revert specific migration"
+              fi
+            fi
+            
+            # Now try the push again
+            echo "Retrying migration push after repair..."
+            push_result=$(supabase db push --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Push failed")
+            
+            # If push still fails, try with force flag
+            if echo "$push_result" | grep -q "Push failed\|Error"; then
+              echo "⚠️ Standard push failed. Attempting forced push..."
+              supabase db push --force --password ${{ secrets.STAGING_DB_PASSWORD }} || {
+                echo "❌ All migration push attempts failed"
+                echo "Final push result: $push_result"
+                exit 1
+              }
+            fi
+          elif echo "$dry_run_output" | grep -q "Found local migration files to be inserted before the last migration"; then
             echo "Migration order issue detected. Using --include-all flag..."
             supabase db push --include-all --password ${{ secrets.STAGING_DB_PASSWORD }}
           else

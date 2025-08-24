@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServiceClient } from "@/lib/supabase-server";
+import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 
 export async function POST(request: NextRequest) {
   // Check for test helpers enabled
@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   if (!testHelpersEnabled || testHelpersEnabled !== "1") {
     return NextResponse.json(
       { error: "Test helpers not enabled" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -18,20 +18,23 @@ export async function POST(request: NextRequest) {
     if (!functionName) {
       return NextResponse.json(
         { error: "functionName is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const supabase = getSupabaseServiceClient();
-    
+
     // Call the database function
     const { data, error } = await supabase.rpc(functionName, params || {});
 
     if (error) {
       console.error(`Error calling database function ${functionName}:`, error);
       return NextResponse.json(
-        { error: `Failed to call database function ${functionName}`, details: error.message },
-        { status: 500 }
+        {
+          error: `Failed to call database function ${functionName}`,
+          details: error.message,
+        },
+        { status: 500 },
       );
     }
 
@@ -40,14 +43,13 @@ export async function POST(request: NextRequest) {
       functionName,
       params,
       result: data,
-      message: `Database function ${functionName} called successfully`
+      message: `Database function ${functionName} called successfully`,
     });
-
   } catch (error) {
     console.error("Unexpected error in call-db-function:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
