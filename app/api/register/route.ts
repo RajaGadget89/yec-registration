@@ -191,6 +191,28 @@ async function handlePOST(req: NextRequest) {
       } else {
         emailDispatchStatus = "sent";
         emailDispatchDetails = "Email queued for delivery";
+
+        // In development, dispatch emails immediately since cron job doesn't run locally
+        if (process.env.NODE_ENV === "development") {
+          try {
+            const { dispatchEmailBatch } = await import(
+              "../../lib/emails/dispatcher"
+            );
+            const dispatchResult = await dispatchEmailBatch(10, false); // Dispatch up to 10 emails
+
+            if (dispatchResult.sent > 0) {
+              emailDispatchDetails = `Email dispatched immediately (${dispatchResult.sent} sent)`;
+            } else if (dispatchResult.errors > 0) {
+              emailDispatchDetails = `Email dispatch failed (${dispatchResult.errors} errors)`;
+            }
+          } catch (dispatchError) {
+            console.warn(
+              "Failed to dispatch emails immediately:",
+              dispatchError,
+            );
+            emailDispatchDetails = "Email queued (dispatch failed)";
+          }
+        }
       }
     } catch (eventError) {
       console.error("Error emitting registration submitted event:", eventError);
