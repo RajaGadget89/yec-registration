@@ -48,10 +48,23 @@ export default function AdminLoginPage() {
 
       // Build redirect URL with next parameter if present
       const baseRedirectUrl =
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
+        process.env.NEXT_PUBLIC_APP_URL ||
+        window.location.origin ||
+        "http://localhost:8080";
       const redirectUrl = nextParam
         ? `${baseRedirectUrl}/auth/callback?next=${encodeURIComponent(nextParam)}`
         : `${baseRedirectUrl}/auth/callback`;
+
+      // DEBUG: Log the redirect URL being sent
+      console.log("[admin-login] Magic link request details:", {
+        email,
+        baseRedirectUrl,
+        redirectUrl,
+        nextParam,
+        windowLocation: window.location.href,
+        windowOrigin: window.location.origin,
+        envAppUrl: process.env.NEXT_PUBLIC_APP_URL,
+      });
 
       const { error } = await supabase.auth.signInWithOtp({
         email,
@@ -61,12 +74,15 @@ export default function AdminLoginPage() {
       });
 
       if (error) {
+        console.error("[admin-login] Magic link error:", error);
         setError(error.message);
         return;
       }
 
+      console.log("[admin-login] Magic link sent successfully");
       setSuccess("Magic link sent! Check your email.");
-    } catch {
+    } catch (error) {
+      console.error("[admin-login] Unexpected error:", error);
       setError("An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
