@@ -60,6 +60,9 @@ export async function GET(request: NextRequest) {
     redirectTo,
     appUrl,
     envAppUrl: process.env.NEXT_PUBLIC_APP_URL,
+    vercelUrl: process.env.VERCEL_URL,
+    vercelEnv: process.env.VERCEL_ENV,
+    nodeEnv: process.env.NODE_ENV,
     requestUrl: request.url,
     requestOrigin: new URL(request.url).origin,
   });
