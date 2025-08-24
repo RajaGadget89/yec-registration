@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServiceClient } from "@/lib/supabase-server";
+import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   // Check for test helpers enabled
@@ -7,13 +7,13 @@ export async function GET(request: NextRequest) {
   if (!testHelpersEnabled || testHelpersEnabled !== "1") {
     return NextResponse.json(
       { error: "Test helpers not enabled" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
   try {
     const supabase = getSupabaseServiceClient();
-    
+
     // Get a sample email record
     const { data: emails, error } = await supabase
       .from("email_outbox")
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       console.error("Error fetching sample email:", error);
       return NextResponse.json(
         { error: "Failed to fetch sample email", details: error.message },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -32,21 +32,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: "No emails found in outbox",
-        sample: null
+        sample: null,
       });
     }
 
     return NextResponse.json({
       success: true,
       sample: emails[0],
-      columns: Object.keys(emails[0])
+      columns: Object.keys(emails[0]),
     });
-
   } catch (error) {
     console.error("Unexpected error in get-sample-email:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

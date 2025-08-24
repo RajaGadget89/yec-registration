@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { getEmailFromAddress } from "./config";
 
 interface EmailOptions {
   to: string;

@@ -1,8 +1,7 @@
 import { EventHandler, RegistrationEvent } from "../types";
 import { hasEmailConfig } from "../../config";
 import { enqueueEmail } from "../../emails/dispatcher";
-import { getEmailSubject } from "../../emails/registry";
-import { getBaseUrl, getEmailFromAddress } from "../../config";
+import { getEmailFromAddress } from "../../config";
 
 /**
  * Enhanced handler for sending email notifications based on events
@@ -25,39 +24,68 @@ export class EmailNotificationHandler
 
       switch (event.type) {
         case "registration.submitted":
-          result = await this.enqueueTrackingEmail(event.payload.registration, event.id as string);
+          result = await this.enqueueTrackingEmail(
+            event.payload.registration,
+            event.id || undefined,
+          );
           break;
 
         case "admin.request_update":
+          if (!event.payload.admin_email) {
+            console.warn(
+              "admin_email is required for admin.request_update event",
+            );
+            return;
+          }
+          if (!event.payload.dimension) {
+            console.warn(
+              "dimension is required for admin.request_update event",
+            );
+            return;
+          }
           result = await this.enqueueUpdateRequestEmail(
             event.payload.registration,
             event.payload.admin_email,
             event.payload.dimension,
             event.payload.notes,
-            event.id as string
+            event.id || undefined,
           );
           break;
 
         case "admin.approved":
+          if (!event.payload.admin_email) {
+            console.warn("admin_email is required for admin.approved event");
+            return;
+          }
           result = await this.enqueueApprovalEmail(
             event.payload.registration,
             event.payload.admin_email,
-            event.id as string
+            event.id || undefined,
           );
           break;
 
         case "admin.rejected":
+          if (!event.payload.admin_email) {
+            console.warn("admin_email is required for admin.rejected event");
+            return;
+          }
           result = await this.enqueueRejectionEmail(
             event.payload.registration,
             event.payload.admin_email,
-            event.payload.reason as "deadline_missed" | "ineligible_rule_match" | "other",
-            event.id as string
+            event.payload.reason as
+              | "deadline_missed"
+              | "ineligible_rule_match"
+              | "other",
+            event.id || undefined,
           );
           break;
 
         case "registration.batch_upserted":
           // For batch updates, send tracking email to notify of changes
-          result = await this.enqueueTrackingEmail(event.payload.registration, event.id as string);
+          result = await this.enqueueTrackingEmail(
+            event.payload.registration,
+            event.id || undefined,
+          );
           break;
 
         case "admin.mark_pass":
@@ -102,10 +130,11 @@ export class EmailNotificationHandler
    */
   private async enqueueTrackingEmail(
     registration: any,
-    eventId?: string
+    eventId?: string,
   ): Promise<string | null> {
-    const applicantName = `${registration.first_name} ${registration.last_name}`.trim();
-    
+    const applicantName =
+      `${registration.first_name} ${registration.last_name}`.trim();
+
     const payload = {
       applicantName,
       trackingCode: registration.registration_id,
@@ -124,7 +153,7 @@ export class EmailNotificationHandler
         "tracking",
         registration.email,
         payload,
-        idempotencyKey
+        idempotencyKey,
       );
 
       console.log(`Tracking email enqueued for ${registration.email}:`, {
@@ -147,10 +176,11 @@ export class EmailNotificationHandler
     adminEmail: string,
     dimension: "payment" | "profile" | "tcc",
     notes?: string,
-    eventId?: string
+    eventId?: string,
   ): Promise<string | null> {
-    const applicantName = `${registration.first_name} ${registration.last_name}`.trim();
-    
+    const applicantName =
+      `${registration.first_name} ${registration.last_name}`.trim();
+
     // Determine template based on dimension
     let template: string;
     switch (dimension) {
@@ -192,7 +222,7 @@ export class EmailNotificationHandler
         template,
         registration.email,
         payload,
-        idempotencyKey
+        idempotencyKey,
       );
 
       console.log(`Update request email enqueued for ${registration.email}:`, {
@@ -214,10 +244,11 @@ export class EmailNotificationHandler
   private async enqueueApprovalEmail(
     registration: any,
     adminEmail: string,
-    eventId?: string
+    eventId?: string,
   ): Promise<string | null> {
-    const applicantName = `${registration.first_name} ${registration.last_name}`.trim();
-    
+    const applicantName =
+      `${registration.first_name} ${registration.last_name}`.trim();
+
     const payload = {
       applicantName,
       trackingCode: registration.registration_id,
@@ -237,7 +268,7 @@ export class EmailNotificationHandler
         "approval-badge",
         registration.email,
         payload,
-        idempotencyKey
+        idempotencyKey,
       );
 
       console.log(`Approval email enqueued for ${registration.email}:`, {
@@ -258,10 +289,11 @@ export class EmailNotificationHandler
     registration: any,
     adminEmail: string,
     rejectedReason: "deadline_missed" | "ineligible_rule_match" | "other",
-    eventId?: string
+    eventId?: string,
   ): Promise<string | null> {
-    const applicantName = `${registration.first_name} ${registration.last_name}`.trim();
-    
+    const applicantName =
+      `${registration.first_name} ${registration.last_name}`.trim();
+
     const payload = {
       applicantName,
       trackingCode: registration.registration_id,
@@ -281,7 +313,7 @@ export class EmailNotificationHandler
         "rejection",
         registration.email,
         payload,
-        idempotencyKey
+        idempotencyKey,
       );
 
       console.log(`Rejection email enqueued for ${registration.email}:`, {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServiceClient } from "@/lib/supabase-server";
+import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   // Check for test helpers enabled
@@ -7,13 +7,13 @@ export async function GET(request: NextRequest) {
   if (!testHelpersEnabled || testHelpersEnabled !== "1") {
     return NextResponse.json(
       { error: "Test helpers not enabled" },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
   try {
     const supabase = getSupabaseServiceClient();
-    
+
     // Get pending emails
     const { data: emails, error } = await supabase
       .from("email_outbox")
@@ -26,21 +26,20 @@ export async function GET(request: NextRequest) {
       console.error("Error fetching pending emails:", error);
       return NextResponse.json(
         { error: "Failed to fetch pending emails", details: error.message },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     return NextResponse.json({
       success: true,
       emails: emails || [],
-      count: emails?.length || 0
+      count: emails?.length || 0,
     });
-
   } catch (error) {
     console.error("Unexpected error in get-pending-emails:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
