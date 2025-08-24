@@ -8,6 +8,11 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   try {
     console.log("[api/callback] POST request received");
+    console.log("[api/callback] request URL:", request.url);
+    console.log(
+      "[api/callback] request headers:",
+      Object.fromEntries(request.headers.entries()),
+    );
 
     const body = await request.json();
     const { access_token, refresh_token, next } = body;
@@ -99,7 +104,11 @@ export async function POST(request: NextRequest) {
     const baseUrl = getAppUrl();
     const fullRedirectUrl = new URL(redirectUrl, baseUrl);
 
-    console.log("[api/callback] redirect URL:", fullRedirectUrl.toString());
+    console.log("[api/callback] redirect URL construction:", {
+      redirectUrl,
+      baseUrl,
+      fullRedirectUrl: fullRedirectUrl.toString(),
+    });
 
     const response = NextResponse.redirect(fullRedirectUrl, 303);
 
@@ -125,18 +134,17 @@ export async function POST(request: NextRequest) {
     response.cookies.set("admin-email", user.email, options);
 
     // Log the actual response headers
-    console.log("[api/callback] response headers after setting cookies:", {
+    console.log("[api/callback] final response headers:", {
       location: response.headers.get("location"),
-      setCookie: response.headers.get("set-cookie"),
-      allHeaders: Object.fromEntries(response.headers.entries()),
+      status: response.status,
+      statusText: response.statusText,
     });
 
-    console.log("[api/callback] returning 303 redirect response");
     return response;
-  } catch (err) {
-    console.error("[api/callback] unexpected error:", err);
+  } catch (error) {
+    console.error("[api/callback] unexpected error:", error);
     return NextResponse.json(
-      { message: "Unexpected error during authentication" },
+      { message: "Internal server error" },
       { status: 500 },
     );
   }
