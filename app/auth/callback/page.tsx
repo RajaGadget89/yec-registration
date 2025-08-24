@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, AlertCircle, CheckCircle, Mail } from "lucide-react";
 
@@ -22,7 +21,6 @@ export default function AuthCallbackPage() {
   );
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const router = useRouter();
 
   useEffect(() => {
     const handleAuthCallback = async () => {
