@@ -1,0 +1,141 @@
+---
+alwaysApply: true
+---
+# Cursor Project Rules — Core Services & Domain Events
+
+These guardrails ensure AI changes use **existing core services** (Domain Events, Audit, Email, Storage, Env/Health) instead of reinventing them.
+
+---
+
+## 1) Event & State
+
+- All domain state changes **must** go through **`EventFactory` + `EventService.emit(...)`**.
+- **Do not** mutate status/state directly in business logic without emitting a domain event.
+- **Do not** create duplicate handlers if an existing one (StatusUpdate / Email / Audit) already covers the behavior; reuse via the EventBus.
+- Handlers **must be idempotent** (e.g., check `eventId` or current DB state before applying effects).
+
+**Required pattern**
+```ts
+✅ GOOD
+const evt = EventFactory.createRegistrationSubmitted({ /* payload */ });
+await EventService.emit(evt); // downstream handlers do the rest
+````
+
+**Forbidden pattern**
+
+```ts
+❌ BAD: direct DB write, no event emitted
+await db.table('applications').update({ status: 'SUBMITTED' }).eq('id', id);
+```
+
+---
+
+## 2) Audit
+
+* Every new **endpoint** must call **`logAccess(request_id, meta)`**.
+* Every domain action must call **`logEvent(correlation_id, details)`** so we can trace the full flow.
+* **Admin activities** must be recorded via the **existing admin audit handler** (i.e., do **not** write to `admin_audit_logs` directly).
+
+**Required pattern**
+
+```ts
+await audit.logAccess({ requestId, actor, route, meta });
+await audit.logEvent({ correlationId, eventType, entityId, meta });
+```
+
+---
+
+## 3) Email
+
+* **Never** call Resend (or any email provider) directly.
+* Use the **centralized email service/transport/dispatcher** and/or **`EmailNotificationHandler`** only.
+* Preserve the **non-blocking contract**: email failures must **not** fail the main transaction; always audit attempts/outcomes.
+* Obey the **Safe-Send Gate** at all times:
+
+  * `EMAIL_MODE`, `ALLOWLIST`, `DISPATCH_DRY_RUN`, `ENABLE_EMAIL_MOCK`
+  * **Do not** disable DRY-RUN in non-prod.
+
+**Required pattern**
+
+```ts
+✅ GOOD: emit an event; EmailNotificationHandler maps event -> template and queues via outbox
+await EventService.emit(EventFactory.createAdminApproved({ applicationId, actorId, correlationId }));
+```
+
+**Forbidden pattern**
+
+```ts
+// ❌ BAD
+import { Resend } from 'resend';
+const resend = new Resend(API_KEY);
+await resend.emails.send({ /* ... */ });
+```
+
+---
+
+## 4) Cron / Jobs
+
+* The email dispatch admin endpoint **must** be called with **`CRON_SECRET`** (supported auth methods per ops spec).
+* Respect **dry-run** semantics for preview/non-prod.
+* Jobs must be **idempotent** and process **only** items in the expected state (e.g., `status='pending'`).
+
+---
+
+## 5) Storage / Uploads
+
+* Use **`uploadFileToSupabase()`** only.
+* For **private** files, return a **path** and request a **signed URL** when needed.
+* Do **not** expose public URLs unless explicitly required by the feature.
+
+**Required pattern**
+
+```ts
+const path = await uploadFileToSupabase(file);
+// later, when serving:
+const signedUrl = await files.getSignedUrl(path);
+```
+
+---
+
+## 6) Environment / Health
+
+* Call **`assertDbRouting()`** everywhere a Supabase (or DB) client is created.
+* Do **not** bypass or weaken routing matrix / health validation.
+
+---
+
+## PR Checklist (must pass)
+
+* [ ] All domain changes go through **EventFactory + EventService.emit** (no direct status updates).
+* [ ] **Audit**: `logAccess()` in endpoints, `logEvent()` for domain actions; meaningful `correlation_id`.
+* [ ] **Email**: no direct provider calls; uses EmailNotificationHandler/dispatcher; non-blocking + audited.
+* [ ] **Storage**: uses `uploadFileToSupabase()`; private assets served via **signed URL**.
+* [ ] **Env/Health**: `assertDbRouting()` applied at client creation points.
+* [ ] Handlers are **idempotent**; jobs process only `pending` items.
+* [ ] If using cron/email dispatch: includes **CRON\_SECRET** and honors **dry-run** in non-prod.
+
+---
+
+## Forbid / Require Patterns (assist linting & code review)
+
+**Forbid (reject PR if present)**
+
+* `new Resend(`, `fetch('https://api.resend.com'`
+* Direct writes to status columns in business logic instead of emitting events
+* Direct inserts into `admin_audit_logs`
+* Public URLs for private files
+* Creating DB clients without `assertDbRouting()`
+
+**Require (must appear where relevant)**
+
+* `EventFactory.create...` + `EventService.emit(...)`
+* `audit.logAccess(...)` in HTTP handlers
+* `audit.logEvent(...)` for domain transitions
+* `uploadFileToSupabase(...)` + `getSignedUrl(...)` (for private assets)
+
+---
+
+## Notes for AI changes
+
+* Prefer **reusing existing handlers** (StatusUpdate / Email / Audit) over adding new ones.
+* When adding a new event type, document the emitter location, payload, mapping to email templates (if any), and the correlation strategy.

@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { getEmailFromAddress } from "./config";
 
 interface EmailOptions {
   to: string;
@@ -11,7 +12,7 @@ export async function sendEmail({ to, subject, html }: EmailOptions) {
 
   try {
     const { error } = await resend.emails.send({
-      from: "YEC <info@rajagadget.live>", // เปลี่ยนได้ตามที่ verify ไว้ใน Resend
+      from: getEmailFromAddress(), // Use centralized email configuration
       to,
       subject,
       html,
@@ -89,7 +90,7 @@ export async function sendBadgeEmail(
       
       <p><strong>Important:</strong> Please show this badge at the check-in gate on the day of the event.</p>
       
-      <p>If you have any questions, please contact us at info@yecday.com</p>
+      <p>If you have any questions, please contact us at ${getEmailFromAddress()}</p>
       
       <p>Best regards,<br>
       YEC Day Team</p>
