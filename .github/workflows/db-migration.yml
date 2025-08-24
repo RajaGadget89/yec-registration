@@ -534,40 +534,36 @@ jobs:
             remote_status=$(supabase migration list --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Failed to get remote status")
             echo "Remote migration status: $remote_status"
             
-            # Try to repair the migration history
-            echo "Attempting migration repair..."
-            repair_output=$(supabase migration repair --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Repair failed")
-            echo "Migration repair output: $repair_output"
-            
-            # If repair doesn't work, try to reset the migration history
-            if echo "$repair_output" | grep -q "Failed\|Error"; then
-              echo "⚠️ Migration repair failed. Attempting to reset migration history..."
+            # Check for the specific problematic migration 20250823191802
+            if echo "$remote_status" | grep -q "20250823191802"; then
+              echo "⚠️ Specific migration 20250823191802 detected. Attempting targeted repair..."
               
-              # Get the current migration version from staging
-              current_version=$(supabase migration list --linked --password ${{ secrets.STAGING_DB_PASSWORD }} | grep "current" | awk '{print $1}' || echo "unknown")
-              echo "Current migration version in staging: $current_version"
+              # Try to revert the problematic migration first
+              echo "Attempting to revert migration 20250823191802..."
+              revert_output=$(supabase migration repair --status reverted 20250823191802 --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Failed to revert migration")
+              echo "Revert output: $revert_output"
               
-              # Try to mark all migrations as applied up to the current version
-              if [ "$current_version" != "unknown" ]; then
-                echo "Marking migrations as applied up to version: $current_version"
-                supabase migration repair --status applied --linked --password ${{ secrets.STAGING_DB_PASSWORD }} || echo "Failed to mark migrations as applied"
-              fi
-              
-              # If that still doesn't work, try the specific repair mentioned in the error
-              if echo "$dry_run_output" | grep -q "20250823191802"; then
-                echo "⚠️ Specific migration 20250823191802 detected. Attempting targeted repair..."
-                supabase migration repair --status reverted 20250823191802 --linked --password ${{ secrets.STAGING_DB_PASSWORD }} || echo "Failed to revert specific migration"
+              # If revert fails, try to mark it as applied to sync the state
+              if echo "$revert_output" | grep -q "Failed\|Error"; then
+                echo "⚠️ Revert failed. Attempting to mark migration as applied..."
+                apply_output=$(supabase migration repair --status applied 20250823191802 --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Failed to mark as applied")
+                echo "Apply output: $apply_output"
               fi
             fi
+            
+            # Try to pull the current schema to sync our local state
+            echo "Attempting to pull current schema from staging..."
+            pull_output=$(supabase db pull --linked --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Failed to pull schema")
+            echo "Schema pull output: $pull_output"
             
             # Now try the push again
             echo "Retrying migration push after repair..."
             push_result=$(supabase db push --password ${{ secrets.STAGING_DB_PASSWORD }} 2>&1 || echo "Push failed")
             
-            # If push still fails, try with force flag
+            # If push still fails, try with include-all flag
             if echo "$push_result" | grep -q "Push failed\|Error"; then
-              echo "⚠️ Standard push failed. Attempting forced push..."
-              supabase db push --force --password ${{ secrets.STAGING_DB_PASSWORD }} || {
+              echo "⚠️ Standard push failed. Attempting push with --include-all flag..."
+              supabase db push --include-all --password ${{ secrets.STAGING_DB_PASSWORD }} || {
                 echo "❌ All migration push attempts failed"
                 echo "Final push result: $push_result"
                 exit 1
