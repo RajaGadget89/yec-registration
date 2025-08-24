@@ -64,6 +64,9 @@ export default function AdminLoginPage() {
         windowLocation: window.location.href,
         windowOrigin: window.location.origin,
         envAppUrl: process.env.NEXT_PUBLIC_APP_URL,
+        vercelUrl: process.env.VERCEL_URL,
+        vercelEnv: process.env.VERCEL_ENV,
+        nodeEnv: process.env.NODE_ENV,
       });
 
       const { error } = await supabase.auth.signInWithOtp({

@@ -52,6 +52,18 @@ export function cookieOptions(): {
  * Get app URL consistently from config
  */
 export function getAppUrl(): string {
+  // Check if we're in a Vercel preview environment
+  if (process.env.VERCEL_URL) {
+    // Vercel provides VERCEL_URL in preview environments
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  
+  // Check if we're in a Vercel production environment
+  if (process.env.VERCEL_ENV === 'production' && process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+  
+  // Fallback to environment variable or localhost
   return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
 }
 
