@@ -86,7 +86,10 @@ serve(async (req) => {
           throw new Error('RESEND_API_KEY not configured')
         }
 
-        const emailFrom = Deno.env.get('EMAIL_FROM') || 'noreply@rajagadget.live'
+        const emailFrom = Deno.env.get('EMAIL_FROM')
+        if (!emailFrom) {
+          throw new Error('EMAIL_FROM environment variable is required')
+        }
 
         const resendResponse = await fetch('https://api.resend.com/emails', {
           method: 'POST',
