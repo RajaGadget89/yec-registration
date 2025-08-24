@@ -88,8 +88,18 @@ function isDryRun(req: NextRequest, body?: DispatchBody): boolean {
 export async function GET(request: NextRequest) {
   try {
     // Check CRON_SECRET authorization first
-    if (!isAuthorized(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const isCronAuthorized = isAuthorized(request);
+
+    // If not cron authorized, check admin access
+    if (!isCronAuthorized) {
+      const adminCheck = validateAdminAccess(request);
+      if (!adminCheck.valid) {
+        console.log("[dispatch-emails] GET request unauthorized - no CRON_SECRET and no valid admin access");
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      console.log(`[dispatch-emails] GET request authorized via admin access: ${adminCheck.adminEmail}`);
+    } else {
+      console.log("[dispatch-emails] GET request authorized via CRON_SECRET");
     }
 
     // Check for dry-run mode
