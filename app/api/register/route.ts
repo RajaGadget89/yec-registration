@@ -192,8 +192,11 @@ async function handlePOST(req: NextRequest) {
         emailDispatchStatus = "sent";
         emailDispatchDetails = "Email queued for delivery";
 
-        // In development, dispatch emails immediately since cron job doesn't run locally
-        if (process.env.NODE_ENV === "development") {
+        // In development or preview, dispatch emails immediately since cron job doesn't run in these environments
+        if (
+          process.env.NODE_ENV === "development" ||
+          process.env.VERCEL_ENV === "preview"
+        ) {
           try {
             const { dispatchEmailBatch } = await import(
               "../../lib/emails/dispatcher"
@@ -235,8 +238,11 @@ async function handlePOST(req: NextRequest) {
         : null,
     };
 
-    // Add email dispatch status in non-prod
-    if (process.env.NODE_ENV !== "production") {
+    // Add email dispatch status in non-prod or preview environments
+    if (
+      process.env.NODE_ENV !== "production" ||
+      process.env.VERCEL_ENV === "preview"
+    ) {
       (response as any).emailDispatch = emailDispatchStatus;
       (response as any).emailDispatchDetails = emailDispatchDetails;
     }
