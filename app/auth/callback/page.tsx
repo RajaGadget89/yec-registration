@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, AlertCircle, CheckCircle, Mail } from "lucide-react";
 
@@ -22,7 +21,6 @@ export default function AuthCallbackPage() {
   );
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const router = useRouter();
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -33,6 +31,24 @@ export default function AuthCallbackPage() {
         );
         console.log("[callback] current URL:", window.location.href);
         console.log("[callback] URL hash:", window.location.hash);
+        console.log("[callback] URL search:", window.location.search);
+        console.log("[callback] URL pathname:", window.location.pathname);
+
+        // Check if we're on the wrong URL (like %2A.vercel.app)
+        if (
+          window.location.hostname.includes("%2A") ||
+          window.location.hostname.includes("*")
+        ) {
+          console.error(
+            "[callback] Detected wrong redirect URL:",
+            window.location.href,
+          );
+          setStatus("error");
+          setErrorMessage(
+            "Authentication redirect failed. The magic link redirected to an invalid URL. Please try again or contact support.",
+          );
+          return;
+        }
 
         // Parse location.hash for tokens
         const hash = window.location.hash;
@@ -42,6 +58,19 @@ export default function AuthCallbackPage() {
         const nextParam = new URLSearchParams(window.location.search).get(
           "next",
         );
+
+        // DEBUG: Log all URL parameters
+        console.log("[callback] URL analysis:", {
+          hash,
+          hashParams: Object.fromEntries(hashParams.entries()),
+          searchParams: Object.fromEntries(
+            new URLSearchParams(window.location.search).entries(),
+          ),
+          accessTokenLength: accessToken?.length || 0,
+          refreshTokenLength: refreshToken?.length || 0,
+          nextParam,
+          fullUrl: window.location.href,
+        });
 
         if (!accessToken || !refreshToken) {
           console.log("[callback] missing tokens in hash");
@@ -81,137 +110,102 @@ export default function AuthCallbackPage() {
           }),
         });
 
-        console.log("[callback] response status:", response.status);
+        console.log("[callback] API response status:", response.status);
         console.log(
-          "[callback] response headers:",
+          "[callback] API response headers:",
           Object.fromEntries(response.headers.entries()),
         );
-        console.log("[callback] response ok:", response.ok);
-        console.log("[callback] response redirected:", response.redirected);
 
-        // Handle 303 success response or successful redirect
-        if (response.status === 303 || response.redirected) {
-          console.log(
-            "[callback] 303 response or redirect detected, checking headers...",
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error("[callback] API error response:", errorData);
+          setStatus("error");
+          setErrorMessage(
+            `Authentication failed: ${errorData.message || response.statusText}`,
+          );
+          return;
+        }
+
+        const data = await response.json().catch(() => ({}));
+        console.log("[callback] API success response:", data);
+
+        // Check for redirect location
+        const location = response.headers.get("location");
+        console.log("[callback] location header:", location);
+
+        if (location) {
+          console.log("[callback] redirecting to:", location);
+
+          // Show success message briefly before redirect
+          setStatus("success");
+          setSuccessMessage(
+            "Authentication successful! Redirecting to admin dashboard...",
           );
 
-          // Log all response headers for debugging
-          const allHeaders: Record<string, string> = {};
-          response.headers.forEach((value, key) => {
-            allHeaders[key] = value;
-          });
-          console.log("[callback] all response headers:", allHeaders);
+          // Clean the URL and redirect after a brief delay
+          setTimeout(() => {
+            // Clean the URL first
+            history.replaceState({}, "", "/auth/callback");
 
-          const location = response.headers.get("Location");
-          console.log("[callback] location header:", location);
+            // Then redirect
+            window.location.href = location;
+          }, 1000);
+        } else if (response.redirected) {
+          // Browser already followed the redirect, check if we're on admin page
+          console.log(
+            "[callback] browser followed redirect, checking current location...",
+          );
 
-          if (location) {
-            console.log("[callback] redirecting to:", location);
+          // Check if we're already on the admin page
+          if (window.location.pathname === "/admin") {
+            console.log(
+              "[callback] already on admin page, authentication successful!",
+            );
+            setStatus("success");
+            setSuccessMessage(
+              "Authentication successful! You are now on the admin dashboard.",
+            );
 
-            // Show success message briefly before redirect
+            // Clean the URL
+            history.replaceState({}, "", "/admin");
+          } else {
+            // Redirect happened but we're not on admin page
+            console.log(
+              "[callback] redirect followed but not on admin page, redirecting manually...",
+            );
             setStatus("success");
             setSuccessMessage(
               "Authentication successful! Redirecting to admin dashboard...",
             );
 
-            // Clean the URL and redirect after a brief delay
+            // Redirect to admin page
             setTimeout(() => {
-              // Clean the URL first
-              history.replaceState({}, "", "/auth/callback");
-
-              // Then redirect
-              window.location.href = location;
+              window.location.href = "/admin";
             }, 1000);
-          } else if (response.redirected) {
-            // Browser already followed the redirect, check if we're on admin page
-            console.log(
-              "[callback] browser followed redirect, checking current location...",
-            );
-
-            // Check if we're already on the admin page
-            if (window.location.pathname === "/admin") {
-              console.log(
-                "[callback] already on admin page, authentication successful!",
-              );
-              setStatus("success");
-              setSuccessMessage(
-                "Authentication successful! You are now on the admin dashboard.",
-              );
-
-              // Clean the URL
-              history.replaceState({}, "", "/admin");
-            } else {
-              // Redirect happened but we're not on admin page
-              console.log(
-                "[callback] redirect followed but not on admin page, redirecting manually...",
-              );
-              setStatus("success");
-              setSuccessMessage(
-                "Authentication successful! Redirecting to admin dashboard...",
-              );
-
-              // Redirect to admin page
-              setTimeout(() => {
-                window.location.href = "/admin";
-              }, 1000);
-            }
-          } else {
-            // Redirect but no Location header - this shouldn't happen
-            console.error(
-              "[callback] redirect response but no Location header",
-            );
-            setStatus("error");
-            setErrorMessage(
-              "Authentication succeeded but redirect failed. Please try again.",
-            );
           }
-          return; // Exit early for 303 responses
-        }
-
-        // Handle error responses (only if not 303 and not redirected)
-        console.log(
-          "[callback] handling error response, status:",
-          response.status,
-        );
-
-        // Try to parse error response
-        let errorData = {};
-        try {
-          errorData = await response.json();
-        } catch {
-          console.log("[callback] could not parse error response as JSON");
-        }
-
-        console.error("[callback] server error:", errorData);
-        setStatus("error");
-
-        // Provide specific error messages based on status code
-        if (response.status === 401) {
-          setErrorMessage(
-            "Invalid or expired magic link. Please request a new one.",
-          );
-        } else if (response.status === 403) {
-          setErrorMessage(
-            "Access denied. You are not authorized to access the admin dashboard.",
-          );
-        } else if (
-          errorData &&
-          typeof errorData === "object" &&
-          "message" in errorData
-        ) {
-          setErrorMessage((errorData as { message: string }).message);
         } else {
-          setErrorMessage("Authentication failed. Please try again.");
+          // No redirect - this shouldn't happen
+          console.log("[callback] no redirect found, redirecting manually");
+          setStatus("success");
+          setSuccessMessage(
+            "Authentication successful! Redirecting to admin dashboard...",
+          );
+
+          setTimeout(() => {
+            window.location.href = "/admin";
+          }, 1000);
         }
-      } catch (err) {
-        console.error("[callback] unexpected error:", err);
+      } catch (error) {
+        console.error("[callback] unexpected error:", error);
         setStatus("error");
-        setErrorMessage("An unexpected error occurred. Please try again.");
+        setErrorMessage(
+          "An unexpected error occurred during authentication. Please try again.",
+        );
       }
     };
 
     handleAuthCallback();
-  }, [router]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yec-primary via-blue-600 to-blue-500 flex items-center justify-center p-4">
