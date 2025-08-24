@@ -597,6 +597,7 @@ export function getEmailTransport(): EmailTransport {
       return new DryRunTransport();
 
     case "FULL":
+    case "CAPPED":
       if (config.resendApiKey) {
         return new SafeSendTransport(new ResendTransport());
       } else {

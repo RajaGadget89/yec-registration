@@ -6,7 +6,7 @@ import { getEmailFromAddress } from "../config";
  */
 
 export interface EmailConfig {
-  mode: "FULL" | "DRY_RUN";
+  mode: "FULL" | "DRY_RUN" | "CAPPED";
   allowlist: Set<string>;
   fromEmail: string;
   resendApiKey: string | null;
@@ -35,7 +35,8 @@ export function logEmailConfigOnBoot() {
 export function getEmailConfig(): EmailConfig {
   const emailMode = (process.env.EMAIL_MODE || "DRY_RUN").toUpperCase() as
     | "FULL"
-    | "DRY_RUN";
+    | "DRY_RUN"
+    | "CAPPED";
   const allowlistStr = process.env.EMAIL_ALLOWLIST || "";
   const allowlist = new Set(
     allowlistStr
@@ -80,7 +81,7 @@ export function isEmailAllowed(recipientEmail: string): {
     return { allowed: false, reason: "dry_run_mode" };
   }
 
-  if (config.mode === "FULL") {
+  if (config.mode === "FULL" || config.mode === "CAPPED") {
     // Check allowlist if configured
     if (config.allowlist.size > 0) {
       if (config.allowlist.has(recipient)) {
@@ -91,7 +92,7 @@ export function isEmailAllowed(recipientEmail: string): {
     }
     // If no allowlist configured, allow all (but warn)
     console.warn(
-      "[EMAIL] No EMAIL_ALLOWLIST configured in FULL mode - allowing all emails",
+      `[EMAIL] No EMAIL_ALLOWLIST configured in ${config.mode} mode - allowing all emails`,
     );
     return { allowed: true, reason: "allowed" };
   }

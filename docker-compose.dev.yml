@@ -21,7 +21,7 @@ services:
       - EMAIL_MODE=CAPPED
       - EMAIL_CAP_MAX_PER_RUN=1
       - BLOCK_NON_ALLOWLIST=true
-      - EMAIL_ALLOWLIST=raja.gadgets89@gmail.com
+      - EMAIL_ALLOWLIST=
       - DISPATCH_DRY_RUN=false
       - EMAIL_THROTTLE_MS=500
       - EMAIL_RETRY_ON_429=1
