@@ -109,6 +109,10 @@ export async function POST(request: NextRequest) {
 
     console.log("[api/callback] admin access confirmed");
 
+    // Set admin-email cookie for admin guard
+    response.cookies.set("admin-email", userEmail, cookieOpts);
+    console.log("[api/callback] admin-email cookie set for:", userEmail);
+
     // Create redirect response
     const redirectUrl = next || "/admin";
     const baseUrl = getAppUrl();

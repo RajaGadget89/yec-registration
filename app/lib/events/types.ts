@@ -16,7 +16,8 @@ export type RegistrationEventType =
   | "login.submitted"
   | "login.succeeded"
   | "admin.review_track_updated"
-  | "auto_reject.sweep_completed";
+  | "auto_reject.sweep_completed"
+  | "email.retry_requested";
 
 /**
  * Base event interface
@@ -93,6 +94,22 @@ export interface AutoRejectSweepEvent
 }
 
 /**
+ * Email retry event payload
+ */
+export interface EmailRetryEventPayload {
+  email_ids: string[];
+  admin_email: string;
+  reason?: string;
+}
+
+/**
+ * Email retry event
+ */
+export interface EmailRetryEvent extends DomainEvent<EmailRetryEventPayload> {
+  type: "email.retry_requested";
+}
+
+/**
  * Event handler interface
  */
 export interface EventHandler<T extends DomainEvent = DomainEvent> {
@@ -125,6 +142,7 @@ export const STATUS_TRANSITIONS: Record<RegistrationEventType, string> = {
   "login.succeeded": "system", // Login events don't change status
   "admin.review_track_updated": "system", // Handled by trigger function
   "auto_reject.sweep_completed": "system", // Handled by sweep function
+  "email.retry_requested": "system", // Email retry doesn't change registration status
 };
 
 /**
@@ -159,6 +177,7 @@ export const EMAIL_TEMPLATES: Record<RegistrationEventType, string> = {
   "registration.batch_upserted": "tracking_code",
   "admin.review_track_updated": "system", // No email for track updates
   "auto_reject.sweep_completed": "rejection", // Auto-rejection email
+  "email.retry_requested": "system", // No email template for retry events
 };
 
 /**
