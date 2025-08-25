@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { isAdmin, cookieOptions, getAppUrl } from "../../../lib/auth-utils";
+import { createServerClient } from "@supabase/ssr";
+import { isAdmin, getAppUrl } from "../../../lib/auth-utils";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -9,10 +9,6 @@ export async function POST(request: NextRequest) {
   try {
     console.log("[api/callback] POST request received");
     console.log("[api/callback] request URL:", request.url);
-    console.log(
-      "[api/callback] request headers:",
-      Object.fromEntries(request.headers.entries()),
-    );
 
     const body = await request.json();
     const { access_token, refresh_token, next } = body;
@@ -33,73 +29,77 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("[api/callback] verifying tokens with Supabase");
-    console.log(
-      "[api/callback] Supabase URL:",
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-    );
-    console.log(
-      "[api/callback] Service role key exists:",
-      !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    );
+    // Create response object for cookie handling
+    const response = NextResponse.next();
 
-    // Verify tokens with Supabase Admin client
-    const supabase = createClient(
+    // Create Supabase server client with cookie handling
+    const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
+        cookies: {
+          get: (key: string) => request.cookies.get(key)?.value,
+          set: (key, value, options) => {
+            // Forward cookie mutations to the response
+            response.cookies.set({ name: key, value, ...options });
+          },
+          remove: (key, options) => {
+            response.cookies.set({
+              name: key,
+              value: "",
+              ...options,
+              expires: new Date(0),
+            });
+          },
         },
       },
     );
 
-    // Verify the access token and get user info
-    console.log("[api/callback] calling supabase.auth.getUser...");
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(access_token);
+    // Set the session using Supabase's session management
+    console.log("[api/callback] setting Supabase session");
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
 
-    console.log("[api/callback] Supabase response:", {
-      hasUser: !!user,
-      userEmail: user?.email,
-      error: error?.message || null,
-      errorCode: error?.status || null,
-    });
-
-    if (error || !user) {
-      console.error("[api/callback] token verification failed:", error);
+    if (sessionError) {
+      console.error(
+        "[api/callback] session establishment failed:",
+        sessionError,
+      );
       return NextResponse.json(
-        { message: "Invalid authentication tokens" },
+        { message: "Failed to establish session" },
         { status: 401 },
       );
     }
 
-    console.log("[api/callback] user verified:", user.email);
+    if (!sessionData.session) {
+      console.error("[api/callback] no session established");
+      return NextResponse.json(
+        { message: "Session establishment failed" },
+        { status: 401 },
+      );
+    }
 
-    // Check if user is admin
-    console.log("[api/callback] checking admin status for:", user.email);
     console.log(
-      "[api/callback] admin emails from env:",
-      process.env.ADMIN_EMAILS,
+      "[api/callback] session established for user:",
+      sessionData.session.user.email,
     );
 
-    const isUserAdmin = isAdmin(user.email || "");
-    console.log("[api/callback] is user admin?", isUserAdmin);
-
-    if (!user.email || !isUserAdmin) {
-      console.error("[api/callback] user not in admin allowlist:", user.email);
+    // Verify the user is an admin
+    const userEmail = sessionData.session.user.email;
+    if (!userEmail || !isAdmin(userEmail)) {
+      console.error("[api/callback] user not in admin allowlist:", userEmail);
       return NextResponse.json(
         { message: "Access denied. Admin privileges required." },
         { status: 403 },
       );
     }
 
-    console.log("[api/callback] admin access confirmed, setting cookies");
+    console.log("[api/callback] admin access confirmed");
 
-    // Create redirect response using consistent app URL
+    // Create redirect response
     const redirectUrl = next || "/admin";
     const baseUrl = getAppUrl();
     const fullRedirectUrl = new URL(redirectUrl, baseUrl);
@@ -110,37 +110,20 @@ export async function POST(request: NextRequest) {
       fullRedirectUrl: fullRedirectUrl.toString(),
     });
 
-    const response = NextResponse.redirect(fullRedirectUrl, 303);
+    console.log(
+      "[api/callback] authentication successful, redirecting to:",
+      fullRedirectUrl.toString(),
+    );
 
-    // Set the three required cookies
-    const options = cookieOptions();
+    // Create a new redirect response with the cookies from our response
+    const redirectResponse = NextResponse.redirect(fullRedirectUrl, 303);
 
-    // Mask tokens for logging (first/last 4 chars)
-    const maskToken = (token: string) =>
-      token
-        ? `${token.substring(0, 4)}...${token.substring(token.length - 4)}`
-        : "null";
-
-    console.log("[api/callback] cookie options:", options);
-    console.log("[api/callback] setting cookies:", {
-      "sb-access-token": maskToken(access_token),
-      "sb-refresh-token": maskToken(refresh_token),
-      "admin-email": user.email,
+    // Copy cookies from our response to the redirect response
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
     });
 
-    // Set cookies with detailed logging
-    response.cookies.set("sb-access-token", access_token, options);
-    response.cookies.set("sb-refresh-token", refresh_token, options);
-    response.cookies.set("admin-email", user.email, options);
-
-    // Log the actual response headers
-    console.log("[api/callback] final response headers:", {
-      location: response.headers.get("location"),
-      status: response.status,
-      statusText: response.statusText,
-    });
-
-    return response;
+    return redirectResponse;
   } catch (error) {
     console.error("[api/callback] unexpected error:", error);
     return NextResponse.json(
