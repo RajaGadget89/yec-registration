@@ -561,9 +561,34 @@ export async function enqueueEmail(
  * @returns Number of emails marked for retry
  */
 export async function retryFailedEmails(emailIds: string[]): Promise<number> {
-  // Mock implementation for testing
-  console.log(`[MOCK] Retrying ${emailIds.length} failed emails`);
-  return emailIds.length;
+  try {
+    const supabase = getServiceRoleClient();
+
+    // Use the database function to retry failed emails
+    const { data, error } = await supabase.rpc("fn_retry_failed_emails");
+
+    if (error) {
+      console.error("[RETRY] Failed to retry emails:", error);
+      throw new Error(`Failed to retry emails: ${error.message}`);
+    }
+
+    console.log(`[RETRY] Successfully retried ${data || 0} failed emails`);
+    return data || 0;
+  } catch (error) {
+    console.error("[RETRY] Error retrying emails:", error);
+
+    // Only use mock implementation if explicitly enabled
+    if (isEmailMockEnabled()) {
+      console.log(
+        `[MOCK] Retrying ${emailIds.length} failed emails (mock: true)`,
+      );
+      return emailIds.length;
+    } else {
+      throw new Error(
+        `Failed to retry emails: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
 }
 
 /**
