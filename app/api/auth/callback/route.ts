@@ -57,13 +57,17 @@ export async function POST(request: NextRequest) {
 
     // Set the session using Supabase's session management
     console.log("[api/callback] setting Supabase session");
-    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-      access_token,
-      refresh_token,
-    });
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
 
     if (sessionError) {
-      console.error("[api/callback] session establishment failed:", sessionError);
+      console.error(
+        "[api/callback] session establishment failed:",
+        sessionError,
+      );
       return NextResponse.json(
         { message: "Failed to establish session" },
         { status: 401 },
@@ -78,7 +82,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("[api/callback] session established for user:", sessionData.session.user.email);
+    console.log(
+      "[api/callback] session established for user:",
+      sessionData.session.user.email,
+    );
 
     // Verify the user is an admin
     const userEmail = sessionData.session.user.email;
@@ -103,16 +110,19 @@ export async function POST(request: NextRequest) {
       fullRedirectUrl: fullRedirectUrl.toString(),
     });
 
-    console.log("[api/callback] authentication successful, redirecting to:", fullRedirectUrl.toString());
+    console.log(
+      "[api/callback] authentication successful, redirecting to:",
+      fullRedirectUrl.toString(),
+    );
 
     // Create a new redirect response with the cookies from our response
     const redirectResponse = NextResponse.redirect(fullRedirectUrl, 303);
-    
+
     // Copy cookies from our response to the redirect response
-    response.cookies.getAll().forEach(cookie => {
+    response.cookies.getAll().forEach((cookie) => {
       redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
     });
-    
+
     return redirectResponse;
   } catch (error) {
     console.error("[api/callback] unexpected error:", error);
