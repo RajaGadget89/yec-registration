@@ -21,7 +21,10 @@ export function getAppUrl(): string {
   }
 
   // Check if we're in a Vercel preview environment (not production)
-  if (process.env.VERCEL_URL && process.env.NODE_ENV === "development") {
+  if (
+    process.env.VERCEL_URL &&
+    (process.env.NODE_ENV as string) !== "production"
+  ) {
     // Vercel provides VERCEL_URL in preview environments
     return `https://${process.env.VERCEL_URL}`;
   }
