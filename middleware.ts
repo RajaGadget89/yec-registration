@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
 /**
  * Middleware to protect admin routes
- * Checks for admin-email cookie to authorize access
+ * Checks for Supabase session to authorize access
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -52,33 +53,92 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check for admin-email cookie
-  const adminEmail = request.cookies.get('admin-email')?.value;
-  
-  if (adminEmail) {
-    // User is authenticated, allow access
+  try {
+    // Create Supabase server client with cookie handling
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get: (key: string) => request.cookies.get(key)?.value,
+          set: (key, value, options) => {
+            // This is read-only in middleware, so we don't implement set
+          },
+          remove: (key, options) => {
+            // This is read-only in middleware, so we don't implement remove
+          },
+        },
+      },
+    );
+
+    // Get the current session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+    if (sessionError) {
+      if (AUTH_TRACE) {
+        console.log(`[auth-debug] middleware: session error:`, sessionError.message);
+      }
+      // Session error, redirect to login
+      const response = NextResponse.redirect(
+        new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
+        307
+      );
+      response.headers.set('x-admin-guard', 'deny:session-error');
+      return response;
+    }
+
+    if (!session) {
+      if (AUTH_TRACE) {
+        console.log(`[auth-debug] middleware: no session found`);
+      }
+      // No session, redirect to login
+      const response = NextResponse.redirect(
+        new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
+        307
+      );
+      response.headers.set('x-admin-guard', 'deny:no-session');
+      return response;
+    }
+
+    // Check if user is in admin allowlist
+    const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
+    const userEmail = session.user.email?.toLowerCase();
+    
+    if (!userEmail || !adminEmails.includes(userEmail)) {
+      if (AUTH_TRACE) {
+        console.log(`[auth-debug] middleware: user not in admin allowlist:`, userEmail);
+      }
+      // User not in admin allowlist, redirect to login
+      const response = NextResponse.redirect(
+        new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
+        307
+      );
+      response.headers.set('x-admin-guard', 'deny:not-admin');
+      return response;
+    }
+
+    // User is authenticated and is admin, allow access
     const response = NextResponse.next();
-    response.headers.set('x-admin-guard', 'ok:admin-email');
+    response.headers.set('x-admin-guard', 'ok:supabase-session');
     
     if (AUTH_TRACE) {
-      console.log(`[auth-debug] middleware: allowing access (admin-email present)`);
+      console.log(`[auth-debug] middleware: allowing access (supabase session + admin email)`);
     }
     
     return response;
-  }
 
-  // User is not authenticated, redirect to login
-  const response = NextResponse.redirect(
-    new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
-    307
-  );
-  response.headers.set('x-admin-guard', 'deny:no-admin-email');
-  
-  if (AUTH_TRACE) {
-    console.log(`[auth-debug] middleware: redirecting to login (no admin-email)`);
+  } catch (error) {
+    if (AUTH_TRACE) {
+      console.log(`[auth-debug] middleware: unexpected error:`, error);
+    }
+    // Unexpected error, redirect to login
+    const response = NextResponse.redirect(
+      new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
+      307
+    );
+    response.headers.set('x-admin-guard', 'deny:error');
+    return response;
   }
-  
-  return response;
 }
 
 /**
