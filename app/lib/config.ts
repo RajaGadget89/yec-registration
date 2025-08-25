@@ -3,6 +3,8 @@
  * Provides warnings for missing optional variables and validates required ones
  */
 
+import { getAppUrl } from "./env";
+
 export interface AppConfig {
   // Required environment variables
   supabase: {
@@ -43,36 +45,6 @@ function getOptionalEnvVar(name: string): string | null {
     );
   }
   return value || null;
-}
-
-function getAppUrl(): string {
-  // Check if we're in a Vercel preview environment
-  if (process.env.VERCEL_URL) {
-    // Vercel provides VERCEL_URL in preview environments
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  // Check if we're in a Vercel production environment
-  if (
-    process.env.VERCEL_ENV === "production" &&
-    process.env.NEXT_PUBLIC_APP_URL
-  ) {
-    return process.env.NEXT_PUBLIC_APP_URL;
-  }
-
-  // For development, default to localhost:8080
-  if (process.env.NODE_ENV === "development") {
-    return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
-  }
-
-  // For production, require the environment variable
-  const productionUrl = process.env.NEXT_PUBLIC_APP_URL;
-  if (!productionUrl) {
-    console.warn("NEXT_PUBLIC_APP_URL not set in production - using fallback");
-    return "";
-  }
-
-  return productionUrl;
 }
 
 /**

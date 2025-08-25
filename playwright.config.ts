@@ -13,7 +13,7 @@ const dotenvPath = process.env.CI
 loadDotenv({ path: dotenvPath });
 
 export default defineConfig({
-  testDir: 'tests',
+  testDir: 'tests/e2e',
   timeout: 30_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
@@ -23,13 +23,18 @@ export default defineConfig({
   reporter: 'line',
 
   use: {
-    baseURL: 'http://localhost:8080',
-    trace: 'retain-on-failure',
+    baseURL: process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8080',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
     headless: true,
   },
 
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { 
+      name: 'chromium', 
+      use: { ...devices['Desktop Chrome'] }
+    },
     // ถ้าต้องการ browser อื่นค่อยเพิ่มภายหลัง
   ],
 

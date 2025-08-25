@@ -22,53 +22,12 @@ export {
   serverLogout,
 } from "./auth-utils.server";
 
-/**
- * Check if running in production environment
- */
-export function isProd(): boolean {
-  return process.env.NODE_ENV === "production";
-}
-
-/**
- * Get consistent cookie options for auth cookies
- */
-export function cookieOptions(): {
-  httpOnly: boolean;
-  secure: boolean;
-  sameSite: "lax";
-  path: string;
-  maxAge: number;
-} {
-  return {
-    httpOnly: true,
-    secure: isProd(),
-    sameSite: "lax",
-    path: "/",
-    maxAge: 7 * 24 * 60 * 60, // 7 days
-  };
-}
-
-/**
- * Get app URL consistently from config
- */
-export function getAppUrl(): string {
-  // Check if we're in a Vercel preview environment
-  if (process.env.VERCEL_URL) {
-    // Vercel provides VERCEL_URL in preview environments
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  // Check if we're in a Vercel production environment
-  if (
-    process.env.VERCEL_ENV === "production" &&
-    process.env.NEXT_PUBLIC_APP_URL
-  ) {
-    return process.env.NEXT_PUBLIC_APP_URL;
-  }
-
-  // Fallback to environment variable or localhost
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:8080";
-}
+// Re-export environment utilities
+export {
+  getAppUrl,
+  getCookieOptions as cookieOptions,
+  isProduction as isProd,
+} from "./env";
 
 /**
  * Check if email is in admin allowlist
