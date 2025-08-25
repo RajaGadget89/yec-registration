@@ -251,6 +251,8 @@ export interface AdminUser {
   role: "admin" | "super_admin";
   created_at: string;
   updated_at: string;
+  last_login_at: string | null;
+  is_active: boolean;
 }
 
 export interface AdminUserInsert {
