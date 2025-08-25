@@ -41,7 +41,7 @@ export default function ActionButtons({
         action === "request-update" ? { dimension, notes } : { dimension };
 
       const response = await fetch(
-        `/api/admin/registrations/${registration.id}/${endpoint}`,
+        `/api/admin/review/${registration.id}/${endpoint}`,
         {
           method: "POST",
           headers: {
