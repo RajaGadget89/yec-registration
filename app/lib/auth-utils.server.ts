@@ -56,7 +56,7 @@ function getSupabaseClient() {
 export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   try {
     const cookieStore = await cookies();
-    
+
     // Create Supabase server client with cookie handling
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -64,9 +64,11 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
       {
         cookies: {
           get: (key: string) => cookieStore.get(key)?.value,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           set: (key, value, options) => {
             // This is read-only, so we don't need to implement set
           },
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           remove: (key, options) => {
             // This is read-only, so we don't need to implement remove
           },
@@ -75,7 +77,10 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     );
 
     // Get the current session
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
     if (sessionError) {
       console.error("Error getting session:", sessionError);
@@ -132,7 +137,10 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 
     // If user not found in admin_users table, check if they should be added
     if (session.user.email) {
-      const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
+      const adminEmails =
+        process.env.ADMIN_EMAILS?.split(",").map((e) =>
+          e.trim().toLowerCase(),
+        ) || [];
       if (adminEmails.includes(session.user.email.toLowerCase())) {
         // Auto-create admin user if they're in the allowlist
         console.log("Auto-creating admin user for:", session.user.email);
@@ -141,7 +149,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
           email: session.user.email,
           role: "admin",
         });
-        
+
         if (newAdminUser) {
           return {
             id: newAdminUser.id,

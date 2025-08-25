@@ -260,8 +260,6 @@ export interface AdminUserInsert {
   role?: "admin" | "super_admin";
   created_at?: string;
   updated_at?: string;
-  last_login_at?: string | null;
-  is_active?: boolean;
 }
 
 export interface AdminUserUpdate {
@@ -269,8 +267,6 @@ export interface AdminUserUpdate {
   role?: "admin" | "super_admin";
   created_at?: string;
   updated_at?: string;
-  last_login_at?: string | null;
-  is_active?: boolean;
 }
 
 // Event settings table types (Phase 1)
