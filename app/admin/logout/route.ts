@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "../../lib/supabase-server";
-import { cookieOptions } from "../../lib/auth-utils";
+import { getCookieOptions } from "../../lib/env";
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,19 +28,30 @@ export async function GET(request: NextRequest) {
       redirectResponse.headers.set("Set-Cookie", setCookieHeaders);
     }
 
-    // Clear our custom authentication cookies
-    const options = cookieOptions();
+    // Get cookie options for consistent settings
+    const cookieOpts = getCookieOptions();
     const clearOptions = {
-      ...options,
-      maxAge: 0, // Expire immediately
-      expires: new Date(0), // Set to past date
+      ...cookieOpts,
+      maxAge: 0,
+      expires: new Date(0),
     };
 
-    // Clear all authentication cookies
+    // Clear all authentication cookies with proper domain settings
     redirectResponse.cookies.set("admin-email", "", clearOptions);
     redirectResponse.cookies.set("sb-access-token", "", clearOptions);
     redirectResponse.cookies.set("sb-refresh-token", "", clearOptions);
-    redirectResponse.cookies.set("dev-user-email", "", clearOptions); // Also clear dev cookie if exists
+    redirectResponse.cookies.set("dev-user-email", "", clearOptions);
+
+    // Clear the new Supabase auth token format (includes project ref)
+    const projectRef =
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.split(".")[0]?.split("//")[1];
+    if (projectRef) {
+      redirectResponse.cookies.set(
+        `sb-${projectRef}-auth-token`,
+        "",
+        clearOptions,
+      );
+    }
 
     return redirectResponse;
   } catch (error) {
