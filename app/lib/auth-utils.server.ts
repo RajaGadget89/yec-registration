@@ -83,7 +83,10 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     } = await supabase.auth.getSession();
 
     if (sessionError) {
-      console.error("Error getting session:", sessionError);
+      // Only log genuine errors, not "no session" states
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[auth] getCurrentUser(): session error:", sessionError);
+      }
       return null;
     }
 
@@ -165,7 +168,10 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 
     return null;
   } catch (error) {
-    console.error("Error getting current user:", error);
+    // Only log genuine errors in development
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[auth] getCurrentUser(): unexpected error:", error);
+    }
     return null;
   }
 }
