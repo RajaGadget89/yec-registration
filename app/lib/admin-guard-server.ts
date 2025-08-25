@@ -122,6 +122,17 @@ export function validateAdminAccess(req: NextRequest): {
 } {
   const adminEmail = req.cookies.get("admin-email")?.value;
 
+  // Development bypass for easier testing
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.DEV_ADMIN_BYPASS === "true"
+  ) {
+    console.log(
+      "[admin-guard-server] DEV_ADMIN_BYPASS enabled - allowing access",
+    );
+    return { valid: true, adminEmail: "dev-admin@example.com" };
+  }
+
   if (!adminEmail) {
     return { valid: false, error: "No admin email found in cookies" };
   }

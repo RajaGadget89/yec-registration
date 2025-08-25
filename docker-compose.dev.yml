@@ -17,6 +17,8 @@ services:
       - NODE_ENV=development
       - HOSTNAME=0.0.0.0
       - PORT=8080
+      # Admin Configuration
+      - ADMIN_EMAILS=raja.gadgets89@gmail.com
       # Email Configuration
       - EMAIL_MODE=CAPPED
       - EMAIL_CAP_MAX_PER_RUN=1
