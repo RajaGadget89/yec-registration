@@ -7,7 +7,6 @@ import SummaryCards from "./SummaryCards";
 import Filters, { FilterState } from "./Filters";
 import ResultsTable from "./ResultsTable";
 import DetailsDrawer from "./DetailsDrawer";
-import { EmailOutboxWidget } from "./EmailOutboxWidget";
 import type { Registration } from "../../types/database";
 
 interface AdminDashboardProps {
@@ -62,106 +61,54 @@ export default function AdminDashboard({
     dateTo: searchParams.get("dateTo") || "",
   };
 
-  const updateURL = (
-    newParams: Record<string, string | number | undefined>,
-  ) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    Object.entries(newParams).forEach(([key, value]) => {
-      if (value === undefined || value === "") {
-        params.delete(key);
-      } else {
-        params.set(key, String(value));
-      }
-    });
-
-    const newUrl = params.toString() ? `?${params.toString()}` : "/admin";
-
-    // Force page refresh to trigger server-side data refetch
-    window.location.href = newUrl;
-  };
-
-  const handlePageChange = (page: number) => {
-    updateURL({ page });
-  };
-
-  const handleSort = (column: string, direction: "asc" | "desc") => {
-    updateURL({ sortColumn: column, sortDirection: direction });
-  };
-
-  // Note: handleFiltersChange is no longer needed since we're using page refreshes
-  // The server-side data fetching will handle filter changes
-
-  const handleRowClick = (registration: Registration) => {
-    setSelectedRegistration(registration);
-    setIsDrawerOpen(true);
-  };
-
-  const handleActionComplete = useCallback(
-    (registrationId: string, newStatus: string) => {
-      // Update the registration in the local state
-      setRegistrations((prev) =>
-        prev.map((reg) =>
-          reg.registration_id === registrationId
-            ? { ...reg, status: newStatus as Registration["status"] }
-            : reg,
-        ),
-      );
-
-      // Update status counts
-      setStatusCounts((prev) => {
-        const newCounts = { ...prev };
-
-        // Decrease the count for the old status
-        if (
-          registrations.find((r) => r.registration_id === registrationId)
-            ?.status === "waiting_for_review"
-        ) {
-          newCounts.waiting_for_review = Math.max(
-            0,
-            newCounts.waiting_for_review - 1,
-          );
-        } else if (
-          registrations.find((r) => r.registration_id === registrationId)
-            ?.status === "waiting_for_review"
-        ) {
-          newCounts.waiting_for_review = Math.max(
-            0,
-            newCounts.waiting_for_review - 1,
-          );
-        } else if (
-          registrations.find((r) => r.registration_id === registrationId)
-            ?.status === "approved"
-        ) {
-          newCounts.approved = Math.max(0, newCounts.approved - 1);
-        } else if (
-          registrations.find((r) => r.registration_id === registrationId)
-            ?.status === "rejected"
-        ) {
-          newCounts.rejected = Math.max(0, newCounts.rejected - 1);
+  // Update URL with current state
+  const updateURL = useCallback(
+    (newParams: Record<string, string | number | undefined>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === "") {
+          params.delete(key);
+        } else {
+          params.set(key, String(value));
         }
+      });
+      const newUrl = params.toString() ? `?${params.toString()}` : "/admin";
+      window.history.pushState({}, "", newUrl);
+    },
+    [searchParams],
+  );
 
-        // Increase the count for the new status
-        if (newStatus === "waiting_for_review") {
-          newCounts.waiting_for_review += 1;
-        } else if (newStatus === "waiting_for_review") {
-          newCounts.waiting_for_review += 1;
-        } else if (newStatus === "approved") {
-          newCounts.approved += 1;
-        } else if (newStatus === "rejected") {
-          newCounts.rejected += 1;
-        }
+  const handlePageChange = useCallback(
+    (page: number) => {
+      updateURL({ page: page > 1 ? page : undefined });
+    },
+    [updateURL],
+  );
 
-        return newCounts;
+  const handleSort = useCallback(
+    (column: string, direction: "asc" | "desc") => {
+      updateURL({
+        sortColumn: column !== "created_at" ? column : undefined,
+        sortDirection: direction !== "desc" ? direction : undefined,
       });
     },
-    [registrations],
+    [updateURL],
   );
+
+  const handleRowClick = useCallback((registration: Registration) => {
+    setSelectedRegistration(registration);
+    setIsDrawerOpen(true);
+  }, []);
+
+  const handleActionComplete = useCallback(() => {
+    // Refresh the page to get updated data
+    window.location.reload();
+  }, []);
 
   const handleExportCSV = async () => {
     try {
+      // Build the export URL with current filters
       const params = new URLSearchParams();
-
       if (currentFilters.status.length > 0) {
         params.set("status", currentFilters.status.join(","));
       }
@@ -178,27 +125,10 @@ export default function AdminDashboard({
         params.set("dateTo", currentFilters.dateTo);
       }
 
-      const response = await fetch(
-        `/api/admin/export-csv?${params.toString()}`,
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to export CSV");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `registrations-${new Date().toISOString().split("T")[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      const exportUrl = `/api/admin/export-csv?${params.toString()}`;
+      window.open(exportUrl, "_blank");
     } catch (error) {
-      console.error("Error exporting CSV:", error);
-      // Replace alert with console.error for better error handling
-      console.error("Failed to export CSV. Please try again.");
+      console.error("Export failed:", error);
     }
   };
 
@@ -234,11 +164,6 @@ export default function AdminDashboard({
           rejectedCount={statusCounts.rejected}
           filteredTotal={totalCount}
         />
-      </div>
-
-      {/* Email Outbox Widget */}
-      <div className="relative z-10">
-        <EmailOutboxWidget />
       </div>
 
       {/* Filters */}

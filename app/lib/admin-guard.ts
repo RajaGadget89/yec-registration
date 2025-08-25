@@ -27,6 +27,16 @@ export function getAdminEmails(): string[] {
  */
 export function isAdmin(email?: string | null): boolean {
   if (!email) return false;
+
+  // Development bypass for easier testing
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.DEV_ADMIN_BYPASS === "true"
+  ) {
+    console.log("[admin-guard] DEV_ADMIN_BYPASS enabled - allowing any email");
+    return true;
+  }
+
   return new Set(getAdminEmails()).has(email.toLowerCase());
 }
 
