@@ -3,6 +3,7 @@ import {
   RegistrationEvent,
   BatchRegistrationEvent,
   AutoRejectSweepEvent,
+  EmailRetryEvent,
 } from "./types";
 import { Registration } from "../../types/database";
 
@@ -216,6 +217,27 @@ export class EventFactory {
       },
       timestamp: new Date().toISOString(),
       correlation_id: `sweep_${Date.now()}`,
+    };
+  }
+
+  /**
+   * Create an email retry requested event
+   */
+  static createEmailRetryRequested(
+    emailIds: string[],
+    adminEmail: string,
+    reason?: string,
+  ): EmailRetryEvent {
+    return {
+      id: randomUUID(),
+      type: "email.retry_requested",
+      payload: {
+        email_ids: emailIds,
+        admin_email: adminEmail,
+        reason,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: `email_retry_${Date.now()}`,
     };
   }
 }

@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "../../components/ui/button";
+
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card";
-import { Badge } from "../../components/ui/badge";
-import { Loader2, Mail, CheckCircle, XCircle, Clock } from "lucide-react";
+  Loader2,
+  Mail,
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertCircle,
+  X,
+  RefreshCw,
+} from "lucide-react";
 // import { toast } from 'sonner'; // Removed - not available
 
 interface OutboxStats {
@@ -20,42 +22,107 @@ interface OutboxStats {
   oldest_pending: string | null;
 }
 
-interface DispatchResult {
+interface EmailOutboxTrendsPoint {
+  ts: string;
+  queued: number;
   sent: number;
-  errors: number;
-  remaining: number;
-  details: {
-    successful: string[];
-    failed: Array<{ id: string; error: string }>;
+  failed: number;
+  pending_snapshot?: number;
+}
+
+interface EmailOutboxTrends24h {
+  window: "24h";
+  buckets: EmailOutboxTrendsPoint[];
+  summary: {
+    total_queued: number;
+    total_sent: number;
+    total_failed: number;
+    oldest_pending: string | null;
+    current_pending: number;
+    success_rate_24h: number;
   };
+}
+
+interface EmailOutboxAlert {
+  ok: boolean;
+  reasons: Array<"PENDING_HIGH" | "OLDEST_PENDING_AGE" | "FAILURE_SPIKE">;
+  details: Record<string, unknown>;
+  severity: "warning" | "critical";
 }
 
 export function EmailOutboxWidget() {
   const [stats, setStats] = useState<OutboxStats | null>(null);
+  const [trends, setTrends] = useState<EmailOutboxTrends24h | null>(null);
+  const [alert, setAlert] = useState<EmailOutboxAlert | null>(null);
   const [loading, setLoading] = useState(false);
+  const [trendsLoading, setTrendsLoading] = useState(false);
   const [dispatching, setDispatching] = useState(false);
-  const [lastDispatch, setLastDispatch] = useState<DispatchResult | null>(null);
+
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Fetch outbox statistics
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/dispatch-emails");
+      const response = await fetch("/api/admin/email-outbox-stats");
       if (!response.ok) {
-        throw new Error("Failed to fetch outbox stats");
+        const errorText = await response.text();
+        console.error(
+          `Failed to fetch outbox stats: ${response.status} - ${errorText}`,
+        );
+        throw new Error(`Failed to fetch outbox stats: ${response.status}`);
       }
       const data = await response.json();
-      setStats(data.stats);
+      if (data.ok && data.stats) {
+        setStats(data.stats);
+        setAuthError(null); // Clear any previous auth errors
+      } else {
+        throw new Error("Invalid response format");
+      }
     } catch (error) {
       console.error("Failed to fetch outbox stats:", error);
-      console.error("Failed to load email outbox statistics");
+      // Check if it's an auth error
+      if (error instanceof Error && error.message.includes("401")) {
+        setAuthError("Admin access required");
+      }
+      // Don't throw - just log the error and continue
     } finally {
       setLoading(false);
     }
   };
 
-  // Dispatch emails manually
-  const dispatchEmails = async (batchSize: number = 50) => {
+  // Fetch outbox trends
+  const fetchTrends = async () => {
+    try {
+      setTrendsLoading(true);
+      const response = await fetch("/api/admin/email-outbox-trends");
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          `Failed to fetch outbox trends: ${response.status} - ${errorText}`,
+        );
+        throw new Error(`Failed to fetch outbox trends: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.ok && data.trends) {
+        setTrends(data.trends);
+        setAlert(data.alert || null);
+      } else {
+        throw new Error("Invalid trends response format");
+      }
+    } catch (error) {
+      console.error("Failed to fetch outbox trends:", error);
+      // Don't throw - just log the error and continue
+    } finally {
+      setTrendsLoading(false);
+    }
+  };
+
+  // Dispatch emails
+  const dispatchEmails = async () => {
     try {
       setDispatching(true);
       const response = await fetch("/api/admin/dispatch-emails", {
@@ -63,47 +130,66 @@ export function EmailOutboxWidget() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ batchSize }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to dispatch emails");
+        const errorText = await response.text();
+        console.error(
+          `Failed to dispatch emails: ${response.status} - ${errorText}`,
+        );
+        throw new Error(`Failed to dispatch emails: ${response.status}`);
       }
 
       const data = await response.json();
-      setLastDispatch(data.result);
+      if (data.ok) {
+        // Refresh stats after dispatch
+        await fetchStats();
 
-      // Refresh stats after dispatch
-      await fetchStats();
-
-      // Show success/error messages
-      if (data.result.sent > 0) {
-        console.log(`Successfully sent ${data.result.sent} emails`);
-      }
-      if (data.result.errors > 0) {
-        console.error(`${data.result.errors} emails failed to send`);
-      }
-      if (data.result.sent === 0 && data.result.errors === 0) {
-        console.log("No emails to dispatch");
+        // Show success/error messages
+        if (data.sent > 0) {
+          console.log(`Successfully sent ${data.sent} emails`);
+        }
+        if (data.errors > 0) {
+          console.error(`${data.errors} emails failed to send`);
+        }
+        if (data.sent === 0 && data.errors === 0) {
+          console.log("No emails to dispatch");
+        }
+      } else {
+        throw new Error("Invalid dispatch response format");
       }
     } catch (error) {
       console.error("Failed to dispatch emails:", error);
-      console.error("Failed to dispatch emails");
+      // Don't throw - just log the error and continue
     } finally {
       setDispatching(false);
     }
   };
 
-  // Load stats on component mount
+  // Load stats and trends on component mount
   useEffect(() => {
     fetchStats();
+    fetchTrends();
   }, []);
 
-  // Auto-refresh stats every 30 seconds
+  // Auto-refresh stats and trends every 60 seconds
   useEffect(() => {
-    const interval = setInterval(fetchStats, 30000);
+    const interval = setInterval(() => {
+      fetchStats();
+      fetchTrends();
+    }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Dismiss alert
+  const dismissAlert = (alertKey: string) => {
+    setDismissedAlerts((prev) => new Set([...prev, alertKey]));
+  };
+
+  // Generate alert key for dismissal tracking
+  const getAlertKey = (alert: EmailOutboxAlert): string => {
+    return alert.reasons.sort().join(",");
+  };
 
   const formatOldestPending = (timestamp: string | null) => {
     if (!timestamp) return "N/A";
@@ -119,142 +205,233 @@ export function EmailOutboxWidget() {
     return `${diffDays} days ago`;
   };
 
+  const calculateSuccessRate = () => {
+    if (!stats) return 0;
+    const total = stats.total_sent + stats.total_error;
+    return total > 0
+      ? Math.round((stats.total_sent / total) * 100 * 10) / 10
+      : 100;
+  };
+
   if (loading && !stats) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Email Outbox
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="card-modern dark:card-modern-dark rounded-2xl p-6 animate-fade-in-up backdrop-blur-sm bg-white/90 dark:bg-gray-800/90 border border-white/20 dark:border-gray-700/20">
+        {/* Light overlay for better readability */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 to-blue-100/10 rounded-2xl"></div>
+
+        {/* Content */}
+        <div className="relative z-10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 drop-shadow-sm">
+                Email Outbox
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                Manage queued emails and manual dispatch
+              </p>
+            </div>
+
+            {/* Icon */}
+            <div className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+              <Mail className="h-6 w-6 text-white" />
+            </div>
+          </div>
+
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin" />
             <span className="ml-2">Loading outbox statistics...</span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Mail className="h-5 w-5" />
-          Email Outbox
-        </CardTitle>
-        <CardDescription>
-          Manage queued emails and manual dispatch
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Statistics */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <Clock className="h-4 w-4 text-yellow-500" />
-              <span className="text-sm font-medium">Pending</span>
-            </div>
-            <Badge
-              variant={
-                stats?.total_pending && stats.total_pending > 0
-                  ? "destructive"
-                  : "secondary"
-              }
-            >
-              {stats?.total_pending || 0}
-            </Badge>
+    <div className="card-modern dark:card-modern-dark rounded-2xl p-6 animate-fade-in-up backdrop-blur-sm bg-white/90 dark:bg-gray-800/90 border border-white/20 dark:border-gray-700/20">
+      {/* Light overlay for better readability */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-50/20 to-blue-100/10 rounded-2xl"></div>
+
+      {/* Content */}
+      <div className="relative z-10 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 drop-shadow-sm">
+              Email Outbox
+            </p>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              Manage queued emails and manual dispatch
+            </p>
           </div>
 
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-medium">Sent</span>
-            </div>
-            <Badge variant="outline">{stats?.total_sent || 0}</Badge>
-          </div>
-
-          <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <XCircle className="h-4 w-4 text-red-500" />
-              <span className="text-sm font-medium">Errors</span>
-            </div>
-            <Badge
-              variant={
-                stats?.total_error && stats.total_error > 0
-                  ? "destructive"
-                  : "secondary"
-              }
-            >
-              {stats?.total_error || 0}
-            </Badge>
+          {/* Icon */}
+          <div className="relative p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+            <Mail className="h-6 w-6 text-white" />
           </div>
         </div>
 
-        {/* Oldest Pending */}
-        {stats?.oldest_pending && (
-          <div className="text-sm text-muted-foreground">
-            Oldest pending: {formatOldestPending(stats.oldest_pending)}
+        {/* Alert Banner */}
+        {alert && !dismissedAlerts.has(getAlertKey(alert)) && (
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-900/20 dark:border-yellow-800">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="h-4 w-4 text-yellow-500" />
+              <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Email Outbox Alert
+              </span>
+              <button
+                onClick={() => dismissAlert(getAlertKey(alert))}
+                className="ml-auto p-1 hover:bg-yellow-100 dark:hover:bg-yellow-800/50 rounded"
+              >
+                <X className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+              </button>
+            </div>
+            <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+              {alert.reasons.includes("PENDING_HIGH") && (
+                <div>High number of pending emails detected</div>
+              )}
+              {alert.reasons.includes("OLDEST_PENDING_AGE") && (
+                <div>Old pending emails may need attention</div>
+              )}
+              {alert.reasons.includes("FAILURE_SPIKE") && (
+                <div>Recent email failures detected</div>
+              )}
+            </div>
           </div>
         )}
+
+        {/* Auth Error Banner */}
+        {authError && (
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-900/20 dark:border-yellow-800">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="h-4 w-4 text-yellow-500" />
+              <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                Admin Access Required
+              </span>
+            </div>
+            <div className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+              <div>
+                Admin access required (dev): add your email to ADMIN_EMAILS in
+                .env.local or enable DEV_ADMIN_BYPASS. Then restart the dev
+                server.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Statistics Row */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="text-center p-3 rounded-lg bg-gray-50/50 dark:bg-gray-700/50 backdrop-blur-sm border border-gray-100 dark:border-gray-600">
+            <div className="flex items-center justify-center gap-1.5 mb-2">
+              <Clock className="h-4 w-4 text-yellow-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Pending
+              </span>
+            </div>
+            <div className="text-xl font-bold text-yellow-600 dark:text-yellow-400">
+              {stats?.total_pending || 0}
+            </div>
+          </div>
+
+          <div className="text-center p-3 rounded-lg bg-gray-50/50 dark:bg-gray-700/50 backdrop-blur-sm border border-gray-100 dark:border-gray-600">
+            <div className="flex items-center justify-center gap-1.5 mb-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Sent
+              </span>
+            </div>
+            <div className="text-xl font-bold text-green-600 dark:text-green-400">
+              {stats?.total_sent || 0}
+            </div>
+          </div>
+
+          <div className="text-center p-3 rounded-lg bg-gray-50/50 dark:bg-gray-700/50 backdrop-blur-sm border border-gray-100 dark:border-gray-600">
+            <div className="flex items-center justify-center gap-1.5 mb-2">
+              <XCircle className="h-4 w-4 text-red-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Errors
+              </span>
+            </div>
+            <div className="text-xl font-bold text-red-600 dark:text-red-400">
+              {stats?.total_error || 0}
+            </div>
+          </div>
+
+          <div className="text-center p-3 rounded-lg bg-gray-50/50 dark:bg-gray-700/50 backdrop-blur-sm border border-gray-100 dark:border-gray-600">
+            <div className="flex items-center justify-center gap-1.5 mb-2">
+              <Clock className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Oldest
+              </span>
+            </div>
+            <div className="text-sm font-bold text-blue-600 dark:text-blue-400">
+              {formatOldestPending(stats?.oldest_pending || null)}
+            </div>
+          </div>
+
+          <div className="text-center p-3 rounded-lg bg-gray-50/50 dark:bg-gray-700/50 backdrop-blur-sm border border-gray-100 dark:border-gray-600">
+            <div className="flex items-center justify-center gap-1.5 mb-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Success Rate
+              </span>
+            </div>
+            <div className="text-xl font-bold text-green-600 dark:text-green-400">
+              {calculateSuccessRate()}%
+            </div>
+          </div>
+        </div>
+
+        {/* 24h Activity Chart */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              24h Activity
+            </h4>
+            {trendsLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+          </div>
+
+          {trends ? (
+            <div className="h-32 bg-gray-50/50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-600 p-4">
+              <div className="flex items-center justify-center h-full text-sm text-gray-500 dark:text-gray-400">
+                Chart visualization would go here
+              </div>
+            </div>
+          ) : (
+            <div className="h-32 bg-gray-50/50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-600 p-4">
+              <div className="flex items-center justify-center h-full text-sm text-gray-500 dark:text-gray-400">
+                No activity data available
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Action Buttons */}
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
           <Button
-            onClick={() => dispatchEmails(50)}
-            disabled={dispatching || (stats?.total_pending || 0) === 0}
-            className="flex-1"
-          >
-            {dispatching ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Dispatching...
-              </>
-            ) : (
-              <>
-                <Mail className="h-4 w-4 mr-2" />
-                Dispatch Now (50)
-              </>
-            )}
-          </Button>
-
-          <Button
+            variant="outline"
+            size="sm"
             onClick={fetchStats}
             disabled={loading}
-            variant="outline"
-            size="icon"
+            className="flex items-center gap-2"
           >
-            {loading ? (
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+
+          <Button
+            onClick={dispatchEmails}
+            disabled={dispatching || (stats?.total_pending || 0) === 0}
+            className="flex items-center gap-2 ml-auto"
+          >
+            {dispatching ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Clock className="h-4 w-4" />
+              <Mail className="h-4 w-4" />
             )}
+            Dispatch Now ({stats?.total_pending || 0})
           </Button>
         </div>
-
-        {/* Last Dispatch Results */}
-        {lastDispatch && (
-          <div className="mt-4 p-3 bg-muted rounded-lg">
-            <h4 className="text-sm font-medium mb-2">Last Dispatch Results</h4>
-            <div className="text-sm space-y-1">
-              <div className="flex justify-between">
-                <span>Sent:</span>
-                <span className="text-green-600">{lastDispatch.sent}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Errors:</span>
-                <span className="text-red-600">{lastDispatch.errors}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Remaining:</span>
-                <span>{lastDispatch.remaining}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { BarChart3, Home, Shield } from "lucide-react";
 import Footer from "../components/Footer";
 import AdminUserInfoClient from "./_components/AdminUserInfoClient";
+import { EmailOutboxNavWidget } from "./_components/EmailOutboxNavWidget";
 import { getCurrentUser } from "../lib/auth-utils.server";
 
 // Force dynamic rendering for admin routes that use cookies
@@ -74,6 +75,13 @@ export default async function AdminLayout({
                 </div>
                 <span className="font-semibold">Audit</span>
               </Link>
+              <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+
+              {/* Email Outbox Widget */}
+              <div className="relative">
+                <EmailOutboxNavWidget />
+              </div>
+
               <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
               <span className="text-gray-500 dark:text-gray-400 font-medium">
                 Dashboard
