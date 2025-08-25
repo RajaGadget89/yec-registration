@@ -9,10 +9,7 @@ import { Loader2, AlertCircle, CheckCircle, Mail } from "lucide-react";
  *
  * This page handles the OAuth callback from Supabase magic links.
  * It extracts tokens from the URL hash and posts them to /api/auth/callback.
- *
- * ROUTING FIX: Previously, a route.ts file in this directory was causing 405 errors
- * on GET requests because it only defined POST. The route.ts has been moved to
- * /api/auth/callback/route.ts to separate the client page from the API endpoint.
+ * The server-side callback now establishes proper Supabase sessions.
  */
 
 export default function AuthCallbackPage() {
@@ -97,7 +94,7 @@ export default function AuthCallbackPage() {
           refreshToken: refreshToken?.length || 0,
         });
 
-        // POST tokens to API route
+        // POST tokens to API route for session establishment
         const response = await fetch("/api/auth/callback", {
           method: "POST",
           headers: {
@@ -125,9 +122,6 @@ export default function AuthCallbackPage() {
           );
           return;
         }
-
-        const data = await response.json().catch(() => ({}));
-        console.log("[callback] API success response:", data);
 
         // Check for redirect location
         const location = response.headers.get("location");
@@ -184,7 +178,7 @@ export default function AuthCallbackPage() {
             }, 1000);
           }
         } else {
-          // No redirect - this shouldn't happen
+          // No redirect - this shouldn't happen with the new implementation
           console.log("[callback] no redirect found, redirecting manually");
           setStatus("success");
           setSuccessMessage(
