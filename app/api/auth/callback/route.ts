@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { isAdmin, getAppUrl } from "../../../lib/auth-utils";
+import { isAdmin } from "../../../lib/auth-utils";
+import { getAppUrl, getCookieOptions } from "../../../lib/env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,6 +33,9 @@ export async function POST(request: NextRequest) {
     // Create response object for cookie handling
     const response = NextResponse.next();
 
+    // Get cookie options for consistent settings
+    const cookieOpts = getCookieOptions();
+
     // Create Supabase server client with cookie handling
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,13 +44,19 @@ export async function POST(request: NextRequest) {
         cookies: {
           get: (key: string) => request.cookies.get(key)?.value,
           set: (key, value, options) => {
-            // Forward cookie mutations to the response
-            response.cookies.set({ name: key, value, ...options });
+            // Forward cookie mutations to the response with consistent options
+            response.cookies.set({
+              name: key,
+              value,
+              ...cookieOpts,
+              ...options,
+            });
           },
           remove: (key, options) => {
             response.cookies.set({
               name: key,
               value: "",
+              ...cookieOpts,
               ...options,
               expires: new Date(0),
             });

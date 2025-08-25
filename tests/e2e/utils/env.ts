@@ -16,6 +16,15 @@ export interface TestEnv {
   EMAIL_RETRY_ON_429: number;
   BLOCK_NON_ALLOWLIST: boolean;
   EMAIL_ALLOWLIST: string;
+
+  // Auth testing configuration
+  APP_URL: string;
+  SUPABASE_URL: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
+  ADMIN_EMAIL: string;
+  RUN_LOCAL_TESTS: boolean;
+  RUN_PREVIEW_TESTS: boolean;
+  RUN_PROD_TESTS: boolean;
 }
 
 /**
@@ -35,6 +44,15 @@ export function getTestEnv(): TestEnv {
     EMAIL_RETRY_ON_429: parseInt(process.env.EMAIL_RETRY_ON_429 || '1'),
     BLOCK_NON_ALLOWLIST: process.env.BLOCK_NON_ALLOWLIST === 'true',
     EMAIL_ALLOWLIST: process.env.EMAIL_ALLOWLIST || 'raja.gadgets89@gmail.com',
+
+    // Auth testing configuration
+    APP_URL: process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8080',
+    SUPABASE_URL: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL || process.env.TEST_ADMIN_EMAIL || 'raja.gadgets89@gmail.com',
+    RUN_LOCAL_TESTS: process.env.RUN_LOCAL_TESTS === 'true',
+    RUN_PREVIEW_TESTS: process.env.RUN_PREVIEW_TESTS === 'true',
+    RUN_PROD_TESTS: process.env.RUN_PROD_TESTS === 'true',
   };
 
   // Validate required environment variables
@@ -44,6 +62,19 @@ export function getTestEnv(): TestEnv {
 
   if (!env.PLAYWRIGHT_BASE_URL) {
     throw new Error('PLAYWRIGHT_BASE_URL environment variable is required');
+  }
+
+  // Validate auth testing environment variables
+  if (!env.SUPABASE_URL) {
+    throw new Error('SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL environment variable is required');
+  }
+
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY environment variable is required');
+  }
+
+  if (!env.ADMIN_EMAIL) {
+    throw new Error('ADMIN_EMAIL or TEST_ADMIN_EMAIL environment variable is required');
   }
 
   return env;
@@ -81,5 +112,12 @@ export function printTestEnv(): void {
   console.log(`EMAIL_RETRY_ON_429: ${env.EMAIL_RETRY_ON_429}`);
   console.log(`BLOCK_NON_ALLOWLIST: ${env.BLOCK_NON_ALLOWLIST}`);
   console.log(`EMAIL_ALLOWLIST: ${env.EMAIL_ALLOWLIST}`);
+  console.log(`APP_URL: ${env.APP_URL}`);
+  console.log(`SUPABASE_URL: ${env.SUPABASE_URL}`);
+  console.log(`SUPABASE_SERVICE_ROLE_KEY: ${env.SUPABASE_SERVICE_ROLE_KEY.substring(0, 6)}...`);
+  console.log(`ADMIN_EMAIL: ${env.ADMIN_EMAIL}`);
+  console.log(`RUN_LOCAL_TESTS: ${env.RUN_LOCAL_TESTS}`);
+  console.log(`RUN_PREVIEW_TESTS: ${env.RUN_PREVIEW_TESTS}`);
+  console.log(`RUN_PROD_TESTS: ${env.RUN_PROD_TESTS}`);
   console.log('==========================================');
 }
