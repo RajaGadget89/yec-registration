@@ -268,11 +268,7 @@ fi
 
 # ---------- 6) Audit E2E (writes to audit.* on STAGING) ----------
 title "🧪 Audit E2E"
-if [ "${SKIP_AUDIT_TESTS:-0}" = "1" ]; then
-  echo "Skip audit tests (SKIP_AUDIT_TESTS=1)"; ok "Audit tests skipped"
-else
-  run "Playwright @audit suite" npm run -s test:audit
-fi
+run "Playwright @audit suite" npm run -s test:audit
 
 # ---------- 7) Optional full test suite ----------
 title "🧪 Full Test Suite (Optional)"
