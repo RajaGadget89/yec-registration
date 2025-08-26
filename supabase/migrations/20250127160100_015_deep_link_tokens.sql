@@ -17,8 +17,20 @@ CREATE TABLE IF NOT EXISTS deep_link_tokens (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- 2. Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_deep_link_tokens_token ON deep_link_tokens(token);
+-- 2. Create indexes for performance (idempotent)
+DO $$
+BEGIN
+  -- Check if token column exists before creating index
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'deep_link_tokens'
+      AND column_name = 'token'
+  ) THEN
+    CREATE INDEX IF NOT EXISTS idx_deep_link_tokens_token ON deep_link_tokens(token);
+  END IF;
+END$$;
+
 CREATE INDEX IF NOT EXISTS idx_deep_link_tokens_registration_id ON deep_link_tokens(registration_id);
 CREATE INDEX IF NOT EXISTS idx_deep_link_tokens_expires_at ON deep_link_tokens(expires_at);
 CREATE INDEX IF NOT EXISTS idx_deep_link_tokens_used_at ON deep_link_tokens(used_at);
