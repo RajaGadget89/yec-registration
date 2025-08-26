@@ -85,22 +85,35 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 6. Add check constraint to ensure valid checklist structure (idempotent)
+-- 6. Add check constraint to ensure valid checklist structure (staging-safe with NOT VALID)
+-- 0) Preflight: show how many rows would fail validation (for logs only)
+DO $$
+DECLARE v_count bigint;
+BEGIN
+  SELECT COUNT(*) INTO v_count
+  FROM public.registrations r
+  WHERE r.review_checklist IS NULL
+     OR NOT validate_review_checklist(r.review_checklist);
+  RAISE NOTICE 'review_checklist invalid rows (preflight) = %', v_count;
+END$$;
+
+-- 1) Idempotent creation of the NOT VALID check constraint
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1
     FROM information_schema.table_constraints tc
-    JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
-    WHERE tc.table_schema = 'public'
-      AND tc.table_name = 'registrations'
-      AND ccu.column_name = 'review_checklist'
-      AND tc.constraint_type = 'CHECK'
-      AND tc.constraint_name = 'check_review_checklist_structure'
+    JOIN information_schema.constraint_column_usage ccu
+      ON tc.constraint_name = ccu.constraint_name
+    WHERE tc.table_schema   = 'public'
+      AND tc.table_name     = 'registrations'
+      AND tc.constraint_type= 'CHECK'
+      AND tc.constraint_name= 'check_review_checklist_structure'
+      AND ccu.column_name   = 'review_checklist'
   ) THEN
-    ALTER TABLE registrations 
-    ADD CONSTRAINT check_review_checklist_structure 
-    CHECK (validate_review_checklist(review_checklist));
+    ALTER TABLE public.registrations
+      ADD CONSTRAINT check_review_checklist_structure
+        CHECK (validate_review_checklist(review_checklist)) NOT VALID;
   END IF;
 END$$;
 
