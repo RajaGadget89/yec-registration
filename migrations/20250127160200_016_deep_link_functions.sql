@@ -87,20 +87,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 3. Function to mark deep-link token as used
+-- 3. Function to mark deep-link token as used (maintains same return type as migration 015)
 CREATE OR REPLACE FUNCTION mark_deep_link_token_used(p_token TEXT)
-RETURNS BOOLEAN AS $$
-DECLARE
-  v_updated_count INTEGER;
+RETURNS TABLE(
+  success BOOLEAN,
+  message TEXT
+) AS $$
 BEGIN
   -- Mark token as used
   UPDATE deep_link_tokens 
   SET used_at = NOW(), updated_at = NOW()
   WHERE token = p_token AND used_at IS NULL;
   
-  GET DIAGNOSTICS v_updated_count = ROW_COUNT;
-  
-  RETURN v_updated_count > 0;
+  IF FOUND THEN
+    RETURN QUERY SELECT TRUE, 'Token marked as used'::TEXT;
+  ELSE
+    RETURN QUERY SELECT FALSE, 'Token not found or already used'::TEXT;
+  END IF;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
