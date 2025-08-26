@@ -3,19 +3,30 @@
 -- Description: Adds review_checklist JSONB column for 3-track review system
 -- Date: 2025-01-27
 
--- 1. Add review_checklist JSONB column to registrations table
-ALTER TABLE registrations 
-ADD COLUMN review_checklist JSONB DEFAULT '{
-  "payment": {"status": "pending", "notes": ""},
-  "profile": {"status": "pending", "notes": ""},
-  "tcc": {"status": "pending", "notes": ""}
-}'::jsonb;
+-- 1. Add review_checklist JSONB column to registrations table (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'registrations'
+      AND column_name = 'review_checklist'
+  ) THEN
+    ALTER TABLE registrations 
+    ADD COLUMN review_checklist JSONB DEFAULT '{
+      "payment": {"status": "pending", "notes": ""},
+      "profile": {"status": "pending", "notes": ""},
+      "tcc": {"status": "pending", "notes": ""}
+    }'::jsonb;
+  END IF;
+END$$;
 
--- 2. Create GIN index for efficient JSONB queries
+-- 2. Create GIN index for efficient JSONB queries (already idempotent)
 CREATE INDEX IF NOT EXISTS idx_registrations_review_checklist 
 ON registrations USING GIN (review_checklist);
 
--- 3. Backfill existing registrations with default checklist
+-- 3. Backfill existing registrations with default checklist (safe to run multiple times)
 UPDATE registrations 
 SET review_checklist = '{
   "payment": {"status": "pending", "notes": ""},
@@ -24,11 +35,26 @@ SET review_checklist = '{
 }'::jsonb
 WHERE review_checklist IS NULL;
 
--- 4. Add NOT NULL constraint after backfill
-ALTER TABLE registrations 
-ALTER COLUMN review_checklist SET NOT NULL;
+-- 4. Add NOT NULL constraint after backfill (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+    WHERE tc.table_schema = 'public'
+      AND tc.table_name = 'registrations'
+      AND ccu.column_name = 'review_checklist'
+      AND tc.constraint_type = 'CHECK'
+      AND tc.constraint_name = 'check_review_checklist_structure'
+  ) THEN
+    -- First ensure the column is NOT NULL
+    ALTER TABLE registrations 
+    ALTER COLUMN review_checklist SET NOT NULL;
+  END IF;
+END$$;
 
--- 5. Create function to validate review_checklist structure
+-- 5. Create function to validate review_checklist structure (already idempotent)
 CREATE OR REPLACE FUNCTION validate_review_checklist(checklist JSONB)
 RETURNS BOOLEAN AS $$
 BEGIN
@@ -59,12 +85,26 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 6. Add check constraint to ensure valid checklist structure
-ALTER TABLE registrations 
-ADD CONSTRAINT check_review_checklist_structure 
-CHECK (validate_review_checklist(review_checklist));
+-- 6. Add check constraint to ensure valid checklist structure (idempotent)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+    WHERE tc.table_schema = 'public'
+      AND tc.table_name = 'registrations'
+      AND ccu.column_name = 'review_checklist'
+      AND tc.constraint_type = 'CHECK'
+      AND tc.constraint_name = 'check_review_checklist_structure'
+  ) THEN
+    ALTER TABLE registrations 
+    ADD CONSTRAINT check_review_checklist_structure 
+    CHECK (validate_review_checklist(review_checklist));
+  END IF;
+END$$;
 
--- 7. Create function to get checklist status summary
+-- 7. Create function to get checklist status summary (already idempotent)
 CREATE OR REPLACE FUNCTION get_checklist_summary(reg_id UUID)
 RETURNS TABLE(
   payment_status TEXT,
