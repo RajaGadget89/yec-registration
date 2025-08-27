@@ -325,9 +325,40 @@ alter table "public"."admin_users" alter column "updated_at" drop not null;
 
 alter table "public"."email_outbox" alter column "payload" drop default;
 
-alter table "public"."email_outbox" alter column "status" set default 'pending'::text;
+-- Ensure the enum label exists (safe even if already present)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_enum e ON t.oid = e.enumtypid
+    WHERE t.typname = 'email_status' AND e.enumlabel = 'pending'
+  ) THEN
+    ALTER TYPE email_status ADD VALUE 'pending';
+  END IF;
+END$$;
 
-alter table "public"."email_outbox" alter column "status" set data type text using "status"::text;
+-- Drop any existing default to avoid type mismatch, then set the correct one
+ALTER TABLE public.email_outbox
+  ALTER COLUMN status DROP DEFAULT;
+
+ALTER TABLE public.email_outbox
+  ALTER COLUMN status SET DEFAULT 'pending'::email_status;
+
+-- Optional: validate that the default expression is bound to the enum type
+DO $$
+DECLARE def_expr text;
+BEGIN
+  SELECT pg_get_expr(d.adbin, d.adrelid) INTO def_expr
+  FROM pg_attrdef d
+  JOIN pg_class c ON c.oid = d.adrelid
+  JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = d.adnum
+  WHERE c.relname = 'email_outbox' AND a.attname = 'status';
+
+  IF def_expr NOT LIKE '%::email_status%' THEN
+    RAISE EXCEPTION 'email_outbox.status default must be email_status, got: %', def_expr;
+  END IF;
+END$$;
 
 alter table "public"."registrations" drop column "full_name";
 
