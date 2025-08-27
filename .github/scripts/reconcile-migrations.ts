@@ -5,31 +5,55 @@ import { join } from 'node:path';
 
 function sh(cmd: string) { return execSync(cmd, { stdio: 'pipe' }).toString(); }
 
+function parseVersionsFromText(text: string) {
+  const lines = text.split(/\r?\n/);
+  const local = new Set<string>();
+  const remote = new Set<string>();
+  const header = lines.find(l => /Local/i.test(l) && /Remote/i.test(l));
+  let idxLocal = -1, idxRemote = -1;
+  if (header) { idxLocal = header.indexOf('Local'); idxRemote = header.indexOf('Remote'); }
+  for (const l of lines) {
+    const matches = [...l.matchAll(/\d{14}/g)];
+    if (matches.length === 0) continue;
+    if (header && idxLocal >= 0 && idxRemote > idxLocal) {
+      for (const m of matches) {
+        const v = m[0];
+        const pos = m.index ?? 0;
+        if (pos < idxRemote) local.add(v); else remote.add(v);
+      }
+    } else {
+      for (const m of matches) { local.add(m[0]); remote.add(m[0]); }
+    }
+  }
+  return { local: [...local], remote: [...remote] };
+}
+
 console.log('🔍 Reconciling migration histories (remote vs local)...');
 
 try {
   // Get remote migration history
   console.log('📋 Fetching remote migration history...');
   const pwd = process.env.SUPABASE_DB_PASSWORD ? ` --password "${process.env.SUPABASE_DB_PASSWORD}"` : '';
-  const out = sh(`supabase migration list --linked -o json${pwd}`);
-  const remote: string[] = JSON.parse(out).map((r: any) => r.version);
-  console.log(`Remote migrations: ${remote.length} found`);
+  const raw = sh(`supabase migration list --linked${pwd}`);
+  const { local: remote = [], remote: remoteFromCols = [] } = parseVersionsFromText(raw);
+  const remoteVersions = remoteFromCols.length ? remoteFromCols : remote;
+  console.log(`Remote versions parsed: ${remoteVersions.length}`);
 
   // Get local migration history
   console.log('📁 Reading local migration files...');
   const localFiles = readdirSync('migrations').filter(f => /^(\d{14})_.*\.sql$/.test(f));
-  const local = localFiles.map(f => f.match(/^(\d{14})_/)![1]);
-  console.log(`Local migrations: ${local.length} found`);
+  const localVersions = localFiles.map(f => f.match(/^(\d{14})_/)![1]);
+  console.log(`Local migrations: ${localVersions.length} found`);
 
   // Compute differences
-  const set = (a: string[]) => new Set(a);
-  const A = set(local), B = set(remote);
-  const remoteOnly = remote.filter(v => !A.has(v));
-  const localOnly = local.filter(v => !B.has(v));
+  const A = new Set(localVersions);
+  const B = new Set(remoteVersions);
+  const remoteOnly = remoteVersions.filter(v => !A.has(v));
+  const localOnly = localVersions.filter(v => !B.has(v));
 
   console.log(`\n📊 Migration History Analysis:`);
-  console.log(`  Remote migrations: ${remote.length}`);
-  console.log(`  Local migrations:  ${local.length}`);
+  console.log(`  Remote migrations: ${remoteVersions.length}`);
+  console.log(`  Local migrations:  ${localVersions.length}`);
   console.log(`  Remote-only:       ${remoteOnly.length}`);
   console.log(`  Local-only:        ${localOnly.length}`);
 
