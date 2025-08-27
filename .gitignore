@@ -25,6 +25,13 @@ build/
 .env.ci.local
 .env.local
 .cd-env
+.env.e2e
+
+# ========================================
+# Authentication & Test State
+# ========================================
+.auth/
+*.auth.json
 
 # ========================================
 # Docker

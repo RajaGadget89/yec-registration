@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServiceClient } from "../../../../../lib/supabase-server";
+import { maybeServiceClient } from "../../../../../lib/supabase/server";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
 import { isAdmin } from "../../../../../lib/admin-guard";
+import { canReviewDimension } from "../../../../../lib/rbac";
 import { EventService } from "../../../../../lib/events/eventService";
 import { withAuditLogging } from "../../../../../lib/audit/withAuditAccess";
 import { eventDrivenEmailService } from "../../../../../lib/emails/enhancedEmailService";
@@ -32,7 +33,20 @@ async function handlePOST(
       );
     }
 
-    const supabase = getSupabaseServiceClient();
+    // Check RBAC permissions for the specific dimension
+    if (!canReviewDimension(user.email, dimension)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "forbidden",
+          message: `You do not have permission to request updates for ${dimension} dimension`,
+        },
+        { status: 403 },
+      );
+    }
+
+    // Get appropriate Supabase client (service client if E2E bypass enabled)
+    const supabase = await maybeServiceClient(request);
 
     // Load current registration
     const { data: registration, error: fetchError } = await supabase
@@ -55,6 +69,7 @@ async function handlePOST(
       {
         reg_id: id,
         dimension: dimension,
+        reviewer_id: user.email, // Add the missing reviewer_id parameter
         notes: notes || null,
       },
     );
@@ -97,6 +112,22 @@ async function handlePOST(
           template: emailResult.template,
           ctaUrl: emailResult.ctaUrl,
         });
+      }
+
+      // In E2E test mode, ensure outbox row is created synchronously
+      if (process.env.E2E_TEST_MODE === "true") {
+        // Force immediate dispatch to ensure outbox row exists for tests
+        const { dispatchEmailBatch } = await import(
+          "../../../../../lib/emails/dispatcher"
+        );
+        try {
+          await dispatchEmailBatch(10, true); // dry-run to avoid sending real emails
+        } catch (dispatchError) {
+          console.warn(
+            "E2E: Failed to dispatch emails immediately:",
+            dispatchError,
+          );
+        }
       }
     } catch (emailError) {
       console.error("Error sending update request email:", emailError);

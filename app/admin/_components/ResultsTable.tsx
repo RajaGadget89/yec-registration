@@ -8,6 +8,7 @@ import {
   Search,
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
+import ChecklistChips from "./ChecklistChips";
 import ActionButtons from "./ActionButtons";
 import type { Registration } from "../../types/database";
 import { formatDate } from "../../lib/datetime";
@@ -36,7 +37,7 @@ export default function ResultsTable({
   onActionComplete,
 }: ResultsTableProps) {
   const totalPages = Math.ceil(totalCount / pageSize);
-  const startIndex = (currentPage - 1) * pageSize + 1;
+  const startIndex = totalCount > 0 ? (currentPage - 1) * pageSize + 1 : 0;
   const endIndex = Math.min(currentPage * pageSize, totalCount);
 
   const handleSort = (column: string) => {
@@ -68,13 +69,14 @@ export default function ResultsTable({
   // Note: columns array is defined for documentation purposes
   // but not currently used in the component logic
 
-  const pageNumbers = Array.from(
-    { length: Math.min(5, totalPages) },
-    (_, i) => {
-      const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-      return page;
-    },
-  );
+  const pageNumbers =
+    totalPages > 0
+      ? Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+          const page =
+            Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+          return page;
+        })
+      : [];
 
   return (
     <div
@@ -99,8 +101,14 @@ export default function ResultsTable({
             </div>
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-            Showing {startIndex}-{endIndex} of {totalCount.toLocaleString()}{" "}
-            results
+            {totalCount > 0 ? (
+              <>
+                Showing {startIndex}-{endIndex} of {totalCount.toLocaleString()}{" "}
+                results
+              </>
+            ) : (
+              <>No results found</>
+            )}
           </div>
         </div>
       </div>
@@ -110,7 +118,7 @@ export default function ResultsTable({
         <table className="w-full table-fixed">
           <thead className="bg-gradient-to-r from-gray-50/60 to-gray-100/60 dark:from-gray-800/60 dark:to-gray-700/60 backdrop-blur-sm">
             <tr>
-              <th className="px-4 py-4 text-left w-[12%]">
+              <th className="px-4 py-4 text-left w-[15%]">
                 <button
                   onClick={() => handleSort("status")}
                   className="flex items-center space-x-2 font-semibold text-gray-700 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-colors group"
@@ -122,7 +130,7 @@ export default function ResultsTable({
                   />
                 </button>
               </th>
-              <th className="px-4 py-4 text-left w-[20%]">
+              <th className="px-4 py-4 text-left w-[18%]">
                 <button
                   onClick={() => handleSort("name")}
                   className="flex items-center space-x-2 font-semibold text-gray-700 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-colors group"
@@ -158,7 +166,7 @@ export default function ResultsTable({
                   />
                 </button>
               </th>
-              <th className="px-4 py-4 text-left w-[18%]">
+              <th className="px-4 py-4 text-left w-[15%]">
                 <span className="font-semibold text-gray-700 dark:text-gray-300">
                   Email
                 </span>
@@ -168,7 +176,7 @@ export default function ResultsTable({
                   Phone
                 </span>
               </th>
-              <th className="px-4 py-4 text-left w-[18%]">
+              <th className="px-4 py-4 text-left w-[20%]">
                 <span className="font-semibold text-gray-700 dark:text-gray-300">
                   Actions
                 </span>
@@ -198,22 +206,34 @@ export default function ResultsTable({
               registrations.map((registration, index) => (
                 <tr
                   key={registration.registration_id}
+                  data-testid="reg-row"
+                  data-id={registration.registration_id}
+                  data-email={registration.email}
                   className="group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-blue-100/50 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 transition-all duration-300 backdrop-blur-sm"
                   style={{ animationDelay: `${700 + index * 50}ms` }}
                 >
                   <td
+                    data-testid="reg-open"
                     className="px-4 py-4 cursor-pointer"
                     onClick={() => onRowClick?.(registration)}
                   >
-                    <StatusBadge
-                      status={
-                        registration.status as
-                          | "pending"
-                          | "waiting_for_review"
-                          | "approved"
-                          | "rejected"
-                      }
-                    />
+                    <div className="space-y-2">
+                      {/* Global Status Badge */}
+                      <StatusBadge
+                        status={
+                          registration.status as
+                            | "pending"
+                            | "waiting_for_review"
+                            | "approved"
+                            | "rejected"
+                        }
+                      />
+                      {/* Review Checklist */}
+                      <ChecklistChips
+                        reviewChecklist={registration.review_checklist}
+                        className="mt-2"
+                      />
+                    </div>
                   </td>
                   <td
                     className="px-4 py-4 cursor-pointer"

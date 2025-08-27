@@ -23,6 +23,7 @@ export interface EmailTemplateProps {
   };
   dimension?: "payment" | "profile" | "tcc";
   notes?: string;
+  token_id?: string; // Token ID for secure deep-link resolution
 }
 
 // Re-export the safe rendering functions
