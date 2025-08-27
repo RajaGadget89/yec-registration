@@ -438,7 +438,54 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
-          node .github/scripts/reconcile-migrations.cjs
+          SCRIPT=".github/scripts/reconcile-migrations.cjs"
+          if [ ! -f "$SCRIPT" ]; then
+            echo "ℹ️ Reconciler script not found at $SCRIPT — creating ephemeral copy"
+            mkdir -p .github/scripts
+            cat > "$SCRIPT" << 'CJS'
+          #!/usr/bin/env node
+          const { execSync } = require('node:child_process');
+          const { readdirSync, writeFileSync, existsSync } = require('node:fs');
+          const { join } = require('node:path');
+          function sh(cmd){ return execSync(cmd,{stdio:'pipe'}).toString(); }
+          console.log('🔍 Reconciling migration histories (remote vs local)...');
+          try {
+            console.log('📋 Fetching remote migration history...');
+            const out = sh('supabase migration list --linked -o json');
+            const remote = JSON.parse(out).map(r => r.version);
+            console.log(`Remote migrations: ${remote.length} found`);
+            console.log('📁 Reading local migration files...');
+            const localFiles = readdirSync('migrations').filter(f => /^(\d{14})_.*\.sql$/.test(f));
+            const local = localFiles.map(f => f.match(/^(\d{14})_/)[1]);
+            const A = new Set(local); const B = new Set(remote);
+            const remoteOnly = remote.filter(v => !A.has(v));
+            const localOnly  = local.filter(v => !B.has(v));
+            if (remoteOnly.length > 0){
+              console.log('🔧 Creating stub files for remote-only versions...');
+              for (const v of remoteOnly){
+                const p = join('migrations', `${v}_remote_schema.sql`);
+                if (!existsSync(p)) writeFileSync(p, '-- stub to align history (remote-only)\nDO $$ BEGIN /* no-op */ END $$;\n');
+                console.log('  ✅', p);
+              }
+            }
+            console.log('🔍 Scanning for unguarded PRIMARY KEY additions...');
+            let grep = '';
+            try { grep = sh("grep -R --line-number -E 'ADD CONSTRAINT .*PRIMARY KEY USING INDEX' migrations/ || true"); } catch { grep = ''; }
+            const bad = grep.split('\n').filter(l => l && !/DO \$\$|END\$\$/.test(l));
+            if (bad.length > 0){
+              console.error('\n❌ Unguarded PRIMARY KEY statements found:');
+              for (const line of bad) console.error('  ' + line);
+              process.exit(1);
+            }
+            if (process.env.GITHUB_OUTPUT){
+              writeFileSync(process.env.GITHUB_OUTPUT, `remote_only=${remoteOnly.join(' ')}\nlocal_only=${localOnly.join(' ')}\n`, { flag: 'a' });
+            }
+            console.log('🎯 Reconciliation completed successfully');
+          } catch (err){ console.error('\n❌ Reconciliation failed:', err); process.exit(1); }
+          CJS
+            chmod +x "$SCRIPT"
+          fi
+          node "$SCRIPT"
 
       - name: Show reconciliation result
         if: steps.prod_diff.outputs.has_changes == 'true'
