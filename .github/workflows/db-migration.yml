@@ -480,16 +480,7 @@ jobs:
           cat migration_list.txt
 
           # Extract remote-only versions (Local column empty | Remote has a 14-digit version)
-          MISSING=$(awk -F '|' '
-            NR>2 {
-              # trim all fields
-              gsub(/^[ \t]+|[ \t]+$/, "", $1); # First field (might contain migration version)
-              gsub(/^[ \t]+|[ \t]+$/, "", $2); # Local
-              gsub(/^[ \t]+|[ \t]+$/, "", $3); # Remote
-              # If Local is empty and first field contains a 14-digit version, it's missing
-              if ($2 == "" && $1 ~ /^[0-9]{14}$/) print $1;
-            }
-          ' migration_list.txt | xargs)
+          MISSING=$(awk -F '|' 'NR>2 { gsub(/^[ \t]+|[ \t]+$/, "", $1); gsub(/^[ \t]+|[ \t]+$/, "", $2); gsub(/^[ \t]+|[ \t]+$/, "", $3); if ($2 == "" && $1 ~ /^[0-9]{14}$/) print $1; }' migration_list.txt | xargs)
 
           echo "missing_versions=$MISSING" >> "$GITHUB_OUTPUT"
 
