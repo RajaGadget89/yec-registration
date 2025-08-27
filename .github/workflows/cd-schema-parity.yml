@@ -499,9 +499,33 @@ jobs:
               rm -f supabase/migrations/20250822121623_remote_commit.sql
             fi
             
+            # Prod preflight — detect existing PKs & unguarded statements
+            echo "🔍 Prod preflight — detect existing PKs & unguarded statements"
+            
+            # 1) Resolve a psql connection string for the linked project (read‑only OK)
+            CONN=$(supabase db remote commit --password "${{ steps.target_env.outputs.db_password }}" | sed -n 's/.*\(postgresql:\/\/[^ ]*\).*/\1/p' | head -1)
+
+            echo "Checking existing PK constraints on Production..."
+            psql "$CONN" -Atc "
+              SELECT c.conname
+              FROM pg_constraint c
+              JOIN pg_class t ON t.oid = c.conrelid
+              JOIN pg_namespace n ON n.oid = t.relnamespace
+              WHERE c.contype='p' AND n.nspname='audit' AND t.relname IN ('access_log','event_log');
+            "
+
+            echo "Scanning migration for unguarded ADD CONSTRAINT ... USING INDEX"
+            if grep -R --line-number -E "ADD CONSTRAINT .*PRIMARY KEY USING INDEX" migrations/20250826050730_remote_schema.sql | grep -vi "DO \$\$" ; then
+              echo "::error::Unguarded PK statements found in 20250826050730_remote_schema.sql. Wrap them in DO $$ IF NOT EXISTS $$ blocks."
+              exit 1
+            fi
+            
             # Now apply migrations with clean slate
             echo "🚀 Applying migrations after pre-cleanup..."
-            echo "y" | supabase db push --password "${{ steps.target_env.outputs.db_password }}"
+            echo "y" | supabase db push --password "${{ steps.target_env.outputs.db_password }}" || {
+              echo "::error::db push failed — check for unguarded 'ADD CONSTRAINT ... USING INDEX' in migrations."
+              exit 1
+            }
             
             echo "✅ Migrations applied successfully"
             echo "success=true" >> $GITHUB_OUTPUT
