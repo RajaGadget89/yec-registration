@@ -43,4 +43,9 @@ export default defineConfig({
     video: 'off',
     screenshot: 'only-on-failure',
   },
+  
+  // Suppress Node.js deprecation warnings in CI
+  env: {
+    NODE_OPTIONS: '--no-warnings',
+  },
 });
