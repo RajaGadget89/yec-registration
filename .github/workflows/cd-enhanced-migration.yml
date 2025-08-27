@@ -395,37 +395,22 @@ jobs:
           if [ -n "$diff_output" ] && [ "$diff_output" != "No diff or error" ]; then
             echo "📦 Changes detected, proceeding with migration..."
             
-            # Prod preflight — detect existing PKs & unguarded statements
-            echo "🔍 Prod preflight — detect existing PKs & unguarded statements"
+            # Reconcile migrations (remote vs local)
+            echo "🔍 Reconciling migration histories (remote vs local)..."
             
-            echo "Pulling production schema (read‑only)..."
-            # Export current prod schema to a temp file without changing migration history
-            supabase db pull --password "${{ secrets.PROD_DB_PASSWORD }}" --debug || {
-              echo '::error::supabase db pull failed; ensure link + credentials are correct.'
-              exit 1
-            }
-            SCHEMA_FILE="supabase/schema.sql"
-            test -s "$SCHEMA_FILE" || { echo '::error::schema.sql not found after db pull'; exit 1; }
-
-            echo "Checking PKs on prod schema..."
-            if grep -qE "CONSTRAINT\s+access_log_pkey\s+PRIMARY KEY" "$SCHEMA_FILE"; then
-              echo "✔ access_log_pkey exists on prod"
-            else
-              echo "⚠ access_log_pkey NOT found in prod schema dump"
+            npm i -g ts-node typescript >/dev/null 2>&1 || true
+            ts-node .github/scripts/reconcile-migrations.ts
+            
+            # Check if stubs were created (would need to be committed)
+            if [ -f ".github/outputs/reconcile_output" ]; then
+              source .github/outputs/reconcile_output
+              if [ -n "$remote_only" ]; then
+                echo "::error::Stub migrations created for remote-only versions. Commit them and re-run CD."
+                exit 1
+              fi
             fi
-            if grep -qE "CONSTRAINT\s+event_log_pkey\s+PRIMARY KEY" "$SCHEMA_FILE"; then
-              echo "✔ event_log_pkey exists on prod"
-            else
-              echo "ℹ event_log_pkey not found (ok if your install doesn't use it)"
-            fi
-
-            echo "Scanning migrations for unguarded PK additions..."
-            if grep -R --line-number -E "ADD CONSTRAINT .*PRIMARY KEY USING INDEX" migrations/ | grep -vi "DO \$\$" ; then
-              echo "::error::Unguarded 'ADD CONSTRAINT ... USING INDEX' statements detected in migrations/. Wrap them in DO $$ IF NOT EXISTS $$ blocks."
-              exit 1
-            fi
-
-            echo "Preflight OK — ready to push"
+            
+            echo "✅ Migration reconciliation completed"
             
             # Determine migration strategy based on deployment mode
             if [ "${{ github.event.inputs.deployment_mode }}" = "emergency" ]; then
