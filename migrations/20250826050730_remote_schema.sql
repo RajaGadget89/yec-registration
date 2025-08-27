@@ -810,6 +810,16 @@ using ((EXISTS ( SELECT 1
   WHERE (admin_users.email = ((current_setting('request.jwt.claims'::text, true))::json ->> 'email'::text)))));
 
 
-CREATE TRIGGER IF NOT EXISTS trg_admin_users_updated_at BEFORE UPDATE ON public.admin_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Create trigger if it doesn't exist (idempotent)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_trigger 
+        WHERE tgname = 'trg_admin_users_updated_at' 
+        AND tgrelid = 'public.admin_users'::regclass
+    ) THEN
+        CREATE TRIGGER trg_admin_users_updated_at BEFORE UPDATE ON public.admin_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+    END IF;
+END$$;
 
 
