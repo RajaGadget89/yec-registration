@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "../../../lib/supabase-server";
+import { isE2E } from "../../../lib/env/isE2E";
 
 export async function POST(request: NextRequest) {
+  // Check if E2E test mode is enabled
+  if (!isE2E()) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
   // Check for test helpers enabled
   const testHelpersEnabled = request.headers.get("X-Test-Helpers-Enabled");
   if (!testHelpersEnabled || testHelpersEnabled !== "1") {
