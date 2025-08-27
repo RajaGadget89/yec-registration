@@ -449,19 +449,47 @@ jobs:
           const { readdirSync, writeFileSync, existsSync } = require('node:fs');
           const { join } = require('node:path');
           function sh(cmd){ return execSync(cmd,{stdio:'pipe'}).toString(); }
+
+          function parseVersionsFromText(text){
+            const lines = text.split(/\r?\n/);
+            const local = new Set();
+            const remote = new Set();
+            const header = lines.find(l => /Local/i.test(l) && /Remote/i.test(l));
+            let idxLocal = -1, idxRemote = -1;
+            if (header){ idxLocal = header.indexOf('Local'); idxRemote = header.indexOf('Remote'); }
+            for (const l of lines){
+              const matches = [...l.matchAll(/\d{14}/g)];
+              if (matches.length === 0) continue;
+              if (header && idxLocal >= 0 && idxRemote > idxLocal){
+                for (const m of matches){
+                  const v = m[0];
+                  const pos = m.index ?? 0;
+                  if (pos < idxRemote) local.add(v); else remote.add(v);
+                }
+              } else {
+                for (const m of matches) { local.add(m[0]); remote.add(m[0]); }
+              }
+            }
+            return { local: [...local], remote: [...remote] };
+          }
+
           console.log('🔍 Reconciling migration histories (remote vs local)...');
           try {
             console.log('📋 Fetching remote migration history...');
             const pwd = process.env.SUPABASE_DB_PASSWORD ? ` --password "${process.env.SUPABASE_DB_PASSWORD}"` : '';
-            const out = sh(`supabase migration list --linked -o json${pwd}`);
-            const remote = JSON.parse(out).map(r => r.version);
-            console.log(`Remote migrations: ${remote.length} found`);
+            const raw = sh(`supabase migration list --linked${pwd}`);
+            const { local: remote = [], remote: remoteFromCols = [] } = parseVersionsFromText(raw);
+            const remoteVersions = remoteFromCols.length ? remoteFromCols : remote;
+            console.log(`Remote versions parsed: ${remoteVersions.length}`);
+
             console.log('📁 Reading local migration files...');
             const localFiles = readdirSync('migrations').filter(f => /^(\d{14})_.*\.sql$/.test(f));
-            const local = localFiles.map(f => f.match(/^(\d{14})_/)[1]);
-            const A = new Set(local); const B = new Set(remote);
-            const remoteOnly = remote.filter(v => !A.has(v));
-            const localOnly  = local.filter(v => !B.has(v));
+            const localVersions = localFiles.map(f => f.match(/^(\d{14})_/)[1]);
+
+            const A = new Set(localVersions); const B = new Set(remoteVersions);
+            const remoteOnly = remoteVersions.filter(v => !A.has(v));
+            const localOnly  = localVersions.filter(v => !B.has(v));
+
             if (remoteOnly.length > 0){
               console.log('🔧 Creating stub files for remote-only versions...');
               for (const v of remoteOnly){
@@ -470,6 +498,7 @@ jobs:
                 console.log('  ✅', p);
               }
             }
+
             console.log('🔍 Scanning for unguarded PRIMARY KEY additions...');
             let grep = '';
             try { grep = sh("grep -R --line-number -E 'ADD CONSTRAINT .*PRIMARY KEY USING INDEX' migrations/ || true"); } catch { grep = ''; }
@@ -479,6 +508,7 @@ jobs:
               for (const line of bad) console.error('  ' + line);
               process.exit(1);
             }
+
             if (process.env.GITHUB_OUTPUT){
               writeFileSync(process.env.GITHUB_OUTPUT, `remote_only=${remoteOnly.join(' ')}\nlocal_only=${localOnly.join(' ')}\n`, { flag: 'a' });
             }
