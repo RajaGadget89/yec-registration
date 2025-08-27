@@ -502,23 +502,34 @@ jobs:
             # Prod preflight — detect existing PKs & unguarded statements
             echo "🔍 Prod preflight — detect existing PKs & unguarded statements"
             
-            # 1) Resolve a psql connection string for the linked project (read‑only OK)
-            CONN=$(supabase db remote commit --password "${{ steps.target_env.outputs.db_password }}" | sed -n 's/.*\(postgresql:\/\/[^ ]*\).*/\1/p' | head -1)
+            echo "Pulling production schema (read‑only)..."
+            # Export current prod schema to a temp file without changing migration history
+            supabase db pull --password "${{ steps.target_env.outputs.db_password }}" --debug || {
+              echo '::error::supabase db pull failed; ensure link + credentials are correct.'
+              exit 1
+            }
+            SCHEMA_FILE="supabase/schema.sql"
+            test -s "$SCHEMA_FILE" || { echo '::error::schema.sql not found after db pull'; exit 1; }
 
-            echo "Checking existing PK constraints on Production..."
-            psql "$CONN" -Atc "
-              SELECT c.conname
-              FROM pg_constraint c
-              JOIN pg_class t ON t.oid = c.conrelid
-              JOIN pg_namespace n ON n.oid = t.relnamespace
-              WHERE c.contype='p' AND n.nspname='audit' AND t.relname IN ('access_log','event_log');
-            "
+            echo "Checking PKs on prod schema..."
+            if grep -qE "CONSTRAINT\s+access_log_pkey\s+PRIMARY KEY" "$SCHEMA_FILE"; then
+              echo "✔ access_log_pkey exists on prod"
+            else
+              echo "⚠ access_log_pkey NOT found in prod schema dump"
+            fi
+            if grep -qE "CONSTRAINT\s+event_log_pkey\s+PRIMARY KEY" "$SCHEMA_FILE"; then
+              echo "✔ event_log_pkey exists on prod"
+            else
+              echo "ℹ event_log_pkey not found (ok if your install doesn't use it)"
+            fi
 
-            echo "Scanning migration for unguarded ADD CONSTRAINT ... USING INDEX"
-            if grep -R --line-number -E "ADD CONSTRAINT .*PRIMARY KEY USING INDEX" migrations/20250826050730_remote_schema.sql | grep -vi "DO \$\$" ; then
-              echo "::error::Unguarded PK statements found in 20250826050730_remote_schema.sql. Wrap them in DO $$ IF NOT EXISTS $$ blocks."
+            echo "Scanning migrations for unguarded PK additions..."
+            if grep -R --line-number -E "ADD CONSTRAINT .*PRIMARY KEY USING INDEX" migrations/ | grep -vi "DO \$\$" ; then
+              echo "::error::Unguarded 'ADD CONSTRAINT ... USING INDEX' statements detected in migrations/. Wrap them in DO $$ IF NOT EXISTS $$ blocks."
               exit 1
             fi
+
+            echo "Preflight OK — ready to push"
             
             # Now apply migrations with clean slate
             echo "🚀 Applying migrations after pre-cleanup..."
