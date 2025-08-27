@@ -129,21 +129,32 @@ jobs:
             ENV_NAME="staging"
           fi
           
-          # Direct database connection (proven reliable)
-          db_url="postgresql://postgres:$DB_PASSWORD@db.$PROJECT_REF.supabase.co:5432/postgres"
-          
           echo "Testing connectivity to $ENV_NAME database..."
-          if ! psql "$db_url" -c "SELECT 1;" >/dev/null 2>&1; then
-            echo "❌ Failed to connect to $ENV_NAME database"
+          
+          # Use Supabase CLI for connectivity test (proven approach)
+          if ! supabase db remote commit --password $DB_PASSWORD >/dev/null 2>&1; then
+            echo "❌ Failed to connect to $ENV_NAME database via Supabase CLI"
             echo "passed=false" >> $GITHUB_OUTPUT
             echo "ready=false" >> $GITHUB_OUTPUT
             exit 1
           fi
           
-          echo "✅ Database connectivity verified"
+          echo "✅ Database connectivity verified via Supabase CLI"
           
           # 1. Verify critical schema components exist
           echo "📋 Checking critical schema components..."
+          
+          # Get database connection string from Supabase CLI
+          db_url=$(supabase db remote commit --password $DB_PASSWORD 2>&1 | grep 'postgresql://' | head -1 || echo "")
+          
+          if [ -z "$db_url" ]; then
+            echo "❌ Failed to get database connection from Supabase CLI"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "ready=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "Using database connection: $db_url"
           
           # Check email_outbox table and required columns
           email_outbox_check=$(psql "$db_url" -t -c "
@@ -236,9 +247,16 @@ jobs:
           # For production, compare staging vs production
           echo "📊 Comparing staging vs production schema..."
           
-          # Export staging schema
-          staging_url="postgresql://postgres:$STAGING_DB_PASSWORD@db.$SB_STAGING_REF.supabase.co:5432/postgres"
-          prod_url="postgresql://postgres:$PROD_DB_PASSWORD@db.$SB_PROD_REF.supabase.co:5432/postgres"
+          # Get database connection strings from Supabase CLI
+          staging_url=$(supabase db remote commit --password $STAGING_DB_PASSWORD 2>&1 | grep 'postgresql://' | head -1 || echo "")
+          prod_url=$(supabase db remote commit --password $PROD_DB_PASSWORD 2>&1 | grep 'postgresql://' | head -1 || echo "")
+          
+          if [ -z "$staging_url" ] || [ -z "$prod_url" ]; then
+            echo "❌ Failed to get database connections from Supabase CLI"
+            echo "drift_detected=true" >> $GITHUB_OUTPUT
+            echo "status=connection_error" >> $GITHUB_OUTPUT
+            exit 1
+          fi
           
           # Compare critical tables
           staging_email_outbox=$(psql "$staging_url" -t -c "
@@ -479,8 +497,17 @@ jobs:
             SUPABASE_SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
           fi
           
-          # Direct database connection for validation
-          db_url="postgresql://postgres:$DB_PASSWORD@db.$PROJECT_REF.supabase.co:5432/postgres"
+          # Get database connection string from Supabase CLI
+          db_url=$(supabase db remote commit --password $DB_PASSWORD 2>&1 | grep 'postgresql://' | head -1 || echo "")
+          
+          if [ -z "$db_url" ]; then
+            echo "❌ Failed to get database connection from Supabase CLI"
+            echo "passed=false" >> $GITHUB_OUTPUT
+            echo "issues=connection_failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          echo "Using database connection: $db_url"
           
           # 1. Verify critical tables and columns exist
           echo "📋 Validating critical schema components..."

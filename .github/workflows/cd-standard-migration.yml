@@ -436,6 +436,7 @@ jobs:
         id: reconcile
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
         run: |
           set -euo pipefail
           SCRIPT=".github/scripts/reconcile-migrations.cjs"
@@ -451,7 +452,8 @@ jobs:
           console.log('🔍 Reconciling migration histories (remote vs local)...');
           try {
             console.log('📋 Fetching remote migration history...');
-            const out = sh('supabase migration list --linked -o json');
+            const pwd = process.env.SUPABASE_DB_PASSWORD ? ` --password "${process.env.SUPABASE_DB_PASSWORD}"` : '';
+            const out = sh(`supabase migration list --linked -o json${pwd}`);
             const remote = JSON.parse(out).map(r => r.version);
             console.log(`Remote migrations: ${remote.length} found`);
             console.log('📁 Reading local migration files...');
