@@ -10,7 +10,7 @@ console.log('🔍 Reconciling migration histories (remote vs local)...');
 try {
   // Get remote migration history
   console.log('📋 Fetching remote migration history...');
-  const out = sh('supabase migration list --linked --format json');
+  const out = sh('supabase migration list --linked -o json');
   const remote: string[] = JSON.parse(out).map((r: any) => r.version);
   console.log(`Remote migrations: ${remote.length} found`);
 
