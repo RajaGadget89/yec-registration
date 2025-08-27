@@ -71,9 +71,43 @@ CREATE INDEX IF NOT EXISTS idx_event_log_correlation_id ON audit.event_log USING
 
 CREATE INDEX IF NOT EXISTS idx_event_log_occurred_at ON audit.event_log USING btree (occurred_at_utc);
 
-alter table "audit"."access_log" add constraint "access_log_pkey" PRIMARY KEY using index "access_log_pkey";
+-- Guarded PK for audit.access_log
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t   ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.contype = 'p'
+      AND c.conname = 'access_log_pkey'
+      AND n.nspname = 'audit'
+      AND t.relname = 'access_log'
+  ) THEN
+    ALTER TABLE audit.access_log
+      ADD CONSTRAINT access_log_pkey
+      PRIMARY KEY USING INDEX access_log_pkey;
+  END IF;
+END$$;
 
-alter table "audit"."event_log" add constraint "event_log_pkey" PRIMARY KEY using index "event_log_pkey";
+-- Guarded PK for audit.event_log
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint c
+    JOIN pg_class t   ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    WHERE c.contype = 'p'
+      AND c.conname = 'event_log_pkey'
+      AND n.nspname = 'audit'
+      AND t.relname = 'event_log'
+  ) THEN
+    ALTER TABLE audit.event_log
+      ADD CONSTRAINT event_log_pkey
+      PRIMARY KEY USING INDEX event_log_pkey;
+  END IF;
+END$$;
 
 alter table "audit"."event_log" add constraint "event_log_actor_role_check" CHECK ((actor_role = ANY (ARRAY['user'::text, 'admin'::text, 'system'::text]))) not valid;
 
