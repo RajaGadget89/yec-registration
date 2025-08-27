@@ -502,8 +502,7 @@ jobs:
             # Reconcile migrations (remote vs local)
             echo "🔍 Reconciling migration histories (remote vs local)..."
             
-            npm i -g ts-node typescript >/dev/null 2>&1 || true
-            ts-node .github/scripts/reconcile-migrations.ts
+            node .github/scripts/reconcile-migrations.cjs
             
             # Check if stubs were created (would need to be committed)
             if [ -f ".github/outputs/reconcile_output" ]; then
