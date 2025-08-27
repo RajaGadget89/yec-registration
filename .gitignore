@@ -103,3 +103,7 @@ backup-manager.sh
 backup.sh.original
 backups/
 restore.sh
+
+# Supabase Migration Environment
+.env.supabase
+.migration-workflow-state
