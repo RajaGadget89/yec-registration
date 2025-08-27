@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "../../../../../lib/supabase-server";
-import { validateAdminAccess } from "../../../../../lib/admin-guard-server";
+import { validateDimensionAccess } from "../../../../../lib/admin-guard-server";
 import { logAccess, logEvent } from "../../../../../lib/audit/auditClient";
 import { EventService } from "../../../../../lib/events/eventService";
 import { EventFactory } from "../../../../../lib/events/eventFactory";
 import { createErrorResponse } from "../../../../../lib/errorResponses";
 import { TokenService } from "../../../../../lib/tokenService";
+import type { Dimension } from "../../../../../lib/rbac";
 
 export const runtime = "nodejs";
 
@@ -17,14 +18,31 @@ export async function POST(
   const startTime = Date.now();
 
   try {
-    // Validate admin access
-    const adminValidation = await validateAdminAccess(request);
+    // Parse request body first to get dimension for RBAC validation
+    const body = await request.json();
+    const { dimension, notes } = body;
+
+    // Validate dimension
+    if (!dimension || !["payment", "profile", "tcc"].includes(dimension)) {
+      return createErrorResponse(
+        "INVALID_DIMENSION",
+        "Invalid dimension specified",
+        "Dimension must be one of: payment, profile, tcc",
+        400,
+      );
+    }
+
+    // Validate RBAC access for the specific dimension
+    const adminValidation = validateDimensionAccess(
+      request,
+      dimension as Dimension,
+    );
     if (!adminValidation.valid) {
       return createErrorResponse(
-        "UNAUTHORIZED",
-        "Admin access required",
-        adminValidation.error || "Authentication failed",
-        401,
+        "FORBIDDEN",
+        "Access denied",
+        adminValidation.error || "Insufficient permissions",
+        403,
       );
     }
 
@@ -38,20 +56,6 @@ export async function POST(
       );
     }
     const registrationId = params.id;
-
-    // Parse request body
-    const body = await request.json();
-    const { dimension, notes } = body;
-
-    // Validate dimension
-    if (!dimension || !["payment", "profile", "tcc"].includes(dimension)) {
-      return createErrorResponse(
-        "INVALID_DIMENSION",
-        "Invalid dimension specified",
-        "Dimension must be one of: payment, profile, tcc",
-        400,
-      );
-    }
 
     // Get registration
     const supabase = getSupabaseServiceClient();

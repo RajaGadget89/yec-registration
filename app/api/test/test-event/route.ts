@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { EventService } from "../../../lib/events/eventService";
+import { isE2E } from "../../../lib/env/isE2E";
 
 export async function POST(request: NextRequest) {
+  // Check if E2E test mode is enabled
+  if (!isE2E()) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
   // Security check - only allow in test environment
   const testHelpersEnabled = request.headers.get("X-Test-Helpers-Enabled");
   const authHeader = request.headers.get("Authorization");

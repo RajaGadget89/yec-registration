@@ -205,6 +205,7 @@ export default function AdminDashboard({
           setIsDrawerOpen(false);
           setSelectedRegistration(null);
         }}
+        onActionComplete={handleActionComplete}
       />
     </div>
   );
