@@ -25,34 +25,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps
-      - name: Check required secrets
-        run: |
-          echo "🔍 Checking required secrets..."
-          if [ -z "${{ secrets.E2E_AUTH_SECRET }}" ]; then
-            echo "❌ E2E_AUTH_SECRET is not configured"
-            echo "📋 Please add E2E_AUTH_SECRET to your GitHub repository secrets:"
-            echo "   1. Go to Settings > Secrets and variables > Actions"
-            echo "   2. Add repository secret: E2E_AUTH_SECRET"
-            echo "   3. Set value to a secure random string (32+ characters)"
-            echo "   4. Generate with: openssl rand -hex 32"
-            exit 1
-          fi
-          echo "✅ E2E_AUTH_SECRET is configured"
-          
-          if [ -z "${{ secrets.SUPABASE_URL }}" ] || [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
-            echo "❌ Supabase secrets are not configured"
-            echo "📋 Please add SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to your GitHub repository secrets"
-            exit 1
-          fi
-          echo "✅ Supabase secrets are configured"
-
       - name: Run @audit diag tests
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ENV: 'staging'
-          E2E_TEST_MODE: 'true'
-          E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
         run: |
           set -e
           if [ -f "tests/e2e/audit-diag.e2e.spec.ts" ]; then
