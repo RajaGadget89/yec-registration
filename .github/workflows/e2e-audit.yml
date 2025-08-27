@@ -25,6 +25,19 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps
+      - name: Start development server
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ENV: 'staging'
+        run: |
+          echo "🚀 Starting development server..."
+          npm run dev &
+          echo "⏳ Waiting for server to start..."
+          sleep 10
+          echo "🔍 Checking if server is ready..."
+          curl -f http://localhost:8080/api/health || (echo "❌ Server not ready" && exit 1)
+          echo "✅ Server is ready!"
       - name: Run @audit diag tests
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -32,11 +45,23 @@ jobs:
           SUPABASE_ENV: 'staging'
         run: |
           set -e
+          echo "🔍 Running audit diagnostic tests without authentication setup..."
           if [ -f "tests/e2e/audit-diag.e2e.spec.ts" ]; then
-            npx playwright test tests/e2e/audit-diag.e2e.spec.ts --reporter=line
+            # Use CI-specific configuration that skips global setup
+            npx playwright test tests/e2e/audit-diag.e2e.spec.ts --config=playwright.ci.config.ts --reporter=line
           else
-            npx playwright test --grep="@audit @diag" --reporter=line
+            npx playwright test --grep="@audit @diag" --config=playwright.ci.config.ts --reporter=line
           fi
+          
+          echo "🛑 Stopping development server..."
+          pkill -f "npm run dev" || true
+
+      - name: Cleanup server
+        if: always()
+        run: |
+          echo "🧹 Cleaning up server processes..."
+          pkill -f "npm run dev" || true
+          pkill -f "next dev" || true
 
       - name: Report required context (ruleset-compat)
         if: always() && github.event_name == 'pull_request'

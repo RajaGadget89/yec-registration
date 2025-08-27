@@ -5,6 +5,7 @@ import {
   getEmailSubject,
   EmailTemplateProps,
 } from "./registry";
+import { TokenService } from "../tokenService";
 
 /**
  * Email dispatcher for processing outbox emails
@@ -254,12 +255,50 @@ export async function dispatchEmailBatch(
 
   for (const email of emailsToProcess) {
     try {
+      // Resolve token_id to actual token for deep-link emails
+      let resolvedPayload = email.payload;
+      if (email.payload.token_id && email.template.startsWith("update-")) {
+        try {
+          const tokenData = await TokenService.getTokenDataForEmail(
+            email.payload.token_id,
+          );
+          if (tokenData) {
+            // Create deep-link URL with actual token
+            const deepLinkUrl = `${process.env.NEXT_PUBLIC_APP_URL}/update?token=${tokenData.token}`;
+            resolvedPayload = {
+              ...email.payload,
+              ctaUrl: deepLinkUrl, // Use ctaUrl for backward compatibility
+              token_id: undefined, // Remove token_id from final payload
+            };
+          } else {
+            console.warn(
+              `[DISPATCH] Token not found or expired for email ${email.id}`,
+            );
+            // Continue without deep-link
+            resolvedPayload = {
+              ...email.payload,
+              token_id: undefined,
+            };
+          }
+        } catch (tokenError) {
+          console.error(
+            `[DISPATCH] Token resolution failed for email ${email.id}:`,
+            tokenError,
+          );
+          // Continue without deep-link
+          resolvedPayload = {
+            ...email.payload,
+            token_id: undefined,
+          };
+        }
+      }
+
       // Try to render the email template, fall back to simple HTML if it fails
       let html: string;
       let subject: string;
 
       try {
-        html = await renderEmailTemplate(email.template, email.payload);
+        html = await renderEmailTemplate(email.template, resolvedPayload);
         subject = getEmailSubject(email.template);
       } catch (templateError) {
         console.warn(
