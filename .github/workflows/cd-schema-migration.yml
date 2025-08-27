@@ -131,28 +131,21 @@ jobs:
           
           echo "Testing connectivity to $ENV_NAME database..."
           
-          # Use Supabase CLI for connectivity test (proven approach)
-          if ! supabase db remote commit --password $DB_PASSWORD >/dev/null 2>&1; then
-            echo "❌ Failed to connect to $ENV_NAME database via Supabase CLI"
+          # Direct database connection (proven reliable from playbook)
+          db_url="postgresql://postgres:$DB_PASSWORD@db.$PROJECT_REF.supabase.co:5432/postgres"
+          
+          # Test connectivity with direct connection
+          if ! psql "$db_url" -c "SELECT 1;" >/dev/null 2>&1; then
+            echo "❌ Failed to connect to $ENV_NAME database"
             echo "passed=false" >> $GITHUB_OUTPUT
             echo "ready=false" >> $GITHUB_OUTPUT
             exit 1
           fi
           
-          echo "✅ Database connectivity verified via Supabase CLI"
+          echo "✅ Database connectivity verified via direct connection"
           
           # 1. Verify critical schema components exist
           echo "📋 Checking critical schema components..."
-          
-          # Get database connection string from Supabase CLI
-          db_url=$(supabase db remote commit --password $DB_PASSWORD 2>&1 | grep 'postgresql://' | head -1 || echo "")
-          
-          if [ -z "$db_url" ]; then
-            echo "❌ Failed to get database connection from Supabase CLI"
-            echo "passed=false" >> $GITHUB_OUTPUT
-            echo "ready=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
           
           echo "Using database connection: $db_url"
           
@@ -247,14 +240,22 @@ jobs:
           # For production, compare staging vs production
           echo "📊 Comparing staging vs production schema..."
           
-          # Get database connection strings from Supabase CLI
-          staging_url=$(supabase db remote commit --password $STAGING_DB_PASSWORD 2>&1 | grep 'postgresql://' | head -1 || echo "")
-          prod_url=$(supabase db remote commit --password $PROD_DB_PASSWORD 2>&1 | grep 'postgresql://' | head -1 || echo "")
+          # Direct database connections (proven reliable from playbook)
+          staging_url="postgresql://postgres:$STAGING_DB_PASSWORD@db.$SB_STAGING_REF.supabase.co:5432/postgres"
+          prod_url="postgresql://postgres:$PROD_DB_PASSWORD@db.$SB_PROD_REF.supabase.co:5432/postgres"
           
-          if [ -z "$staging_url" ] || [ -z "$prod_url" ]; then
-            echo "❌ Failed to get database connections from Supabase CLI"
+          # Test connectivity to both databases
+          if ! psql "$staging_url" -c "SELECT 1;" >/dev/null 2>&1; then
+            echo "❌ Failed to connect to staging database"
             echo "drift_detected=true" >> $GITHUB_OUTPUT
-            echo "status=connection_error" >> $GITHUB_OUTPUT
+            echo "status=staging_connection_error" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+          
+          if ! psql "$prod_url" -c "SELECT 1;" >/dev/null 2>&1; then
+            echo "❌ Failed to connect to production database"
+            echo "drift_detected=true" >> $GITHUB_OUTPUT
+            echo "status=production_connection_error" >> $GITHUB_OUTPUT
             exit 1
           fi
           
@@ -497,11 +498,12 @@ jobs:
             SUPABASE_SERVICE_ROLE_KEY="${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}"
           fi
           
-          # Get database connection string from Supabase CLI
-          db_url=$(supabase db remote commit --password $DB_PASSWORD 2>&1 | grep 'postgresql://' | head -1 || echo "")
+          # Direct database connection (proven reliable from playbook)
+          db_url="postgresql://postgres:$DB_PASSWORD@db.$PROJECT_REF.supabase.co:5432/postgres"
           
-          if [ -z "$db_url" ]; then
-            echo "❌ Failed to get database connection from Supabase CLI"
+          # Test connectivity
+          if ! psql "$db_url" -c "SELECT 1;" >/dev/null 2>&1; then
+            echo "❌ Failed to connect to database"
             echo "passed=false" >> $GITHUB_OUTPUT
             echo "issues=connection_failed" >> $GITHUB_OUTPUT
             exit 1
