@@ -16,7 +16,20 @@ const TEST_USERS = {
 async function globalSetup(config: FullConfig) {
   const e2eAuthSecret = process.env.E2E_AUTH_SECRET;
   if (!e2eAuthSecret) {
-    throw new Error('E2E_AUTH_SECRET environment variable is required for test setup');
+    console.error('❌ E2E_AUTH_SECRET environment variable is not set');
+    console.error('📋 To fix this issue:');
+    console.error('   1. Go to your GitHub repository settings');
+    console.error('   2. Navigate to Settings > Secrets and variables > Actions');
+    console.error('   3. Add a new repository secret named "E2E_AUTH_SECRET"');
+    console.error('   4. Set its value to a secure random string (e.g., 32+ characters)');
+    console.error('   5. Make sure the secret is accessible to the workflow');
+    console.error('');
+    console.error('🔧 For local development, ensure .env.e2e contains:');
+    console.error('   E2E_AUTH_SECRET=your-secure-random-secret-here');
+    console.error('');
+    console.error('💡 You can generate a secure secret using:');
+    console.error('   openssl rand -hex 32');
+    throw new Error('E2E_AUTH_SECRET environment variable is required for test setup. Please configure this secret in GitHub repository settings.');
   }
 
   // Create auth directory
