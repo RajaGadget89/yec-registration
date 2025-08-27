@@ -1,11 +1,22 @@
 create schema if not exists "audit";
 
-create sequence "audit"."access_log_id_seq";
+-- Create sequences if they don't exist (idempotent)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_sequences WHERE schemaname = 'audit' AND sequencename = 'access_log_id_seq') THEN
+        CREATE SEQUENCE "audit"."access_log_id_seq";
+    END IF;
+END$$;
 
-create sequence "audit"."event_log_id_seq";
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_sequences WHERE schemaname = 'audit' AND sequencename = 'event_log_id_seq') THEN
+        CREATE SEQUENCE "audit"."event_log_id_seq";
+    END IF;
+END$$;
 
 
-  create table "audit"."access_log" (
+  create table if not exists "audit"."access_log" (
     "id" bigint not null default nextval('audit.access_log_id_seq'::regclass),
     "occurred_at_utc" timestamp with time zone default now(),
     "action" text not null,
@@ -24,7 +35,7 @@ create sequence "audit"."event_log_id_seq";
 alter table "audit"."access_log" enable row level security;
 
 
-  create table "audit"."event_log" (
+  create table if not exists "audit"."event_log" (
     "id" bigint not null default nextval('audit.event_log_id_seq'::regclass),
     "occurred_at_utc" timestamp with time zone default now(),
     "action" text not null,
@@ -46,19 +57,19 @@ alter sequence "audit"."access_log_id_seq" owned by "audit"."access_log"."id";
 
 alter sequence "audit"."event_log_id_seq" owned by "audit"."event_log"."id";
 
-CREATE UNIQUE INDEX access_log_pkey ON audit.access_log USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS access_log_pkey ON audit.access_log USING btree (id);
 
-CREATE UNIQUE INDEX event_log_pkey ON audit.event_log USING btree (id);
+CREATE UNIQUE INDEX IF NOT EXISTS event_log_pkey ON audit.event_log USING btree (id);
 
-CREATE INDEX idx_access_log_occurred_at ON audit.access_log USING btree (occurred_at_utc);
+CREATE INDEX IF NOT EXISTS idx_access_log_occurred_at ON audit.access_log USING btree (occurred_at_utc);
 
-CREATE INDEX idx_access_log_request_id ON audit.access_log USING btree (request_id);
+CREATE INDEX IF NOT EXISTS idx_access_log_request_id ON audit.access_log USING btree (request_id);
 
-CREATE INDEX idx_event_log_action ON audit.event_log USING btree (action);
+CREATE INDEX IF NOT EXISTS idx_event_log_action ON audit.event_log USING btree (action);
 
-CREATE INDEX idx_event_log_correlation_id ON audit.event_log USING btree (correlation_id);
+CREATE INDEX IF NOT EXISTS idx_event_log_correlation_id ON audit.event_log USING btree (correlation_id);
 
-CREATE INDEX idx_event_log_occurred_at ON audit.event_log USING btree (occurred_at_utc);
+CREATE INDEX IF NOT EXISTS idx_event_log_occurred_at ON audit.event_log USING btree (occurred_at_utc);
 
 alter table "audit"."access_log" add constraint "access_log_pkey" PRIMARY KEY using index "access_log_pkey";
 
@@ -272,7 +283,7 @@ drop index if exists "public"."idx_email_outbox_status_scheduled";
 drop index if exists "public"."idx_email_outbox_status_sent_at";
 
 
-  create table "public"."registrations_backup_yyyymmdd" (
+  create table if not exists "public"."registrations_backup_yyyymmdd" (
     "id" uuid,
     "registration_id" character varying(50),
     "status" character varying(20),
@@ -446,17 +457,17 @@ alter table "public"."registrations" alter column "updated_at" drop not null;
 
 alter table "public"."registrations" alter column "yec_province" set data type character varying(50) using "yec_province"::character varying(50);
 
-CREATE INDEX idx_audit_admin_email ON public.admin_audit_logs USING btree (admin_email);
+CREATE INDEX IF NOT EXISTS idx_audit_admin_email ON public.admin_audit_logs USING btree (admin_email);
 
-CREATE INDEX idx_audit_created_at ON public.admin_audit_logs USING btree (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_created_at ON public.admin_audit_logs USING btree (created_at DESC);
 
-CREATE INDEX idx_audit_registration_id ON public.admin_audit_logs USING btree (registration_id);
+CREATE INDEX IF NOT EXISTS idx_audit_registration_id ON public.admin_audit_logs USING btree (registration_id);
 
-CREATE UNIQUE INDEX ux_event_settings_singleton ON public.event_settings USING btree ((true));
+CREATE UNIQUE INDEX IF NOT EXISTS ux_event_settings_singleton ON public.event_settings USING btree ((true));
 
-CREATE INDEX idx_email_outbox_status_scheduled ON public.email_outbox USING btree (status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_email_outbox_status_scheduled ON public.email_outbox USING btree (status, scheduled_at);
 
-CREATE INDEX idx_email_outbox_status_sent_at ON public.email_outbox USING btree (status, sent_at);
+CREATE INDEX IF NOT EXISTS idx_email_outbox_status_sent_at ON public.email_outbox USING btree (status, sent_at);
 
 alter table "public"."admin_users" add constraint "admin_users_id_fkey" FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE not valid;
 
@@ -799,6 +810,6 @@ using ((EXISTS ( SELECT 1
   WHERE (admin_users.email = ((current_setting('request.jwt.claims'::text, true))::json ->> 'email'::text)))));
 
 
-CREATE TRIGGER trg_admin_users_updated_at BEFORE UPDATE ON public.admin_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER IF NOT EXISTS trg_admin_users_updated_at BEFORE UPDATE ON public.admin_users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 
