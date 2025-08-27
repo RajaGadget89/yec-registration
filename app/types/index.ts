@@ -147,6 +147,7 @@ export interface WhoAmIResponse {
     expiresAt: string;
   };
   isAuthenticated: boolean;
+  roles?: string[];
 }
 
 // Admin Types

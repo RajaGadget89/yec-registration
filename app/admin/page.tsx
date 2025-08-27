@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import {
   getRegistrations,
   getProvinces,
-  FilterState,
-  PaginationParams,
+  type FilterState,
+  type PaginationParams,
 } from "./actions";
 import AdminDashboard from "./_components/AdminDashboard";
 
@@ -46,11 +46,35 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     sortDirection,
   };
 
-  // Fetch data
-  const [registrationsResult, provinces] = await Promise.all([
-    getRegistrations(filters, pagination),
-    getProvinces(),
-  ]);
+  // Fetch data with error handling for empty database
+  let registrationsResult;
+  let provinces: string[] = [];
+
+  try {
+    const [registrationsData, provincesData] = await Promise.all([
+      getRegistrations(filters, pagination),
+      getProvinces(),
+    ]);
+
+    registrationsResult = registrationsData;
+    provinces = provincesData;
+  } catch (error) {
+    console.error("Error fetching admin data:", error);
+
+    // Return default empty state
+    registrationsResult = {
+      registrations: [],
+      totalCount: 0,
+      statusCounts: {
+        total: 0,
+        pending: 0,
+        waiting_for_review: 0,
+        approved: 0,
+        rejected: 0,
+      },
+    };
+    provinces = [];
+  }
 
   const { registrations, totalCount, statusCounts } = registrationsResult;
 

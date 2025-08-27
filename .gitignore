@@ -25,6 +25,7 @@ build/
 .env.ci.local
 .env.local
 .cd-env
+.env.e2e
 
 # ========================================
 # Docker
