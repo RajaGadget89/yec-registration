@@ -2,49 +2,68 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadDotenv } from 'dotenv';
 import fs from 'fs';
+import path from 'path';
 
-// เลือกไฟล์ env ตามสภาพแวดล้อม
-// - CI: ใช้ .env.ci (workflow จะสร้างให้)
-// - Local: ใช้ .env.local เท่านั้น (removed .env.ci.local for security)
-const dotenvPath = process.env.CI
-  ? '.env.ci'
-  : '.env.local';
+// Load environment variables from .env.e2e file
+loadDotenv({ path: '.env.e2e' });
 
-loadDotenv({ path: dotenvPath });
-
+/**
+ * @see https://playwright.dev/docs/test-configuration
+ */
 export default defineConfig({
-  testDir: 'tests/e2e',
-  timeout: 30_000,
-  expect: { timeout: 10_000 },
+  testDir: './e2e',
+  /* Run tests in files in parallel */
   fullyParallel: true,
+  /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 2 : undefined,
-  reporter: 'line',
-
+  /* Retry on CI only */
+  retries: process.env.CI ? 2 : 0,
+  /* Opt out of parallel tests on CI. */
+  workers: process.env.CI ? 1 : undefined,
+  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
+  reporter: 'html',
+  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
-    baseURL: process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:8080',
+    /* Base URL to use in actions like `await page.goto('/')`. */
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3001',
+
+    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
-    headless: true,
   },
 
+  /* Configure projects for major browsers */
   projects: [
-    { 
-      name: 'chromium', 
-      use: { ...devices['Desktop Chrome'] }
+    {
+      name: 'superAdmin',
+      use: { 
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/alice_yec_dev.json',
+      },
     },
-    // ถ้าต้องการ browser อื่นค่อยเพิ่มภายหลัง
+    {
+      name: 'adminPayment',
+      use: { 
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/raja_gadgets89_gmail_com.json',
+      },
+    },
+    {
+      name: 'adminProfile',
+      use: { 
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/raja_gadgets89_gmail_com.json',
+      },
+    },
+    {
+      name: 'adminTcc',
+      use: { 
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/dave_yec_dev.json',
+      },
+    },
   ],
 
-  // สำคัญ: ส่ง ENV ทั้งหมดเข้า dev server ที่ Playwright เปิด
-  webServer: {
-    command: 'npx next dev -p 8080',
-    port: 8080,
-    reuseExistingServer: !process.env.CI,
-    env: { ...process.env },
-    timeout: 120_000,
-  },
+  /* Global setup and teardown */
+  globalSetup: require.resolve('./e2e/global.setup.ts'),
 });
 

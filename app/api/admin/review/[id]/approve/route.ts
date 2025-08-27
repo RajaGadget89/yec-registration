@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "../../../../../lib/supabase-server";
-import { validateAdminAccess } from "../../../../../lib/admin-guard-server";
+import { validateApprovalAccess } from "../../../../../lib/admin-guard-server";
 import { logAccess, logEvent } from "../../../../../lib/audit/auditClient";
 import { EventService } from "../../../../../lib/events/eventService";
 import { EventFactory } from "../../../../../lib/events/eventFactory";
@@ -16,14 +16,14 @@ export async function POST(
   const startTime = Date.now();
 
   try {
-    // Validate admin access
-    const adminValidation = await validateAdminAccess(request);
+    // Validate RBAC access for approval
+    const adminValidation = validateApprovalAccess(request);
     if (!adminValidation.valid) {
       return createErrorResponse(
-        "UNAUTHORIZED",
-        "Admin access required",
-        adminValidation.error || "Authentication failed",
-        401,
+        "FORBIDDEN",
+        "Access denied",
+        adminValidation.error || "Insufficient permissions",
+        403,
       );
     }
 

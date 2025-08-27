@@ -1,41 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { assertDbRouting } from "../../../lib/env-guards";
+import { maybeServiceClient } from "../../../lib/supabase/server";
+import { getCurrentUserFromRequest } from "../../../lib/auth-utils.server";
+import { isAdmin } from "../../../lib/admin-guard";
+import { withAuditLogging } from "../../../lib/audit/withAuditAccess";
 
-// Validate database routing
-assertDbRouting();
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-/**
- * Check if request is authorized with CRON_SECRET
- */
-function isAuthorized(request: NextRequest): boolean {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (!cronSecret) {
-    console.error("CRON_SECRET environment variable not set");
-    return false;
-  }
-
-  if (!authHeader) {
-    return false;
-  }
-
-  const token = authHeader.replace("Bearer ", "");
-  return token === cronSecret;
-}
-
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
-    // Check CRON_SECRET authorization
-    if (!isAuthorized(request)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Check admin authentication
+    const user = await getCurrentUserFromRequest(request);
+    if (!user || !isAdmin(user.email)) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
+
+    // Get appropriate Supabase client (service client if E2E bypass enabled)
+    const supabase = await maybeServiceClient(request);
 
     // Fetch all registrations from the database
     const { data: registrations, error } = await supabase
@@ -63,3 +41,7 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export const GET = withAuditLogging(handleGET, {
+  resource: "admin_registrations_list",
+});

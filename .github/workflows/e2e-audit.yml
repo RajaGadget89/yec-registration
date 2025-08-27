@@ -30,6 +30,8 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           SUPABASE_ENV: 'staging'
+          E2E_TEST_MODE: 'true'
+          E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
         run: |
           set -e
           if [ -f "tests/e2e/audit-diag.e2e.spec.ts" ]; then

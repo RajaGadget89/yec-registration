@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { getServiceRoleClient } from "../../lib/supabase-server";
 import { WhoAmIResponse } from "../../types";
+import { getRolesForEmail } from "../../lib/rbac";
+import type { Role } from "../../lib/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -123,35 +125,45 @@ export async function GET(req: NextRequest) {
     }
 
     let isAdmin = false;
-    if (email) {
-      try {
-        const svc = getServiceRoleClient();
-        const { data, error } = await svc
-          .from("admin_users")
-          .select("email,is_active")
-          .ilike("email", email)
-          .eq("is_active", true)
-          .maybeSingle();
+    let roles: Role[] = [];
 
-        if (error) {
-          console.error("[whoami] database error:", error);
+    if (email) {
+      // Get user roles from RBAC system
+      const userRoles = getRolesForEmail(email);
+      roles = Array.from(userRoles);
+      isAdmin = userRoles.size > 0;
+
+      // Fallback: check database if no RBAC roles found
+      if (userRoles.size === 0) {
+        try {
+          const svc = getServiceRoleClient();
+          const { data, error } = await svc
+            .from("admin_users")
+            .select("email,is_active")
+            .ilike("email", email)
+            .eq("is_active", true)
+            .maybeSingle();
+
+          if (error) {
+            console.error("[whoami] database error:", error);
+            // Fallback: check if email is in ADMIN_EMAILS environment variable
+            const adminEmails =
+              process.env.ADMIN_EMAILS?.split(",").map((e) =>
+                e.trim().toLowerCase(),
+              ) || [];
+            isAdmin = adminEmails.includes(email.toLowerCase());
+          } else {
+            isAdmin = !!data;
+          }
+        } catch (e) {
+          console.error("[whoami] unexpected error:", e);
           // Fallback: check if email is in ADMIN_EMAILS environment variable
           const adminEmails =
             process.env.ADMIN_EMAILS?.split(",").map((e) =>
               e.trim().toLowerCase(),
             ) || [];
           isAdmin = adminEmails.includes(email.toLowerCase());
-        } else {
-          isAdmin = !!data;
         }
-      } catch (e) {
-        console.error("[whoami] unexpected error:", e);
-        // Fallback: check if email is in ADMIN_EMAILS environment variable
-        const adminEmails =
-          process.env.ADMIN_EMAILS?.split(",").map((e) =>
-            e.trim().toLowerCase(),
-          ) || [];
-        isAdmin = adminEmails.includes(email.toLowerCase());
       }
     }
 
@@ -172,6 +184,7 @@ export async function GET(req: NextRequest) {
           }
         : undefined,
       isAuthenticated: Boolean(email),
+      roles: roles.length > 0 ? roles : undefined,
     };
 
     if (process.env.NODE_ENV !== "production") {

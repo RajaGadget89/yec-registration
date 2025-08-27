@@ -12,7 +12,14 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { Loader2, Upload, CheckCircle, XCircle } from "lucide-react";
+import {
+  Loader2,
+  Upload,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+} from "lucide-react";
+import { t, tBoth } from "../lib/i18n";
 
 interface UpdateFormData {
   first_name?: string;
@@ -55,6 +62,7 @@ function UpdateForm() {
     payment_slip?: File;
     chamber_card?: File;
   }>({});
+  const [fileErrors, setFileErrors] = useState<Record<string, string>>({});
 
   const validateToken = useCallback(async () => {
     try {
@@ -81,10 +89,12 @@ function UpdateForm() {
           });
         }
       } else {
-        setError(data.message || "Invalid or expired token");
+        const errorMessages = tBoth("token_invalid");
+        setError(`${errorMessages.en}\n\n${errorMessages.th}`);
       }
     } catch {
-      setError("Failed to validate token. Please try again.");
+      const errorMessages = tBoth("token_invalid");
+      setError(`${errorMessages.en}\n\n${errorMessages.th}`);
     } finally {
       setLoading(false);
     }
@@ -92,9 +102,8 @@ function UpdateForm() {
 
   useEffect(() => {
     if (!token) {
-      setError(
-        "Missing update token. Please use the link provided in your email.",
-      );
+      const errorMessages = tBoth("token_invalid");
+      setError(`${errorMessages.en}\n\n${errorMessages.th}`);
       setLoading(false);
       return;
     }
@@ -106,7 +115,50 @@ function UpdateForm() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const validateFile = (file: File, dimension: string): string | null => {
+    const maxSizes = {
+      profile: 2 * 1024 * 1024, // 2MB
+      payment: 5 * 1024 * 1024, // 5MB
+      tcc: 5 * 1024 * 1024, // 5MB
+    };
+
+    const allowedTypes = {
+      profile: ["image/jpeg", "image/jpg", "image/png"],
+      payment: ["image/jpeg", "image/jpg", "image/png", "application/pdf"],
+      tcc: ["image/jpeg", "image/jpg", "image/png", "application/pdf"],
+    };
+
+    if (file.size > maxSizes[dimension as keyof typeof maxSizes]) {
+      return t("file_too_large");
+    }
+
+    if (
+      !allowedTypes[dimension as keyof typeof allowedTypes].includes(file.type)
+    ) {
+      return t("invalid_file_type");
+    }
+
+    return null;
+  };
+
   const handleFileChange = (field: string, file: File | null) => {
+    setFileErrors((prev) => ({ ...prev, [field]: "" }));
+
+    if (file) {
+      const dimension =
+        field === "profile_image"
+          ? "profile"
+          : field === "payment_slip"
+            ? "payment"
+            : "tcc";
+      const error = validateFile(file, dimension);
+
+      if (error) {
+        setFileErrors((prev) => ({ ...prev, [field]: error }));
+        return;
+      }
+    }
+
     setFileUploads((prev) => ({ ...prev, [field]: file || undefined }));
   };
 
@@ -163,6 +215,13 @@ function UpdateForm() {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
+
+    // Check for file errors
+    const hasFileErrors = Object.values(fileErrors).some((error) => error);
+    if (hasFileErrors) {
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const submitData = new FormData();
@@ -221,8 +280,12 @@ function UpdateForm() {
   }
 
   if (error && !tokenValidation) {
+    const errorMessages = error.split("\n\n");
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div
+        data-testid="update-invalid"
+        className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4"
+      >
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-center text-red-600">
@@ -232,12 +295,17 @@ function UpdateForm() {
           </CardHeader>
           <CardContent>
             <Alert>
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                <div className="space-y-2">
+                  <div className="font-medium">English:</div>
+                  <div>{errorMessages[0]}</div>
+                  <div className="font-medium mt-4">ไทย:</div>
+                  <div>{errorMessages[1]}</div>
+                </div>
+              </AlertDescription>
             </Alert>
             <div className="mt-4 text-center">
-              <p className="text-sm text-gray-600">
-                Please contact support if you believe this is an error.
-              </p>
+              <p className="text-sm text-gray-600">{t("contact_support")}</p>
             </div>
           </CardContent>
         </Card>
@@ -246,6 +314,7 @@ function UpdateForm() {
   }
 
   if (success) {
+    const successMessages = tBoth("update_success");
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -256,17 +325,16 @@ function UpdateForm() {
             </CardTitle>
           </CardHeader>
           <CardContent className="text-center">
-            <p className="text-gray-600 mb-4">
-              Your{" "}
-              {getDimensionDisplayName(
-                tokenValidation?.dimension || "",
-              ).toLowerCase()}{" "}
-              has been updated successfully.
-            </p>
-            <p className="text-sm text-gray-500">
-              Your registration is now back under review. You will be notified
-              once the review is complete.
-            </p>
+            <div className="space-y-4">
+              <div>
+                <div className="font-medium mb-2">English:</div>
+                <p className="text-gray-600">{successMessages.en}</p>
+              </div>
+              <div>
+                <div className="font-medium mb-2">ไทย:</div>
+                <p className="text-gray-600">{successMessages.th}</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -278,7 +346,10 @@ function UpdateForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+    <div
+      data-testid="update-root"
+      className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4"
+    >
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader>
@@ -293,7 +364,12 @@ function UpdateForm() {
             {tokenValidation.notes && (
               <Alert className="mb-6">
                 <AlertDescription>
-                  <strong>Admin Notes:</strong> {tokenValidation.notes}
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <strong>Admin Notes:</strong> {tokenValidation.notes}
+                    </div>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
@@ -427,6 +503,7 @@ function UpdateForm() {
                     <div className="mt-2">
                       <Input
                         id="profile_image"
+                        data-testid="file-profile"
                         type="file"
                         accept="image/jpeg,image/jpg,image/png"
                         onChange={handleFileChangeEvent("profile_image")}
@@ -435,6 +512,11 @@ function UpdateForm() {
                     <p className="text-sm text-gray-500 mt-1">
                       {getFileRequirements("profile")}
                     </p>
+                    {fileErrors.profile_image && (
+                      <p className="text-sm text-red-600 mt-1">
+                        {fileErrors.profile_image}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -444,6 +526,7 @@ function UpdateForm() {
                     <div className="mt-2">
                       <Input
                         id="payment_slip"
+                        data-testid="file-payment"
                         type="file"
                         accept="image/jpeg,image/jpg,image/png,application/pdf"
                         onChange={handleFileChangeEvent("payment_slip")}
@@ -453,6 +536,11 @@ function UpdateForm() {
                     <p className="text-sm text-gray-500 mt-1">
                       {getFileRequirements("payment")}
                     </p>
+                    {fileErrors.payment_slip && (
+                      <p className="text-sm text-red-600 mt-1">
+                        {fileErrors.payment_slip}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -464,6 +552,7 @@ function UpdateForm() {
                     <div className="mt-2">
                       <Input
                         id="chamber_card"
+                        data-testid="file-tcc"
                         type="file"
                         accept="image/jpeg,image/jpg,image/png,application/pdf"
                         onChange={handleFileChangeEvent("chamber_card")}
@@ -473,6 +562,11 @@ function UpdateForm() {
                     <p className="text-sm text-gray-500 mt-1">
                       {getFileRequirements("tcc")}
                     </p>
+                    {fileErrors.chamber_card && (
+                      <p className="text-sm text-red-600 mt-1">
+                        {fileErrors.chamber_card}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -488,7 +582,11 @@ function UpdateForm() {
               <div className="flex justify-end space-x-4">
                 <Button
                   type="submit"
-                  disabled={submitting}
+                  data-testid="btn-update-submit"
+                  disabled={
+                    submitting ||
+                    Object.values(fileErrors).some((error) => error)
+                  }
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   {submitting ? (
