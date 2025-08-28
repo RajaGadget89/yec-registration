@@ -17,7 +17,14 @@ export type RegistrationEventType =
   | "login.succeeded"
   | "admin.review_track_updated"
   | "auto_reject.sweep_completed"
-  | "email.retry_requested";
+  | "email.retry_requested"
+  | "admin.invitation.created"
+  | "admin.invitation.accepted"
+  | "admin.invitation.revoked"
+  | "admin.role.assigned"
+  | "admin.role.revoked"
+  | "admin.suspended"
+  | "admin.activated";
 
 /**
  * Base event interface
@@ -45,6 +52,19 @@ export interface RegistrationEventPayload {
   price_applied?: number;
   selected_package?: string;
   updates?: Record<string, any>;
+}
+
+/**
+ * Admin management event payload
+ */
+export interface AdminEventPayload {
+  invitation_id?: string;
+  email?: string;
+  invited_by?: string;
+  admin_id?: string;
+  role?: "admin" | "super_admin";
+  status?: "active" | "suspended";
+  metadata?: Record<string, any>;
 }
 
 /**
@@ -110,6 +130,20 @@ export interface EmailRetryEvent extends DomainEvent<EmailRetryEventPayload> {
 }
 
 /**
+ * Admin management event
+ */
+export interface AdminEvent extends DomainEvent<AdminEventPayload> {
+  type: 
+    | "admin.invitation.created"
+    | "admin.invitation.accepted"
+    | "admin.invitation.revoked"
+    | "admin.role.assigned"
+    | "admin.role.revoked"
+    | "admin.suspended"
+    | "admin.activated";
+}
+
+/**
  * Event handler interface
  */
 export interface EventHandler<T extends DomainEvent = DomainEvent> {
@@ -143,6 +177,13 @@ export const STATUS_TRANSITIONS: Record<RegistrationEventType, string> = {
   "admin.review_track_updated": "system", // Handled by trigger function
   "auto_reject.sweep_completed": "system", // Handled by sweep function
   "email.retry_requested": "system", // Email retry doesn't change registration status
+  "admin.invitation.created": "system", // Admin events don't change registration status
+  "admin.invitation.accepted": "system", // Admin events don't change registration status
+  "admin.invitation.revoked": "system", // Admin events don't change registration status
+  "admin.role.assigned": "system", // Admin events don't change registration status
+  "admin.role.revoked": "system", // Admin events don't change registration status
+  "admin.suspended": "system", // Admin events don't change registration status
+  "admin.activated": "system", // Admin events don't change registration status
 };
 
 /**
@@ -178,6 +219,13 @@ export const EMAIL_TEMPLATES: Record<RegistrationEventType, string> = {
   "admin.review_track_updated": "system", // No email for track updates
   "auto_reject.sweep_completed": "rejection", // Auto-rejection email
   "email.retry_requested": "system", // No email template for retry events
+  "admin.invitation.created": "admin_invite", // Admin invitation email
+  "admin.invitation.accepted": "system", // No email for acceptance
+  "admin.invitation.revoked": "system", // No email for revocation
+  "admin.role.assigned": "system", // No email for role assignment
+  "admin.role.revoked": "system", // No email for role revocation
+  "admin.suspended": "system", // No email for suspension
+  "admin.activated": "system", // No email for activation
 };
 
 /**
