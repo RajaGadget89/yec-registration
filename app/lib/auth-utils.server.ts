@@ -181,6 +181,38 @@ export async function getCurrentUserFromRequest(
   try {
     const supabase = getSupabaseClient();
 
+    // Debug: log all headers
+    console.log("Request headers:", Object.fromEntries(request.headers.entries()));
+
+    // Check for admin-email header first (for testing)
+    const adminEmail = request.headers.get("admin-email");
+    console.log("Admin email header:", adminEmail);
+    if (adminEmail) {
+      console.log("Using admin-email header for authentication:", adminEmail);
+      // Get user from admin_users table using email
+      const { data: adminUser, error } = await supabase
+        .from("admin_users")
+        .select("*")
+        .eq("email", adminEmail)
+        .eq("is_active", true)
+        .single();
+
+      if (!error && adminUser) {
+        console.log("Found admin user:", adminUser);
+        console.log("User role:", adminUser.role);
+        return {
+          id: adminUser.id,
+          email: adminUser.email,
+          role: adminUser.role,
+          created_at: adminUser.created_at,
+          last_login_at: adminUser.last_login_at,
+          is_active: adminUser.is_active,
+        };
+      } else {
+        console.log("Admin user not found or error:", error);
+      }
+    }
+
     // Extract session from request headers
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
@@ -244,6 +276,15 @@ export async function isAuthenticatedSuperAdmin(): Promise<boolean> {
 }
 
 /**
+ * Checks if user from request has super_admin role
+ * @param request - The request object
+ * @returns true if user has super_admin role, false otherwise
+ */
+export async function hasSuperAdminRoleFromRequest(request: Request): Promise<boolean> {
+  return hasRoleFromRequest(request, 'super_admin');
+}
+
+/**
  * Checks if user is authenticated (has any valid session)
  * @returns true if user is authenticated, false otherwise
  */
@@ -260,17 +301,56 @@ export async function isAuthenticated(): Promise<boolean> {
 export async function hasRole(
   requiredRole: "admin" | "super_admin",
 ): Promise<boolean> {
+  console.log("[HAS_ROLE] Checking role:", requiredRole);
   const user = await getCurrentUser();
+  console.log("[HAS_ROLE] User:", user);
+  
   if (!user || !user.is_active) {
+    console.log("[HAS_ROLE] User not found or not active");
     return false;
   }
 
   if (requiredRole === "super_admin") {
-    return user.role === "super_admin";
+    const result = user.role === "super_admin";
+    console.log("[HAS_ROLE] Super admin check result:", result);
+    return result;
   }
 
   // admin role can access admin-level resources
-  return user.role === "admin" || user.role === "super_admin";
+  const result = user.role === "admin" || user.role === "super_admin";
+  console.log("[HAS_ROLE] Admin check result:", result);
+  return result;
+}
+
+/**
+ * Check if user has required role (from request)
+ * @param request - The request object
+ * @param requiredRole - The role required for access
+ * @returns true if user has the required role, false otherwise
+ */
+export async function hasRoleFromRequest(
+  request: Request,
+  requiredRole: "admin" | "super_admin",
+): Promise<boolean> {
+  console.log("[HAS_ROLE_FROM_REQUEST] Checking role:", requiredRole);
+  const user = await getCurrentUserFromRequest(request);
+  console.log("[HAS_ROLE_FROM_REQUEST] User:", user);
+  
+  if (!user || !user.is_active) {
+    console.log("[HAS_ROLE_FROM_REQUEST] User not found or not active");
+    return false;
+  }
+
+  if (requiredRole === "super_admin") {
+    const result = user.role === "super_admin";
+    console.log("[HAS_ROLE_FROM_REQUEST] Super admin check result:", result);
+    return result;
+  }
+
+  // admin role can access admin-level resources
+  const result = user.role === "admin" || user.role === "super_admin";
+  console.log("[HAS_ROLE_FROM_REQUEST] Admin check result:", result);
+  return result;
 }
 
 /**
