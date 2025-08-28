@@ -80,33 +80,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call domain function for request update
-    const { data: result, error: domainError } = await supabase.rpc(
-      "fn_request_update",
-      {
-        reg_id: registrationId,
-        dimension: dimension,
-        notes: notes || null,
-      },
-    );
+    // Update the appropriate review status field, and let the trigger handle the global status
+    let reviewStatusField: string;
+    let expectedStatus: string;
+    
+    switch (dimension) {
+      case 'payment':
+        reviewStatusField = 'payment_review_status';
+        expectedStatus = 'waiting_for_update_payment';
+        break;
+      case 'profile':
+        reviewStatusField = 'profile_review_status';
+        expectedStatus = 'waiting_for_update_info';
+        break;
+      case 'tcc':
+        reviewStatusField = 'tcc_review_status';
+        expectedStatus = 'waiting_for_update_tcc';
+        break;
+      default:
+        return NextResponse.json(
+          { error: "Invalid dimension" },
+          { status: 400 },
+        );
+    }
 
-    if (domainError) {
-      console.error("Domain function error:", domainError);
+    console.log(`Updating registration ${registration.id} ${reviewStatusField} to 'needs_update'`);
+    
+    // Update the review status field and let the trigger handle the global status
+    const updateData: any = {
+      [reviewStatusField]: 'needs_update',
+      update_reason: dimension, // Set the update reason for the resubmit function
+      updated_at: new Date().toISOString(),
+    };
+    
+    // Map dimension to the correct update_reason value expected by the domain function
+    if (dimension === 'profile') {
+      updateData.update_reason = 'profile';
+    } else if (dimension === 'payment') {
+      updateData.update_reason = 'payment';
+    } else if (dimension === 'tcc') {
+      updateData.update_reason = 'tcc';
+    }
+    
+    // Add notes to review_checklist if provided
+    if (notes) {
+      const currentChecklist = registration.review_checklist || {};
+      const updatedChecklist = {
+        ...currentChecklist,
+        [dimension]: {
+          ...currentChecklist[dimension],
+          status: 'needs_update',
+          notes: notes,
+        },
+      };
+      updateData.review_checklist = updatedChecklist;
+    }
+
+    const { data: result, error: updateError } = await supabase
+      .from('registrations')
+      .update(updateData)
+      .eq('id', registration.id)
+      .select();
+
+    console.log("Update result:", { result, updateError });
+
+    if (updateError) {
+      console.error("Failed to update registration status:", updateError);
       return NextResponse.json(
-        { error: "Failed to request update" },
+        { error: "Failed to update registration status" },
         { status: 500 },
       );
     }
 
-    if (!result || result.length === 0 || !result[0].success) {
-      console.error("Request update failed:", result);
-      return NextResponse.json(
-        { error: "Request update processing failed" },
-        { status: 500 },
-      );
-    }
-
-    const updateResult = result[0];
+    const updateResult = { new_status: expectedStatus };
 
     // Send email notification using enhanced email service
     try {
@@ -151,7 +197,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       registrationId: registration.registration_id,
-      status: updateResult.status,
+      status: updateResult.new_status,
       dimension: dimension,
       notes: notes,
       message: `Update requested for ${dimension} dimension`,

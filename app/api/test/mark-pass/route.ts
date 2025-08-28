@@ -79,23 +79,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update the specific dimension to passed
+    // Check if dimension is already passed (idempotent behavior)
     const currentChecklist = registration.review_checklist || {
       payment: { status: "pending" },
       profile: { status: "pending" },
       tcc: { status: "pending" },
     };
 
-    // Update the specific dimension
+    if (currentChecklist[dimension]?.status === "passed") {
+      // Return current snapshot for idempotent behavior
+      return NextResponse.json({
+        ok: true,
+        registrationId: registration.registration_id,
+        dimension: dimension,
+        newStatus: "passed",
+        global: registration.status,
+      });
+    }
+
+    // Update the specific dimension to passed
     currentChecklist[dimension] = { status: "passed" };
 
-    // Update registration with new checklist
+    // Prepare update payload with both checklist and individual status fields
+    const updatePayload: any = {
+      review_checklist: currentChecklist,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Update individual status fields based on dimension
+    if (dimension === "payment") {
+      updatePayload.payment_review_status = "passed";
+    } else if (dimension === "profile") {
+      updatePayload.profile_review_status = "passed";
+    } else if (dimension === "tcc") {
+      updatePayload.tcc_review_status = "passed";
+    }
+
+    // Update registration with both checklist and individual status fields
     const { data: updatedRegistration, error: updateError } = await supabase
       .from("registrations")
-      .update({
-        review_checklist: currentChecklist,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("registration_id", registrationId)
       .select()
       .single();
@@ -106,30 +129,6 @@ export async function POST(request: NextRequest) {
         { error: "Failed to mark dimension as passed" },
         { status: 500 },
       );
-    }
-
-    // Check if all dimensions are now passed (auto-approve)
-    const allPassed =
-      currentChecklist.payment.status === "passed" &&
-      currentChecklist.profile.status === "passed" &&
-      currentChecklist.tcc.status === "passed";
-
-    let finalStatus = updatedRegistration.status;
-    if (allPassed) {
-      // Auto-approve
-      const { data: approveResult, error: approveError } = await supabase.rpc(
-        "fn_try_approve",
-        { reg_id: registrationId },
-      );
-
-      if (
-        !approveError &&
-        approveResult &&
-        approveResult.length > 0 &&
-        approveResult[0].success
-      ) {
-        finalStatus = "approved";
-      }
     }
 
     // Emit admin mark pass event for centralized side-effects
@@ -148,10 +147,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       registrationId: registration.registration_id,
-      status: finalStatus,
       dimension: dimension,
-      all_passed: allPassed,
-      message: `Dimension ${dimension} marked as passed${allPassed ? " - Registration auto-approved" : ""}`,
+      newStatus: "passed",
+      global: updatedRegistration.status,
     });
   } catch (error) {
     console.error("Error in test mark-pass endpoint:", error);

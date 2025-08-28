@@ -55,6 +55,7 @@ async function handlePOST(
       {
         reg_id: id,
         dimension: dimension,
+        reviewer_id: user.email,
         notes: notes || null,
       },
     );
@@ -123,7 +124,7 @@ async function handlePOST(
     return NextResponse.json({
       ok: true,
       id: registration.id,
-      status: updateResult.status,
+      status: updateResult.new_status,
       dimension: dimension,
       notes: notes,
       message: `Update requested for ${dimension} dimension`,

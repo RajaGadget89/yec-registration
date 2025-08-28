@@ -152,3 +152,124 @@ export function checkAdminAccess(req: NextRequest): boolean {
   const adminEmail = req.cookies.get("admin-email")?.value;
   return adminEmail ? isAdmin(adminEmail) : false;
 }
+
+/**
+ * Super admin guard wrapper specifically for API routes
+ * Returns proper HTTP responses for unauthorized access
+ */
+export async function withSuperAdminApiGuard<T extends any[]>(
+  handler: (req: NextRequest, ...args: T) => Promise<NextResponse>,
+) {
+  return withAuditLogging(
+    async (req: NextRequest, ...args: T): Promise<NextResponse> => {
+      try {
+        // Check admin authentication - prefer header only in E2E mode; otherwise cookie
+        let adminEmail: string | null = null;
+        const isE2E = process.env.E2E_TESTS === "true";
+        if (isE2E) {
+          adminEmail = req.headers.get("admin-email");
+          if (!adminEmail) {
+            adminEmail = req.cookies.get("admin-email")?.value || null;
+          }
+        } else {
+          adminEmail = req.cookies.get("admin-email")?.value || null;
+        }
+
+        console.log("[SUPER_ADMIN_GUARD] Final admin email:", adminEmail);
+
+        if (!adminEmail) {
+          console.log("[SUPER_ADMIN_GUARD] Access denied - no admin email");
+          return NextResponse.json(
+            {
+              error: "Unauthorized. Admin access required.",
+              code: "ADMIN_ACCESS_REQUIRED",
+            },
+            { status: 401 },
+          );
+        }
+
+        // Check if user is in admin allowlist
+        if (!isAdmin(adminEmail)) {
+          console.log("[SUPER_ADMIN_GUARD] Access denied - not in admin allowlist");
+          return NextResponse.json(
+            {
+              error: "Unauthorized. Admin access required.",
+              code: "ADMIN_ACCESS_REQUIRED",
+            },
+            { status: 401 },
+          );
+        }
+
+        // Check if user has super_admin role in database
+        const { getSupabaseServiceClient } = await import("./supabase-server");
+        const supabase = getSupabaseServiceClient();
+        
+        const { data: adminUser, error } = await supabase
+          .from("admin_users")
+          .select("role, status")
+          .eq("email", adminEmail || "")
+          .single();
+
+        if (error || !adminUser) {
+          console.log("[SUPER_ADMIN_GUARD] Access denied - user not found in database");
+          return NextResponse.json(
+            {
+              error: "Unauthorized. Admin access required.",
+              code: "ADMIN_ACCESS_REQUIRED",
+            },
+            { status: 401 },
+          );
+        }
+
+        if (adminUser.role !== "super_admin") {
+          console.log("[SUPER_ADMIN_GUARD] Access denied - not super_admin role");
+          return NextResponse.json(
+            {
+              error: "Forbidden: Super admin access required",
+              code: "SUPER_ADMIN_REQUIRED",
+            },
+            { status: 403 },
+          );
+        }
+
+        if (adminUser.status !== "active") {
+          console.log("[SUPER_ADMIN_GUARD] Access denied - user not active");
+          return NextResponse.json(
+            {
+              error: "Forbidden: Admin account is not active",
+              code: "ADMIN_INACTIVE",
+            },
+            { status: 403 },
+          );
+        }
+
+        // Log admin access for audit
+        console.log(
+          `[SUPER_ADMIN_API_ACCESS] ${adminEmail} accessed ${req.nextUrl.pathname}`,
+        );
+
+        return await handler(req, ...args);
+      } catch (error) {
+        console.error("[SUPER_ADMIN_API_GUARD] Error:", error);
+
+        if (error instanceof Error && error.message.includes("Unauthorized")) {
+          return NextResponse.json(
+            {
+              error: "Unauthorized. Admin access required.",
+              code: "ADMIN_ACCESS_REQUIRED",
+            },
+            { status: 401 },
+          );
+        }
+
+        return NextResponse.json(
+          {
+            error: "Internal server error",
+            code: "INTERNAL_ERROR",
+          },
+          { status: 500 },
+        );
+      }
+    },
+  );
+}

@@ -97,7 +97,7 @@ export interface Registration {
     | "waiting_for_update_tcc"
     | "approved"
     | "rejected";
-  update_reason: "payment" | "info" | "tcc" | null;
+  update_reason: "payment" | "profile" | "tcc" | null;
   rejected_reason: string | null;
   // Phase 1: 3-track checklist
   payment_review_status: "pending" | "needs_update" | "passed" | "rejected";
@@ -212,7 +212,7 @@ export interface RegistrationUpdate {
     | "waiting_for_update_tcc"
     | "approved"
     | "rejected";
-  update_reason?: "payment" | "info" | "tcc" | null;
+  update_reason?: "payment" | "profile" | "tcc" | null;
   rejected_reason?: string | null;
   // Phase 1: 3-track checklist
   payment_review_status?: "pending" | "needs_update" | "passed" | "rejected";

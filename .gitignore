@@ -25,6 +25,14 @@ build/
 .env.ci.local
 .env.local
 .cd-env
+.env.e2e
+.env.supabase
+
+# ========================================
+# Authentication & Test State
+# ========================================
+.auth/
+*.auth.json
 
 # ========================================
 # Docker
@@ -96,3 +104,20 @@ backup-manager.sh
 backup.sh.original
 backups/
 restore.sh
+
+# ========================================
+# E2E & secrets
+# ========================================
+.e2e-env
+.migration-workflow-state
+
+# ========================================
+# Test artifacts
+# ========================================
+artifacts/
+
+# ========================================
+# OS/editor noise
+# ========================================
+.DS_Store
+*.swp
