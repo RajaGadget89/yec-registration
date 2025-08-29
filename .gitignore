@@ -26,7 +26,10 @@ build/
 .env.local
 .cd-env
 .env.e2e
+<<<<<<< HEAD
 .env.supabase
+=======
+>>>>>>> origin/main
 
 # ========================================
 # Authentication & Test State
@@ -105,6 +108,7 @@ backup.sh.original
 backups/
 restore.sh
 
+<<<<<<< HEAD
 # ========================================
 # E2E & secrets
 # ========================================
@@ -121,3 +125,8 @@ artifacts/
 # ========================================
 .DS_Store
 *.swp
+=======
+# Supabase Migration Environment
+.env.supabase
+.migration-workflow-state
+>>>>>>> origin/main

@@ -49,6 +49,7 @@ export class EmailNotificationHandler
             event.payload.dimension,
             event.payload.notes,
             event.id || undefined,
+            event.payload.token_id,
           );
           break;
 
@@ -169,7 +170,8 @@ export class EmailNotificationHandler
   }
 
   /**
-   * Enqueue update request email with deep-link token
+   * Enqueue update request email with token_id
+   * Token will be resolved at send time for security
    */
   private async enqueueUpdateRequestEmail(
     registration: any,
@@ -177,6 +179,7 @@ export class EmailNotificationHandler
     dimension: "payment" | "profile" | "tcc",
     notes?: string,
     eventId?: string,
+    tokenId?: string,
   ): Promise<string | null> {
     const applicantName =
       `${registration.first_name} ${registration.last_name}`.trim();
@@ -197,11 +200,16 @@ export class EmailNotificationHandler
         throw new Error(`Invalid dimension: ${dimension}`);
     }
 
+    // Token will be resolved at send time for security
+    // Store only token_id in the email payload
+    const secureTokenId = tokenId || null;
+
     const payload = {
       applicantName,
       trackingCode: registration.registration_id,
       dimension,
       notes,
+      token_id: secureTokenId || undefined, // Store token_id, not the actual token
       supportEmail: getEmailFromAddress(),
       brandTokens: {
         logoUrl: process.env.EMAIL_LOGO_URL,

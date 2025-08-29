@@ -242,7 +242,10 @@ export default function EmailOutboxPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div
+      data-testid="outbox-page"
+      className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900"
+    >
       <div className="container mx-auto py-8 px-4 space-y-8">
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -520,6 +523,8 @@ export default function EmailOutboxPage() {
                   {filteredItems.map((item) => (
                     <div
                       key={item.id}
+                      data-testid="outbox-row"
+                      data-to={item.to}
                       className={`p-6 rounded-xl border-l-4 ${getStatusColor(item.status)} hover:shadow-md transition-all duration-200`}
                     >
                       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -549,7 +554,10 @@ export default function EmailOutboxPage() {
                                 {item.subject}
                               </h3>
 
-                              <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                              <div
+                                data-testid="outbox-body"
+                                className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400"
+                              >
                                 <div className="flex items-center gap-1">
                                   <User className="h-4 w-4" />
                                   <span className="font-mono">{item.to}</span>
