@@ -7,7 +7,7 @@ import type { Dimension } from '../../app/lib/rbac';
 
 // Mock environment variables for testing
 const mockEnv = {
-  ADMIN_SUPER_EMAILS: 'alice@company.com, bob@company.com',
+      SUPER_ADMIN_EMAILS: 'alice@company.com, bob@company.com',
   ADMIN_PAYMENT_EMAILS: 'bob@company.com, carol@company.com',
   ADMIN_PROFILE_EMAILS: 'carol@company.com, dave@company.com',
   ADMIN_TCC_EMAILS: 'dave@company.com, eve@company.com',
