@@ -22,8 +22,10 @@ jobs:
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
       # Override SITE_URL in CI to match the local server port used by this job
       NEXT_PUBLIC_SITE_URL: http://localhost:3001
+      E2E_BASE_URL: http://localhost:3001
       FEATURES_ADMIN_MANAGEMENT: "true"
       E2E_TESTS: "true"
+      E2E_TEST_MODE: "true"          # enable E2E test endpoints
       TEST_HELPERS_ENABLED: "1"      # enable /api/test/* endpoints in CI
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
       E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
