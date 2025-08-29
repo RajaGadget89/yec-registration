@@ -14,7 +14,7 @@ export default defineConfig({
   reporter: 'line',
   
   use: {
-    baseURL: process.env.E2E_BASE_URL || 'http://localhost:8080',
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3001',
     trace: 'on-first-retry',
   },
 
