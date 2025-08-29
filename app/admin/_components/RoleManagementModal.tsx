@@ -200,7 +200,7 @@ export default function RoleManagementModal({
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
-                        This action will immediately change the user's role and permissions. 
+                        This action will immediately change the user&apos;s role and permissions. 
                         The change will be logged in the audit system.
                       </p>
                     </div>

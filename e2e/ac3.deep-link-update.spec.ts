@@ -1,6 +1,10 @@
 import { test, expect } from './fixtures/auth';
 import { getSelectorString } from './utils/selectors';
 import crypto from 'crypto';
+import { config as loadDotenv } from 'dotenv';
+
+// Load environment variables for the test
+loadDotenv({ path: '.env.e2e' });
 
 test.describe('AC3 - Deep-link Update', () => {
   test('should handle invalid deep-link token', async ({ page }) => {
@@ -294,6 +298,8 @@ async function waitForUpdateEmail(page: any, to: string, dimension: 'profile'|'p
   const secret = process.env.E2E_AUTH_SECRET!;
   const payload = JSON.stringify({ to, dimension, type: 'update_request' });
   const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+
+
 
   const url = new URL('/api/test/outbox/wait', base);
   url.searchParams.set('to', to.toLowerCase().trim());
