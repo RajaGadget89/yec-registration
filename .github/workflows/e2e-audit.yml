@@ -49,9 +49,9 @@ jobs:
         run: |
           set -e
           if [ -f "tests/e2e/audit-diag.e2e.spec.ts" ]; then
-            npx playwright test tests/e2e/audit-diag.e2e.spec.ts --reporter=line
+            npx playwright test tests/e2e/audit-diag.e2e.spec.ts --config=playwright.audit.config.ts --reporter=line
           else
-            npx playwright test --grep="@audit @diag" --reporter=line
+            npx playwright test --grep="@audit @diag" --config=playwright.audit.config.ts --reporter=line
           fi
 
       - name: Report required context (ruleset-compat)
