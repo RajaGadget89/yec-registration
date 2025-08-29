@@ -3,6 +3,7 @@ import Footer from "../components/Footer";
 import AdminUserInfoClient from "./_components/AdminUserInfoClient";
 import AdminNavigation from "./_components/AdminNavigation";
 import { EmailOutboxNavWidget } from "./_components/EmailOutboxNavWidget";
+import RBACDebugBadge from "./_components/RBACDebugBadge";
 import { getCurrentUser } from "../lib/auth-utils.server";
 
 // Force dynamic rendering for admin routes that use cookies
@@ -18,7 +19,11 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  // In E2E mode, bypass authentication check
+  let user = null;
+  if (process.env.E2E_TEST_MODE !== "true") {
+    user = await getCurrentUser();
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yec-primary via-blue-600 to-blue-500 relative overflow-hidden">
@@ -53,6 +58,7 @@ export default async function AdminLayout({
 
             {/* Admin User Info and Actions */}
             <div className="flex items-center space-x-3">
+              <RBACDebugBadge />
               <AdminUserInfoClient user={user} />
             </div>
           </div>

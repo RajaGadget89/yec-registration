@@ -14,16 +14,13 @@ import {
   createErrorResponse,
   createUnexpectedErrorResponse,
 } from "../../lib/errorResponses";
-import { logAccess } from "../../lib/audit/auditClient";
+import { withAuditLogging } from "../../lib/audit/withAuditAccess";
 
 // Ensure Node.js runtime for service role key access
 export const runtime = "nodejs";
 
 async function handlePOST(req: NextRequest) {
-  const requestId = crypto.randomUUID();
-  const startTime = Date.now();
-
-  console.log("[REGISTER_ROUTE] handlePOST called", { requestId });
+  console.log("[REGISTER_ROUTE] handlePOST called");
 
   try {
     // Log environment variables for debugging (without exposing sensitive data)
@@ -111,6 +108,18 @@ async function handlePOST(req: NextRequest) {
       payment_review_status: "pending" as const,
       profile_review_status: "pending" as const,
       tcc_review_status: "pending" as const,
+      // Phase 1: Comprehensive review workflow - required by database constraint
+      review_checklist: {
+        payment: {
+          status: "pending" as const,
+        },
+        profile: {
+          status: "pending" as const,
+        },
+        tcc: {
+          status: "pending" as const,
+        },
+      },
       // Phase 1: Pricing fields
       price_applied: priceApplied,
       currency: currency,
@@ -251,24 +260,8 @@ async function handlePOST(req: NextRequest) {
   } catch (error) {
     console.error("Unexpected error in registration route:", error);
     return createUnexpectedErrorResponse(error, "registration route");
-  } finally {
-    // Log access for audit
-    const latency = Date.now() - startTime;
-    try {
-      await logAccess({
-        action: "registration.submit",
-        method: "POST",
-        resource: "/api/register",
-        result: "success",
-        request_id: requestId,
-        src_ip: req.headers.get("x-forwarded-for") || undefined,
-        user_agent: req.headers.get("user-agent") || undefined,
-        latency_ms: latency,
-      });
-    } catch (auditError) {
-      console.error("Failed to log access:", auditError);
-    }
   }
 }
 
-export { handlePOST as POST };
+// Export the wrapped handler for audit compliance
+export const POST = withAuditLogging(handlePOST);

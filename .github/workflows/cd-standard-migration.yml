@@ -431,6 +431,107 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Reconcile migrations (remote vs local)
+        if: steps.prod_diff.outputs.has_changes == 'true'
+        id: reconcile
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          SCRIPT=".github/scripts/reconcile-migrations.cjs"
+          if [ ! -f "$SCRIPT" ]; then
+            echo "ℹ️ Reconciler script not found at $SCRIPT — creating ephemeral copy"
+            mkdir -p .github/scripts
+            cat > "$SCRIPT" << 'CJS'
+          #!/usr/bin/env node
+          const { execSync } = require('node:child_process');
+          const { readdirSync, writeFileSync, existsSync } = require('node:fs');
+          const { join } = require('node:path');
+          function sh(cmd){ return execSync(cmd,{stdio:'pipe'}).toString(); }
+
+          function parseVersionsFromText(text){
+            const lines = text.split(/\r?\n/);
+            const local = new Set();
+            const remote = new Set();
+            const header = lines.find(l => /Local/i.test(l) && /Remote/i.test(l));
+            let idxLocal = -1, idxRemote = -1;
+            if (header){ idxLocal = header.indexOf('Local'); idxRemote = header.indexOf('Remote'); }
+            for (const l of lines){
+              const matches = [...l.matchAll(/\d{14}/g)];
+              if (matches.length === 0) continue;
+              if (header && idxLocal >= 0 && idxRemote > idxLocal){
+                for (const m of matches){
+                  const v = m[0];
+                  const pos = m.index ?? 0;
+                  if (pos < idxRemote) local.add(v); else remote.add(v);
+                }
+              } else {
+                for (const m of matches) { local.add(m[0]); remote.add(m[0]); }
+              }
+            }
+            return { local: [...local], remote: [...remote] };
+          }
+
+          console.log('🔍 Reconciling migration histories (remote vs local)...');
+          try {
+            console.log('📋 Fetching remote migration history...');
+            const pwd = process.env.SUPABASE_DB_PASSWORD ? ` --password "${process.env.SUPABASE_DB_PASSWORD}"` : '';
+            const raw = sh(`supabase migration list --linked${pwd}`);
+            const { local: remote = [], remote: remoteFromCols = [] } = parseVersionsFromText(raw);
+            const remoteVersions = remoteFromCols.length ? remoteFromCols : remote;
+            console.log(`Remote versions parsed: ${remoteVersions.length}`);
+
+            console.log('📁 Reading local migration files...');
+            const localFiles = readdirSync('migrations').filter(f => /^(\d{14})_.*\.sql$/.test(f));
+            const localVersions = localFiles.map(f => f.match(/^(\d{14})_/)[1]);
+
+            const A = new Set(localVersions); const B = new Set(remoteVersions);
+            const remoteOnly = remoteVersions.filter(v => !A.has(v));
+            const localOnly  = localVersions.filter(v => !B.has(v));
+
+            if (remoteOnly.length > 0){
+              console.log('🔧 Creating stub files for remote-only versions...');
+              for (const v of remoteOnly){
+                const p = join('migrations', `${v}_remote_schema.sql`);
+                if (!existsSync(p)) writeFileSync(p, '-- stub to align history (remote-only)\nDO $$ BEGIN /* no-op */ END $$;\n');
+                console.log('  ✅', p);
+              }
+            }
+
+            console.log('🔍 Scanning for unguarded PRIMARY KEY additions...');
+            let grep = '';
+            try { grep = sh("grep -R --line-number -E 'ADD CONSTRAINT .*PRIMARY KEY USING INDEX' migrations/ || true"); } catch { grep = ''; }
+            const bad = grep.split('\n').filter(l => l && !/DO \$\$|END\$\$/.test(l));
+            if (bad.length > 0){
+              console.error('\n❌ Unguarded PRIMARY KEY statements found:');
+              for (const line of bad) console.error('  ' + line);
+              process.exit(1);
+            }
+
+            if (process.env.GITHUB_OUTPUT){
+              writeFileSync(process.env.GITHUB_OUTPUT, `remote_only=${remoteOnly.join(' ')}\nlocal_only=${localOnly.join(' ')}\n`, { flag: 'a' });
+            }
+            console.log('🎯 Reconciliation completed successfully');
+          } catch (err){ console.error('\n❌ Reconciliation failed:', err); process.exit(1); }
+          CJS
+            chmod +x "$SCRIPT"
+          fi
+          node "$SCRIPT"
+
+      - name: Show reconciliation result
+        if: steps.prod_diff.outputs.has_changes == 'true'
+        run: |
+          echo "remote_only: ${{ steps.reconcile.outputs.remote_only }}"
+          echo "local_only : ${{ steps.reconcile.outputs.local_only }}"
+
+      # Stop if we just created stubs (PR needed)
+      - name: Fail if new stubs were created (commit required)
+        if: steps.prod_diff.outputs.has_changes == 'true' && steps.reconcile.outputs.remote_only != ''
+        run: |
+          echo "::error::Stub migrations created for remote-only versions. Commit them and re-run CD."
+          exit 1
+
       - name: Push migrations to production
         if: steps.prod_diff.outputs.has_changes == 'true'
         env:
@@ -443,14 +544,11 @@ jobs:
           dry_run_output=$(supabase db push --dry-run --password ${{ secrets.PROD_DB_PASSWORD }} 2>&1 || true)
           echo "Dry run output: $dry_run_output"
           
-          # Check if we need to use --include-all flag
-          if echo "$dry_run_output" | grep -q "Found local migration files to be inserted before the last migration"; then
-            echo "Migration order issue detected. Using --include-all flag..."
-            supabase db push --include-all --password ${{ secrets.PROD_DB_PASSWORD }}
-          else
-            echo "Standard migration push..."
-            supabase db push --password ${{ secrets.PROD_DB_PASSWORD }}
-          fi
+          # Continue to real push (the guard in SQL should make it safe)
+          supabase db push --password ${{ secrets.PROD_DB_PASSWORD }} || {
+            echo "::error::db push failed — check for unguarded 'ADD CONSTRAINT ... USING INDEX' in migrations."
+            exit 1
+          }
           
           echo "✅ Migrations deployed to production"
 
