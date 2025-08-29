@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 import { getAppUrl } from "../../../lib/auth-utils";
+import { isE2E } from "../../../lib/env/isE2E";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
+  // Check if E2E test mode is enabled
+  if (!isE2E()) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
   // Disable in production
   if (process.env.NODE_ENV === "production") {
     return new NextResponse("Not Found", { status: 404 });

@@ -52,6 +52,7 @@ export interface RegistrationEventPayload {
   price_applied?: number;
   selected_package?: string;
   updates?: Record<string, any>;
+  token_id?: string; // Token ID for secure deep-link resolution
 }
 
 /**

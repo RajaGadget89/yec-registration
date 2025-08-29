@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdmin } from "./admin-guard";
 import { withAuditLogging } from "./audit/withAuditAccess";
+import {
+  getRolesForEmail,
+  canReviewDimension,
+  canApprove,
+  type Dimension,
+} from "./rbac";
 
 /**
  * Admin guard wrapper for server-side functions
@@ -137,7 +143,9 @@ export function validateAdminAccess(req: NextRequest): {
     return { valid: false, error: "No admin email found in cookies" };
   }
 
-  if (!isAdmin(adminEmail)) {
+  // Check if user has any RBAC roles
+  const roles = getRolesForEmail(adminEmail);
+  if (roles.size === 0) {
     return { valid: false, error: "Email not in admin allowlist" };
   }
 
@@ -150,7 +158,88 @@ export function validateAdminAccess(req: NextRequest): {
  */
 export function checkAdminAccess(req: NextRequest): boolean {
   const adminEmail = req.cookies.get("admin-email")?.value;
-  return adminEmail ? isAdmin(adminEmail) : false;
+  if (!adminEmail) return false;
+
+  const roles = getRolesForEmail(adminEmail);
+  return roles.size > 0;
+}
+
+/**
+ * Validates if a user can review a specific dimension
+ * @param req - NextRequest object
+ * @param dimension - Dimension to check access for
+ * @returns {valid: boolean, adminEmail?: string, error?: string}
+ */
+export function validateDimensionAccess(
+  req: NextRequest,
+  dimension: Dimension,
+): {
+  valid: boolean;
+  adminEmail?: string;
+  error?: string;
+} {
+  const adminEmail = req.cookies.get("admin-email")?.value;
+
+  // Development bypass for easier testing
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.DEV_ADMIN_BYPASS === "true"
+  ) {
+    console.log(
+      `[admin-guard-server] DEV_ADMIN_BYPASS enabled - allowing ${dimension} access`,
+    );
+    return { valid: true, adminEmail: "dev-admin@example.com" };
+  }
+
+  if (!adminEmail) {
+    return { valid: false, error: "No admin email found in cookies" };
+  }
+
+  if (!canReviewDimension(adminEmail, dimension)) {
+    return {
+      valid: false,
+      error: `Access denied. User does not have permission to review ${dimension} dimension.`,
+    };
+  }
+
+  return { valid: true, adminEmail };
+}
+
+/**
+ * Validates if a user can approve registrations
+ * @param req - NextRequest object
+ * @returns {valid: boolean, adminEmail?: string, error?: string}
+ */
+export function validateApprovalAccess(req: NextRequest): {
+  valid: boolean;
+  adminEmail?: string;
+  error?: string;
+} {
+  const adminEmail = req.cookies.get("admin-email")?.value;
+
+  // Development bypass for easier testing
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.DEV_ADMIN_BYPASS === "true"
+  ) {
+    console.log(
+      "[admin-guard-server] DEV_ADMIN_BYPASS enabled - allowing approval access",
+    );
+    return { valid: true, adminEmail: "dev-admin@example.com" };
+  }
+
+  if (!adminEmail) {
+    return { valid: false, error: "No admin email found in cookies" };
+  }
+
+  if (!canApprove(adminEmail)) {
+    return {
+      valid: false,
+      error: "Access denied. Only super admin users can approve registrations.",
+    };
+  }
+
+  return { valid: true, adminEmail };
 }
 
 /**
