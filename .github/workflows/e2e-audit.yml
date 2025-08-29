@@ -37,6 +37,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps
+      - name: Start app server
+        run: |
+          nohup npm run dev -- --port=3001 &
+          sleep 15
       - name: Run @audit diag tests
         run: |
           set -e
