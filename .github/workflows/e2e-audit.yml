@@ -14,6 +14,17 @@ jobs:
   audit_diag:
     name: audit_diag
     runs-on: ubuntu-latest
+    env:
+      # === Required by e2e-env-config and audit diag ===
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+      FEATURES_ADMIN_MANAGEMENT: "true"
+      E2E_TESTS: "true"
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      SUPABASE_ENV: "staging"
     if: |
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
@@ -25,11 +36,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps
+      - name: Run local pre-checks (mirror dev behavior)
+        run: |
+          if [ -f ./pre-cicd-check.sh ]; then
+            chmod +x ./pre-cicd-check.sh
+            CI=true ./pre-cicd-check.sh
+          fi
       - name: Run @audit diag tests
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ENV: 'staging'
         run: |
           set -e
           if [ -f "tests/e2e/audit-diag.e2e.spec.ts" ]; then
