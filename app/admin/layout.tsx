@@ -28,7 +28,7 @@ export default async function AdminLayout({
     user = await getCurrentUser();
     
     // Check if user is super_admin (either from database or RBAC)
-    if (user?.email) {
+    if (user?.email && user.is_active) {
       // Check database role first
       isSuperAdmin = user.role === "super_admin";
       
@@ -37,15 +37,6 @@ export default async function AdminLayout({
         const rbacRoles = getRolesForEmail(user.email);
         isSuperAdmin = rbacRoles.has("super_admin");
       }
-      
-      // Debug logging
-      console.log("[AdminLayout] User check:", {
-        email: user.email,
-        dbRole: user.role,
-        rbacRoles: Array.from(getRolesForEmail(user.email)),
-        isSuperAdmin,
-        adminSuperEmails: process.env.ADMIN_SUPER_EMAILS
-      });
     }
   }
 
@@ -106,9 +97,7 @@ export default async function AdminLayout({
               <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
 
               {/* Admin Management Team - Super Admin Only */}
-              {/* Debug: isSuperAdmin = {isSuperAdmin ? 'true' : 'false'} */}
-              {/* Temporarily always show for testing */}
-              {true && (
+              {isSuperAdmin && (process.env.FEATURES_ADMIN_MANAGEMENT !== "false") && (
                 <>
                   <Link
                     href="/admin/management"

@@ -11,7 +11,7 @@ const testUsers = {
 
 // Mock environment setup for testing
 const mockEnv = {
-  ADMIN_SUPER_EMAILS: 'alice@company.com, bob@company.com',
+        SUPER_ADMIN_EMAILS: 'alice@company.com, bob@company.com',
   ADMIN_PAYMENT_EMAILS: 'bob@company.com, carol@company.com',
   ADMIN_PROFILE_EMAILS: 'carol@company.com, dave@company.com',
   ADMIN_TCC_EMAILS: 'dave@company.com, eve@company.com',
@@ -23,7 +23,7 @@ test.describe('RBAC E2E Tests', () => {
     await page.addInitScript(() => {
       // Mock environment variables in browser context
       (window as any).__RBAC_TEST_ENV__ = {
-        ADMIN_SUPER_EMAILS: 'alice@company.com, bob@company.com',
+        SUPER_ADMIN_EMAILS: 'alice@company.com, bob@company.com',
         ADMIN_PAYMENT_EMAILS: 'bob@company.com, carol@company.com',
         ADMIN_PROFILE_EMAILS: 'carol@company.com, dave@company.com',
         ADMIN_TCC_EMAILS: 'dave@company.com, eve@company.com',

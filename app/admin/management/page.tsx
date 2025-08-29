@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { Suspense } from "react";
 import { Users, Shield, Crown, UserCheck, UserX, Search, Filter } from "lucide-react";
 import { getCurrentUser } from "../../lib/auth-utils.server";
@@ -31,7 +32,7 @@ export default async function ManagementPage({ searchParams }: ManagementPagePro
 
   // Check if user is super_admin
   if (!(await hasRole("super_admin"))) {
-    redirect("/admin");
+    redirect("/admin/login?unauthorized=1");
   }
 
   const params = (await searchParams) ?? {};
@@ -56,13 +57,18 @@ export default async function ManagementPage({ searchParams }: ManagementPagePro
   };
 
   try {
+    // Use server-side fetch with proper cookie forwarding
+    const headersList = await headers();
     const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/admin/users`, {
+      cache: 'no-store',
       headers: {
         "Content-Type": "application/json",
+        // Forward cookies for authentication
+        "Cookie": headersList.get("cookie") || "",
       },
     });
 
-    if (response.ok) {
+        if (response.ok) {
       const data = await response.json();
       adminUsers = data.users || [];
       totalCount = adminUsers.length;
@@ -207,7 +213,7 @@ export default async function ManagementPage({ searchParams }: ManagementPagePro
               </div>
             }
           >
-            <AdminUserTable users={adminUsers} />
+            <AdminUserTable />
           </Suspense>
         </div>
       </div>

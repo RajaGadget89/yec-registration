@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { 
@@ -29,19 +29,46 @@ interface AdminUser {
 }
 
 interface AdminUserTableProps {
-  users: AdminUser[];
+  users?: AdminUser[];
 }
 
-export default function AdminUserTable({ users }: AdminUserTableProps) {
+export default function AdminUserTable({ users: initialUsers }: AdminUserTableProps) {
+  const [users, setUsers] = useState<AdminUser[]>(initialUsers || []);
+  const [loading, setLoading] = useState(!initialUsers || initialUsers.length === 0);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Fetch users if not provided
+  useEffect(() => {
+    if (!initialUsers || initialUsers.length === 0) {
+      const fetchUsers = async () => {
+        try {
+          const response = await fetch('/api/admin/users');
+          
+          if (response.ok) {
+            const data = await response.json();
+            setUsers(data.users || []);
+          } else {
+            console.error("API error:", response.status);
+          }
+        } catch (error) {
+          console.error("Fetch error:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchUsers();
+    }
+  }, [initialUsers]);
 
   const formatTime = (utcTime: string) => {
     try {
       const thTime = toZonedTime(new Date(utcTime), "Asia/Bangkok");
       const timeStr = format(thTime, "yyyy-MM-dd HH:mm:ss");
-      const timeAgo = formatDistanceToNow(thTime, { addSuffix: true });
+      // Use a more stable time ago format to avoid hydration issues
+      const timeAgo = formatDistanceToNow(thTime, { addSuffix: true, includeSeconds: false });
       return { timeStr, timeAgo };
     } catch {
       return { timeStr: utcTime, timeAgo: "" };
@@ -123,6 +150,20 @@ export default function AdminUserTable({ users }: AdminUserTableProps) {
       setSelectedUser(null);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-gray-600 dark:text-gray-300">
+          <Users className="h-12 w-12 mx-auto mb-4 text-gray-400 animate-pulse" />
+          <div className="text-lg font-medium mb-2">Loading admin users...</div>
+          <div className="text-sm">
+            Please wait while we fetch the admin user data
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (users.length === 0) {
     return (
