@@ -24,6 +24,7 @@ jobs:
       FEATURES_ADMIN_MANAGEMENT: "true"
       E2E_TESTS: "true"
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
       SUPABASE_ENV: "staging"
     if: |
       github.event_name != 'pull_request' ||
