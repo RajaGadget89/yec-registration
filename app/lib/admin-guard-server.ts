@@ -190,7 +190,9 @@ export async function withSuperAdminApiGuard<T extends any[]>(
 
         // Check if user is in admin allowlist
         if (!isAdmin(adminEmail)) {
-          console.log("[SUPER_ADMIN_GUARD] Access denied - not in admin allowlist");
+          console.log(
+            "[SUPER_ADMIN_GUARD] Access denied - not in admin allowlist",
+          );
           return NextResponse.json(
             {
               error: "Unauthorized. Admin access required.",
@@ -203,7 +205,7 @@ export async function withSuperAdminApiGuard<T extends any[]>(
         // Check if user has super_admin role in database
         const { getSupabaseServiceClient } = await import("./supabase-server");
         const supabase = getSupabaseServiceClient();
-        
+
         const { data: adminUser, error } = await supabase
           .from("admin_users")
           .select("role, status")
@@ -211,7 +213,9 @@ export async function withSuperAdminApiGuard<T extends any[]>(
           .single();
 
         if (error || !adminUser) {
-          console.log("[SUPER_ADMIN_GUARD] Access denied - user not found in database");
+          console.log(
+            "[SUPER_ADMIN_GUARD] Access denied - user not found in database",
+          );
           return NextResponse.json(
             {
               error: "Unauthorized. Admin access required.",
@@ -222,7 +226,9 @@ export async function withSuperAdminApiGuard<T extends any[]>(
         }
 
         if (adminUser.role !== "super_admin") {
-          console.log("[SUPER_ADMIN_GUARD] Access denied - not super_admin role");
+          console.log(
+            "[SUPER_ADMIN_GUARD] Access denied - not super_admin role",
+          );
           return NextResponse.json(
             {
               error: "Forbidden: Super admin access required",

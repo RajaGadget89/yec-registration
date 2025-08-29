@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -7,9 +7,12 @@ export const runtime = "nodejs";
 export async function GET() {
   console.log("[setup-super-admin] E2E_TESTS:", process.env.E2E_TESTS);
   console.log("[setup-super-admin] NODE_ENV:", process.env.NODE_ENV);
-  
+
   // 1. Guard non-test environments
-  if (process.env.E2E_TESTS !== "true" && process.env.NODE_ENV === "production") {
+  if (
+    process.env.E2E_TESTS !== "true" &&
+    process.env.NODE_ENV === "production"
+  ) {
     console.log("[setup-super-admin] Access denied - not in test environment");
     return NextResponse.json({ ok: false }, { status: 404 });
   }
@@ -21,9 +24,15 @@ export async function GET() {
 
     // 3. Create admin client with Service Role
     console.log("[setup-super-admin] Creating Supabase admin client");
-    console.log("[setup-super-admin] SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-    console.log("[setup-super-admin] Has service role key:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-    
+    console.log(
+      "[setup-super-admin] SUPABASE_URL:",
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+    );
+    console.log(
+      "[setup-super-admin] Has service role key:",
+      !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    );
+
     const adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -59,13 +68,19 @@ export async function GET() {
         if (createError) {
           // If user already exists (race condition), try to find them again
           if (createError.message.includes("already been registered")) {
-            const { data: retryUser } = await adminClient.auth.admin.listUsers();
-            const retryFoundUser = retryUser.users.find((u) => u.email === email);
+            const { data: retryUser } =
+              await adminClient.auth.admin.listUsers();
+            const retryFoundUser = retryUser.users.find(
+              (u) => u.email === email,
+            );
             if (retryFoundUser) {
               userId = retryFoundUser.id;
               console.log("[setup-super-admin] Found user on retry:", userId);
             } else {
-              console.error("[setup-super-admin] createUser error:", createError);
+              console.error(
+                "[setup-super-admin] createUser error:",
+                createError,
+              );
               return NextResponse.json(
                 {
                   ok: false,
@@ -137,7 +152,11 @@ export async function GET() {
     if (verifyError || !verifyUser) {
       console.error("[setup-super-admin] verification error:", verifyError);
       return NextResponse.json(
-        { ok: false, reason: "VERIFICATION_ERROR", message: "Failed to verify user creation" },
+        {
+          ok: false,
+          reason: "VERIFICATION_ERROR",
+          message: "Failed to verify user creation",
+        },
         { status: 500 },
       );
     }
@@ -156,11 +175,12 @@ export async function GET() {
       role: verifyUser.role,
       status: verifyUser.status,
     });
-
   } catch (e: unknown) {
     console.error("[setup-super-admin] unexpected error:", e);
     const errorMessage =
-      e instanceof Error ? e.message : "Unexpected error during super admin setup";
+      e instanceof Error
+        ? e.message
+        : "Unexpected error during super admin setup";
     return NextResponse.json(
       { ok: false, reason: "UNEXPECTED_ERROR", message: errorMessage },
       { status: 500 },

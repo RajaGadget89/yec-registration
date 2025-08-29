@@ -7,7 +7,10 @@ export const runtime = "nodejs";
 
 export async function GET() {
   // 1. Guard non-test environments
-  if (process.env.E2E_TESTS !== "true" && process.env.NODE_ENV === "production") {
+  if (
+    process.env.E2E_TESTS !== "true" &&
+    process.env.NODE_ENV === "production"
+  ) {
     return NextResponse.json({ ok: false }, { status: 404 });
   }
 
@@ -141,7 +144,9 @@ export async function GET() {
   } catch (e: unknown) {
     console.error("[super-admin-login] unexpected error:", e);
     const errorMessage =
-      e instanceof Error ? e.message : "Unexpected error during super admin login";
+      e instanceof Error
+        ? e.message
+        : "Unexpected error during super admin login";
     return NextResponse.json(
       { ok: false, reason: "UNEXPECTED_ERROR", message: errorMessage },
       { status: 500 },

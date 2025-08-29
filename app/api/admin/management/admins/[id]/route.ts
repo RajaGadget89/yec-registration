@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { withSuperAdminApiGuard } from "../../../../../lib/admin-guard-server";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
-import { safeLogAccess, safeLogEvent } from "../../../../../lib/audit/safeAudit";
+import {
+  safeLogAccess,
+  safeLogEvent,
+} from "../../../../../lib/audit/safeAudit";
 import { getSupabaseServiceClient } from "../../../../../lib/supabase-server";
 import { EventService } from "../../../../../lib/events/eventService";
 import { EventFactory } from "../../../../../lib/events/eventFactory";
@@ -15,13 +18,13 @@ const updateSchema = z.object({
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   // Check feature flag
   if (!isFeatureEnabled("adminManagement")) {
     return NextResponse.json(
       { error: "Feature not available" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -30,13 +33,13 @@ export async function PUT(
     if (!adminId) {
       return NextResponse.json(
         { error: "Admin ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Guard: Check admin authentication - try header first (for E2E), then cookie
     let adminEmail: string | null = request.headers.get("admin-email");
-    
+
     if (!adminEmail) {
       adminEmail = request.cookies.get("admin-email")?.value || null;
     }
@@ -53,7 +56,7 @@ export async function PUT(
 
     // Validate admin is in allowlist and has super_admin role
     const supabase = getSupabaseServiceClient();
-    
+
     const { data: adminUser, error: adminError } = await supabase
       .from("admin_users")
       .select("id, role, status")
@@ -95,21 +98,18 @@ export async function PUT(
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON body" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     const validationResult = updateSchema.safeParse(body);
     if (!validationResult.success) {
       return NextResponse.json(
-        { 
+        {
           code: "VALIDATION_ERROR",
-          error: "Invalid request data", 
-          details: validationResult.error.errors 
+          error: "Invalid request data",
+          details: validationResult.error.errors,
         },
-        { status: 422 }
+        { status: 422 },
       );
     }
 
@@ -118,11 +118,11 @@ export async function PUT(
     // Validate that at least one update is provided
     if (!validatedData.roles && !validatedData.status) {
       return NextResponse.json(
-        { 
+        {
           code: "VALIDATION_ERROR",
-          error: "No valid updates provided" 
+          error: "No valid updates provided",
         },
-        { status: 422 }
+        { status: 422 },
       );
     }
 
@@ -134,17 +134,14 @@ export async function PUT(
       .single();
 
     if (fetchError || !currentAdmin) {
-      return NextResponse.json(
-        { error: "Admin not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Admin not found" }, { status: 404 });
     }
 
     // Prevent self-modification
     if (adminId === adminUser.id) {
       return NextResponse.json(
         { error: "Cannot modify your own account" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -169,7 +166,7 @@ export async function PUT(
       console.error("Error updating admin:", updateError);
       return NextResponse.json(
         { error: "Failed to update admin" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -180,7 +177,10 @@ export async function PUT(
       resource: "admin_users",
       result: "success",
       request_id: request.headers.get("x-request-id") || "unknown",
-      src_ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || undefined,
+      src_ip:
+        request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") ||
+        undefined,
       user_agent: request.headers.get("user-agent") || undefined,
       meta: {
         adminId,
@@ -203,7 +203,10 @@ export async function PUT(
     }
 
     if (validatedData.status) {
-      if (validatedData.status === "suspended" && currentAdmin.status !== "suspended") {
+      if (
+        validatedData.status === "suspended" &&
+        currentAdmin.status !== "suspended"
+      ) {
         try {
           const event = EventFactory.createAdminSuspended(adminId);
           await EventService.emit(event);
@@ -211,7 +214,10 @@ export async function PUT(
           console.error("Error emitting admin suspended event:", eventError);
           // Continue execution, don't fail the request
         }
-      } else if (validatedData.status === "active" && currentAdmin.status !== "active") {
+      } else if (
+        validatedData.status === "active" &&
+        currentAdmin.status !== "active"
+      ) {
         try {
           const event = EventFactory.createAdminActivated(adminId);
           await EventService.emit(event);
@@ -253,34 +259,33 @@ export async function PUT(
         id: updatedAdmin.id,
         email: updatedAdmin.email,
         roles: [updatedAdmin.role],
-        status: updatedAdmin.status
-      }
+        status: updatedAdmin.status,
+      },
     });
-
   } catch (error) {
     console.error("Error in update admin endpoint:", error);
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { 
+        {
           code: "VALIDATION_ERROR",
-          error: "Invalid request data", 
-          details: error.errors 
+          error: "Invalid request data",
+          details: error.errors,
         },
-        { status: 422 }
+        { status: 422 },
       );
     }
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   // Feature flag check temporarily disabled for E2E testing
   // if (!isFeatureEnabled("adminManagement")) {
@@ -294,17 +299,14 @@ export async function DELETE(
     try {
       const currentUser = await getCurrentUserFromRequest(req);
       if (!currentUser) {
-        return NextResponse.json(
-          { error: "Unauthorized" },
-          { status: 401 }
-        );
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
       const { id: adminId } = await params;
       if (!adminId) {
         return NextResponse.json(
           { error: "Admin ID is required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -312,7 +314,7 @@ export async function DELETE(
       if (adminId === currentUser.id) {
         return NextResponse.json(
           { error: "Cannot delete your own account" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -323,7 +325,10 @@ export async function DELETE(
         resource: "admin_users",
         result: "success",
         request_id: req.headers.get("x-request-id") || "unknown",
-        src_ip: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined,
+        src_ip:
+          req.headers.get("x-forwarded-for") ||
+          req.headers.get("x-real-ip") ||
+          undefined,
         user_agent: req.headers.get("user-agent") || undefined,
         meta: {
           adminId,
@@ -341,10 +346,7 @@ export async function DELETE(
         .single();
 
       if (fetchError || !currentAdmin) {
-        return NextResponse.json(
-          { error: "Admin not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "Admin not found" }, { status: 404 });
       }
 
       // Soft delete by setting is_active to false and clearing role
@@ -363,12 +365,15 @@ export async function DELETE(
         console.error("Error deleting admin:", deleteError);
         return NextResponse.json(
           { error: "Failed to delete admin" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
       // Emit domain events for role revocation and suspension
-      const roleEvent = EventFactory.createAdminRoleRevoked(adminId, currentAdmin.role);
+      const roleEvent = EventFactory.createAdminRoleRevoked(
+        adminId,
+        currentAdmin.role,
+      );
       await EventService.emit(roleEvent);
 
       const suspendEvent = EventFactory.createAdminSuspended(adminId);
@@ -404,12 +409,11 @@ export async function DELETE(
         message: "Admin deleted successfully",
         admin: deletedAdmin,
       });
-
     } catch (error) {
       console.error("Error in delete admin endpoint:", error);
       return NextResponse.json(
         { error: "Internal server error" },
-        { status: 500 }
+        { status: 500 },
       );
     }
   });

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 import { guardTestEndpoint } from "@/app/lib/test-guard";
-import crypto from 'crypto';
+import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
   const guard = guardTestEndpoint(request);
@@ -39,7 +39,10 @@ export async function POST(request: NextRequest) {
     // Generate the token hash that would be stored (same as in the database function)
     // The database function uses: encode(hmac(token, 'storage-salt', 'sha256'), 'hex')
 
-    const tokenHash = crypto.createHmac('sha256', 'storage-salt').update(tokenToCheck).digest('hex');
+    const tokenHash = crypto
+      .createHmac("sha256", "storage-salt")
+      .update(tokenToCheck)
+      .digest("hex");
 
     // Check if token exists in database
     const { data: tokenRecord, error: tokenError } = await supabase

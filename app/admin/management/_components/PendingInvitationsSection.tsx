@@ -17,9 +17,9 @@ interface PendingInvitationsSectionProps {
   onRevoke: () => void;
 }
 
-export default function PendingInvitationsSection({ 
-  invitations, 
-  onRevoke 
+export default function PendingInvitationsSection({
+  invitations,
+  onRevoke,
 }: PendingInvitationsSectionProps) {
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,12 +33,15 @@ export default function PendingInvitationsSection({
     setError(null);
 
     try {
-      const response = await fetch(`/api/admin/management/invitations/${invitationToken}/revoke`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/admin/management/invitations/${invitationToken}/revoke`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         const data = await response.json();
@@ -46,10 +49,11 @@ export default function PendingInvitationsSection({
       }
 
       onRevoke();
-
     } catch (err) {
       console.error("Error revoking invitation:", err);
-      setError(err instanceof Error ? err.message : "Failed to revoke invitation");
+      setError(
+        err instanceof Error ? err.message : "Failed to revoke invitation",
+      );
     } finally {
       setRevokingId(null);
     }
@@ -98,7 +102,8 @@ export default function PendingInvitationsSection({
           Pending Invitations
         </h2>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          Manage pending admin invitations. You can revoke invitations that haven&apos;t been accepted yet.
+          Manage pending admin invitations. You can revoke invitations that
+          haven&apos;t been accepted yet.
         </p>
       </div>
 
@@ -190,16 +195,20 @@ export default function PendingInvitationsSection({
                       <div className="text-sm text-gray-500 dark:text-gray-400">
                         {formatDate(invitation.expires_at)}
                       </div>
-                      <div className={`text-xs ${expired ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-gray-500"}`}>
+                      <div
+                        className={`text-xs ${expired ? "text-red-600 dark:text-red-400" : "text-gray-400 dark:text-gray-500"}`}
+                      >
                         {timeRemaining}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        expired
-                          ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                      }`}>
+                      <span
+                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          expired
+                            ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                        }`}
+                      >
                         {expired ? "Expired" : "Pending"}
                       </span>
                     </td>

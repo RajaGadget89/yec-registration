@@ -357,7 +357,7 @@ export class EventFactory {
   static createAdminInvitationRevoked(
     invitationId: string,
     email: string,
-    revokedBy: string
+    revokedBy: string,
   ): AdminEvent {
     return {
       id: randomUUID(),

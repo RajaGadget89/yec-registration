@@ -14,9 +14,12 @@ class RateLimiter {
 
   constructor() {
     // Clean up expired entries every 5 minutes
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup();
-    }, 5 * 60 * 1000);
+    this.cleanupInterval = setInterval(
+      () => {
+        this.cleanup();
+      },
+      5 * 60 * 1000,
+    );
   }
 
   /**
@@ -26,7 +29,11 @@ class RateLimiter {
    * @param windowMs - Time window in milliseconds
    * @returns {allowed: boolean, remaining: number, resetTime: number}
    */
-  check(key: string, limit: number, windowMs: number): {
+  check(
+    key: string,
+    limit: number,
+    windowMs: number,
+  ): {
     allowed: boolean;
     remaining: number;
     resetTime: number;
@@ -80,7 +87,10 @@ class RateLimiter {
   /**
    * Get current stats for debugging
    */
-  getStats(): { totalKeys: number; entries: Array<{ key: string; count: number; resetTime: number }> } {
+  getStats(): {
+    totalKeys: number;
+    entries: Array<{ key: string; count: number; resetTime: number }>;
+  } {
     const entries = Array.from(this.limits.entries()).map(([key, entry]) => ({
       key,
       count: entry.count,
@@ -124,7 +134,7 @@ const rateLimiter = new RateLimiter();
 export function checkRateLimit(
   key: string,
   limit: number,
-  windowMs: number
+  windowMs: number,
 ): { allowed: boolean; remaining: number; resetTime: number } {
   // For E2E tests, bypass rate limiting entirely
   if (process.env.E2E_TESTS === "true") {
@@ -134,7 +144,7 @@ export function checkRateLimit(
       resetTime: Date.now() + windowMs,
     };
   }
-  
+
   return rateLimiter.check(key, limit, windowMs);
 }
 
@@ -163,12 +173,14 @@ export function resetRateLimiter() {
  * Rate limit configuration for admin invitation endpoint
  */
 export const ADMIN_INVITE_RATE_LIMITS = {
-  PER_MINUTE: process.env.E2E_TESTS === "true" 
-    ? parseInt(process.env.INVITE_RATE_LIMIT_PER_MIN || '1000', 10)
-    : parseInt(process.env.INVITE_RATE_LIMIT_PER_MIN || '5', 10),
-  PER_DAY: process.env.E2E_TESTS === "true"
-    ? parseInt(process.env.INVITE_RATE_LIMIT_PER_DAY || '10000', 10)
-    : parseInt(process.env.INVITE_RATE_LIMIT_PER_DAY || '20', 10),
+  PER_MINUTE:
+    process.env.E2E_TESTS === "true"
+      ? parseInt(process.env.INVITE_RATE_LIMIT_PER_MIN || "1000", 10)
+      : parseInt(process.env.INVITE_RATE_LIMIT_PER_MIN || "5", 10),
+  PER_DAY:
+    process.env.E2E_TESTS === "true"
+      ? parseInt(process.env.INVITE_RATE_LIMIT_PER_DAY || "10000", 10)
+      : parseInt(process.env.INVITE_RATE_LIMIT_PER_DAY || "20", 10),
   WINDOW_MS: {
     MINUTE: 60 * 1000,
     DAY: 24 * 60 * 60 * 1000,
@@ -177,6 +189,8 @@ export const ADMIN_INVITE_RATE_LIMITS = {
 
 // Debug logging for rate limit configuration
 console.log("[RATE_LIMIT_CONFIG] E2E_TESTS:", process.env.E2E_TESTS);
-console.log("[RATE_LIMIT_CONFIG] PER_MINUTE:", ADMIN_INVITE_RATE_LIMITS.PER_MINUTE);
+console.log(
+  "[RATE_LIMIT_CONFIG] PER_MINUTE:",
+  ADMIN_INVITE_RATE_LIMITS.PER_MINUTE,
+);
 console.log("[RATE_LIMIT_CONFIG] PER_DAY:", ADMIN_INVITE_RATE_LIMITS.PER_DAY);
-

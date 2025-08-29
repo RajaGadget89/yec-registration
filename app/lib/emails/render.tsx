@@ -77,6 +77,8 @@ const emailTemplates = {
  */
 export async function renderEmailTemplate(
   templateName: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  props?: any,
 ): Promise<string> {
   const template = emailTemplates[templateName as keyof typeof emailTemplates];
   if (!template) {

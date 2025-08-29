@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     process.env.TEST_HELPERS_ENABLED === "1" ||
     process.env.E2E_TESTS === "true" ||
     request.headers.get("X-Test-Helpers-Enabled") === "1";
-  
+
   if (!isTestEnv) {
     return NextResponse.json(
       { error: "Test helpers not enabled" },
@@ -55,9 +55,9 @@ export async function POST(request: NextRequest) {
     // Update the registration
     const { data, error } = await supabase
       .from("registrations")
-      .update({ 
+      .update({
         update_reason: update_reason,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq("registration_id", tracking_code)
       .select();
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       message: "Registration updated successfully",
-      data: data[0]
+      data: data[0],
     });
   } catch (error) {
     console.error("Error in update-registration endpoint:", error);
