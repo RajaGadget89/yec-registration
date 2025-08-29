@@ -1,6 +1,10 @@
 import { test, expect } from './fixtures/auth';
 import { getSelectorString } from './utils/selectors';
 import crypto from 'crypto';
+import { config as loadDotenv } from 'dotenv';
+
+// Load environment variables for the test
+loadDotenv({ path: '.env.e2e' });
 
 test.describe('AC2 - Admin Request Update', () => {
   
@@ -413,8 +417,10 @@ test.describe('AC2 - Admin Request Update', () => {
 
 async function waitForUpdateEmail(page: any, to: string, dimension: 'profile'|'payment'|'tcc') {
   const base = process.env.E2E_BASE_URL || 'http://localhost:8080';
-  const secret = process.env.E2E_AUTH_SECRET!;
   const payload = JSON.stringify({ to, dimension, type: 'update_request' });
+  
+  // Calculate HMAC using the environment secret
+  const secret = process.env.E2E_AUTH_SECRET!;
   const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
   const url = new URL('/api/test/outbox/wait', base);
@@ -436,6 +442,8 @@ async function waitForUpdateEmail(page: any, to: string, dimension: 'profile'|'p
       deepLink: null
     };
   }
+  
+
   
   expect(res.status()).toBe(200);
   const json = await res.json();
