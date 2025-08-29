@@ -3,6 +3,8 @@
  * Handles parsing of admin emails from environment variables and checking admin status
  */
 
+import { getRolesForEmail } from "./rbac";
+
 /**
  * Dev cookie name for development-only authentication
  */
@@ -37,7 +39,15 @@ export function isAdmin(email?: string | null): boolean {
     return true;
   }
 
-  return new Set(getAdminEmails()).has(email.toLowerCase());
+  // Check legacy admin emails
+  const legacyAdmins = new Set(getAdminEmails());
+  if (legacyAdmins.has(email.toLowerCase())) {
+    return true;
+  }
+
+  // Check new RBAC system - any user with any admin role is considered an admin
+  const roles = getRolesForEmail(email);
+  return roles.size > 0;
 }
 
 /**
