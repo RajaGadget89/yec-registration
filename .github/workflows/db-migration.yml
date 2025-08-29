@@ -9,6 +9,10 @@ on:
       - '.github/workflows/db-migration.yml'
   pull_request:
     branches: [ main, develop, staging, bugfix/*, fix/*, feature/* ]
+    paths:
+      - 'migrations/**'
+      - 'supabase/migrations/**'
+      - '.github/workflows/db-migration.yml'
   workflow_dispatch:
     inputs:
       skip_tests:
