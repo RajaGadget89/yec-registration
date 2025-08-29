@@ -1,4 +1,7 @@
-import { logAccess as rawLogAccess, logEvent as rawLogEvent } from "./auditClient";
+import {
+  logAccess as rawLogAccess,
+  logEvent as rawLogEvent,
+} from "./auditClient";
 
 type AccessParams = Parameters<typeof rawLogAccess>[0];
 type EventParams = Parameters<typeof rawLogEvent>[0];
@@ -43,5 +46,3 @@ export async function safeLogEvent(p: EventParams): Promise<void> {
     console.error("[audit] logEvent error:", error);
   }
 }
-
-

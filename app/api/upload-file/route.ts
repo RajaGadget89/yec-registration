@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadFileToSupabase } from "../../lib/uploadFileToSupabase";
-import { validateFile, type ValidationDimension } from "../../lib/files/validation";
-import { fileValidationMessage, getLanguageFromHeader } from "../../lib/i18n/file-validation";
+import {
+  validateFile,
+  type ValidationDimension,
+} from "../../lib/files/validation";
+import {
+  fileValidationMessage,
+  getLanguageFromHeader,
+} from "../../lib/i18n/file-validation";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,9 +29,9 @@ export async function POST(request: NextRequest) {
 
     // Map folder to validation dimension
     const folderToDimension: Record<string, ValidationDimension> = {
-      'profile-images': 'profile',
-      'chamber-cards': 'tcc',
-      'payment-slips': 'payment',
+      "profile-images": "profile",
+      "chamber-cards": "tcc",
+      "payment-slips": "payment",
     };
 
     const dimension = folderToDimension[folder];
@@ -49,7 +55,7 @@ export async function POST(request: NextRequest) {
           {
             allowed: validationResult.allowed,
             limitBytes: validationResult.limitBytes,
-          }
+          },
         );
 
         // Return structured error response matching AC6 specification

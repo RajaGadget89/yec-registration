@@ -9,13 +9,13 @@ import { isFeatureEnabled } from "../../../../../../lib/features";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ token: string }> }
+  { params }: { params: Promise<{ token: string }> },
 ) {
   // Check feature flag
   if (!isFeatureEnabled("adminManagement")) {
     return NextResponse.json(
       { error: "Feature not available" },
-      { status: 404 }
+      { status: 404 },
     );
   }
 
@@ -23,17 +23,14 @@ export async function POST(
     try {
       const currentUser = await getCurrentUserFromRequest(req);
       if (!currentUser) {
-        return NextResponse.json(
-          { error: "Unauthorized" },
-          { status: 401 }
-        );
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
       const { token } = await params;
       if (!token) {
         return NextResponse.json(
           { error: "Invitation token is required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -64,7 +61,7 @@ export async function POST(
       if (fetchError || !invitation) {
         return NextResponse.json(
           { error: "Invitation not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -72,22 +69,24 @@ export async function POST(
       if (invitation.status !== "pending") {
         return NextResponse.json(
           { error: "Invitation is already processed and cannot be revoked" },
-          { status: 409 }
+          { status: 409 },
         );
       }
 
       // Revoke the invitation using the database function
-      const { data: revokeResult, error: revokeError } = await supabase
-        .rpc("revoke_admin_invitation", {
+      const { data: revokeResult, error: revokeError } = await supabase.rpc(
+        "revoke_admin_invitation",
+        {
           p_invitation_id: invitation.id,
           p_revoked_by_admin_id: currentUser.id,
-        });
+        },
+      );
 
       if (revokeError || !revokeResult || !revokeResult[0]?.success) {
         console.error("Error revoking invitation:", revokeError);
         return NextResponse.json(
           { error: "Failed to revoke invitation" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -95,7 +94,7 @@ export async function POST(
       const event = EventFactory.createAdminInvitationRevoked(
         invitation.id,
         invitation.email,
-        currentUser.email
+        currentUser.email,
       );
       await EventService.emit(event);
 
@@ -125,12 +124,11 @@ export async function POST(
           status: "revoked",
         },
       });
-
     } catch (error) {
       console.error("Error in revoke invitation endpoint:", error);
       return NextResponse.json(
         { error: "Internal server error" },
-        { status: 500 }
+        { status: 500 },
       );
     }
   });

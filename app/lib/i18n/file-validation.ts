@@ -3,9 +3,9 @@
  * Provides TH/EN error messages for file validation failures
  */
 
-export type ValidationErrorCode = 'INVALID_TYPE' | 'FILE_TOO_LARGE';
+export type ValidationErrorCode = "INVALID_TYPE" | "FILE_TOO_LARGE";
 
-export type Language = 'th' | 'en';
+export type Language = "th" | "en";
 
 export interface ValidationContext {
   allowed?: string[];
@@ -18,18 +18,22 @@ export interface ValidationContext {
  */
 const MESSAGES = {
   INVALID_TYPE: {
-    th: (ctx: ValidationContext) => 
-      `ชนิดไฟล์ไม่ถูกต้อง อนุญาต: ${ctx.allowed?.join(', ') || 'ไม่ระบุ'}`,
-    en: (ctx: ValidationContext) => 
-      `Unsupported file type. Allowed: ${ctx.allowed?.join(', ') || 'not specified'}`,
+    th: (ctx: ValidationContext) =>
+      `ชนิดไฟล์ไม่ถูกต้อง อนุญาต: ${ctx.allowed?.join(", ") || "ไม่ระบุ"}`,
+    en: (ctx: ValidationContext) =>
+      `Unsupported file type. Allowed: ${ctx.allowed?.join(", ") || "not specified"}`,
   },
   FILE_TOO_LARGE: {
     th: (ctx: ValidationContext) => {
-      const limitMB = ctx.limitMB || (ctx.limitBytes ? Math.round(ctx.limitBytes / (1024 * 1024)) : 0);
+      const limitMB =
+        ctx.limitMB ||
+        (ctx.limitBytes ? Math.round(ctx.limitBytes / (1024 * 1024)) : 0);
       return `ไฟล์มีขนาดใหญ่เกินกำหนด สูงสุด ${limitMB} MB`;
     },
     en: (ctx: ValidationContext) => {
-      const limitMB = ctx.limitMB || (ctx.limitBytes ? Math.round(ctx.limitBytes / (1024 * 1024)) : 0);
+      const limitMB =
+        ctx.limitMB ||
+        (ctx.limitBytes ? Math.round(ctx.limitBytes / (1024 * 1024)) : 0);
       return `File is too large. Max ${limitMB} MB.`;
     },
   },
@@ -45,14 +49,14 @@ const MESSAGES = {
 export function fileValidationMessage(
   code: ValidationErrorCode,
   lang: Language,
-  ctx: ValidationContext = {}
+  ctx: ValidationContext = {},
 ): string {
   const messageFn = MESSAGES[code][lang];
   if (!messageFn) {
     // Fallback to English if language not supported
     return MESSAGES[code].en(ctx);
   }
-  
+
   return messageFn(ctx);
 }
 
@@ -61,17 +65,19 @@ export function fileValidationMessage(
  * @param acceptLanguage - Accept-Language header value
  * @returns Language code ('th' or 'en')
  */
-export function getLanguageFromHeader(acceptLanguage?: string | null): Language {
+export function getLanguageFromHeader(
+  acceptLanguage?: string | null,
+): Language {
   if (!acceptLanguage) {
-    return 'en';
+    return "en";
   }
-  
+
   // Check if Thai is preferred
-  if (acceptLanguage.toLowerCase().startsWith('th')) {
-    return 'th';
+  if (acceptLanguage.toLowerCase().startsWith("th")) {
+    return "th";
   }
-  
-  return 'en';
+
+  return "en";
 }
 
 /**
@@ -79,5 +85,5 @@ export function getLanguageFromHeader(acceptLanguage?: string | null): Language 
  * @returns Array of supported language codes
  */
 export function getSupportedLanguages(): Language[] {
-  return ['th', 'en'];
+  return ["th", "en"];
 }

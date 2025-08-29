@@ -80,10 +80,22 @@ export default function AdminManagementDashboard() {
       setInvitations(invitationsData.invitations || []);
 
       // Calculate stats
-      const activeAdmins = adminsData.admins?.filter((admin: AdminUser) => admin.status === "active")?.length || 0;
-      const suspendedAdmins = adminsData.admins?.filter((admin: AdminUser) => admin.status === "suspended")?.length || 0;
-      const pendingInvitations = invitationsData.invitations?.filter((inv: AdminInvitation) => inv.status === "pending")?.length || 0;
-      const acceptedInvitations = invitationsData.invitations?.filter((inv: AdminInvitation) => inv.status === "accepted")?.length || 0;
+      const activeAdmins =
+        adminsData.admins?.filter(
+          (admin: AdminUser) => admin.status === "active",
+        )?.length || 0;
+      const suspendedAdmins =
+        adminsData.admins?.filter(
+          (admin: AdminUser) => admin.status === "suspended",
+        )?.length || 0;
+      const pendingInvitations =
+        invitationsData.invitations?.filter(
+          (inv: AdminInvitation) => inv.status === "pending",
+        )?.length || 0;
+      const acceptedInvitations =
+        invitationsData.invitations?.filter(
+          (inv: AdminInvitation) => inv.status === "accepted",
+        )?.length || 0;
 
       setStats({
         total_admins: adminsData.admins?.length || 0,
@@ -92,7 +104,6 @@ export default function AdminManagementDashboard() {
         pending_invitations: pendingInvitations,
         accepted_invitations: acceptedInvitations,
       });
-
     } catch (err) {
       console.error("Error fetching admin management data:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch data");
@@ -104,19 +115,19 @@ export default function AdminManagementDashboard() {
   const handleInviteSuccess = () => {
     // Refresh data after successful invitation
     fetchData();
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   const handleAdminUpdate = () => {
     // Refresh data after admin update
     fetchData();
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   const handleInvitationRevoke = () => {
     // Refresh data after invitation revocation
     fetchData();
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   if (loading) {
@@ -183,14 +194,28 @@ export default function AdminManagementDashboard() {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                <svg
+                  className="w-5 h-5 text-blue-600 dark:text-blue-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                  />
                 </svg>
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Admins</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.total_admins}</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Total Admins
+              </p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {stats.total_admins}
+              </p>
             </div>
           </div>
         </div>
@@ -199,14 +224,28 @@ export default function AdminManagementDashboard() {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-5 h-5 text-green-600 dark:text-green-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Active Admins</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.active_admins}</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Active Admins
+              </p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {stats.active_admins}
+              </p>
             </div>
           </div>
         </div>
@@ -215,14 +254,28 @@ export default function AdminManagementDashboard() {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-5 h-5 text-yellow-600 dark:text-yellow-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Pending Invitations</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.pending_invitations}</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Pending Invitations
+              </p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {stats.pending_invitations}
+              </p>
             </div>
           </div>
         </div>
@@ -231,14 +284,28 @@ export default function AdminManagementDashboard() {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 bg-red-100 dark:bg-red-900 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+                <svg
+                  className="w-5 h-5 text-red-600 dark:text-red-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
+                  />
                 </svg>
               </div>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Suspended Admins</p>
-              <p className="text-2xl font-semibold text-gray-900 dark:text-white">{stats.suspended_admins}</p>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Suspended Admins
+              </p>
+              <p className="text-2xl font-semibold text-gray-900 dark:text-white">
+                {stats.suspended_admins}
+              </p>
             </div>
           </div>
         </div>
@@ -247,14 +314,11 @@ export default function AdminManagementDashboard() {
       {/* Management Sections */}
       <div className="space-y-6">
         <InviteAdminSection onInviteSuccess={handleInviteSuccess} />
-        <PendingInvitationsSection 
-          invitations={invitations.filter(inv => inv.status === "pending")}
+        <PendingInvitationsSection
+          invitations={invitations.filter((inv) => inv.status === "pending")}
           onRevoke={handleInvitationRevoke}
         />
-        <AdminsSection 
-          admins={admins}
-          onUpdate={handleAdminUpdate}
-        />
+        <AdminsSection admins={admins} onUpdate={handleAdminUpdate} />
         <ActivitySection refreshTrigger={refreshTrigger} />
       </div>
     </div>

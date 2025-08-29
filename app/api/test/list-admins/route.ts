@@ -6,13 +6,16 @@ export const runtime = "nodejs";
 
 export async function GET() {
   // 1. Guard non-test environments
-  if (process.env.E2E_TESTS !== "true" && process.env.NODE_ENV === "production") {
+  if (
+    process.env.E2E_TESTS !== "true" &&
+    process.env.NODE_ENV === "production"
+  ) {
     return NextResponse.json({ ok: false }, { status: 404 });
   }
 
   try {
     console.log("[list-admins] Starting admin list");
-    
+
     // 2. Create admin client with Service Role
     const adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,11 +36,14 @@ export async function GET() {
 
     if (error) {
       console.error("[list-admins] Error querying admin_users:", error);
-      return NextResponse.json({
-        ok: false,
-        error: "admin_users query error",
-        details: error.message,
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "admin_users query error",
+          details: error.message,
+        },
+        { status: 500 },
+      );
     }
 
     console.log("[list-admins] Found admin users:", adminUsers?.length || 0);
@@ -47,7 +53,6 @@ export async function GET() {
       admin_users: adminUsers || [],
       count: adminUsers?.length || 0,
     });
-
   } catch (e: unknown) {
     console.error("[list-admins] unexpected error:", e);
     const errorMessage =

@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
           code: "INCOMPLETE_DIMENSIONS",
           missing: missingDimensions,
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 

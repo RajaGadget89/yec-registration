@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     process.env.TEST_HELPERS_ENABLED === "1" ||
     process.env.E2E_TESTS === "true" ||
     request.headers.get("X-Test-Helpers-Enabled") === "1";
-  
+
   if (!isTestEnv) {
     return NextResponse.json(
       { error: "Test helpers not enabled" },
