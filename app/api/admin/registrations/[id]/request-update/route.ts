@@ -69,11 +69,7 @@ async function handlePOST(
       {
         reg_id: id,
         dimension: dimension,
-<<<<<<< HEAD
-        reviewer_id: user.email,
-=======
         reviewer_id: user.email, // Add the missing reviewer_id parameter
->>>>>>> origin/main
         notes: notes || null,
       },
     );
