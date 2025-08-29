@@ -61,6 +61,7 @@ export class EventFactory {
     adminEmail: string,
     dimension: "payment" | "profile" | "tcc",
     notes?: string,
+    tokenId?: string,
   ): RegistrationEvent {
     return {
       id: randomUUID(),
@@ -70,6 +71,7 @@ export class EventFactory {
         admin_email: adminEmail,
         dimension,
         notes,
+        token_id: tokenId, // Only emit token_id, not the actual token
       },
       timestamp: new Date().toISOString(),
       correlation_id: registration.registration_id,

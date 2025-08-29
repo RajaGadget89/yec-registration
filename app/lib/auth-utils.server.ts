@@ -83,7 +83,10 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     } = await supabase.auth.getSession();
 
     if (sessionError) {
-      console.error("Error getting session:", sessionError);
+      // Only log genuine errors, not "no session" states
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[auth] getCurrentUser(): session error:", sessionError);
+      }
       return null;
     }
 
@@ -165,14 +168,16 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 
     return null;
   } catch (error) {
-    console.error("Error getting current user:", error);
+    // Only log genuine errors in development
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[auth] getCurrentUser(): unexpected error:", error);
+    }
     return null;
   }
 }
 
 /**
- * Gets the current user from request headers (for API routes)
- * @param request - The request object
+ * Gets the current authenticated user from request headers or cookies
  * @returns AuthenticatedUser object or null if not authenticated
  */
 export async function getCurrentUserFromRequest(
@@ -218,42 +223,81 @@ export async function getCurrentUserFromRequest(
 
     // Extract session from request headers
     const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return null;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+
+      // Verify the token and get user
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser(token);
+
+      if (error || !user) {
+        return null;
+      }
+
+      // Get user from admin_users table
+      const { data: adminUser, error: adminError } = await supabase
+        .from("admin_users")
+        .select("*")
+        .eq("id", user.id)
+        .eq("is_active", true)
+        .single();
+
+      if (adminError || !adminUser) {
+        return null;
+      }
+
+      return {
+        id: adminUser.id,
+        email: adminUser.email,
+        role: adminUser.role,
+        created_at: adminUser.created_at,
+        last_login_at: adminUser.last_login_at,
+        is_active: adminUser.is_active,
+      };
     }
 
-    const token = authHeader.substring(7);
+    // E2E test mode fallback: check for admin-email cookie
+    if (process.env.E2E_TEST_MODE === "true") {
+      const cookieHeader = request.headers.get("cookie");
+      if (cookieHeader) {
+        const cookies = Object.fromEntries(
+          cookieHeader.split(";").map((cookie) => {
+            const [name, value] = cookie.trim().split("=");
+            return [name, value];
+          }),
+        );
 
-    // Verify the token and get user
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser(token);
+        const adminEmail = cookies["admin-email"];
+        if (adminEmail) {
+          // URL-decode the email since cookies are automatically encoded
+          const decodedEmail = decodeURIComponent(adminEmail);
 
-    if (error || !user) {
-      return null;
+          // Get user from admin_users table using email
+          const { data: adminUser, error } = await supabase
+            .from("admin_users")
+            .select("*")
+            .eq("email", decodedEmail)
+            .eq("is_active", true)
+            .single();
+
+          if (!error && adminUser) {
+            return {
+              id: adminUser.id,
+              email: adminUser.email,
+              role: adminUser.role,
+              created_at: adminUser.created_at,
+              last_login_at: adminUser.last_login_at,
+              is_active: adminUser.is_active,
+            };
+          }
+        }
+      }
     }
 
-    // Get user from admin_users table
-    const { data: adminUser, error: adminError } = await supabase
-      .from("admin_users")
-      .select("*")
-      .eq("id", user.id)
-      .eq("is_active", true)
-      .single();
-
-    if (adminError || !adminUser) {
-      return null;
-    }
-
-    return {
-      id: adminUser.id,
-      email: adminUser.email,
-      role: adminUser.role,
-      created_at: adminUser.created_at,
-      last_login_at: adminUser.last_login_at,
-      is_active: adminUser.is_active,
-    };
+    return null;
   } catch (error) {
     console.error("Error getting current user from request:", error);
     return null;

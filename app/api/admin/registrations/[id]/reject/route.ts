@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServiceClient } from "../../../../../lib/supabase-server";
+import { maybeServiceClient } from "../../../../../lib/supabase/server";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
 import { isAdmin } from "../../../../../lib/admin-guard";
 import { EventService } from "../../../../../lib/events/eventService";
@@ -16,7 +16,9 @@ export async function POST(
     }
 
     const { id } = params;
-    const supabase = getSupabaseServiceClient();
+
+    // Get appropriate Supabase client (service client if E2E bypass enabled)
+    const supabase = await maybeServiceClient(request);
 
     // Load current registration
     const { data: registration, error: fetchError } = await supabase
