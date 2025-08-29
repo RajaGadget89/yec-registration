@@ -39,10 +39,14 @@ function SearchableProvinceDropdown({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  
+
 
   // Filter provinces based on search term
   const filteredOptions = useMemo(() => {
     if (!field.options) return [];
+
+
 
     if (!searchTerm.trim()) {
       return field.options;
@@ -122,8 +126,8 @@ function SearchableProvinceDropdown({
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   // Reset highlighted index when search term changes
@@ -138,7 +142,9 @@ function SearchableProvinceDropdown({
         type="button"
         id={field.id}
         name={field.id}
-        onClick={() => {
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
           setIsOpen(!isOpen);
           if (!isOpen) {
             setTimeout(() => searchInputRef.current?.focus(), 100);
@@ -174,6 +180,7 @@ function SearchableProvinceDropdown({
       {/* Dropdown Menu */}
       {isOpen && (
         <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-hidden">
+
           {/* Search Input */}
           <div className="p-2 border-b border-gray-100">
             <div className="relative">
@@ -897,14 +904,27 @@ export default function FormField({
         );
 
       case "province":
+        // Temporary: Use simple select for debugging
         return (
-          <SearchableProvinceDropdown
-            field={normalizedField}
-            value={value}
-            onChange={onChange}
-            setIsFocused={setIsFocused}
-            getBorderColor={getBorderColor}
-          />
+          <div className="space-y-1">
+            <select
+              id={normalizedField.id}
+              name={normalizedField.id}
+              value={value || ""}
+              onChange={handleInputChange}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
+            >
+              <option value="">กรุณาเลือก{normalizedField.label}</option>
+              {normalizedField.options?.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {renderValidationMessage()}
+          </div>
         );
 
       default:
