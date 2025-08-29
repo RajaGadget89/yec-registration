@@ -1,0 +1,40 @@
+# E2E Test Environment Configuration
+# Copy this file to .e2e-env and fill in your test values
+# DO NOT commit .e2e-env with real secrets
+
+# Required Feature Flags
+FEATURES_ADMIN_MANAGEMENT=true
+E2E_TESTS=true
+AUDIT_MODE=soft
+
+# DB Target Lock (staging | local)
+E2E_DB_TARGET=staging
+
+# Supabase Configuration (Test/Local DB only - never prod)
+SUPABASE_URL=https://your-test-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_SUPABASE_URL=https://your-test-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_ENV=test
+
+# Application Configuration
+NEXT_PUBLIC_APP_URL=http://localhost:8080
+TEST_TIMEOUT_MS=30000
+
+# Admin Configuration
+ADMIN_EMAILS=raja.gadgets89@gmail.com,test-admin@example.com
+ADMIN_SEED_SECRET=test-seed-secret
+
+# Email Configuration (Stubbed for tests)
+EMAIL_MODE=DRY_RUN
+RESEND_API_KEY=dummy-e2e
+EMAIL_ALLOWLIST=test@example.com
+DISPATCH_DRY_RUN=true
+ENABLE_EMAIL_MOCK=true
+
+# Rate Limiting Configuration
+INVITE_RATE_LIMIT_PER_MIN=5
+INVITE_RATE_LIMIT_PER_DAY=50
+
+# Test Data Configuration
+TEST_DATA_PREFIX=e2e-test

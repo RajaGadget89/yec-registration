@@ -4,6 +4,7 @@ import {
   BatchRegistrationEvent,
   AutoRejectSweepEvent,
   EmailRetryEvent,
+  AdminEvent,
 } from "./types";
 import { Registration } from "../../types/database";
 
@@ -240,6 +241,136 @@ export class EventFactory {
       },
       timestamp: new Date().toISOString(),
       correlation_id: `email_retry_${Date.now()}`,
+    };
+  }
+
+  // Admin Management Event Factory Methods
+
+  /**
+   * Create an admin invitation created event
+   */
+  static createAdminInvitationCreated(
+    invitationId: string,
+    email: string,
+    invitedBy: string,
+  ): AdminEvent {
+    return {
+      id: randomUUID(),
+      type: "admin.invitation.created",
+      payload: {
+        invitation_id: invitationId,
+        email,
+        invited_by: invitedBy,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: invitationId,
+    };
+  }
+
+  /**
+   * Create an admin invitation accepted event
+   */
+  static createAdminInvitationAccepted(
+    invitationId: string,
+    adminId: string,
+  ): AdminEvent {
+    return {
+      id: randomUUID(),
+      type: "admin.invitation.accepted",
+      payload: {
+        invitation_id: invitationId,
+        admin_id: adminId,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: invitationId,
+    };
+  }
+
+  /**
+   * Create an admin role assigned event
+   */
+  static createAdminRoleAssigned(
+    adminId: string,
+    role: "admin" | "super_admin",
+  ): AdminEvent {
+    return {
+      id: randomUUID(),
+      type: "admin.role.assigned",
+      payload: {
+        admin_id: adminId,
+        role,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: adminId,
+    };
+  }
+
+  /**
+   * Create an admin role revoked event
+   */
+  static createAdminRoleRevoked(
+    adminId: string,
+    role: "admin" | "super_admin",
+  ): AdminEvent {
+    return {
+      id: randomUUID(),
+      type: "admin.role.revoked",
+      payload: {
+        admin_id: adminId,
+        role,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: adminId,
+    };
+  }
+
+  /**
+   * Create an admin suspended event
+   */
+  static createAdminSuspended(adminId: string): AdminEvent {
+    return {
+      id: randomUUID(),
+      type: "admin.suspended",
+      payload: {
+        admin_id: adminId,
+        status: "suspended",
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: adminId,
+    };
+  }
+
+  /**
+   * Create an admin activated event
+   */
+  static createAdminActivated(adminId: string): AdminEvent {
+    return {
+      id: randomUUID(),
+      type: "admin.activated",
+      payload: {
+        admin_id: adminId,
+        status: "active",
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: adminId,
+    };
+  }
+
+  static createAdminInvitationRevoked(
+    invitationId: string,
+    email: string,
+    revokedBy: string,
+  ): AdminEvent {
+    return {
+      id: randomUUID(),
+      type: "admin.invitation.revoked",
+      payload: {
+        invitation_id: invitationId,
+        email,
+        invited_by: revokedBy,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: invitationId,
     };
   }
 }
