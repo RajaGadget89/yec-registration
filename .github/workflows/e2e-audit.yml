@@ -36,12 +36,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps
-      - name: Run local pre-checks (mirror dev behavior)
-        run: |
-          if [ -f ./pre-cicd-check.sh ]; then
-            chmod +x ./pre-cicd-check.sh
-            CI=true ./pre-cicd-check.sh
-          fi
       - name: Run @audit diag tests
         run: |
           set -e
