@@ -83,19 +83,19 @@ export async function POST(request: NextRequest) {
     // Update the appropriate review status field, and let the trigger handle the global status
     let reviewStatusField: string;
     let expectedStatus: string;
-    
+
     switch (dimension) {
-      case 'payment':
-        reviewStatusField = 'payment_review_status';
-        expectedStatus = 'waiting_for_update_payment';
+      case "payment":
+        reviewStatusField = "payment_review_status";
+        expectedStatus = "waiting_for_update_payment";
         break;
-      case 'profile':
-        reviewStatusField = 'profile_review_status';
-        expectedStatus = 'waiting_for_update_info';
+      case "profile":
+        reviewStatusField = "profile_review_status";
+        expectedStatus = "waiting_for_update_info";
         break;
-      case 'tcc':
-        reviewStatusField = 'tcc_review_status';
-        expectedStatus = 'waiting_for_update_tcc';
+      case "tcc":
+        reviewStatusField = "tcc_review_status";
+        expectedStatus = "waiting_for_update_tcc";
         break;
       default:
         return NextResponse.json(
@@ -104,24 +104,26 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    console.log(`Updating registration ${registration.id} ${reviewStatusField} to 'needs_update'`);
-    
+    console.log(
+      `Updating registration ${registration.id} ${reviewStatusField} to 'needs_update'`,
+    );
+
     // Update the review status field and let the trigger handle the global status
     const updateData: any = {
-      [reviewStatusField]: 'needs_update',
+      [reviewStatusField]: "needs_update",
       update_reason: dimension, // Set the update reason for the resubmit function
       updated_at: new Date().toISOString(),
     };
-    
+
     // Map dimension to the correct update_reason value expected by the domain function
-    if (dimension === 'profile') {
-      updateData.update_reason = 'profile';
-    } else if (dimension === 'payment') {
-      updateData.update_reason = 'payment';
-    } else if (dimension === 'tcc') {
-      updateData.update_reason = 'tcc';
+    if (dimension === "profile") {
+      updateData.update_reason = "profile";
+    } else if (dimension === "payment") {
+      updateData.update_reason = "payment";
+    } else if (dimension === "tcc") {
+      updateData.update_reason = "tcc";
     }
-    
+
     // Add notes to review_checklist if provided
     if (notes) {
       const currentChecklist = registration.review_checklist || {};
@@ -129,7 +131,7 @@ export async function POST(request: NextRequest) {
         ...currentChecklist,
         [dimension]: {
           ...currentChecklist[dimension],
-          status: 'needs_update',
+          status: "needs_update",
           notes: notes,
         },
       };
@@ -137,9 +139,9 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: result, error: updateError } = await supabase
-      .from('registrations')
+      .from("registrations")
       .update(updateData)
-      .eq('id', registration.id)
+      .eq("id", registration.id)
       .select();
 
     console.log("Update result:", { result, updateError });

@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { 
-  getCurrentUserFromRequest, 
-  hasRoleFromRequest 
+import {
+  getCurrentUserFromRequest,
+  hasRoleFromRequest,
 } from "../../../../lib/auth-utils.server";
 import { getSupabaseServiceClient } from "../../../../lib/supabase-server";
 import { EventFactory } from "../../../../lib/events/eventFactory";
 import { EventService } from "../../../../lib/events/eventService";
 import { logAccess, logEvent } from "../../../../lib/audit/auditClient";
-import { checkRateLimit, ADMIN_INVITE_RATE_LIMITS } from "../../../../lib/rate-limit";
+import {
+  checkRateLimit,
+  ADMIN_INVITE_RATE_LIMITS,
+} from "../../../../lib/rate-limit";
 import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
 import { getBaseUrl } from "../../../../lib/config";
 import { isFeatureEnabled } from "../../../../lib/features";
@@ -17,7 +20,9 @@ import { sendAdminInvitationEmail } from "../../../../lib/emailService";
 // Validation schema for invite request
 const inviteSchema = z.object({
   email: z.string().email("Invalid email address"),
-  roles: z.array(z.enum(["admin", "super_admin"])).min(1, "At least one role is required"),
+  roles: z
+    .array(z.enum(["admin", "super_admin"]))
+    .min(1, "At least one role is required"),
 });
 
 type InviteRequest = z.infer<typeof inviteSchema>;
@@ -28,7 +33,7 @@ const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
 /**
  * POST /api/admin/management/invite
  * Invite a new admin user
- * 
+ *
  * Auth: super_admin only
  * Rate limit: 5 req/min/IP + 20 req/day/account
  */
@@ -44,7 +49,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       console.log("[INVITE_ROUTE] Feature flag disabled");
       return NextResponse.json(
         { error: "Feature not available" },
-        { status: 404 }
+        { status: 404 },
       );
     }
     console.log("[INVITE_ROUTE] Feature flag enabled");
@@ -66,50 +71,61 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       console.log("[INVITE_ROUTE] User does not have super_admin role");
       return NextResponse.json(
         { error: "Insufficient permissions. Super admin access required." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Check if user is in super admin allowlist
-    console.log("[INVITE_ROUTE] Checking allowlist for user:", currentUser.email, "allowlist:", SUPER_ADMIN_ALLOWLIST);
+    console.log(
+      "[INVITE_ROUTE] Checking allowlist for user:",
+      currentUser.email,
+      "allowlist:",
+      SUPER_ADMIN_ALLOWLIST,
+    );
     if (!SUPER_ADMIN_ALLOWLIST.includes(currentUser.email.toLowerCase())) {
       console.log("[INVITE_ROUTE] User not in allowlist:", currentUser.email);
       return NextResponse.json(
         { error: "Access denied. Not in super admin allowlist." },
-        { status: 403 }
+        { status: 403 },
       );
     }
     console.log("[INVITE_ROUTE] User is in allowlist:", currentUser.email);
 
     // Rate limiting (skip for E2E tests)
     if (process.env.E2E_TESTS !== "true") {
-      const clientIP = request.headers.get("x-forwarded-for") || 
-                      request.headers.get("x-real-ip") || 
-                      "unknown";
-      
+      const clientIP =
+        request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") ||
+        "unknown";
+
       // Check per-minute rate limit
       const minuteLimit = checkRateLimit(
         `invite_minute_${clientIP}`,
         ADMIN_INVITE_RATE_LIMITS.PER_MINUTE,
-        ADMIN_INVITE_RATE_LIMITS.WINDOW_MS.MINUTE
+        ADMIN_INVITE_RATE_LIMITS.WINDOW_MS.MINUTE,
       );
 
       if (!minuteLimit.allowed) {
         return NextResponse.json(
-          { 
-            error: "Rate limit exceeded", 
+          {
+            error: "Rate limit exceeded",
             code: "RATE_LIMIT_EXCEEDED",
-            retryAfter: Math.ceil((minuteLimit.resetTime - Date.now()) / 1000)
+            retryAfter: Math.ceil((minuteLimit.resetTime - Date.now()) / 1000),
           },
-          { 
+          {
             status: 429,
             headers: {
-              "Retry-After": Math.ceil((minuteLimit.resetTime - Date.now()) / 1000).toString(),
-              "X-RateLimit-Limit": ADMIN_INVITE_RATE_LIMITS.PER_MINUTE.toString(),
+              "Retry-After": Math.ceil(
+                (minuteLimit.resetTime - Date.now()) / 1000,
+              ).toString(),
+              "X-RateLimit-Limit":
+                ADMIN_INVITE_RATE_LIMITS.PER_MINUTE.toString(),
               "X-RateLimit-Remaining": minuteLimit.remaining.toString(),
-              "X-RateLimit-Reset": new Date(minuteLimit.resetTime).toISOString(),
-            }
-          }
+              "X-RateLimit-Reset": new Date(
+                minuteLimit.resetTime,
+              ).toISOString(),
+            },
+          },
         );
       }
 
@@ -117,25 +133,27 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       const dayLimit = checkRateLimit(
         `invite_day_${currentUser.email}`,
         ADMIN_INVITE_RATE_LIMITS.PER_DAY,
-        ADMIN_INVITE_RATE_LIMITS.WINDOW_MS.DAY
+        ADMIN_INVITE_RATE_LIMITS.WINDOW_MS.DAY,
       );
 
       if (!dayLimit.allowed) {
         return NextResponse.json(
-          { 
-            error: "Daily rate limit exceeded", 
+          {
+            error: "Daily rate limit exceeded",
             code: "DAILY_RATE_LIMIT_EXCEEDED",
-            retryAfter: Math.ceil((dayLimit.resetTime - Date.now()) / 1000)
+            retryAfter: Math.ceil((dayLimit.resetTime - Date.now()) / 1000),
           },
-          { 
+          {
             status: 429,
             headers: {
-              "Retry-After": Math.ceil((dayLimit.resetTime - Date.now()) / 1000).toString(),
+              "Retry-After": Math.ceil(
+                (dayLimit.resetTime - Date.now()) / 1000,
+              ).toString(),
               "X-RateLimit-Limit": ADMIN_INVITE_RATE_LIMITS.PER_DAY.toString(),
               "X-RateLimit-Remaining": dayLimit.remaining.toString(),
               "X-RateLimit-Reset": new Date(dayLimit.resetTime).toISOString(),
-            }
-          }
+            },
+          },
         );
       }
     }
@@ -150,31 +168,40 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       console.log("[INVITE_ROUTE] Error parsing JSON:", error);
       return NextResponse.json(
         { error: "Invalid JSON in request body" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-        console.log("[INVITE_ROUTE] Validating request body");
+    console.log("[INVITE_ROUTE] Validating request body");
     const validationResult = inviteSchema.safeParse(body);
     console.log("[INVITE_ROUTE] Validation result:", validationResult);
     if (!validationResult.success) {
-      console.log("[INVITE_ROUTE] Validation failed:", validationResult.error.errors);
+      console.log(
+        "[INVITE_ROUTE] Validation failed:",
+        validationResult.error.errors,
+      );
       return NextResponse.json(
-        { 
+        {
           error: "Validation failed",
-          details: validationResult.error.errors
+          details: validationResult.error.errors,
         },
-        { status: 422 }
+        { status: 422 },
       );
     }
 
     const { email, roles } = validationResult.data;
-    console.log("[INVITE_ROUTE] Validated data - email:", email, "roles:", roles);
+    console.log(
+      "[INVITE_ROUTE] Validated data - email:",
+      email,
+      "roles:",
+      roles,
+    );
 
     // Get client IP for logging
-    const clientIP = request.headers.get("x-forwarded-for") || 
-                    request.headers.get("x-real-ip") || 
-                    "unknown";
+    const clientIP =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
 
     // Log access
     console.log("[INVITE_ROUTE] Logging access attempt");
@@ -188,7 +215,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         src_ip: clientIP,
         user_agent: request.headers.get("user-agent") || undefined,
         latency_ms: Date.now() - startTime,
-        meta: { email, roles, inviter: currentUser.email }
+        meta: { email, roles, inviter: currentUser.email },
       });
       console.log("[INVITE_ROUTE] Access log created successfully");
     } catch (error) {
@@ -199,45 +226,54 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
     const supabase = getSupabaseServiceClient();
 
     // Check for existing pending invitation for this email
-    console.log("[INVITE_ROUTE] Checking for existing invitation for email:", email);
+    console.log(
+      "[INVITE_ROUTE] Checking for existing invitation for email:",
+      email,
+    );
     const { data: existingInvitation, error: checkError } = await supabase
       .from("admin_invitations")
       .select("id, status, expires_at")
       .eq("email", email.toLowerCase())
       .eq("status", "pending")
       .single();
-    console.log("[INVITE_ROUTE] Existing invitation check result:", { existingInvitation, checkError });
+    console.log("[INVITE_ROUTE] Existing invitation check result:", {
+      existingInvitation,
+      checkError,
+    });
 
     if (checkError && checkError.code !== "PGRST116") {
       // PGRST116 is "not found", which is expected
       console.error("Error checking existing invitation:", checkError);
       return NextResponse.json(
         { error: "Failed to check existing invitations" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    if (existingInvitation && new Date(existingInvitation.expires_at) > new Date()) {
+    if (
+      existingInvitation &&
+      new Date(existingInvitation.expires_at) > new Date()
+    ) {
       return NextResponse.json(
-        { 
+        {
           error: "Invitation already exists for this email",
           code: "INVITE_EXISTS",
-          invitation_id: existingInvitation.id
+          invitation_id: existingInvitation.id,
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
     // Generate invitation token using database function
     const { data: tokenData, error: tokenError } = await supabase.rpc(
-      "generate_admin_invitation_token"
+      "generate_admin_invitation_token",
     );
 
     if (tokenError || !tokenData) {
       console.error("Error generating invitation token:", tokenError);
       return NextResponse.json(
         { error: "Failed to generate invitation token" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -253,7 +289,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         expires_at: expiresAt,
         invited_by_admin_id: currentUser.id,
         status: "pending",
-        metadata: { roles }
+        metadata: { roles },
       })
       .select()
       .single();
@@ -262,7 +298,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       console.error("Error creating invitation:", createError);
       return NextResponse.json(
         { error: "Failed to create invitation" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -288,7 +324,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
     const event = EventFactory.createAdminInvitationCreated(
       invitation.id,
       email,
-      currentUser.email
+      currentUser.email,
     );
     await EventService.emit(event);
 
@@ -303,12 +339,12 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         actor_role: "admin",
         result: "success",
         correlation_id: requestId,
-        meta: { 
-          email, 
-          roles, 
+        meta: {
+          email,
+          roles,
           expires_at: expiresAt,
-          inviter: currentUser.email 
-        }
+          inviter: currentUser.email,
+        },
       });
       console.log("[INVITE_ROUTE] Event log created successfully");
     } catch (error) {
@@ -327,12 +363,12 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         src_ip: clientIP,
         user_agent: request.headers.get("user-agent") || undefined,
         latency_ms: Date.now() - startTime,
-        meta: { 
+        meta: {
           invitation_id: invitation.id,
-          email, 
-          roles, 
-          inviter: currentUser.email 
-        }
+          email,
+          roles,
+          inviter: currentUser.email,
+        },
       });
       console.log("[INVITE_ROUTE] Success access log created successfully");
     } catch (error) {
@@ -344,16 +380,15 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       id: invitation.id,
       email: invitation.email,
       expires_at: invitation.expires_at,
-      message: "Invitation created successfully"
+      message: "Invitation created successfully",
     };
 
     // Include token for E2E tests only
-    if (process.env.E2E_TESTS === 'true') {
+    if (process.env.E2E_TESTS === "true") {
       responseData.token = tokenData;
     }
 
     return NextResponse.json(responseData, { status: 201 });
-
   } catch (error) {
     console.error("Admin invitation error:", error);
 
@@ -367,14 +402,14 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       src_ip: request.headers.get("x-forwarded-for") || "unknown",
       user_agent: request.headers.get("user-agent") || undefined,
       latency_ms: Date.now() - startTime,
-      meta: { 
-        error: error instanceof Error ? error.message : "Unknown error" 
-      }
+      meta: {
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     });
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

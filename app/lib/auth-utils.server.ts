@@ -182,7 +182,10 @@ export async function getCurrentUserFromRequest(
     const supabase = getSupabaseClient();
 
     // Debug: log all headers
-    console.log("Request headers:", Object.fromEntries(request.headers.entries()));
+    console.log(
+      "Request headers:",
+      Object.fromEntries(request.headers.entries()),
+    );
 
     // Check for admin-email header first (for testing)
     const adminEmail = request.headers.get("admin-email");
@@ -280,8 +283,10 @@ export async function isAuthenticatedSuperAdmin(): Promise<boolean> {
  * @param request - The request object
  * @returns true if user has super_admin role, false otherwise
  */
-export async function hasSuperAdminRoleFromRequest(request: Request): Promise<boolean> {
-  return hasRoleFromRequest(request, 'super_admin');
+export async function hasSuperAdminRoleFromRequest(
+  request: Request,
+): Promise<boolean> {
+  return hasRoleFromRequest(request, "super_admin");
 }
 
 /**
@@ -304,7 +309,7 @@ export async function hasRole(
   console.log("[HAS_ROLE] Checking role:", requiredRole);
   const user = await getCurrentUser();
   console.log("[HAS_ROLE] User:", user);
-  
+
   if (!user || !user.is_active) {
     console.log("[HAS_ROLE] User not found or not active");
     return false;
@@ -335,7 +340,7 @@ export async function hasRoleFromRequest(
   console.log("[HAS_ROLE_FROM_REQUEST] Checking role:", requiredRole);
   const user = await getCurrentUserFromRequest(request);
   console.log("[HAS_ROLE_FROM_REQUEST] User:", user);
-  
+
   if (!user || !user.is_active) {
     console.log("[HAS_ROLE_FROM_REQUEST] User not found or not active");
     return false;

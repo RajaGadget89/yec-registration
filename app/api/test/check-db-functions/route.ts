@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     process.env.TEST_HELPERS_ENABLED === "1" ||
     process.env.E2E_TESTS === "true" ||
     request.headers.get("X-Test-Helpers-Enabled") === "1";
-  
+
   if (!isTestEnv) {
     return NextResponse.json(
       { error: "Test helpers not enabled" },
@@ -51,15 +51,12 @@ export async function GET(request: NextRequest) {
     // Check if generate_secure_deep_link_token function exists
     let generateFunctionExists = false;
     try {
-      const { data: generateTest } = await supabase.rpc(
-        "generate_secure_deep_link_token",
-        {
-          reg_id: "00000000-0000-0000-0000-000000000000",
-          dimension: "profile",
-          admin_email: "test@example.com",
-          ttl_seconds: 3600,
-        },
-      );
+      await supabase.rpc("generate_secure_deep_link_token", {
+        reg_id: "00000000-0000-0000-0000-000000000000",
+        dimension: "profile",
+        admin_email: "test@example.com",
+        ttl_seconds: 3600,
+      });
       // If we get here, the function exists (even if it fails due to invalid UUID)
       generateFunctionExists = true;
     } catch {
@@ -70,16 +67,13 @@ export async function GET(request: NextRequest) {
     // Check if validate_and_consume_deep_link_token function exists
     let validateFunctionExists = false;
     try {
-      const { data: validateTest } = await supabase.rpc(
-        "validate_and_consume_deep_link_token",
-        {
-          token: "test",
-          reg_id: "00000000-0000-0000-0000-000000000000",
-          user_email: null,
-          ip_address: null,
-          user_agent: null,
-        },
-      );
+      await supabase.rpc("validate_and_consume_deep_link_token", {
+        token: "test",
+        reg_id: "00000000-0000-0000-0000-000000000000",
+        user_email: null,
+        ip_address: null,
+        user_agent: null,
+      });
       // If we get here, the function exists (even if it fails due to invalid token)
       validateFunctionExists = true;
     } catch {
@@ -90,13 +84,10 @@ export async function GET(request: NextRequest) {
     // Check if fn_user_resubmit function exists
     let resubmitFunctionExists = false;
     try {
-      const { data: resubmitTest } = await supabase.rpc(
-        "fn_user_resubmit",
-        {
-          reg_id: "00000000-0000-0000-0000-000000000000",
-          payload: {},
-        },
-      );
+      await supabase.rpc("fn_user_resubmit", {
+        reg_id: "00000000-0000-0000-0000-000000000000",
+        payload: {},
+      });
       // If we get here, the function exists (even if it fails due to invalid UUID)
       resubmitFunctionExists = true;
     } catch {
@@ -105,7 +96,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      deep_link_tokens_table: tokensError ? { exists: false, error: tokensError.message } : { exists: true },
+      deep_link_tokens_table: tokensError
+        ? { exists: false, error: tokensError.message }
+        : { exists: true },
       generate_secure_deep_link_token_function: generateFunctionExists,
       validate_and_consume_deep_link_token_function: validateFunctionExists,
       fn_user_resubmit_function: resubmitFunctionExists,

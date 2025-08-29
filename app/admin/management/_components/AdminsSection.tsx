@@ -18,12 +18,18 @@ interface AdminsSectionProps {
   onUpdate: () => void;
 }
 
-export default function AdminsSection({ admins, onUpdate }: AdminsSectionProps) {
+export default function AdminsSection({
+  admins,
+  onUpdate,
+}: AdminsSectionProps) {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const handleUpdateAdmin = async (adminId: string, updates: { roles?: string[], status?: string }) => {
+  const handleUpdateAdmin = async (
+    adminId: string,
+    updates: { roles?: string[]; status?: string },
+  ) => {
     setUpdatingId(adminId);
     setError(null);
     setSuccess(null);
@@ -48,7 +54,6 @@ export default function AdminsSection({ admins, onUpdate }: AdminsSectionProps) 
 
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
-
     } catch (err) {
       console.error("Error updating admin:", err);
       setError(err instanceof Error ? err.message : "Failed to update admin");
@@ -140,7 +145,9 @@ export default function AdminsSection({ admins, onUpdate }: AdminsSectionProps) 
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm text-green-800 dark:text-green-200">{success}</p>
+              <p className="text-sm text-green-800 dark:text-green-200">
+                {success}
+              </p>
             </div>
           </div>
         </div>
@@ -202,18 +209,24 @@ export default function AdminsSection({ admins, onUpdate }: AdminsSectionProps) 
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleBadgeColor(admin.role)}`}>
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleBadgeColor(admin.role)}`}
+                    >
                       {admin.role === "super_admin" ? "Super Admin" : "Admin"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(admin.status)}`}>
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(admin.status)}`}
+                    >
                       {admin.status === "active" ? "Active" : "Suspended"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-500 dark:text-gray-400">
-                      {admin.last_login_at ? formatDate(admin.last_login_at) : "Never"}
+                      {admin.last_login_at
+                        ? formatDate(admin.last_login_at)
+                        : "Never"}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -225,9 +238,13 @@ export default function AdminsSection({ admins, onUpdate }: AdminsSectionProps) 
                     <div className="flex items-center justify-end space-x-2">
                       {/* Role Toggle */}
                       <button
-                        onClick={() => handleUpdateAdmin(admin.id, {
-                          roles: [admin.role === "admin" ? "super_admin" : "admin"]
-                        })}
+                        onClick={() =>
+                          handleUpdateAdmin(admin.id, {
+                            roles: [
+                              admin.role === "admin" ? "super_admin" : "admin",
+                            ],
+                          })
+                        }
                         disabled={updatingId === admin.id}
                         className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:cursor-not-allowed"
                       >
@@ -262,9 +279,14 @@ export default function AdminsSection({ admins, onUpdate }: AdminsSectionProps) 
 
                       {/* Status Toggle */}
                       <button
-                        onClick={() => handleUpdateAdmin(admin.id, {
-                          status: admin.status === "active" ? "suspended" : "active"
-                        })}
+                        onClick={() =>
+                          handleUpdateAdmin(admin.id, {
+                            status:
+                              admin.status === "active"
+                                ? "suspended"
+                                : "active",
+                          })
+                        }
                         disabled={updatingId === admin.id}
                         className={`${
                           admin.status === "active"
@@ -285,4 +307,3 @@ export default function AdminsSection({ admins, onUpdate }: AdminsSectionProps) 
     </div>
   );
 }
-

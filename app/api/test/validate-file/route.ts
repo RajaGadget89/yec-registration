@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateFile, type ValidationDimension } from "../../../lib/files/validation";
-import { fileValidationMessage, getLanguageFromHeader } from "../../../lib/i18n/file-validation";
+import {
+  validateFile,
+  type ValidationDimension,
+} from "../../../lib/files/validation";
+import {
+  fileValidationMessage,
+  getLanguageFromHeader,
+} from "../../../lib/i18n/file-validation";
 
 /**
  * Gated E2E helper endpoint for file validation testing
@@ -13,7 +19,7 @@ export async function POST(request: NextRequest) {
     process.env.NODE_ENV === "test" ||
     process.env.TEST_HELPERS_ENABLED === "1" ||
     process.env.E2E_TESTS === "true";
-  
+
   if (!isTestEnv) {
     return NextResponse.json(
       { error: "Test helpers not enabled" },
@@ -24,11 +30,11 @@ export async function POST(request: NextRequest) {
   // CRON_SECRET authentication
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
-  
+
   if (!cronSecret || !authHeader || !authHeader.startsWith("Bearer ")) {
     return NextResponse.json({ error: "Invalid CRON_SECRET" }, { status: 401 });
   }
-  
+
   const token = authHeader.substring(7);
   if (token !== cronSecret) {
     return NextResponse.json({ error: "Invalid CRON_SECRET" }, { status: 401 });
@@ -39,22 +45,22 @@ export async function POST(request: NextRequest) {
     const { dimension, mime, sizeBytes } = body;
 
     // Validate required fields
-    if (!dimension || !mime || typeof sizeBytes !== 'number') {
+    if (!dimension || !mime || typeof sizeBytes !== "number") {
       return NextResponse.json(
-        { 
+        {
           error: "Missing required fields: dimension, mime, sizeBytes",
-          code: "MISSING_FIELDS"
+          code: "MISSING_FIELDS",
         },
         { status: 400 },
       );
     }
 
     // Validate dimension
-    if (!['payment', 'profile', 'tcc'].includes(dimension)) {
+    if (!["payment", "profile", "tcc"].includes(dimension)) {
       return NextResponse.json(
-        { 
+        {
           error: "Invalid dimension. Must be 'payment', 'profile', or 'tcc'",
-          code: "INVALID_DIMENSION"
+          code: "INVALID_DIMENSION",
         },
         { status: 400 },
       );
@@ -76,14 +82,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate localized error message
-    const message = fileValidationMessage(
-      validationResult.code!,
-      language,
-      {
-        allowed: validationResult.allowed,
-        limitBytes: validationResult.limitBytes,
-      }
-    );
+    const message = fileValidationMessage(validationResult.code!, language, {
+      allowed: validationResult.allowed,
+      limitBytes: validationResult.limitBytes,
+    });
 
     // Return structured error response matching production endpoints
     return NextResponse.json(

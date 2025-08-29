@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     process.env.TEST_HELPERS_ENABLED === "1" ||
     process.env.E2E_TESTS === "true" ||
     request.headers.get("X-Test-Helpers-Enabled") === "1";
-  
+
   if (!isTestEnv) {
     return NextResponse.json(
       { error: "Test helpers not enabled" },
@@ -67,16 +67,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[SIMPLE-UPDATE] Found registration: ${registration.id} with status: ${registration.status}`);
+    console.log(
+      `[SIMPLE-UPDATE] Found registration: ${registration.id} with status: ${registration.status}`,
+    );
 
     // Update the status
     const { data: updateData, error: updateError } = await supabase
-      .from('registrations')
+      .from("registrations")
       .update({
         status: newStatus,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', registration.id)
+      .eq("id", registration.id)
       .select();
 
     console.log(`[SIMPLE-UPDATE] Update result:`, { updateData, updateError });
@@ -84,7 +86,10 @@ export async function POST(request: NextRequest) {
     if (updateError) {
       console.error("Failed to update registration:", updateError);
       return NextResponse.json(
-        { error: "Failed to update registration", details: updateError.message },
+        {
+          error: "Failed to update registration",
+          details: updateError.message,
+        },
         { status: 500 },
       );
     }

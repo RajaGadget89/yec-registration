@@ -6,7 +6,9 @@ import AdminManagementDashboard from "./_components/AdminManagementDashboard";
 
 export default function AdminManagementPage() {
   const router = useRouter();
-  const [isFeatureEnabled, setIsFeatureEnabled] = useState<boolean | null>(null);
+  const [isFeatureEnabled, setIsFeatureEnabled] = useState<boolean | null>(
+    null,
+  );
 
   useEffect(() => {
     // Check feature flag on client side

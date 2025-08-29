@@ -133,7 +133,7 @@ export interface EmailRetryEvent extends DomainEvent<EmailRetryEventPayload> {
  * Admin management event
  */
 export interface AdminEvent extends DomainEvent<AdminEventPayload> {
-  type: 
+  type:
     | "admin.invitation.created"
     | "admin.invitation.accepted"
     | "admin.invitation.revoked"

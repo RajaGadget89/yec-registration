@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json();
-  return NextResponse.json({ 
-    message: "POST test endpoint working", 
-    received: body 
+  return NextResponse.json({
+    message: "POST test endpoint working",
+    received: body,
   });
 }

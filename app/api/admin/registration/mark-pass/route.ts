@@ -12,7 +12,7 @@ async function handlePOST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { error: "Unauthorized", code: "UNAUTHORIZED" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -21,7 +21,7 @@ async function handlePOST(request: NextRequest) {
     if (!hasAdminRole) {
       return NextResponse.json(
         { error: "Forbidden", code: "FORBIDDEN" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -32,15 +32,18 @@ async function handlePOST(request: NextRequest) {
     if (!registrationId) {
       return NextResponse.json(
         { error: "registrationId is required", code: "VALIDATION_ERROR" },
-        { status: 422 }
+        { status: 422 },
       );
     }
 
     // Validate dimension
     if (!dimension || !["payment", "profile", "tcc"].includes(dimension)) {
       return NextResponse.json(
-        { error: "Invalid dimension. Must be payment, profile, or tcc", code: "VALIDATION_ERROR" },
-        { status: 422 }
+        {
+          error: "Invalid dimension. Must be payment, profile, or tcc",
+          code: "VALIDATION_ERROR",
+        },
+        { status: 422 },
       );
     }
 
@@ -57,7 +60,7 @@ async function handlePOST(request: NextRequest) {
       console.error("Error fetching registration:", fetchError);
       return NextResponse.json(
         { error: "Registration not found", code: "NOT_FOUND" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -97,7 +100,7 @@ async function handlePOST(request: NextRequest) {
       console.error("Error updating registration:", updateError);
       return NextResponse.json(
         { error: "Failed to mark dimension as passed", code: "UPDATE_FAILED" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -121,7 +124,7 @@ async function handlePOST(request: NextRequest) {
     console.error("Unexpected error in mark pass action:", error);
     return NextResponse.json(
       { error: "Internal server error", code: "INTERNAL_ERROR" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

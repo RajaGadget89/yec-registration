@@ -16,7 +16,9 @@ interface ActivitySectionProps {
   refreshTrigger: number;
 }
 
-export default function ActivitySection({ refreshTrigger }: ActivitySectionProps) {
+export default function ActivitySection({
+  refreshTrigger,
+}: ActivitySectionProps) {
   const [activities, setActivities] = useState<AdminActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +29,7 @@ export default function ActivitySection({ refreshTrigger }: ActivitySectionProps
       setError(null);
 
       const response = await fetch("/api/admin/management/activity");
-      
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || "Failed to fetch activities");
@@ -35,10 +37,11 @@ export default function ActivitySection({ refreshTrigger }: ActivitySectionProps
 
       const data = await response.json();
       setActivities(data.activities || []);
-
     } catch (err) {
       console.error("Error fetching activities:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch activities");
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch activities",
+      );
     } finally {
       setLoading(false);
     }
@@ -62,44 +65,114 @@ export default function ActivitySection({ refreshTrigger }: ActivitySectionProps
     switch (action.toLowerCase()) {
       case "admin_invitation_created":
         return (
-          <svg className="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg
+            className="h-5 w-5 text-blue-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
         );
       case "admin_invitation_accepted":
         return (
-          <svg className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          <svg
+            className="h-5 w-5 text-green-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
           </svg>
         );
       case "admin_role_assigned":
         return (
-          <svg className="h-5 w-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          <svg
+            className="h-5 w-5 text-purple-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
           </svg>
         );
       case "admin_role_revoked":
         return (
-          <svg className="h-5 w-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
+          <svg
+            className="h-5 w-5 text-orange-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
+            />
           </svg>
         );
       case "admin_suspended":
         return (
-          <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          <svg
+            className="h-5 w-5 text-red-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+            />
           </svg>
         );
       case "admin_activated":
         return (
-          <svg className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="h-5 w-5 text-green-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
         );
       default:
         return (
-          <svg className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            className="h-5 w-5 text-gray-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
         );
     }
@@ -139,7 +212,9 @@ export default function ActivitySection({ refreshTrigger }: ActivitySectionProps
       case "admin_activated":
         return `Activated ${details.email || "admin"} account`;
       default:
-        return action.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+        return action
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase());
     }
   };
 
@@ -175,7 +250,9 @@ export default function ActivitySection({ refreshTrigger }: ActivitySectionProps
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             ></path>
           </svg>
-          <span className="ml-2 text-gray-600 dark:text-gray-400">Loading activities...</span>
+          <span className="ml-2 text-gray-600 dark:text-gray-400">
+            Loading activities...
+          </span>
         </div>
       </div>
     );
@@ -263,18 +340,19 @@ export default function ActivitySection({ refreshTrigger }: ActivitySectionProps
                       <span>IP: {activity.ip_address}</span>
                     )}
                   </div>
-                  {activity.details && Object.keys(activity.details).length > 0 && (
-                    <div className="mt-2">
-                      <details className="text-xs">
-                        <summary className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
-                          View details
-                        </summary>
-                        <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-700 rounded text-xs overflow-x-auto">
-                          {JSON.stringify(activity.details, null, 2)}
-                        </pre>
-                      </details>
-                    </div>
-                  )}
+                  {activity.details &&
+                    Object.keys(activity.details).length > 0 && (
+                      <div className="mt-2">
+                        <details className="text-xs">
+                          <summary className="cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+                            View details
+                          </summary>
+                          <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-700 rounded text-xs overflow-x-auto">
+                            {JSON.stringify(activity.details, null, 2)}
+                          </pre>
+                        </details>
+                      </div>
+                    )}
                 </div>
               </div>
             </div>
@@ -295,4 +373,3 @@ export default function ActivitySection({ refreshTrigger }: ActivitySectionProps
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 /**
  * Feature flags system for controlling feature availability
  * Features can be enabled/disabled based on environment and configuration
- * 
+ *
  * DEFAULT BEHAVIOR:
  * - TEST_HELPERS_ENABLED: OFF by default (must be explicitly set to '1')
  * - FEATURES_ADMIN_MANAGEMENT: OFF in production, ON in development/staging by default
@@ -22,7 +22,8 @@ export function getFeatureFlags(): FeatureFlags {
   // Explicit flag override
   if (adminManagementFlag !== undefined) {
     return {
-      adminManagement: adminManagementFlag === "true" || adminManagementFlag === "1",
+      adminManagement:
+        adminManagementFlag === "true" || adminManagementFlag === "1",
     };
   }
 
@@ -52,10 +53,9 @@ export function isFeatureEnabled(feature: keyof FeatureFlags): boolean {
  */
 export function getClientFeatureFlags(): Partial<FeatureFlags> {
   const flags = getFeatureFlags();
-  
+
   // Only expose features that are safe for client-side
   return {
     adminManagement: flags.adminManagement,
   };
 }
-

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { 
-  getCurrentUserFromRequest, 
-  hasRoleFromRequest 
+import {
+  getCurrentUserFromRequest,
+  hasRoleFromRequest,
 } from "../../../../lib/auth-utils.server";
 import { getSupabaseServiceClient } from "../../../../lib/supabase-server";
 import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
@@ -13,7 +13,7 @@ const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
 /**
  * GET /api/admin/management/admins
  * List all admin users with pagination and filtering
- * 
+ *
  * Auth: super_admin only
  * Query params: q (search), status, role, page, pageSize
  */
@@ -23,7 +23,7 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
     if (!isFeatureEnabled("adminManagement")) {
       return NextResponse.json(
         { error: "Feature not available" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -37,7 +37,7 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
     if (!(await hasRoleFromRequest(request, "super_admin"))) {
       return NextResponse.json(
         { error: "Insufficient permissions. Super admin access required." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -45,7 +45,7 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
     if (!SUPER_ADMIN_ALLOWLIST.includes(currentUser.email.toLowerCase())) {
       return NextResponse.json(
         { error: "Access denied. Not in super admin allowlist." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -55,22 +55,23 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
     const status = url.searchParams.get("status");
     const role = url.searchParams.get("role");
     const page = parseInt(url.searchParams.get("page") || "1");
-    const pageSize = Math.min(parseInt(url.searchParams.get("pageSize") || "20"), 100);
+    const pageSize = Math.min(
+      parseInt(url.searchParams.get("pageSize") || "20"),
+      100,
+    );
 
     // Validate pagination parameters
     if (page < 1 || pageSize < 1 || pageSize > 100) {
       return NextResponse.json(
         { error: "Invalid pagination parameters" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const supabase = getSupabaseServiceClient();
 
     // Build query
-    let query = supabase
-      .from("admin_users")
-      .select("*", { count: "exact" });
+    let query = supabase.from("admin_users").select("*", { count: "exact" });
 
     // Apply filters
     if (search) {
@@ -98,7 +99,7 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
       console.error("Error fetching admin users:", error);
       return NextResponse.json(
         { error: "Failed to fetch admin users" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -108,7 +109,7 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
     const hasPrevPage = page > 1;
 
     return NextResponse.json({
-      admins: admins.map(admin => ({
+      admins: admins.map((admin) => ({
         id: admin.id,
         email: admin.email,
         role: admin.role,
@@ -130,14 +131,13 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
         search,
         status,
         role,
-      }
+      },
     });
-
   } catch (error) {
     console.error("List admins error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

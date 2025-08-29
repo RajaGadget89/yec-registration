@@ -18,11 +18,7 @@ export const BaseLayoutWrapper: React.FC<BaseLayoutWrapperProps> = ({
 }) => {
   // For email rendering, we'll use a simple div wrapper
   // The actual HTML structure will be handled by the email renderer
-  return (
-    <div className="email-layout-wrapper">
-      {children}
-    </div>
-  );
+  return <div className="email-layout-wrapper">{children}</div>;
 };
 
 // Export the original BaseLayout for backward compatibility

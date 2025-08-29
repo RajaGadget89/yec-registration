@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { BarChart3, Home, Shield, Users } from "lucide-react";
 
 export default function AdminNavigation() {
-  const [featureFlags, setFeatureFlags] = useState<{ adminManagement?: boolean }>({});
+  const [featureFlags, setFeatureFlags] = useState<{
+    adminManagement?: boolean;
+  }>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -87,7 +89,7 @@ export default function AdminNavigation() {
         </div>
         <span className="font-semibold">Audit</span>
       </Link>
-      
+
       {/* Admin Management Link - Only show if feature is enabled */}
       {featureFlags.adminManagement && (
         <>
@@ -103,7 +105,7 @@ export default function AdminNavigation() {
           </Link>
         </>
       )}
-      
+
       <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
       <span className="text-gray-500 dark:text-gray-400 font-medium">
         Dashboard
@@ -111,4 +113,3 @@ export default function AdminNavigation() {
     </div>
   );
 }
-

@@ -7,7 +7,11 @@ interface AdminInviteEmailProps {
   supportEmail?: string;
 }
 
-export function AdminInviteEmail({ acceptUrl, expiresAt, supportEmail }: AdminInviteEmailProps) {
+export function AdminInviteEmail({
+  acceptUrl,
+  expiresAt,
+  supportEmail,
+}: AdminInviteEmailProps) {
   const formatExpiryDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString("en-US", {
@@ -23,27 +27,31 @@ export function AdminInviteEmail({ acceptUrl, expiresAt, supportEmail }: AdminIn
   return (
     <BaseLayout>
       <div style={{ textAlign: "center", padding: "40px 20px" }}>
-        <h1 style={{ 
-          color: "#1f2937", 
-          fontSize: "28px", 
-          fontWeight: "bold", 
-          marginBottom: "20px" 
-        }}>
+        <h1
+          style={{
+            color: "#1f2937",
+            fontSize: "28px",
+            fontWeight: "bold",
+            marginBottom: "20px",
+          }}
+        >
           You are invited to Admin Console
         </h1>
-        
-        <p style={{ 
-          color: "#6b7280", 
-          fontSize: "16px", 
-          lineHeight: "1.6", 
-          marginBottom: "30px" 
-        }}>
-          You have been invited to join the YEC Registration Admin Console. 
-          This invitation will expire in <strong>48 hours</strong>.
+
+        <p
+          style={{
+            color: "#6b7280",
+            fontSize: "16px",
+            lineHeight: "1.6",
+            marginBottom: "30px",
+          }}
+        >
+          You have been invited to join the YEC Registration Admin Console. This
+          invitation will expire in <strong>48 hours</strong>.
         </p>
 
         <div style={{ marginBottom: "40px" }}>
-          <a 
+          <a
             href={acceptUrl}
             style={{
               display: "inline-block",
@@ -53,55 +61,65 @@ export function AdminInviteEmail({ acceptUrl, expiresAt, supportEmail }: AdminIn
               textDecoration: "none",
               borderRadius: "6px",
               fontWeight: "600",
-              fontSize: "16px"
+              fontSize: "16px",
             }}
           >
             Accept Invitation
           </a>
         </div>
 
-        <div style={{ 
-          backgroundColor: "#f9fafb", 
-          padding: "20px", 
-          borderRadius: "8px", 
-          marginBottom: "30px" 
-        }}>
-          <h3 style={{ 
-            color: "#374151", 
-            fontSize: "18px", 
-            fontWeight: "600", 
-            marginBottom: "15px" 
-          }}>
+        <div
+          style={{
+            backgroundColor: "#f9fafb",
+            padding: "20px",
+            borderRadius: "8px",
+            marginBottom: "30px",
+          }}
+        >
+          <h3
+            style={{
+              color: "#374151",
+              fontSize: "18px",
+              fontWeight: "600",
+              marginBottom: "15px",
+            }}
+          >
             Important Information
           </h3>
-          
-          <ul style={{ 
-            textAlign: "left", 
-            color: "#6b7280", 
-            fontSize: "14px", 
-            lineHeight: "1.5",
-            margin: 0,
-            paddingLeft: "20px"
-          }}>
+
+          <ul
+            style={{
+              textAlign: "left",
+              color: "#6b7280",
+              fontSize: "14px",
+              lineHeight: "1.5",
+              margin: 0,
+              paddingLeft: "20px",
+            }}
+          >
             <li style={{ marginBottom: "8px" }}>
               <strong>Expires:</strong> {formatExpiryDate(expiresAt)}
             </li>
             <li style={{ marginBottom: "8px" }}>
-              <strong>Access:</strong> You will have admin privileges to review and manage registrations
+              <strong>Access:</strong> You will have admin privileges to review
+              and manage registrations
             </li>
             <li style={{ marginBottom: "8px" }}>
-              <strong>Security:</strong> This link is unique and should not be shared
+              <strong>Security:</strong> This link is unique and should not be
+              shared
             </li>
           </ul>
         </div>
 
-        <p style={{ 
-          color: "#6b7280", 
-          fontSize: "14px", 
-          lineHeight: "1.5" 
-        }}>
+        <p
+          style={{
+            color: "#6b7280",
+            fontSize: "14px",
+            lineHeight: "1.5",
+          }}
+        >
           If you have any questions or need assistance, please contact{" "}
-          <a 
+          <a
             href={`mailto:${supportEmail || "support@yec.in.th"}`}
             style={{ color: "#3b82f6", textDecoration: "none" }}
           >
@@ -109,24 +127,31 @@ export function AdminInviteEmail({ acceptUrl, expiresAt, supportEmail }: AdminIn
           </a>
         </p>
 
-        <div style={{ 
-          marginTop: "40px", 
-          paddingTop: "20px", 
-          borderTop: "1px solid #e5e7eb" 
-        }}>
-          <p style={{ 
-            color: "#9ca3af", 
-            fontSize: "12px", 
-            margin: 0 
-          }}>
-                            If the button above doesn&apos;t work, copy and paste this link into your browser:
+        <div
+          style={{
+            marginTop: "40px",
+            paddingTop: "20px",
+            borderTop: "1px solid #e5e7eb",
+          }}
+        >
+          <p
+            style={{
+              color: "#9ca3af",
+              fontSize: "12px",
+              margin: 0,
+            }}
+          >
+            If the button above doesn&apos;t work, copy and paste this link into
+            your browser:
           </p>
-          <p style={{ 
-            color: "#3b82f6", 
-            fontSize: "12px", 
-            wordBreak: "break-all",
-            margin: "10px 0 0 0" 
-          }}>
+          <p
+            style={{
+              color: "#3b82f6",
+              fontSize: "12px",
+              wordBreak: "break-all",
+              margin: "10px 0 0 0",
+            }}
+          >
             {acceptUrl}
           </p>
         </div>

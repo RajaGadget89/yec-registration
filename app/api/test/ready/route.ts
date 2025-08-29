@@ -15,7 +15,10 @@ export async function GET(request: NextRequest) {
     e2e: process.env.E2E_TESTS === "true",
     helpers: process.env.TEST_HELPERS_ENABLED === "1",
     dbTarget: process.env.E2E_DB_TARGET || "unknown",
-    baseUrl: process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || null,
+    baseUrl:
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      null,
     auth: true, // If we get here, auth is valid
     environment: {
       NODE_ENV: process.env.NODE_ENV,

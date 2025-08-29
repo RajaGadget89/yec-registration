@@ -6,7 +6,9 @@ interface InviteAdminSectionProps {
   onInviteSuccess: () => void;
 }
 
-export default function InviteAdminSection({ onInviteSuccess }: InviteAdminSectionProps) {
+export default function InviteAdminSection({
+  onInviteSuccess,
+}: InviteAdminSectionProps) {
   const [email, setEmail] = useState("");
   const [roles, setRoles] = useState<("admin" | "super_admin")[]>(["admin"]);
   const [loading, setLoading] = useState(false);
@@ -15,7 +17,7 @@ export default function InviteAdminSection({ onInviteSuccess }: InviteAdminSecti
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim()) {
       setError("Email is required");
       return;
@@ -62,7 +64,6 @@ export default function InviteAdminSection({ onInviteSuccess }: InviteAdminSecti
 
       // Clear success message after 5 seconds
       setTimeout(() => setSuccess(null), 5000);
-
     } catch (err) {
       console.error("Error sending invitation:", err);
       setError("Failed to send invitation. Please try again.");
@@ -72,10 +73,8 @@ export default function InviteAdminSection({ onInviteSuccess }: InviteAdminSecti
   };
 
   const handleRoleChange = (role: "admin" | "super_admin") => {
-    setRoles(prev => 
-      prev.includes(role) 
-        ? prev.filter(r => r !== role)
-        : [...prev, role]
+    setRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
     );
   };
 
@@ -86,14 +85,18 @@ export default function InviteAdminSection({ onInviteSuccess }: InviteAdminSecti
           Invite Admin
         </h2>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Send an invitation to a new admin user. They will receive an email with a secure link to accept the invitation.
+          Send an invitation to a new admin user. They will receive an email
+          with a secure link to accept the invitation.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Email Input */}
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+          >
             Email Address
           </label>
           <input
@@ -158,7 +161,9 @@ export default function InviteAdminSection({ onInviteSuccess }: InviteAdminSecti
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+                <p className="text-sm text-red-800 dark:text-red-200">
+                  {error}
+                </p>
               </div>
             </div>
           </div>
@@ -182,7 +187,9 @@ export default function InviteAdminSection({ onInviteSuccess }: InviteAdminSecti
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-sm text-green-800 dark:text-green-200">{success}</p>
+                <p className="text-sm text-green-800 dark:text-green-200">
+                  {success}
+                </p>
               </div>
             </div>
           </div>
@@ -249,7 +256,9 @@ export default function InviteAdminSection({ onInviteSuccess }: InviteAdminSecti
             <div className="mt-2 text-sm text-blue-700 dark:text-blue-300">
               <ul className="list-disc list-inside space-y-1">
                 <li>Invitations expire after 48 hours</li>
-                <li>Recipients will receive an email with a secure acceptance link</li>
+                <li>
+                  Recipients will receive an email with a secure acceptance link
+                </li>
                 <li>You can revoke pending invitations at any time</li>
                 <li>Rate limits apply: 5 invitations per minute, 20 per day</li>
               </ul>
@@ -260,4 +269,3 @@ export default function InviteAdminSection({ onInviteSuccess }: InviteAdminSecti
     </div>
   );
 }
-

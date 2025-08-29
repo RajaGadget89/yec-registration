@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 import { guardTestEndpoint } from "@/app/lib/test-guard";
-import crypto from 'crypto';
+import crypto from "crypto";
 
 /**
  * Test helper endpoint to generate deep link tokens for testing
@@ -20,20 +20,20 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!registrationId || !dimension) {
       return NextResponse.json(
-        { 
+        {
           error: "Missing required fields: registrationId, dimension",
-          code: "MISSING_FIELDS"
+          code: "MISSING_FIELDS",
         },
         { status: 400 },
       );
     }
 
     // Validate dimension
-    if (!['payment', 'profile', 'tcc'].includes(dimension)) {
+    if (!["payment", "profile", "tcc"].includes(dimension)) {
       return NextResponse.json(
-        { 
+        {
           error: "Invalid dimension. Must be 'payment', 'profile', or 'tcc'",
-          code: "INVALID_DIMENSION"
+          code: "INVALID_DIMENSION",
         },
         { status: 400 },
       );
@@ -50,9 +50,9 @@ export async function POST(request: NextRequest) {
 
     if (lookupError || !registration) {
       return NextResponse.json(
-        { 
+        {
           error: "Registration not found",
-          code: "REGISTRATION_NOT_FOUND"
+          code: "REGISTRATION_NOT_FOUND",
         },
         { status: 404 },
       );
@@ -60,9 +60,12 @@ export async function POST(request: NextRequest) {
 
     // Generate a test token
     const testToken = `test-token-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Hash the token for storage
-    const tokenHash = crypto.createHmac('sha256', 'storage-salt').update(testToken).digest('hex');
+    const tokenHash = crypto
+      .createHmac("sha256", "storage-salt")
+      .update(testToken)
+      .digest("hex");
 
     // Store the token in the database
     const { data: tokenRecord, error: tokenError } = await supabase
@@ -80,9 +83,9 @@ export async function POST(request: NextRequest) {
     if (tokenError) {
       console.error("Failed to create token:", tokenError);
       return NextResponse.json(
-        { 
+        {
           error: "Failed to create token",
-          details: tokenError.message
+          details: tokenError.message,
         },
         { status: 500 },
       );

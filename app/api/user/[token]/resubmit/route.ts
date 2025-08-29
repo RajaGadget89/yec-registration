@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "../../../../lib/supabase-server";
 import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
 import { getTranslation } from "../../../../lib/translations";
-import { fileValidationMessage, type Language, getLanguageFromHeader } from "../../../../lib/i18n/file-validation";
-import crypto from 'crypto';
+import {
+  fileValidationMessage,
+  type Language,
+  getLanguageFromHeader,
+} from "../../../../lib/i18n/file-validation";
+import crypto from "crypto";
 
 async function handlePOST(
   request: NextRequest,
@@ -12,7 +16,7 @@ async function handlePOST(
   // Get language from Accept-Language header
   const acceptLanguage = request.headers.get("accept-language");
   const language: Language = getLanguageFromHeader(acceptLanguage);
-  
+
   try {
     console.log("Resubmit endpoint called with token:", params.token);
     const { token } = params;
@@ -37,20 +41,23 @@ async function handlePOST(
 
     if (lookupError || !registrationLookup) {
       return NextResponse.json(
-        { 
-          ok: false, 
-          error: getTranslation('resubmit.not_found', language),
-          code: 'REGISTRATION_NOT_FOUND'
+        {
+          ok: false,
+          error: getTranslation("resubmit.not_found", language),
+          code: "REGISTRATION_NOT_FOUND",
         },
         { status: 404 },
       );
     }
 
     // Manual token validation (workaround for database function bug)
-    const tokenHash = crypto.createHmac('sha256', 'storage-salt').update(token).digest('hex');
-    
+    const tokenHash = crypto
+      .createHmac("sha256", "storage-salt")
+      .update(token)
+      .digest("hex");
+
     console.log("Looking up token with hash:", tokenHash);
-    
+
     // Check if token exists and is valid
     const { data: tokenRecord, error: tokenError } = await supabase
       .from("deep_link_tokens")
@@ -64,9 +71,9 @@ async function handlePOST(
       return NextResponse.json(
         {
           ok: false,
-          error: getTranslation('resubmit.invalid', language),
-          code: 'RESUBMIT_INVALID_OR_EXPIRED',
-          reason: 'token_not_found',
+          error: getTranslation("resubmit.invalid", language),
+          code: "RESUBMIT_INVALID_OR_EXPIRED",
+          reason: "token_not_found",
         },
         { status: 410 },
       );
@@ -76,7 +83,7 @@ async function handlePOST(
       id: tokenRecord.id,
       dimension: tokenRecord.dimension,
       expires_at: tokenRecord.expires_at,
-      used_at: tokenRecord.used_at
+      used_at: tokenRecord.used_at,
     });
 
     // Check if token is expired
@@ -84,9 +91,9 @@ async function handlePOST(
       return NextResponse.json(
         {
           ok: false,
-          error: getTranslation('resubmit.expired', language),
-          code: 'RESUBMIT_INVALID_OR_EXPIRED',
-          reason: 'token_expired',
+          error: getTranslation("resubmit.expired", language),
+          code: "RESUBMIT_INVALID_OR_EXPIRED",
+          reason: "token_expired",
         },
         { status: 410 },
       );
@@ -97,9 +104,9 @@ async function handlePOST(
       return NextResponse.json(
         {
           ok: false,
-          error: getTranslation('resubmit.invalid', language),
-          code: 'RESUBMIT_INVALID_OR_EXPIRED',
-          reason: 'token_already_used',
+          error: getTranslation("resubmit.invalid", language),
+          code: "RESUBMIT_INVALID_OR_EXPIRED",
+          reason: "token_already_used",
         },
         { status: 410 },
       );
@@ -121,8 +128,8 @@ async function handlePOST(
       return NextResponse.json(
         {
           ok: false,
-          error: getTranslation('resubmit.processing_failed', language),
-          code: 'PROCESSING_FAILED',
+          error: getTranslation("resubmit.processing_failed", language),
+          code: "PROCESSING_FAILED",
         },
         { status: 500 },
       );
@@ -146,10 +153,10 @@ async function handlePOST(
     if (fetchError || !registration) {
       console.error("Error fetching registration:", fetchError);
       return NextResponse.json(
-        { 
-          ok: false, 
-          error: getTranslation('resubmit.not_found', language),
-          code: 'REGISTRATION_NOT_FOUND'
+        {
+          ok: false,
+          error: getTranslation("resubmit.not_found", language),
+          code: "REGISTRATION_NOT_FOUND",
         },
         { status: 404 },
       );
@@ -165,10 +172,10 @@ async function handlePOST(
       ].includes(registration.status)
     ) {
       return NextResponse.json(
-        { 
-          ok: false, 
-          error: getTranslation('resubmit.not_in_update_state', language),
-          code: 'NOT_IN_UPDATE_STATE'
+        {
+          ok: false,
+          error: getTranslation("resubmit.not_in_update_state", language),
+          code: "NOT_IN_UPDATE_STATE",
         },
         { status: 400 },
       );
@@ -176,7 +183,10 @@ async function handlePOST(
 
     // Validate that the token dimension matches the registration update reason
     // Normalize legacy 'info' values to 'profile' for comparison
-    const normalizedUpdateReason = registration.update_reason === "info" ? "profile" : registration.update_reason;
+    const normalizedUpdateReason =
+      registration.update_reason === "info"
+        ? "profile"
+        : registration.update_reason;
     const expectedDimension =
       normalizedUpdateReason === "payment"
         ? "payment"
@@ -202,10 +212,10 @@ async function handlePOST(
         normalizedUpdateReason,
       });
       return NextResponse.json(
-        { 
-          ok: false, 
-          error: getTranslation('resubmit.dimension_mismatch', language),
-          code: 'DIMENSION_MISMATCH'
+        {
+          ok: false,
+          error: getTranslation("resubmit.dimension_mismatch", language),
+          code: "DIMENSION_MISMATCH",
         },
         { status: 400 },
       );
@@ -213,53 +223,71 @@ async function handlePOST(
 
     // Prepare payload for domain function - extract the dimension-specific updates
     const dimensionUpdates = body.updates?.[tokenValidation.dimension] || {};
-    
+
     // Validate file URLs if present in updates
-    const validationErrors: Array<{ dimension: string; code: string; message: string }> = [];
-    
+    const validationErrors: Array<{
+      dimension: string;
+      code: string;
+      message: string;
+    }> = [];
+
     // Check for file URLs in the updates and validate them
-    if (dimensionUpdates.profile_image_url && tokenValidation.dimension === 'profile') {
+    if (
+      dimensionUpdates.profile_image_url &&
+      tokenValidation.dimension === "profile"
+    ) {
       // For profile images, we need to validate the file type and size
       // Since we only have URLs, we'll validate the URL format and assume the file was validated at upload
       // In a real implementation, you might want to fetch the file metadata from storage
       const url = dimensionUpdates.profile_image_url as string;
-      if (!url.startsWith('profile-images/')) {
+      if (!url.startsWith("profile-images/")) {
         validationErrors.push({
-          dimension: 'profile',
-          code: 'INVALID_TYPE',
-          message: fileValidationMessage('INVALID_TYPE', language, {
-            allowed: ['image/jpeg', 'image/jpg', 'image/png']
-          })
+          dimension: "profile",
+          code: "INVALID_TYPE",
+          message: fileValidationMessage("INVALID_TYPE", language, {
+            allowed: ["image/jpeg", "image/jpg", "image/png"],
+          }),
         });
       }
     }
-    
-    if (dimensionUpdates.payment_slip_url && tokenValidation.dimension === 'payment') {
+
+    if (
+      dimensionUpdates.payment_slip_url &&
+      tokenValidation.dimension === "payment"
+    ) {
       const url = dimensionUpdates.payment_slip_url as string;
-      if (!url.startsWith('payment-slips/')) {
+      if (!url.startsWith("payment-slips/")) {
         validationErrors.push({
-          dimension: 'payment',
-          code: 'INVALID_TYPE',
-          message: fileValidationMessage('INVALID_TYPE', language, {
-            allowed: ['application/pdf']
-          })
+          dimension: "payment",
+          code: "INVALID_TYPE",
+          message: fileValidationMessage("INVALID_TYPE", language, {
+            allowed: ["application/pdf"],
+          }),
         });
       }
     }
-    
-    if (dimensionUpdates.chamber_card_url && tokenValidation.dimension === 'tcc') {
+
+    if (
+      dimensionUpdates.chamber_card_url &&
+      tokenValidation.dimension === "tcc"
+    ) {
       const url = dimensionUpdates.chamber_card_url as string;
-      if (!url.startsWith('chamber-cards/')) {
+      if (!url.startsWith("chamber-cards/")) {
         validationErrors.push({
-          dimension: 'tcc',
-          code: 'INVALID_TYPE',
-          message: fileValidationMessage('INVALID_TYPE', language, {
-            allowed: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
-          })
+          dimension: "tcc",
+          code: "INVALID_TYPE",
+          message: fileValidationMessage("INVALID_TYPE", language, {
+            allowed: [
+              "application/pdf",
+              "image/jpeg",
+              "image/jpg",
+              "image/png",
+            ],
+          }),
         });
       }
     }
-    
+
     // If validation errors exist, return them
     if (validationErrors.length > 0) {
       return NextResponse.json(
@@ -270,19 +298,16 @@ async function handlePOST(
         { status: 422 },
       );
     }
-    
+
     // Call the domain function for resubmission with fallback to direct update
     let resubmissionResult;
     let resubmitError;
-    
+
     try {
-      const { data, error } = await supabase.rpc(
-        "fn_user_resubmit",
-        {
-          reg_id: registrationLookup.id,
-          payload: dimensionUpdates
-        }
-      );
+      const { data, error } = await supabase.rpc("fn_user_resubmit", {
+        reg_id: registrationLookup.id,
+        payload: dimensionUpdates,
+      });
       resubmissionResult = data;
       resubmitError = error;
     } catch (error) {
@@ -291,35 +316,39 @@ async function handlePOST(
       const { error: updateError } = await supabase
         .from("registrations")
         .update({
-          status: 'waiting_for_review',
+          status: "waiting_for_review",
           update_reason: null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", registrationLookup.id);
-      
+
       if (updateError) {
         console.error("Fallback update also failed:", updateError);
         return NextResponse.json(
-          { 
-            ok: false, 
-            error: getTranslation('resubmit.processing_failed', language),
-            code: 'PROCESSING_FAILED'
+          {
+            ok: false,
+            error: getTranslation("resubmit.processing_failed", language),
+            code: "PROCESSING_FAILED",
           },
           { status: 500 },
         );
       }
-      
-      resubmissionResult = [{ success: true, status: 'waiting_for_review' }];
+
+      resubmissionResult = [{ success: true, status: "waiting_for_review" }];
       resubmitError = null;
     }
 
-    if (resubmitError || !resubmissionResult || !resubmissionResult[0]?.success) {
+    if (
+      resubmitError ||
+      !resubmissionResult ||
+      !resubmissionResult[0]?.success
+    ) {
       console.error("Error calling domain function:", resubmitError);
       return NextResponse.json(
-        { 
-          ok: false, 
-          error: getTranslation('resubmit.processing_failed', language),
-          code: 'PROCESSING_FAILED'
+        {
+          ok: false,
+          error: getTranslation("resubmit.processing_failed", language),
+          code: "PROCESSING_FAILED",
         },
         { status: 500 },
       );
@@ -331,17 +360,17 @@ async function handlePOST(
       registration_id: body.registration_id,
       status: resubmissionResult.status,
       dimension: tokenValidation.dimension,
-      newStatus: 'pending',
-      global: 'waiting_for_review',
+      newStatus: "pending",
+      global: "waiting_for_review",
       token_used_at: tokenValidation.used_at,
     });
   } catch (error) {
     console.error("Unexpected error in user resubmission:", error);
     return NextResponse.json(
-      { 
-        ok: false, 
-        error: getTranslation('resubmit.internal_error', language),
-        code: 'INTERNAL_ERROR'
+      {
+        ok: false,
+        error: getTranslation("resubmit.internal_error", language),
+        code: "INTERNAL_ERROR",
       },
       { status: 500 },
     );
@@ -355,7 +384,7 @@ async function handleGET(
   // Get language from Accept-Language header
   const acceptLanguage = request.headers.get("accept-language");
   const language: Language = getLanguageFromHeader(acceptLanguage);
-  
+
   try {
     const { token } = params;
     const { searchParams } = new URL(request.url);
@@ -363,10 +392,10 @@ async function handleGET(
 
     if (!registrationId) {
       return NextResponse.json(
-        { 
-          ok: false, 
-          error: getTranslation('resubmit.not_found', language),
-          code: 'REGISTRATION_ID_REQUIRED'
+        {
+          ok: false,
+          error: getTranslation("resubmit.not_found", language),
+          code: "REGISTRATION_ID_REQUIRED",
         },
         { status: 400 },
       );
@@ -395,12 +424,15 @@ async function handleGET(
     }
 
     if (!tokenValidation || !tokenValidation.valid) {
-      const errorKey = tokenValidation?.reason === 'expired' ? 'resubmit.expired' : 'resubmit.invalid';
+      const errorKey =
+        tokenValidation?.reason === "expired"
+          ? "resubmit.expired"
+          : "resubmit.invalid";
       return NextResponse.json(
         {
           ok: false,
           error: getTranslation(errorKey, language),
-          code: 'RESUBMIT_INVALID_OR_EXPIRED',
+          code: "RESUBMIT_INVALID_OR_EXPIRED",
           reason: tokenValidation?.reason || "unknown",
         },
         { status: 410 },
@@ -417,10 +449,10 @@ async function handleGET(
     if (fetchError || !registration) {
       console.error("Error fetching registration:", fetchError);
       return NextResponse.json(
-        { 
-          ok: false, 
-          error: getTranslation('resubmit.not_found', language),
-          code: 'REGISTRATION_NOT_FOUND'
+        {
+          ok: false,
+          error: getTranslation("resubmit.not_found", language),
+          code: "REGISTRATION_NOT_FOUND",
         },
         { status: 404 },
       );
@@ -448,10 +480,10 @@ async function handleGET(
   } catch (error) {
     console.error("Unexpected error in token validation:", error);
     return NextResponse.json(
-      { 
-        ok: false, 
-        error: getTranslation('resubmit.internal_error', language),
-        code: 'INTERNAL_ERROR'
+      {
+        ok: false,
+        error: getTranslation("resubmit.internal_error", language),
+        code: "INTERNAL_ERROR",
       },
       { status: 500 },
     );

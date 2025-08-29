@@ -4,6 +4,6 @@ import { NextResponse } from "next/server";
 export async function GET() {
   return new NextResponse(
     JSON.stringify({ error: "Email preview disabled during build" }),
-    { status: 503, headers: { "Content-Type": "application/json" } }
+    { status: 503, headers: { "Content-Type": "application/json" } },
   );
 }

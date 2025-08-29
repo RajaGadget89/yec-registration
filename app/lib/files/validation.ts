@@ -3,11 +3,11 @@
  * Centralizes validation rules for payment, profile, and TCC file uploads
  */
 
-export type ValidationDimension = 'payment' | 'profile' | 'tcc';
+export type ValidationDimension = "payment" | "profile" | "tcc";
 
 export interface ValidationResult {
   ok: boolean;
-  code?: 'INVALID_TYPE' | 'FILE_TOO_LARGE';
+  code?: "INVALID_TYPE" | "FILE_TOO_LARGE";
   limitBytes?: number;
   allowed?: string[];
 }
@@ -23,15 +23,20 @@ export interface ValidationInput {
  */
 const VALIDATION_RULES = {
   payment: {
-    allowedMimeTypes: ['application/pdf'] as const,
+    allowedMimeTypes: ["application/pdf"] as const,
     maxSizeBytes: 10 * 1024 * 1024, // 10MB
   },
   profile: {
-    allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png'] as const,
+    allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png"] as const,
     maxSizeBytes: 5 * 1024 * 1024, // 5MB
   },
   tcc: {
-    allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'] as const,
+    allowedMimeTypes: [
+      "application/pdf",
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+    ] as const,
     maxSizeBytes: 5 * 1024 * 1024, // 5MB
   },
 } as const;
@@ -54,7 +59,7 @@ export function validateFile(input: ValidationInput): ValidationResult {
   if (!allowedTypes.includes(mime)) {
     return {
       ok: false,
-      code: 'INVALID_TYPE',
+      code: "INVALID_TYPE",
       allowed: [...allowedTypes],
     };
   }
@@ -63,7 +68,7 @@ export function validateFile(input: ValidationInput): ValidationResult {
   if (sizeBytes > rules.maxSizeBytes) {
     return {
       ok: false,
-      code: 'FILE_TOO_LARGE',
+      code: "FILE_TOO_LARGE",
       limitBytes: rules.maxSizeBytes,
     };
   }

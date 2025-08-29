@@ -12,23 +12,23 @@ export async function GET(request: NextRequest) {
   }
 
   console.log("[AUTH_TEST] Endpoint called");
-  
+
   try {
     const user = await getCurrentUserFromRequest(request);
     console.log("[AUTH_TEST] User:", user);
-    
+
     if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
-    
+
     return NextResponse.json({
       authenticated: true,
       user: {
         id: user.id,
         email: user.email,
         role: user.role,
-        is_active: user.is_active
-      }
+        is_active: user.is_active,
+      },
     });
   } catch (error) {
     console.error("[AUTH_TEST] Error:", error);

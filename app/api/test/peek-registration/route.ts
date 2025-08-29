@@ -51,7 +51,9 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabaseServiceClient();
     const { data: registration, error } = await supabase
       .from("registrations")
-      .select("id, registration_id, email, status, update_reason, payment_review_status, profile_review_status, tcc_review_status, review_checklist, created_at")
+      .select(
+        "id, registration_id, email, status, update_reason, payment_review_status, profile_review_status, tcc_review_status, review_checklist, created_at",
+      )
       .eq("registration_id", trackingCode)
       .single();
 

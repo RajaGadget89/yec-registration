@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { guardTestEndpoint } from "@/app/lib/test-guard";
 
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   try {
     console.log("[db-check] Starting database check");
-    
+
     // 2. Create admin client with Service Role
     const adminClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,11 +34,14 @@ export async function GET(request: NextRequest) {
 
     if (adminUsersError) {
       console.error("[db-check] Error querying admin_users:", adminUsersError);
-      return NextResponse.json({
-        ok: false,
-        error: "admin_users table error",
-        details: adminUsersError.message,
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "admin_users table error",
+          details: adminUsersError.message,
+        },
+        { status: 500 },
+      );
     }
 
     // 4. Check if admin_invitations table exists
@@ -48,12 +51,18 @@ export async function GET(request: NextRequest) {
       .limit(1);
 
     if (invitationsError) {
-      console.error("[db-check] Error querying admin_invitations:", invitationsError);
-      return NextResponse.json({
-        ok: false,
-        error: "admin_invitations table error",
-        details: invitationsError.message,
-      }, { status: 500 });
+      console.error(
+        "[db-check] Error querying admin_invitations:",
+        invitationsError,
+      );
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "admin_invitations table error",
+          details: invitationsError.message,
+        },
+        { status: 500 },
+      );
     }
 
     // 5. Check if email_outbox table exists
@@ -64,11 +73,14 @@ export async function GET(request: NextRequest) {
 
     if (emailsError) {
       console.error("[db-check] Error querying email_outbox:", emailsError);
-      return NextResponse.json({
-        ok: false,
-        error: "email_outbox table error",
-        details: emailsError.message,
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "email_outbox table error",
+          details: emailsError.message,
+        },
+        { status: 500 },
+      );
     }
 
     console.log("[db-check] Database check successful");
@@ -84,7 +96,6 @@ export async function GET(request: NextRequest) {
       invitations_count: invitations?.length || 0,
       emails_count: emails?.length || 0,
     });
-
   } catch (e: unknown) {
     console.error("[db-check] unexpected error:", e);
     const errorMessage =
