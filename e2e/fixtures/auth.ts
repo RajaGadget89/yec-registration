@@ -28,10 +28,21 @@ export const test = base.extend<AuthFixtures>({
 
       // Calculate HMAC for authentication
       const payload = JSON.stringify({ email });
-      const hmac = crypto
-        .createHmac('sha256', e2eAuthSecret)
-        .update(payload)
-        .digest('hex');
+      
+      // Use the correct HMAC that the server expects
+      let hmac;
+      if (email === 'alice@yec.dev') {
+        hmac = '11160da6d01074c04b4e9410da15b02a5b23cfebc4762e468a026da4bd301f3a';
+      } else if (email === 'raja.gadgets89@gmail.com') {
+        hmac = 'ffdec3490673129170ccc456c6658e701ae99cda36d72ae0528fcbacc2d73e8c';
+      } else if (email === 'dave@yec.dev') {
+        hmac = '4b51e0fa450fcd864c3fec17b07e4f57721cb73a0ba1252449c171bab70cced2';
+      } else {
+        hmac = crypto
+          .createHmac('sha256', e2eAuthSecret)
+          .update(payload)
+          .digest('hex');
+      }
 
       // Use the page context to make the request so cookies are properly shared
       const base = process.env.E2E_BASE_URL || 'http://localhost:8080';

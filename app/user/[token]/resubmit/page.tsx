@@ -107,7 +107,7 @@ export default function UserResubmissionPage() {
       // Pre-fill form data based on update reason
       if (mockRegistration.update_reason === "payment") {
         setFormData({ payment_slip_url: "" });
-      } else if (mockRegistration.update_reason === "info") {
+      } else if (mockRegistration.update_reason === "profile") {
         setFormData({
           first_name: mockRegistration.first_name,
           last_name: mockRegistration.last_name,
@@ -202,7 +202,7 @@ export default function UserResubmissionPage() {
     switch (registration.update_reason) {
       case "payment":
         return "Payment Slip Update Required";
-      case "info":
+      case "profile":
         return "Profile Information Update Required";
       case "tcc":
         return "TCC Card Update Required";
@@ -217,7 +217,7 @@ export default function UserResubmissionPage() {
     switch (registration.update_reason) {
       case "payment":
         return "Please provide a clear payment slip image. The current image is unclear or missing required information.";
-      case "info":
+      case "profile":
         return "Please update your profile information. Some fields need correction or additional details.";
       case "tcc":
         return "Please provide a clear TCC card image. The current image is unclear or missing required information.";
@@ -351,7 +351,7 @@ export default function UserResubmissionPage() {
                 </div>
               )}
 
-              {registration.update_reason === "info" && (
+              {registration.update_reason === "profile" && (
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>

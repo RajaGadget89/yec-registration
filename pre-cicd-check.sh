@@ -266,10 +266,29 @@ else
   echo "Skip build (not CI)"; ok "Build skipped"
 fi
 
-# ---------- 6) Audit E2E (writes to audit.* on STAGING) ----------
-title "🧪 Audit E2E"
-echo "Skip audit suite for now (authentication issues being resolved)"; ok "Audit suite skipped"
-# run "Playwright @audit suite" npm run -s test:audit
+# ---------- 6) CI Health Check E2E (validates system health) ----------
+title "🧪 CI Health Check E2E"
+echo "Running CI health check validation..."
+export E2E_TESTS=true
+export E2E_TEST_MODE=true
+export TEST_HELPERS_ENABLED=1
+export CRON_SECRET=9318b95a82c5f8fcd236d8abe79f4ce8
+export SUPABASE_ENV=staging
+export EMAIL_MODE=CAPPED
+export DISPATCH_DRY_RUN=false
+export E2E_DB_TARGET=staging
+
+# Start the application server for health checks
+echo "Starting application server for health checks..."
+nohup npm run dev -- --port=8080 > /dev/null 2>&1 &
+SERVER_PID=$!
+sleep 15
+
+# Run health check tests
+run "CI Health Check validation" npx playwright test tests/e2e/ci-health-check.spec.ts --config=playwright.ci-health.config.ts --reporter=line --timeout=30000
+
+# Clean up server
+kill $SERVER_PID 2>/dev/null || true
 
 # ---------- 7) Optional full test suite ----------
 title "🧪 Full Test Suite (Optional)"
