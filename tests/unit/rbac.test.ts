@@ -12,7 +12,7 @@ import {
 
 // Mock environment variables
 const mockEnv = {
-  ADMIN_SUPER_EMAILS: 'alice@company.com, bob@company.com',
+      SUPER_ADMIN_EMAILS: 'alice@company.com, bob@company.com',
   ADMIN_PAYMENT_EMAILS: 'bob@company.com, carol@company.com',
   ADMIN_PROFILE_EMAILS: 'carol@company.com, dave@company.com',
   ADMIN_TCC_EMAILS: 'dave@company.com, eve@company.com',
@@ -172,7 +172,7 @@ describe('RBAC System', () => {
       Object.defineProperty(process, 'env', {
         value: {
           ...mockEnv,
-          ADMIN_SUPER_EMAILS: '',
+          SUPER_ADMIN_EMAILS: '',
         },
         writable: true,
       });
@@ -189,7 +189,7 @@ describe('RBAC System', () => {
       // Mock empty admin lists
       Object.defineProperty(process, 'env', {
         value: {
-          ADMIN_SUPER_EMAILS: '',
+          SUPER_ADMIN_EMAILS: '',
           ADMIN_PAYMENT_EMAILS: '',
           ADMIN_PROFILE_EMAILS: '',
           ADMIN_TCC_EMAILS: '',
@@ -224,7 +224,7 @@ describe('RBAC System', () => {
     it('should handle malformed environment variables', () => {
       Object.defineProperty(process, 'env', {
         value: {
-          ADMIN_SUPER_EMAILS: 'alice@company.com,,bob@company.com,  ,',
+          SUPER_ADMIN_EMAILS: 'alice@company.com,,bob@company.com,  ,',
           ADMIN_PAYMENT_EMAILS: '  ,carol@company.com,',
         },
         writable: true,
