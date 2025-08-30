@@ -268,13 +268,9 @@ fi
 
 # ---------- 6) Audit E2E (writes to audit.* on STAGING) ----------
 title "🧪 Audit E2E"
-<<<<<<< HEAD
 echo "Skip audit suite for now (authentication issues being resolved)"; ok "Audit suite skipped"
+# export E2E_TESTS=true
 # run "Playwright @audit suite" npm run -s test:audit
-=======
-export E2E_TESTS=true
-run "Playwright @audit suite" npm run -s test:audit
->>>>>>> origin/feature/administrator-management-issues
 
 # ---------- 7) Optional full test suite ----------
 title "🧪 Full Test Suite (Optional)"
