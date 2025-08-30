@@ -6,7 +6,7 @@
     "dev": "next dev -p 8080",
     "dev:staging": "npx dotenv -e .env.local next dev -p 8080",
     "dev:localdb": "SUPABASE_ENV=localdev next dev -p 8080",
-    "dev:e2e": "next dev -p 8080",
+    "dev:e2e": "dotenv -e .e2e-env -- next dev -p 8080",
     "dev:capped": "EMAIL_MODE=CAPPED EMAIL_CAP_MAX_PER_RUN=2 BLOCK_NON_ALLOWLIST=true next dev -p 8080",
     "build": "next build",
     "start": "next start",
@@ -85,6 +85,9 @@
     "test:audit:domain-events": "npx playwright test tests/e2e/audit.e2e.spec.ts --grep='@domain-events' --reporter=line",
     "test:audit:rpc": "npx playwright test tests/e2e/audit-schema.e2e.spec.ts --grep='@rpc' --reporter=line",
     "test:audit:performance": "npx playwright test tests/e2e/email-dispatch-audit.e2e.spec.ts --grep='@email-dispatch-performance' --reporter=line",
+    "test:admin-management": "dotenv -e .e2e-env -- npx playwright test tests/e2e/admin-management.e2e.spec.ts --reporter=line",
+    "test:admin-management-ui": "dotenv -e .e2e-env -- npx playwright test tests/e2e/admin-management-ui.e2e.spec.ts --reporter=line",
+    "test:admin-management-smoke": "dotenv -e .e2e-env -- npx playwright test tests/e2e/admin-management-smoke.e2e.spec.ts --reporter=line",
     "test:audit:error-handling": "npx playwright test tests/e2e/audit-diag.e2e.spec.ts --reporter=line",
     "format": "prettier --write \"{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier -c \"{src,app,apps,packages,lib,components,scripts,server,client}/**/*.{ts,tsx,js,jsx,json,css,md}\"",
@@ -108,7 +111,8 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "resend": "^4.8.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

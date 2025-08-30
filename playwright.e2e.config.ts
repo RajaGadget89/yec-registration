@@ -18,7 +18,7 @@ if (existsSync('.e2e-env')) {
 }
 
 export default defineConfig({
-  testDir: 'e2e',
+  testDir: 'tests/e2e',
   timeout: 90_000,
   expect: { timeout: 10_000 },
   fullyParallel: false, // E2E tests should run sequentially to avoid conflicts
@@ -28,7 +28,7 @@ export default defineConfig({
   reporter: 'line',
 
   use: {
-    baseURL: process.env.APP_BASE_URL || 'http://localhost:8080',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || process.env.APP_BASE_URL || 'http://localhost:8080',
     trace: 'retain-on-failure',
     headless: true,
     screenshot: 'only-on-failure',
@@ -43,19 +43,20 @@ export default defineConfig({
     },
   ],
 
-  // Global setup and teardown
-  globalSetup: 'e2e/global.setup.ts',
-  globalTeardown: 'e2e/global.teardown.ts',
+  // Skip global setup and teardown for staging environment
+  // globalSetup: 'e2e/global.setup.ts',
+  // globalTeardown: 'e2e/global.teardown.ts',
 
   // Web server configuration with environment variables
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:8080',
-    reuseExistingServer: !process.env.CI,
-    env: {
-      ...e2eEnvVars,
-      NODE_ENV: 'test',
-      SUPABASE_ENV: 'localdev',
-    },
-  },
+  // Disabled since server is already running
+  // webServer: {
+  //   command: 'npm run dev:e2e',
+  //   url: 'http://localhost:8080',
+  //   reuseExistingServer: true, // Always reuse existing server
+  //   env: {
+  //     ...e2eEnvVars,
+  //     NODE_ENV: 'test',
+  //     SUPABASE_ENV: 'test', // Use test environment
+  //   },
+  // },
 });

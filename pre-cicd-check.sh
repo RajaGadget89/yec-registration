@@ -268,6 +268,7 @@ fi
 
 # ---------- 6) Audit E2E (writes to audit.* on STAGING) ----------
 title "🧪 Audit E2E"
+export E2E_TESTS=true
 run "Playwright @audit suite" npm run -s test:audit
 
 # ---------- 7) Optional full test suite ----------
