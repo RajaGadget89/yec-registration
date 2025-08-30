@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { isAdmin } from "../../../lib/auth-utils";
+// import { isAdmin } from "../../../lib/auth-utils";
+import { getRolesForEmail } from "../../../lib/rbac";
+import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 import { getAppUrl, getCookieOptions } from "../../../lib/env";
 
 export const dynamic = "force-dynamic";
@@ -98,9 +100,38 @@ export async function POST(request: NextRequest) {
     );
 
     // Verify the user is an admin
-    const userEmail = sessionData.session.user.email;
-    if (!userEmail || !isAdmin(userEmail)) {
-      console.error("[api/callback] user not in admin allowlist:", userEmail);
+    //const userEmail = sessionData.session.user.email;
+    //if (!userEmail || !isAdmin(userEmail)) {
+    //console.error("[api/callback] user not in admin allowlist:", userEmail);
+    //return NextResponse.json(
+    //{ message: "Access denied. Admin privileges required." },
+    //{ status: 403 },
+    //);
+    //}
+
+    // Verify the user has any admin role (RBAC or admin_users)
+    const userEmail = sessionData.session.user.email ?? "";
+    let isAllowed = false;
+
+    if (userEmail) {
+      // 1) RBAC จาก env (SUPER_ADMIN_EMAILS/ADMIN_*_EMAILS)
+      const roles = getRolesForEmail(userEmail);
+      isAllowed = roles.size > 0;
+
+      // 2) ถ้าไม่มีบทบาทใน RBAC ให้เช็กฐานข้อมูล admin_users (is_active)
+      if (!isAllowed) {
+        const svc = getSupabaseServiceClient();
+        const { data } = await svc
+          .from("admin_users")
+          .select("id")
+          .ilike("email", userEmail)
+          .eq("is_active", true)
+          .maybeSingle();
+        isAllowed = !!data;
+      }
+    }
+
+    if (!isAllowed) {
       return NextResponse.json(
         { message: "Access denied. Admin privileges required." },
         { status: 403 },
