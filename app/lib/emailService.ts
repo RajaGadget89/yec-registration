@@ -236,6 +236,69 @@ export async function sendApprovedEmail({
   }
 }
 
+export async function sendAdminInvitationEmail({
+  to,
+  acceptUrl,
+  expiresAt,
+  supportEmail,
+}: {
+  to: string;
+  acceptUrl: string;
+  expiresAt: string;
+  supportEmail: string;
+}): Promise<boolean> {
+  const subject = "You are invited to Admin Console (expires in 48 hours)";
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #1A237E;">Admin Console Invitation</h2>
+      
+      <p>You have been invited to join the YEC Day Admin Console.</p>
+      
+      <div style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 5px; padding: 15px; margin: 20px 0;">
+        <h3 style="color: #1565c0; margin-top: 0;">🔐 Admin Access</h3>
+        <p style="color: #1565c0; margin-bottom: 0;">Click the button below to accept your invitation and set up your admin account.</p>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${acceptUrl}" style="display: inline-block; background-color: #1A237E; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+          Accept Invitation
+        </a>
+      </div>
+      
+      <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0;">
+        <h3 style="color: #856404; margin-top: 0;">⚠️ Important</h3>
+        <ul style="color: #856404; margin-bottom: 0;">
+          <li>This invitation expires on ${expiresAt}</li>
+          <li>Keep this invitation secure and do not share it with others</li>
+          <li>If you did not expect this invitation, please contact us immediately</li>
+        </ul>
+      </div>
+      
+      <p>If you have any questions, please contact us at ${supportEmail}</p>
+      
+      <p>Best regards,<br>
+      YEC Day Admin Team</p>
+    </div>
+  `;
+
+  try {
+    console.log("Sending admin invitation email to:", to);
+
+    await sendEmail({
+      to,
+      subject,
+      html,
+    });
+
+    console.log("Admin invitation email sent successfully to:", to);
+    return true;
+  } catch (error) {
+    console.error("Error sending admin invitation email:", error);
+    return false;
+  }
+}
+
 // Test email configuration
 export async function testEmailConnection(): Promise<boolean> {
   const resend = new Resend(process.env.RESEND_API_KEY);

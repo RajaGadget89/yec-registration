@@ -39,6 +39,27 @@ const nextConfig: NextConfig = {
       // Only add CORS if cross-origin calls are actually needed
     ];
   },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        '@react-email/render': 'commonjs @react-email/render',
+        '@react-email/components': 'commonjs @react-email/components',
+      });
+      
+      // Add fallback to prevent webpack from trying to resolve these modules
+      config.resolve = config.resolve || {};
+      config.resolve.fallback = config.resolve.fallback || {};
+      config.resolve.fallback['@react-email/render'] = false;
+      config.resolve.fallback['@react-email/components'] = false;
+      
+      // Add alias to redirect any imports to empty modules
+      config.resolve.alias = config.resolve.alias || {};
+      config.resolve.alias['@react-email/render'] = false;
+      config.resolve.alias['@react-email/components'] = false;
+    }
+    return config;
+  },
   ...(isProd && {
     assetPrefix: "/",
   }),
