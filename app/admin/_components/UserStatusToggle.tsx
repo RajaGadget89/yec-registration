@@ -29,7 +29,7 @@ export default function UserStatusToggle({ user }: UserStatusToggleProps) {
         // For now, we'll just update the local state since the API endpoint for status toggle
         // might not exist yet. In a real implementation, you would call an API endpoint.
         setIsActive(!isActive);
-        
+
         // Example API call (uncomment when endpoint is available):
         // const response = await fetch(`/api/admin/users/${user.id}/status`, {
         //   method: "PUT",
@@ -38,11 +38,11 @@ export default function UserStatusToggle({ user }: UserStatusToggleProps) {
         //   },
         //   body: JSON.stringify({ is_active: !isActive }),
         // });
-        
+
         // if (!response.ok) {
         //   throw new Error("Failed to update user status");
         // }
-        
+
         setShowConfirm(false);
       } catch (error) {
         console.error("Error updating user status:", error);

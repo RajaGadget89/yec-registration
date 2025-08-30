@@ -128,23 +128,26 @@ export default function PreviewPage() {
 
     // First try to get data from localStorage
     let storedData = localStorage.getItem("yecRegistrationData");
-    
+
     // If no localStorage data, try to get from cookie (fallback for form submission)
     if (!storedData) {
-      const cookies = document.cookie.split(';');
-      const tempFormDataCookie = cookies.find(cookie => cookie.trim().startsWith('tempFormData='));
+      const cookies = document.cookie.split(";");
+      const tempFormDataCookie = cookies.find((cookie) =>
+        cookie.trim().startsWith("tempFormData="),
+      );
       if (tempFormDataCookie) {
         try {
-          const cookieValue = tempFormDataCookie.split('=')[1];
+          const cookieValue = tempFormDataCookie.split("=")[1];
           storedData = decodeURIComponent(cookieValue);
           // Clear the cookie after reading it
-          document.cookie = 'tempFormData=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+          document.cookie =
+            "tempFormData=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
         } catch (error) {
           console.error("Error parsing cookie data:", error);
         }
       }
     }
-    
+
     if (!storedData) {
       console.log("No stored data found, redirecting to home"); // Debug log
       router.push("/");

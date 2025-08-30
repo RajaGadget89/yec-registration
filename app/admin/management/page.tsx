@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { Suspense } from "react";
-import { Users, Shield, Crown, UserCheck, UserX, Search, Filter } from "lucide-react";
+import { Users, Shield, Crown, UserCheck, Filter } from "lucide-react";
 import { getCurrentUser } from "../../lib/auth-utils.server";
 import { hasRole } from "../../lib/auth-utils.server";
 import AdminUserTable from "../_components/AdminUserTable";
@@ -23,7 +23,9 @@ interface ManagementPageProps {
   }>;
 }
 
-export default async function ManagementPage({ searchParams }: ManagementPageProps) {
+export default async function ManagementPage({
+  searchParams,
+}: ManagementPageProps) {
   // Check admin authentication and super_admin role
   const user = await getCurrentUser();
   if (!user || !user.is_active) {
@@ -59,16 +61,19 @@ export default async function ManagementPage({ searchParams }: ManagementPagePro
   try {
     // Use server-side fetch with proper cookie forwarding
     const headersList = await headers();
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/admin/users`, {
-      cache: 'no-store',
-      headers: {
-        "Content-Type": "application/json",
-        // Forward cookies for authentication
-        "Cookie": headersList.get("cookie") || "",
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/admin/users`,
+      {
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json",
+          // Forward cookies for authentication
+          Cookie: headersList.get("cookie") || "",
+        },
       },
-    });
+    );
 
-        if (response.ok) {
+    if (response.ok) {
       const data = await response.json();
       adminUsers = data.users || [];
       totalCount = adminUsers.length;
@@ -82,7 +87,7 @@ export default async function ManagementPage({ searchParams }: ManagementPagePro
           if (!user.is_active) stats.inactive++;
           return stats;
         },
-        { super_admin: 0, admin: 0, active: 0, inactive: 0 }
+        { super_admin: 0, admin: 0, active: 0, inactive: 0 },
       );
     }
   } catch (error) {
@@ -120,8 +125,12 @@ export default async function ManagementPage({ searchParams }: ManagementPagePro
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Admins</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalCount}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Total Admins
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {totalCount}
+              </p>
             </div>
             <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/20">
               <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
@@ -132,8 +141,12 @@ export default async function ManagementPage({ searchParams }: ManagementPagePro
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Super Admins</p>
-              <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{roleStats.super_admin}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Super Admins
+              </p>
+              <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
+                {roleStats.super_admin}
+              </p>
             </div>
             <div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/20">
               <Crown className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
@@ -144,8 +157,12 @@ export default async function ManagementPage({ searchParams }: ManagementPagePro
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Regular Admins</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{roleStats.admin}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Regular Admins
+              </p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {roleStats.admin}
+              </p>
             </div>
             <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700">
               <Shield className="h-5 w-5 text-gray-600 dark:text-gray-400" />
@@ -156,8 +173,12 @@ export default async function ManagementPage({ searchParams }: ManagementPagePro
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Active Users</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">{roleStats.active}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Active Users
+              </p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {roleStats.active}
+              </p>
             </div>
             <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/20">
               <UserCheck className="h-5 w-5 text-green-600 dark:text-green-400" />

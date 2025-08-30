@@ -14,15 +14,20 @@ export async function POST(request: NextRequest) {
 
   try {
     const { email } = await request.json();
-    
+
     if (!email) {
       return NextResponse.json({ error: "Email required" }, { status: 400 });
     }
 
     // Verify user is in admin allowlist
-    const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
+    const adminEmails =
+      process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
+      [];
     if (!adminEmails.includes(email.toLowerCase())) {
-      return NextResponse.json({ error: "Email not in admin allowlist" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Email not in admin allowlist" },
+        { status: 403 },
+      );
     }
 
     // Generate a UUID for the user
@@ -33,17 +38,20 @@ export async function POST(request: NextRequest) {
 
     // Check if user already exists
     const { data: existingUser, error: checkError } = await supabase
-      .from('admin_users')
-      .select('*')
-      .eq('email', email)
+      .from("admin_users")
+      .select("*")
+      .eq("email", email)
       .single();
 
-    if (checkError && checkError.code !== 'PGRST116') {
+    if (checkError && checkError.code !== "PGRST116") {
       console.error("Error checking existing user:", checkError);
-      return NextResponse.json({
-        error: "Failed to check existing user",
-        details: checkError.message
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          error: "Failed to check existing user",
+          details: checkError.message,
+        },
+        { status: 500 },
+      );
     }
 
     let adminUser;
@@ -51,22 +59,25 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       // Update existing user to ensure it's active and has super_admin role
       const { data: updatedUser, error: updateError } = await supabase
-        .from('admin_users')
+        .from("admin_users")
         .update({
-          role: 'super_admin',
+          role: "super_admin",
           is_active: true,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('email', email)
+        .eq("email", email)
         .select()
         .single();
 
       if (updateError) {
         console.error("Error updating user:", updateError);
-        return NextResponse.json({
-          error: "Failed to update user",
-          details: updateError.message
-        }, { status: 500 });
+        return NextResponse.json(
+          {
+            error: "Failed to update user",
+            details: updateError.message,
+          },
+          { status: 500 },
+        );
       }
 
       adminUser = updatedUser;
@@ -74,24 +85,27 @@ export async function POST(request: NextRequest) {
     } else {
       // Create new user
       const { data: newUser, error: insertError } = await supabase
-        .from('admin_users')
+        .from("admin_users")
         .insert({
           id: userId,
           email: email,
-          role: 'super_admin',
+          role: "super_admin",
           is_active: true,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .select()
         .single();
 
       if (insertError) {
         console.error("Error creating user:", insertError);
-        return NextResponse.json({
-          error: "Failed to create user",
-          details: insertError.message
-        }, { status: 500 });
+        return NextResponse.json(
+          {
+            error: "Failed to create user",
+            details: insertError.message,
+          },
+          { status: 500 },
+        );
       }
 
       adminUser = newUser;
@@ -108,9 +122,9 @@ export async function POST(request: NextRequest) {
         role: adminUser.role,
         is_active: adminUser.is_active,
         created_at: adminUser.created_at,
-        updated_at: adminUser.updated_at
+        updated_at: adminUser.updated_at,
       },
-      action: existingUser ? "updated" : "created"
+      action: existingUser ? "updated" : "created",
     });
 
     // Set admin-email cookie
@@ -119,18 +133,22 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 20 // 20 days
+      maxAge: 60 * 60 * 24 * 20, // 20 days
     });
 
-    console.log(`[create-admin-user] Admin user ready: ${email} (${adminUser.role})`);
+    console.log(
+      `[create-admin-user] Admin user ready: ${email} (${adminUser.role})`,
+    );
 
     return response;
-
   } catch (error) {
     console.error("Error creating admin user:", error);
-    return NextResponse.json({
-      error: "Failed to create admin user",
-      details: error instanceof Error ? error.message : "Unknown error"
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Failed to create admin user",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    );
   }
 }

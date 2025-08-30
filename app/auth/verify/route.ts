@@ -68,8 +68,11 @@ export async function GET(request: NextRequest) {
       if (error) {
         console.error("[auth/verify] OTP verification failed:", error);
         return NextResponse.redirect(
-          new URL(`/admin/login?error=verify_failed&message=${encodeURIComponent(error.message)}`, getAppUrl()),
-          303
+          new URL(
+            `/admin/login?error=verify_failed&message=${encodeURIComponent(error.message)}`,
+            getAppUrl(),
+          ),
+          303,
         );
       }
 
@@ -77,22 +80,24 @@ export async function GET(request: NextRequest) {
     } else {
       // Hash-based magic link flow - we need to extract tokens from the URL
       // This is a fallback for when the client page redirects here
-      console.log("[auth/verify] no token_hash, redirecting to client page for hash-based flow");
-      return NextResponse.redirect(
-        new URL("/auth/callback", getAppUrl()),
-        303
+      console.log(
+        "[auth/verify] no token_hash, redirecting to client page for hash-based flow",
       );
+      return NextResponse.redirect(new URL("/auth/callback", getAppUrl()), 303);
     }
 
     if (!sessionData?.session) {
       console.error("[auth/verify] no session established");
       return NextResponse.redirect(
         new URL("/admin/login?error=no_session", getAppUrl()),
-        303
+        303,
       );
     }
 
-    console.log("[auth/verify] session established for user:", sessionData.session.user.email);
+    console.log(
+      "[auth/verify] session established for user:",
+      sessionData.session.user.email,
+    );
 
     // Verify the user is an admin
     const userEmail = sessionData.session.user.email;
@@ -100,7 +105,7 @@ export async function GET(request: NextRequest) {
       console.error("[auth/verify] user not in admin allowlist:", userEmail);
       return NextResponse.redirect(
         new URL("/admin/login?error=not_admin", getAppUrl()),
-        303
+        303,
       );
     }
 
@@ -121,7 +126,10 @@ export async function GET(request: NextRequest) {
       fullRedirectUrl: fullRedirectUrl.toString(),
     });
 
-    console.log("[auth/verify] authentication successful, redirecting to:", fullRedirectUrl.toString());
+    console.log(
+      "[auth/verify] authentication successful, redirecting to:",
+      fullRedirectUrl.toString(),
+    );
 
     // Create a new redirect response with the cookies from our response
     const redirectResponse = NextResponse.redirect(fullRedirectUrl, 303);
@@ -136,7 +144,7 @@ export async function GET(request: NextRequest) {
     console.error("[auth/verify] unexpected error:", error);
     return NextResponse.redirect(
       new URL("/admin/login?error=unexpected_error", getAppUrl()),
-      303
+      303,
     );
   }
 }

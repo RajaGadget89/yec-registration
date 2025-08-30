@@ -14,7 +14,10 @@ async function handlePOST(
     // Check admin authentication and approval permission
     const user = await getCurrentUserFromRequest(request);
     if (!user || !canApprove(user.email)) {
-      return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { ok: false, error: "forbidden" },
+        { status: 403 },
+      );
     }
 
     const { id } = params;
@@ -64,10 +67,13 @@ async function handlePOST(
     }
 
     const approvalResult = result[0];
-    
+
     // Check if approval failed due to missing prerequisites
     if (!approvalResult.success) {
-      console.log("Approval failed due to prerequisites:", approvalResult.message);
+      console.log(
+        "Approval failed due to prerequisites:",
+        approvalResult.message,
+      );
       return NextResponse.json(
         { ok: false, error: "not ready" },
         { status: 400 },
