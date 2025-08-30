@@ -28,7 +28,9 @@ export default function RoleManagementModal({
   onConfirm,
   isUpdating,
 }: RoleManagementModalProps) {
-  const [selectedRole, setSelectedRole] = useState<"admin" | "super_admin">(user.role);
+  const [selectedRole, setSelectedRole] = useState<"admin" | "super_admin">(
+    user.role,
+  );
 
   if (!isOpen) return null;
 
@@ -99,11 +101,14 @@ export default function RoleManagementModal({
                     <X className="h-5 w-5" />
                   </button>
                 </div>
-                
+
                 <div className="mt-4">
                   <div className="mb-4">
                     <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-                      Changing role for user: <strong className="text-gray-900 dark:text-white">{user.email}</strong>
+                      Changing role for user:{" "}
+                      <strong className="text-gray-900 dark:text-white">
+                        {user.email}
+                      </strong>
                     </p>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
                       Current role: {getRoleBadge(user.role)}
@@ -114,7 +119,7 @@ export default function RoleManagementModal({
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Select New Role:
                     </label>
-                    
+
                     {/* Super Admin Option */}
                     <div
                       className={`relative border rounded-lg p-4 cursor-pointer transition-all ${
@@ -200,8 +205,9 @@ export default function RoleManagementModal({
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
-                        This action will immediately change the user&apos;s role and permissions. 
-                        The change will be logged in the audit system.
+                        This action will immediately change the user&apos;s role
+                        and permissions. The change will be logged in the audit
+                        system.
                       </p>
                     </div>
                   )}

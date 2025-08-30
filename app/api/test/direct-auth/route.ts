@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { isAdmin } from "../../../lib/auth-utils";
 import { getAppUrl, getCookieOptions } from "../../../lib/env";
 import { isE2E } from "../../../lib/env/isE2E";
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (!email) {
       return NextResponse.json(
         { message: "Email is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -28,7 +27,7 @@ export async function POST(request: NextRequest) {
     if (!isAdmin(email)) {
       return NextResponse.json(
         { message: "Access denied. Admin privileges required." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -37,35 +36,6 @@ export async function POST(request: NextRequest) {
 
     // Get cookie options for consistent settings
     const cookieOpts = getCookieOptions();
-
-    // Create Supabase server client with cookie handling
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get: (key: string) => request.cookies.get(key)?.value,
-          set: (key, value, options) => {
-            // Forward cookie mutations to the response with consistent options
-            response.cookies.set({
-              name: key,
-              value,
-              ...cookieOpts,
-              ...options,
-            });
-          },
-          remove: (key, options) => {
-            response.cookies.set({
-              name: key,
-              value: "",
-              ...cookieOpts,
-              ...options,
-              expires: new Date(0),
-            });
-          },
-        },
-      },
-    );
 
     // For testing purposes, we'll create a mock session
     // In a real scenario, this would come from Supabase verification
@@ -86,7 +56,10 @@ export async function POST(request: NextRequest) {
       fullRedirectUrl: fullRedirectUrl.toString(),
     });
 
-    console.log("[test/direct-auth] test authentication successful, redirecting to:", fullRedirectUrl.toString());
+    console.log(
+      "[test/direct-auth] test authentication successful, redirecting to:",
+      fullRedirectUrl.toString(),
+    );
 
     // Create a new redirect response with the cookies from our response
     const redirectResponse = NextResponse.redirect(fullRedirectUrl, 303);
@@ -101,7 +74,7 @@ export async function POST(request: NextRequest) {
     console.error("[test/direct-auth] unexpected error:", error);
     return NextResponse.json(
       { message: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
