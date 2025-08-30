@@ -23,14 +23,14 @@ export default defineConfig({
       name: 'superAdmin',
       use: { 
         ...devices['Desktop Chrome'],
-        storageState: '.auth/alice_yec_dev.json',
+        storageState: '.auth/raja_gadgets89_gmail_com.json',
       },
     },
     {
       name: 'adminPayment',
       use: { 
         ...devices['Desktop Chrome'],
-        storageState: '.auth/raja_gadgets89_gmail_com.json',
+        storageState: '.auth/yecsongkhla_official_gmail_com.json',
       },
     },
     {
@@ -44,7 +44,7 @@ export default defineConfig({
       name: 'adminTcc',
       use: { 
         ...devices['Desktop Chrome'],
-        storageState: '.auth/dave_yec_dev.json',
+        storageState: '.auth/yecsongkhla_official_gmail_com.json',
       },
     },
   ],

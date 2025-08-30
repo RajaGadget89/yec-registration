@@ -1,0 +1,265 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { format, formatDistanceToNow } from "date-fns";
+import { toZonedTime } from "date-fns-tz";
+import { Crown, Shield, Edit3, Users } from "lucide-react";
+import RoleManagementModal from "./RoleManagementModal";
+import UserStatusToggle from "./UserStatusToggle";
+
+interface AdminUser {
+  id: string;
+  email: string;
+  role: "admin" | "super_admin";
+  created_at: string;
+  updated_at: string;
+  last_login_at: string | null;
+  is_active: boolean;
+}
+
+interface AdminUserTableProps {
+  users?: AdminUser[];
+}
+
+export default function AdminUserTable({
+  users: initialUsers,
+}: AdminUserTableProps) {
+  const [users, setUsers] = useState<AdminUser[]>(initialUsers || []);
+  const [loading, setLoading] = useState(
+    !initialUsers || initialUsers.length === 0,
+  );
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Fetch users if not provided
+  useEffect(() => {
+    if (!initialUsers || initialUsers.length === 0) {
+      const fetchUsers = async () => {
+        try {
+          const response = await fetch("/api/admin/users");
+
+          if (response.ok) {
+            const data = await response.json();
+            setUsers(data.users || []);
+          } else {
+            console.error("API error:", response.status);
+          }
+        } catch (error) {
+          console.error("Fetch error:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchUsers();
+    }
+  }, [initialUsers]);
+
+  const formatTime = (utcTime: string) => {
+    try {
+      const thTime = toZonedTime(new Date(utcTime), "Asia/Bangkok");
+      const timeStr = format(thTime, "yyyy-MM-dd HH:mm:ss");
+      // Use a more stable time ago format to avoid hydration issues
+      const timeAgo = formatDistanceToNow(thTime, {
+        addSuffix: true,
+        includeSeconds: false,
+      });
+      return { timeStr, timeAgo };
+    } catch {
+      return { timeStr: utcTime, timeAgo: "" };
+    }
+  };
+
+  const getRoleBadge = (role: string) => {
+    if (role === "super_admin") {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200">
+          <Crown className="h-3 w-3 mr-1" />
+          Super Admin
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+        <Shield className="h-3 w-3 mr-1" />
+        Admin
+      </span>
+    );
+  };
+
+  const handleRoleChange = (user: AdminUser) => {
+    setSelectedUser(user);
+    setIsRoleModalOpen(true);
+  };
+
+  const handleRoleUpdate = async (newRole: "admin" | "super_admin") => {
+    if (!selectedUser) return;
+
+    setIsUpdating(true);
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/role`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ role: newRole }),
+      });
+
+      if (response.ok) {
+        // Refresh the page to show updated data
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Error updating role: ${error.error}`);
+      }
+    } catch (error) {
+      console.error("Error updating role:", error);
+      alert("Failed to update role. Please try again.");
+    } finally {
+      setIsUpdating(false);
+      setIsRoleModalOpen(false);
+      setSelectedUser(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-gray-600 dark:text-gray-300">
+          <Users className="h-12 w-12 mx-auto mb-4 text-gray-400 animate-pulse" />
+          <div className="text-lg font-medium mb-2">Loading admin users...</div>
+          <div className="text-sm">
+            Please wait while we fetch the admin user data
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (users.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-gray-600 dark:text-gray-300">
+          <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+          <div className="text-lg font-medium mb-2">No admin users found</div>
+          <div className="text-sm">
+            Admin users will appear here once they are added to the system
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+          <thead className="bg-gray-50 dark:bg-gray-800">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                User
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                Role
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                Created
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                Last Login
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+            {users.map((user) => (
+              <tr
+                key={user.id}
+                className="hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 h-10 w-10">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                        <span className="text-sm font-medium text-white">
+                          {user.email.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {user.email}
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        ID: {user.id.slice(0, 8)}...
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {getRoleBadge(user.role)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <UserStatusToggle user={user} />
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  <div>
+                    <div>{formatTime(user.created_at).timeStr}</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      {formatTime(user.created_at).timeAgo}
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                  {user.last_login_at ? (
+                    <div>
+                      <div>{formatTime(user.last_login_at).timeStr}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        {formatTime(user.last_login_at).timeAgo}
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Never
+                    </span>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleRoleChange(user)}
+                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <Edit3 className="h-3 w-3 mr-1" />
+                      Change Role
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Role Management Modal */}
+      {selectedUser && (
+        <RoleManagementModal
+          user={selectedUser}
+          isOpen={isRoleModalOpen}
+          onClose={() => {
+            setIsRoleModalOpen(false);
+            setSelectedUser(null);
+          }}
+          onConfirm={handleRoleUpdate}
+          isUpdating={isUpdating}
+        />
+      )}
+    </>
+  );
+}

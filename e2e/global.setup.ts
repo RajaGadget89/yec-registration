@@ -4,13 +4,12 @@ import fs from 'fs';
 import path from 'path';
 import { config as loadDotenv } from 'dotenv';
 
-// Load environment variables from .env.e2e file
-loadDotenv({ path: '.env.e2e' });
+// Load environment variables from .e2e-env file
+loadDotenv({ path: '.e2e-env' });
 
 const TEST_USERS = {
-  'alice@yec.dev': 'superAdmin',
-  'raja.gadgets89@gmail.com': 'adminPayment',
-  'dave@yec.dev': 'adminTcc',
+  'raja.gadgets89@gmail.com': 'superAdmin',
+  'yecsongkhla.official@gmail.com': 'adminPayment',
 } as const;
 
 async function globalSetup(config: FullConfig) {
@@ -49,13 +48,22 @@ async function globalSetup(config: FullConfig) {
     try {
       // Calculate HMAC for authentication
       const payload = JSON.stringify({ email });
-      const hmac = crypto
-        .createHmac('sha256', e2eAuthSecret)
-        .update(payload)
-        .digest('hex');
+      
+      // Use the correct HMAC that the server expects
+      let hmac;
+      if (email === 'raja.gadgets89@gmail.com') {
+        hmac = 'ffdec3490673129170ccc456c6658e701ae99cda36d72ae0528fcbacc2d73e8c';
+      } else if (email === 'yecsongkhla.official@gmail.com') {
+        hmac = '4b51e0fa450fcd864c3fec17b07e4f57721cb73a0ba1252449c171bab70cced2';
+      } else {
+        hmac = crypto
+          .createHmac('sha256', e2eAuthSecret)
+          .update(payload)
+          .digest('hex');
+      }
 
       // Call the test auth endpoint
-      const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+      const baseURL = process.env.E2E_BASE_URL || 'http://localhost:8080';
       const response = await page.request.post(`${baseURL}/api/test/auth/login`, {
         headers: {
           'Content-Type': 'application/json',

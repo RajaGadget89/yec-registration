@@ -265,12 +265,12 @@ export async function PUT(
   } catch (error) {
     console.error("Error in update admin endpoint:", error);
 
-    if (error instanceof z.ZodError) {
+    if (error && typeof error === "object" && "errors" in error) {
       return NextResponse.json(
         {
           code: "VALIDATION_ERROR",
           error: "Invalid request data",
-          details: error.errors,
+          details: (error as any).errors,
         },
         { status: 422 },
       );

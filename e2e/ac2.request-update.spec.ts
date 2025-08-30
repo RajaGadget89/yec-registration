@@ -1,6 +1,10 @@
 import { test, expect } from './fixtures/auth';
 import { getSelectorString } from './utils/selectors';
 import crypto from 'crypto';
+import { config as loadDotenv } from 'dotenv';
+
+// Load environment variables for the test
+loadDotenv({ path: '.env.e2e' });
 
 test.describe('AC2 - Admin Request Update', () => {
   
@@ -151,12 +155,12 @@ test.describe('AC2 - Admin Request Update', () => {
   test.describe('TCC Admin Tests', () => {
     test('TCC admin can request TCC updates', async ({ page, programmaticLogin }) => {
       // Login as TCC admin
-      await programmaticLogin('dave@yec.dev');
+      await programmaticLogin('yecsongkhla.official@gmail.com');
       
       const base = process.env.E2E_BASE_URL || 'http://localhost:8080';
       
       // Verify authentication first
-      const authRes = await page.request.get(`${base}/api/test/rbac-debug?email=dave@yec.dev`);
+      const authRes = await page.request.get(`${base}/api/test/rbac-debug?email=yecsongkhla.official@gmail.com`);
       expect(authRes.status()).toBe(200);
       const authData = await authRes.json();
       expect(authData.roles).toContain('admin_tcc');
@@ -183,12 +187,12 @@ test.describe('AC2 - Admin Request Update', () => {
 
     test('TCC admin cannot request payment updates', async ({ page, programmaticLogin }) => {
       // Login as TCC admin
-      await programmaticLogin('dave@yec.dev');
+      await programmaticLogin('yecsongkhla.official@gmail.com');
       
       const base = process.env.E2E_BASE_URL || 'http://localhost:8080';
       
       // Verify authentication first
-      const authRes = await page.request.get(`${base}/api/test/rbac-debug?email=dave@yec.dev`);
+      const authRes = await page.request.get(`${base}/api/test/rbac-debug?email=yecsongkhla.official@gmail.com`);
       expect(authRes.status()).toBe(200);
       const authData = await authRes.json();
       expect(authData.roles).not.toContain('admin_payment');
@@ -218,12 +222,12 @@ test.describe('AC2 - Admin Request Update', () => {
 
     test('TCC admin cannot request profile updates', async ({ page, programmaticLogin }) => {
       // Login as TCC admin
-      await programmaticLogin('dave@yec.dev');
+      await programmaticLogin('yecsongkhla.official@gmail.com');
       
       const base = process.env.E2E_BASE_URL || 'http://localhost:8080';
       
       // Verify authentication first
-      const authRes = await page.request.get(`${base}/api/test/rbac-debug?email=dave@yec.dev`);
+      const authRes = await page.request.get(`${base}/api/test/rbac-debug?email=yecsongkhla.official@gmail.com`);
       expect(authRes.status()).toBe(200);
       const authData = await authRes.json();
       expect(authData.roles).not.toContain('admin_profile');
@@ -254,13 +258,13 @@ test.describe('AC2 - Admin Request Update', () => {
 
   test.describe('Non-Admin Tests', () => {
     test('non-admin cannot request any updates', async ({ page, programmaticLogin }) => {
-      // Login as non-admin (alice@yec.dev has no admin roles)
-      await programmaticLogin('alice@yec.dev');
+          // Login as non-admin (test@example.com has no admin roles)
+    await programmaticLogin('test@example.com');
       
       const base = process.env.E2E_BASE_URL || 'http://localhost:8080';
       
       // Verify authentication first
-      const authRes = await page.request.get(`${base}/api/test/rbac-debug?email=alice@yec.dev`);
+              const authRes = await page.request.get(`${base}/api/test/rbac-debug?email=test@example.com`);
       expect(authRes.status()).toBe(200);
       const authData = await authRes.json();
       expect(authData.roles.length).toBe(0); // No admin roles
@@ -413,8 +417,10 @@ test.describe('AC2 - Admin Request Update', () => {
 
 async function waitForUpdateEmail(page: any, to: string, dimension: 'profile'|'payment'|'tcc') {
   const base = process.env.E2E_BASE_URL || 'http://localhost:8080';
-  const secret = process.env.E2E_AUTH_SECRET!;
   const payload = JSON.stringify({ to, dimension, type: 'update_request' });
+  
+  // Calculate HMAC using the environment secret
+  const secret = process.env.E2E_AUTH_SECRET!;
   const hmac = crypto.createHmac('sha256', secret).update(payload).digest('hex');
 
   const url = new URL('/api/test/outbox/wait', base);
@@ -436,6 +442,8 @@ async function waitForUpdateEmail(page: any, to: string, dimension: 'profile'|'p
       deepLink: null
     };
   }
+  
+
   
   expect(res.status()).toBe(200);
   const json = await res.json();

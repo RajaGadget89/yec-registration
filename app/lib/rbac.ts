@@ -34,7 +34,7 @@ function parseEmailAllowlist(envVar: string): Set<string> {
 }
 
 // Parse allowlists once at module load
-const SUPER_ADMIN_EMAILS = parseEmailAllowlist("ADMIN_SUPER_EMAILS");
+const SUPER_ADMIN_EMAILS = parseEmailAllowlist("SUPER_ADMIN_EMAILS");
 const PAYMENT_ADMIN_EMAILS = parseEmailAllowlist("ADMIN_PAYMENT_EMAILS");
 const PROFILE_ADMIN_EMAILS = parseEmailAllowlist("ADMIN_PROFILE_EMAILS");
 const TCC_ADMIN_EMAILS = parseEmailAllowlist("ADMIN_TCC_EMAILS");

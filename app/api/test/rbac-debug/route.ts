@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     profileAdmins: getUsersWithRole("admin_profile"),
     tccAdmins: getUsersWithRole("admin_tcc"),
     envVars: {
-      ADMIN_SUPER_EMAILS: process.env.ADMIN_SUPER_EMAILS,
+      SUPER_ADMIN_EMAILS: process.env.SUPER_ADMIN_EMAILS,
       ADMIN_PAYMENT_EMAILS: process.env.ADMIN_PAYMENT_EMAILS,
       ADMIN_PROFILE_EMAILS: process.env.ADMIN_PROFILE_EMAILS,
       ADMIN_TCC_EMAILS: process.env.ADMIN_TCC_EMAILS,
