@@ -29,12 +29,24 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ENV: 'staging'
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SITE_URL: http://localhost:8080
+          E2E_BASE_URL: http://localhost:8080
+          FEATURES_ADMIN_MANAGEMENT: "true"
+          E2E_TESTS: "true"
+          E2E_TEST_MODE: "true"
+          TEST_HELPERS_ENABLED: "1"
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
+          SUPABASE_ENV: "staging"
+          SUPER_ADMIN_EMAILS: "raja.gadgets89@gmail.com,yecsongkhla.official@gmail.com"
+          ADMIN_SEED_SECRET: "test-seed-secret"
         run: |
           echo "🚀 Starting development server..."
           npm run dev &
           echo "⏳ Waiting for server to start..."
-          sleep 10
+          sleep 15
           echo "🔍 Checking if server is ready..."
           curl -f http://localhost:8080/api/health || (echo "❌ Server not ready" && exit 1)
           echo "✅ Server is ready!"
@@ -42,15 +54,26 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_ENV: 'staging'
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SITE_URL: http://localhost:8080
+          E2E_BASE_URL: http://localhost:8080
+          FEATURES_ADMIN_MANAGEMENT: "true"
+          E2E_TESTS: "true"
+          E2E_TEST_MODE: "true"
+          TEST_HELPERS_ENABLED: "1"
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
+          SUPABASE_ENV: "staging"
+          SUPER_ADMIN_EMAILS: "raja.gadgets89@gmail.com,yecsongkhla.official@gmail.com"
+          ADMIN_SEED_SECRET: "test-seed-secret"
         run: |
           set -e
-          echo "🔍 Running audit diagnostic tests without authentication setup..."
+          echo "🔍 Running audit diagnostic tests with proper authentication..."
           if [ -f "tests/e2e/audit-diag.e2e.spec.ts" ]; then
-            # Use CI-specific configuration that skips global setup
-            npx playwright test tests/e2e/audit-diag.e2e.spec.ts --config=playwright.ci.config.ts --reporter=line
+            npx playwright test tests/e2e/audit-diag.e2e.spec.ts --config=playwright.audit.config.ts --reporter=line
           else
-            npx playwright test --grep="@audit @diag" --config=playwright.ci.config.ts --reporter=line
+            npx playwright test --grep="@audit @diag" --config=playwright.audit.config.ts --reporter=line
           fi
           
           echo "🛑 Stopping development server..."
