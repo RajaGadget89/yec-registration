@@ -224,40 +224,38 @@ export async function getCurrentUserFromRequest(
       };
     }
 
-    // E2E test mode fallback: check for admin-email cookie
-    if (process.env.E2E_TEST_MODE === "true") {
-      const cookieHeader = request.headers.get("cookie");
-      if (cookieHeader) {
-        const cookies = Object.fromEntries(
-          cookieHeader.split(";").map((cookie) => {
-            const [name, value] = cookie.trim().split("=");
-            return [name, value];
-          }),
-        );
+    // Fallback: check for admin-email cookie (works in both E2E and production)
+    const cookieHeader = request.headers.get("cookie");
+    if (cookieHeader) {
+      const cookies = Object.fromEntries(
+        cookieHeader.split(";").map((cookie) => {
+          const [name, value] = cookie.trim().split("=");
+          return [name, value];
+        }),
+      );
 
-        const adminEmail = cookies["admin-email"];
-        if (adminEmail) {
-          // URL-decode the email since cookies are automatically encoded
-          const decodedEmail = decodeURIComponent(adminEmail);
+      const adminEmail = cookies["admin-email"];
+      if (adminEmail) {
+        // URL-decode the email since cookies are automatically encoded
+        const decodedEmail = decodeURIComponent(adminEmail);
 
-          // Get user from admin_users table using email
-          const { data: adminUser, error } = await supabase
-            .from("admin_users")
-            .select("*")
-            .eq("email", decodedEmail)
-            .eq("is_active", true)
-            .single();
+        // Get user from admin_users table using email
+        const { data: adminUser, error } = await supabase
+          .from("admin_users")
+          .select("*")
+          .eq("email", decodedEmail)
+          .eq("is_active", true)
+          .single();
 
-          if (!error && adminUser) {
-            return {
-              id: adminUser.id,
-              email: adminUser.email,
-              role: adminUser.role,
-              created_at: adminUser.created_at,
-              last_login_at: adminUser.last_login_at,
-              is_active: adminUser.is_active,
-            };
-          }
+        if (!error && adminUser) {
+          return {
+            id: adminUser.id,
+            email: adminUser.email,
+            role: adminUser.role,
+            created_at: adminUser.created_at,
+            last_login_at: adminUser.last_login_at,
+            is_active: adminUser.is_active,
+          };
         }
       }
     }
