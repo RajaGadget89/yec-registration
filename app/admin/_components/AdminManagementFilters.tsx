@@ -13,7 +13,9 @@ interface AdminManagementFiltersProps {
   };
 }
 
-export default function AdminManagementFilters({ currentFilters }: AdminManagementFiltersProps) {
+export default function AdminManagementFilters({
+  currentFilters,
+}: AdminManagementFiltersProps) {
   const [filters, setFilters] = useState(currentFilters);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -22,34 +24,34 @@ export default function AdminManagementFilters({ currentFilters }: AdminManageme
   }, [currentFilters]);
 
   useEffect(() => {
-    const hasChanges = 
+    const hasChanges =
       filters.search !== currentFilters.search ||
       filters.role !== currentFilters.role ||
       filters.status !== currentFilters.status ||
       filters.sortBy !== currentFilters.sortBy ||
       filters.sortOrder !== currentFilters.sortOrder;
-    
+
     setHasChanges(hasChanges);
   }, [filters, currentFilters]);
 
   const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    
+
     Object.entries(filters).forEach(([key, value]) => {
       if (value) {
         params.append(key, value);
       }
     });
 
-    const url = `/admin/management${params.toString() ? `?${params.toString()}` : ''}`;
+    const url = `/admin/management${params.toString() ? `?${params.toString()}` : ""}`;
     window.location.href = url;
   };
 
@@ -77,7 +79,7 @@ export default function AdminManagementFilters({ currentFilters }: AdminManageme
             />
           </div>
         </div>
-        
+
         {hasActiveFilters && (
           <button
             type="button"

@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getCurrentUserFromRequest,
-  hasRole,
-} from "../../../lib/auth-utils.server";
+import { getCurrentUserFromRequest } from "../../../lib/auth-utils.server";
 import { getSupabaseAuth } from "../../../lib/auth-client";
 import { getRolesForEmail } from "../../../lib/rbac";
 
@@ -19,19 +16,16 @@ export async function GET(request: NextRequest) {
     if (currentUser?.email && currentUser.is_active) {
       // Check database role first
       isSuperAdmin = currentUser.role === "super_admin";
-      
+
       // If not super_admin in database, check RBAC system
       if (!isSuperAdmin) {
         const rbacRoles = getRolesForEmail(currentUser.email);
         isSuperAdmin = rbacRoles.has("super_admin");
       }
     }
-    
+
     if (!isSuperAdmin) {
-      return NextResponse.json(
-        { error: "forbidden" },
-        { status: 403 },
-      );
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     const supabase = getSupabaseAuth();

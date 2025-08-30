@@ -110,7 +110,7 @@ test.describe('AC4: Mark Pass Flow', () => {
 
   test('TCC admin can mark TCC as passed via API', async ({ page, programmaticLogin }) => {
     // Login as TCC admin
-    await programmaticLogin('dave@yec.dev');
+            await programmaticLogin('yecsongkhla.official@gmail.com');
     
     const base = process.env.E2E_BASE_URL || 'http://localhost:8080';
     

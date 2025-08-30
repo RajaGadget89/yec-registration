@@ -8,9 +8,8 @@ import { config as loadDotenv } from 'dotenv';
 loadDotenv({ path: '.e2e-env' });
 
 const TEST_USERS = {
-  'alice@yec.dev': 'superAdmin',
-  'raja.gadgets89@gmail.com': 'adminPayment',
-  'dave@yec.dev': 'adminTcc',
+  'raja.gadgets89@gmail.com': 'superAdmin',
+  'yecsongkhla.official@gmail.com': 'adminPayment',
 } as const;
 
 async function globalSetup(config: FullConfig) {
@@ -52,11 +51,9 @@ async function globalSetup(config: FullConfig) {
       
       // Use the correct HMAC that the server expects
       let hmac;
-      if (email === 'alice@yec.dev') {
-        hmac = '11160da6d01074c04b4e9410da15b02a5b23cfebc4762e468a026da4bd301f3a';
-      } else if (email === 'raja.gadgets89@gmail.com') {
+      if (email === 'raja.gadgets89@gmail.com') {
         hmac = 'ffdec3490673129170ccc456c6658e701ae99cda36d72ae0528fcbacc2d73e8c';
-      } else if (email === 'dave@yec.dev') {
+      } else if (email === 'yecsongkhla.official@gmail.com') {
         hmac = '4b51e0fa450fcd864c3fec17b07e4f57721cb73a0ba1252449c171bab70cced2';
       } else {
         hmac = crypto

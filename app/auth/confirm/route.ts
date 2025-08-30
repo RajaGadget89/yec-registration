@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
       console.error("[auth/confirm] missing token_hash parameter");
       return NextResponse.redirect(
         new URL("/admin/login?error=missing_token_hash", getAppUrl()),
-        303
+        303,
       );
     }
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       console.error("[auth/confirm] missing type parameter");
       return NextResponse.redirect(
         new URL("/admin/login?error=missing_type", getAppUrl()),
-        303
+        303,
       );
     }
 
@@ -81,8 +81,11 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("[auth/confirm] verification failed:", error);
       return NextResponse.redirect(
-        new URL(`/admin/login?error=verify_failed&message=${encodeURIComponent(error.message)}`, getAppUrl()),
-        303
+        new URL(
+          `/admin/login?error=verify_failed&message=${encodeURIComponent(error.message)}`,
+          getAppUrl(),
+        ),
+        303,
       );
     }
 
@@ -90,11 +93,14 @@ export async function GET(request: NextRequest) {
       console.error("[auth/confirm] no session established");
       return NextResponse.redirect(
         new URL("/admin/login?error=no_session", getAppUrl()),
-        303
+        303,
       );
     }
 
-    console.log("[auth/confirm] session established for user:", data.session.user.email);
+    console.log(
+      "[auth/confirm] session established for user:",
+      data.session.user.email,
+    );
 
     // Verify the user is an admin
     const userEmail = data.session.user.email;
@@ -102,7 +108,7 @@ export async function GET(request: NextRequest) {
       console.error("[auth/confirm] user not in admin allowlist:", userEmail);
       return NextResponse.redirect(
         new URL("/admin/login?error=not_admin", getAppUrl()),
-        303
+        303,
       );
     }
 
@@ -123,7 +129,10 @@ export async function GET(request: NextRequest) {
       fullRedirectUrl: fullRedirectUrl.toString(),
     });
 
-    console.log("[auth/confirm] authentication successful, redirecting to:", fullRedirectUrl.toString());
+    console.log(
+      "[auth/confirm] authentication successful, redirecting to:",
+      fullRedirectUrl.toString(),
+    );
 
     // Create a new redirect response with the cookies from our response
     const redirectResponse = NextResponse.redirect(fullRedirectUrl, 303);
@@ -138,7 +147,7 @@ export async function GET(request: NextRequest) {
     console.error("[auth/confirm] unexpected error:", error);
     return NextResponse.redirect(
       new URL("/admin/login?error=unexpected_error", getAppUrl()),
-      303
+      303,
     );
   }
 }

@@ -11,12 +11,15 @@ export async function POST(request: NextRequest) {
   // Check if E2E test mode is enabled
   const e2eTestMode = process.env.E2E_TEST_MODE;
   const isE2EResult = isE2E();
-  
+
   if (!isE2EResult) {
-    return NextResponse.json({ 
-      error: "E2E test mode not enabled",
-      debug: { e2eTestMode, isE2EResult }
-    }, { status: 403 });
+    return NextResponse.json(
+      {
+        error: "E2E test mode not enabled",
+        debug: { e2eTestMode, isE2EResult },
+      },
+      { status: 403 },
+    );
   }
 
   try {
@@ -53,14 +56,14 @@ export async function POST(request: NextRequest) {
 
     if (authHeader !== expectedHmac) {
       return NextResponse.json(
-        { 
+        {
           error: "Invalid authentication",
           debug: {
             authHeader,
             expectedHmac,
             payload,
-            e2eAuthSecret: e2eAuthSecret ? "SET" : "NOT_SET"
-          }
+            e2eAuthSecret: e2eAuthSecret ? "SET" : "NOT_SET",
+          },
         },
         { status: 403 },
       );
