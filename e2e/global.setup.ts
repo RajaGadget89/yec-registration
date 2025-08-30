@@ -8,9 +8,8 @@ import { config as loadDotenv } from 'dotenv';
 loadDotenv({ path: '.env.e2e' });
 
 const TEST_USERS = {
-  'alice@yec.dev': 'superAdmin',
-  'raja.gadgets89@gmail.com': 'adminPayment',
-  'dave@yec.dev': 'adminTcc',
+  'raja.gadgets89@gmail.com': 'superAdmin',
+  'yecsongkhla.official@gmail.com': 'adminTcc',
 } as const;
 
 async function globalSetup(config: FullConfig) {
@@ -55,7 +54,7 @@ async function globalSetup(config: FullConfig) {
         .digest('hex');
 
       // Call the test auth endpoint
-      const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3001';
+      const baseURL = process.env.E2E_BASE_URL || 'http://localhost:8080';
       const response = await page.request.post(`${baseURL}/api/test/auth/login`, {
         headers: {
           'Content-Type': 'application/json',
