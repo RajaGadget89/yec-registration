@@ -323,6 +323,8 @@ export default function RegistrationForm() {
 
         <form
           onSubmit={handleSubmit}
+          action="/api/form-submit"
+          method="GET"
           className="bg-white rounded-lg shadow-lg p-8"
         >
           {/* Edit mode notification */}

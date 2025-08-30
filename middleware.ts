@@ -53,8 +53,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Create response object for cookie handling
+  const response = NextResponse.next();
+
   try {
-    // Create Supabase server client with cookie handling
+    // Create Supabase server client with writable cookie handling
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -62,16 +65,18 @@ export async function middleware(request: NextRequest) {
         cookies: {
           get: (key: string) => request.cookies.get(key)?.value,
           set: (key, value, options) => {
-            // This is read-only in middleware, so we don't implement set
+            // Forward cookie mutations to the response
+            response.cookies.set(key, value, options);
           },
           remove: (key, options) => {
-            // This is read-only in middleware, so we don't implement remove
+            // Forward cookie removal to the response
+            response.cookies.set(key, "", { ...options, expires: new Date(0) });
           },
         },
       },
     );
 
-    // Get the current session
+    // Get the current session (this will automatically refresh if needed)
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
     if (sessionError) {
@@ -79,12 +84,16 @@ export async function middleware(request: NextRequest) {
         console.log(`[auth-debug] middleware: session error:`, sessionError.message);
       }
       // Session error, redirect to login
-      const response = NextResponse.redirect(
+      const redirectResponse = NextResponse.redirect(
         new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
         307
       );
-      response.headers.set('x-admin-guard', 'deny:session-error');
-      return response;
+      redirectResponse.headers.set('x-admin-guard', 'deny:session-error');
+      // Copy any cookies from our response to the redirect response
+      response.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      return redirectResponse;
     }
 
     if (!session) {
@@ -92,12 +101,16 @@ export async function middleware(request: NextRequest) {
         console.log(`[auth-debug] middleware: no session found`);
       }
       // No session, redirect to login
-      const response = NextResponse.redirect(
+      const redirectResponse = NextResponse.redirect(
         new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
         307
       );
-      response.headers.set('x-admin-guard', 'deny:no-session');
-      return response;
+      redirectResponse.headers.set('x-admin-guard', 'deny:no-session');
+      // Copy any cookies from our response to the redirect response
+      response.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      return redirectResponse;
     }
 
     // Check if user is in admin allowlist
@@ -109,16 +122,19 @@ export async function middleware(request: NextRequest) {
         console.log(`[auth-debug] middleware: user not in admin allowlist:`, userEmail);
       }
       // User not in admin allowlist, redirect to login
-      const response = NextResponse.redirect(
+      const redirectResponse = NextResponse.redirect(
         new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
         307
       );
-      response.headers.set('x-admin-guard', 'deny:not-admin');
-      return response;
+      redirectResponse.headers.set('x-admin-guard', 'deny:not-admin');
+      // Copy any cookies from our response to the redirect response
+      response.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      return redirectResponse;
     }
 
     // User is authenticated and is admin, allow access
-    const response = NextResponse.next();
     response.headers.set('x-admin-guard', 'ok:supabase-session');
     
     if (AUTH_TRACE) {
@@ -132,12 +148,16 @@ export async function middleware(request: NextRequest) {
       console.log(`[auth-debug] middleware: unexpected error:`, error);
     }
     // Unexpected error, redirect to login
-    const response = NextResponse.redirect(
+    const redirectResponse = NextResponse.redirect(
       new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
       307
     );
-    response.headers.set('x-admin-guard', 'deny:error');
-    return response;
+    redirectResponse.headers.set('x-admin-guard', 'deny:error');
+    // Copy any cookies from our response to the redirect response
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return redirectResponse;
   }
 }
 

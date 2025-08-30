@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { maybeServiceClient } from "../../../../../lib/supabase/server";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
 import { isAdmin } from "../../../../../lib/admin-guard";
+import { canReviewDimension } from "../../../../../lib/rbac";
 import { EventService } from "../../../../../lib/events/eventService";
 import { withAuditLogging } from "../../../../../lib/audit/withAuditAccess";
 
@@ -25,10 +26,15 @@ async function handlePOST(
       return NextResponse.json(
         {
           ok: false,
-          error: "Invalid dimension. Must be payment, profile, or tcc",
+          error: "Invalid dimension",
         },
         { status: 400 },
       );
+    }
+
+    // Check RBAC permissions for the specific dimension
+    if (!canReviewDimension(user.email, dimension)) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     // Get appropriate Supabase client (service client if E2E bypass enabled)

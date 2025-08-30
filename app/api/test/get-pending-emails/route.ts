@@ -17,6 +17,29 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // CRON_SECRET authentication
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    return NextResponse.json(
+      { error: "CRON_SECRET not configured" },
+      { status: 500 },
+    );
+  }
+
+  // Check Authorization header
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return NextResponse.json(
+      { error: "Missing or invalid Authorization header" },
+      { status: 401 },
+    );
+  }
+
+  const token = authHeader.substring(7);
+  if (token !== cronSecret) {
+    return NextResponse.json({ error: "Invalid CRON_SECRET" }, { status: 401 });
+  }
+
   try {
     const supabase = getSupabaseServiceClient();
 

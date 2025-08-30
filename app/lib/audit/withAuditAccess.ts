@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logAccess } from "./auditClient";
+import { safeLogAccess } from "./safeAudit";
 import { randomUUID } from "crypto";
 import { createRequestContext, withRequestContext } from "./requestContext";
 
@@ -139,8 +139,8 @@ export function withAuditLogging<T extends any[]>(
         );
       }
 
-      // Log access event (fire-and-forget)
-      logAccess({
+      // Log access event (fire-and-forget, soft-fail in tests)
+      safeLogAccess({
         action,
         method,
         resource,
@@ -167,7 +167,7 @@ export function withAuditLogging<T extends any[]>(
         { status: 500 },
       );
 
-      // Log the error (fire-and-forget)
+      // Log the error (fire-and-forget, soft-fail in tests)
       if (!config.skipLogging) {
         const requestId = extractRequestId(request);
         const clientIP = extractClientIP(request);
@@ -178,7 +178,7 @@ export function withAuditLogging<T extends any[]>(
         const action = config.action || formatAction(method, path);
         const resource = config.resource || formatResource(path);
 
-        logAccess({
+        safeLogAccess({
           action,
           method,
           resource,

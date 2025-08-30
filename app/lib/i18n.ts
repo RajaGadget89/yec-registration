@@ -94,7 +94,7 @@ const messages = {
     update_success:
       "Your information has been updated successfully. Your registration is now under review. You will be notified once the review is complete.",
     contact_support: "Please contact support if you believe this is an error",
-    file_too_large: "File size is too large",
+    file_too_large: "File too large",
     invalid_file_type: "Invalid file type",
   },
 };
