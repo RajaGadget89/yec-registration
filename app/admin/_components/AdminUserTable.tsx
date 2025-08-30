@@ -3,18 +3,7 @@
 import { useState, useEffect } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
-import { 
-  Crown, 
-  Shield, 
-  UserCheck, 
-  UserX, 
-  Edit3, 
-  MoreHorizontal,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Users
-} from "lucide-react";
+import { Crown, Shield, Edit3, Users } from "lucide-react";
 import RoleManagementModal from "./RoleManagementModal";
 import UserStatusToggle from "./UserStatusToggle";
 
@@ -32,9 +21,13 @@ interface AdminUserTableProps {
   users?: AdminUser[];
 }
 
-export default function AdminUserTable({ users: initialUsers }: AdminUserTableProps) {
+export default function AdminUserTable({
+  users: initialUsers,
+}: AdminUserTableProps) {
   const [users, setUsers] = useState<AdminUser[]>(initialUsers || []);
-  const [loading, setLoading] = useState(!initialUsers || initialUsers.length === 0);
+  const [loading, setLoading] = useState(
+    !initialUsers || initialUsers.length === 0,
+  );
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -44,8 +37,8 @@ export default function AdminUserTable({ users: initialUsers }: AdminUserTablePr
     if (!initialUsers || initialUsers.length === 0) {
       const fetchUsers = async () => {
         try {
-          const response = await fetch('/api/admin/users');
-          
+          const response = await fetch("/api/admin/users");
+
           if (response.ok) {
             const data = await response.json();
             setUsers(data.users || []);
@@ -58,7 +51,7 @@ export default function AdminUserTable({ users: initialUsers }: AdminUserTablePr
           setLoading(false);
         }
       };
-      
+
       fetchUsers();
     }
   }, [initialUsers]);
@@ -68,18 +61,14 @@ export default function AdminUserTable({ users: initialUsers }: AdminUserTablePr
       const thTime = toZonedTime(new Date(utcTime), "Asia/Bangkok");
       const timeStr = format(thTime, "yyyy-MM-dd HH:mm:ss");
       // Use a more stable time ago format to avoid hydration issues
-      const timeAgo = formatDistanceToNow(thTime, { addSuffix: true, includeSeconds: false });
+      const timeAgo = formatDistanceToNow(thTime, {
+        addSuffix: true,
+        includeSeconds: false,
+      });
       return { timeStr, timeAgo };
     } catch {
       return { timeStr: utcTime, timeAgo: "" };
     }
-  };
-
-  const getRoleIcon = (role: string) => {
-    if (role === "super_admin") {
-      return <Crown className="h-4 w-4 text-yellow-600" />;
-    }
-    return <Shield className="h-4 w-4 text-blue-600" />;
   };
 
   const getRoleBadge = (role: string) => {
@@ -95,23 +84,6 @@ export default function AdminUserTable({ users: initialUsers }: AdminUserTablePr
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
         <Shield className="h-3 w-3 mr-1" />
         Admin
-      </span>
-    );
-  };
-
-  const getStatusBadge = (isActive: boolean) => {
-    if (isActive) {
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200">
-          <UserCheck className="h-3 w-3 mr-1" />
-          Active
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200">
-        <UserX className="h-3 w-3 mr-1" />
-        Inactive
       </span>
     );
   };
@@ -207,7 +179,10 @@ export default function AdminUserTable({ users: initialUsers }: AdminUserTablePr
           </thead>
           <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
             {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+              <tr
+                key={user.id}
+                className="hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
@@ -250,7 +225,9 @@ export default function AdminUserTable({ users: initialUsers }: AdminUserTablePr
                       </div>
                     </div>
                   ) : (
-                    <span className="text-gray-500 dark:text-gray-400">Never</span>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Never
+                    </span>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

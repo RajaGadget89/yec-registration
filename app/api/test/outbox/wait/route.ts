@@ -75,8 +75,6 @@ export async function GET(request: NextRequest) {
       .update(payload)
       .digest("hex");
 
-
-
     if (authHeader !== expectedHmac) {
       return NextResponse.json(
         { error: "Invalid authentication" },
