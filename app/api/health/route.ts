@@ -1,40 +1,30 @@
 import { NextResponse } from "next/server";
-import { assertDbRouting, dbHostForLog } from "../../lib/env-guards";
 
+/**
+ * Application Health Check Endpoint
+ * Basic health check for the application
+ */
 export async function GET() {
   try {
-    // Validate database routing
-    assertDbRouting();
-
-    const dbHost = dbHostForLog();
-    const env = process.env.SUPABASE_ENV || "staging";
-
-    return NextResponse.json({
+    const healthData = {
       status: "healthy",
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || "development",
-      database: {
-        env: env,
-        host: dbHost,
-        routing: "valid",
+      environment: process.env.NODE_ENV,
+      version: process.env.npm_package_version || "unknown",
+      uptime: process.uptime(),
+      memory: {
+        used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
       },
-      services: {
-        supabase: "connected",
-        email: process.env.RESEND_API_KEY ? "configured" : "not_configured",
-        telegram: process.env.TELEGRAM_BOT_TOKEN
-          ? "configured"
-          : "not_configured",
-      },
-    });
+    };
+
+    return NextResponse.json(healthData);
   } catch (error) {
     return NextResponse.json(
       {
         status: "unhealthy",
-        timestamp: new Date().toISOString(),
         error: error instanceof Error ? error.message : "Unknown error",
-        database: {
-          routing: "invalid",
-        },
+        timestamp: new Date().toISOString(),
       },
       { status: 500 },
     );
