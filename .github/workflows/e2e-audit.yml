@@ -30,6 +30,9 @@ jobs:
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
       E2E_AUTH_SECRET: ${{ secrets.E2E_AUTH_SECRET }}
       SUPABASE_ENV: "staging"
+      # Admin configuration for E2E tests
+      SUPER_ADMIN_EMAILS: "raja.gadgets89@gmail.com,yecsongkhla.official@gmail.com"
+      ADMIN_SEED_SECRET: "test-seed-secret"
     if: |
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
