@@ -114,7 +114,7 @@ test.describe('AC5: Approve Flow', () => {
 
   test('non-admin cannot approve registration', async ({ page, programmaticLogin }) => {
     // Login as non-admin
-    await programmaticLogin('alice@yec.dev');
+            await programmaticLogin('test@example.com');
     
     const base = process.env.E2E_BASE_URL || 'http://localhost:8080';
     

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getCurrentUserFromRequest,
-  hasRole,
-} from "../../../lib/auth-utils.server";
+import { getCurrentUserFromRequest } from "../../../lib/auth-utils.server";
 import { getSupabaseAuth } from "../../../lib/auth-client";
+import { getRolesForEmail } from "../../../lib/rbac";
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,11 +11,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!(await hasRole("super_admin"))) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 },
-      );
+    // Check if user is super_admin (either from database or RBAC)
+    let isSuperAdmin = false;
+    if (currentUser?.email && currentUser.is_active) {
+      // Check database role first
+      isSuperAdmin = currentUser.role === "super_admin";
+
+      // If not super_admin in database, check RBAC system
+      if (!isSuperAdmin) {
+        const rbacRoles = getRolesForEmail(currentUser.email);
+        isSuperAdmin = rbacRoles.has("super_admin");
+      }
+    }
+
+    if (!isSuperAdmin) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     const supabase = getSupabaseAuth();
