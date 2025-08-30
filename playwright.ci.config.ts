@@ -1,8 +1,8 @@
-// playwright.ci.config.ts - Configuration for CI environment (no authentication)
+// playwright.ci.config.ts - Configuration for CI environment tests
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadDotenv } from 'dotenv';
 
-// Load environment variables from .env.e2e file if available
+// Load environment variables from .env.e2e file
 loadDotenv({ path: '.env.e2e' });
 
 export default defineConfig({
@@ -13,39 +13,41 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'line',
   
-  // No global setup for CI - diagnostic tests don't need authentication
-  
-
+  use: {
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:8080',
+    trace: 'on-first-retry',
+  },
 
   projects: [
     {
-      name: 'chromium',
+      name: 'superAdmin',
       use: { 
         ...devices['Desktop Chrome'],
+        storageState: '.auth/raja_gadgets89_gmail_com.json',
+      },
+    },
+    {
+      name: 'adminPayment',
+      use: { 
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/yecsongkhla_official_gmail_com.json',
+      },
+    },
+    {
+      name: 'adminProfile',
+      use: { 
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/raja_gadgets89_gmail_com.json',
+      },
+    },
+    {
+      name: 'adminTcc',
+      use: { 
+        ...devices['Desktop Chrome'],
+        storageState: '.auth/yecsongkhla_official_gmail_com.json',
       },
     },
   ],
 
-  // CI-specific settings
-  timeout: 30000,
-  expect: {
-    timeout: 10000,
-  },
-  
-  // Output directory for test artifacts
-  outputDir: 'test-results/ci',
-  
-  // Disable video and screenshot capture in CI for performance
-  use: {
-    ...devices['Desktop Chrome'],
-    baseURL: 'http://localhost:8080',
-    trace: 'on-first-retry',
-    video: 'off',
-    screenshot: 'only-on-failure',
-  },
-  
-  // Suppress Node.js deprecation warnings in CI
-  env: {
-    NODE_OPTIONS: '--no-warnings',
-  },
+  globalSetup: require.resolve('./e2e/global.setup.ts'),
 });
