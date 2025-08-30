@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { maybeServiceClient } from "../../../../../lib/supabase/server";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
-import { isAdmin } from "../../../../../lib/admin-guard";
+import { canApprove } from "../../../../../lib/rbac";
 import { EventService } from "../../../../../lib/events/eventService";
 import { withAuditLogging } from "../../../../../lib/audit/withAuditAccess";
 import { eventDrivenEmailService } from "../../../../../lib/emails/enhancedEmailService";
@@ -11,10 +11,13 @@ async function handlePOST(
   { params }: { params: { id: string } },
 ) {
   try {
-    // Check admin authentication
+    // Check admin authentication and approval permission
     const user = await getCurrentUserFromRequest(request);
-    if (!user || !isAdmin(user.email)) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    if (!user || !canApprove(user.email)) {
+      return NextResponse.json(
+        { ok: false, error: "forbidden" },
+        { status: 403 },
+      );
     }
 
     const { id } = params;
@@ -55,8 +58,8 @@ async function handlePOST(
       );
     }
 
-    if (!result || result.length === 0 || !result[0].success) {
-      console.error("Approval failed:", result);
+    if (!result || result.length === 0) {
+      console.error("Approval failed: no result from domain function");
       return NextResponse.json(
         { ok: false, error: "Approval processing failed" },
         { status: 500 },
@@ -64,7 +67,18 @@ async function handlePOST(
     }
 
     const approvalResult = result[0];
-    void approvalResult; // used to satisfy lint without changing config
+
+    // Check if approval failed due to missing prerequisites
+    if (!approvalResult.success) {
+      console.log(
+        "Approval failed due to prerequisites:",
+        approvalResult.message,
+      );
+      return NextResponse.json(
+        { ok: false, error: "not ready" },
+        { status: 400 },
+      );
+    }
 
     // Send email notification using enhanced email service
     try {
@@ -107,12 +121,10 @@ async function handlePOST(
       );
     }
 
+    // Return AC5-compliant response shape
     return NextResponse.json({
       ok: true,
-      id: registration.id,
-      status: "approved",
-      badgeUrl: badgeUrl,
-      message: "Registration approved successfully",
+      message: "approved",
     });
   } catch (error) {
     console.error("Unexpected error in approve action:", error);
