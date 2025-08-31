@@ -40,7 +40,7 @@ export async function isAdmin(email: string): Promise<boolean> {
     // Step 1: Check database first
     const { getSupabaseServiceClient } = await import("./supabase-server");
     const supabase = getSupabaseServiceClient();
-    
+
     const { data: adminUser, error } = await supabase
       .from("admin_users")
       .select("email, role, is_active")
