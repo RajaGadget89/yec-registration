@@ -10,6 +10,7 @@ This directory contains Playwright E2E tests for the YEC Registration system, co
 - `ac4.mark-pass.spec.ts` - Mark pass functionality
 - `ac5.approve.spec.ts` - Approve registration flow
 - `ac6.file-validation.spec.ts` - File validation testing
+- `admin-flag-smoke.spec.ts` - Admin Management feature flag testing
 
 ### Test Projects
 - `superAdmin` - Tests with super admin permissions
@@ -47,12 +48,29 @@ cp env.e2e.template .env.e2e
 # Edit .env.e2e with your values
 ```
 
-### 2. Install Playwright
+### 2. Feature Flag Configuration
+The following feature flags control functionality in E2E tests:
+
+```bash
+# Admin Management Feature Flag
+FEATURES_ADMIN_MANAGEMENT=off|on
+# Default: ON in development/staging, OFF in production
+
+# Application URL
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+# Existing Supabase envs remain unchanged
+```
+
+**Feature Flag Behavior:**
+- `FEATURES_ADMIN_MANAGEMENT=off`: Admin Management menu hidden, route returns 403
+- `FEATURES_ADMIN_MANAGEMENT=on`: Admin Management accessible to super_admin users
+
+### 3. Install Playwright
 ```bash
 npm run e2e:install
 ```
 
-### 3. Create Authentication States
+### 4. Create Authentication States
 ```bash
 npx playwright test --config=playwright.config.ts --grep="global.setup"
 ```
@@ -81,6 +99,7 @@ npx playwright test e2e/ac3.deep-link-update.spec.ts
 npx playwright test e2e/ac4.mark-pass.spec.ts
 npx playwright test e2e/ac5.approve.spec.ts
 npx playwright test e2e/ac6.file-validation.spec.ts
+npx playwright test e2e/admin-flag-smoke.spec.ts
 ```
 
 ### Specific Projects
