@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
       roles = Array.from(userRoles);
       isAdmin = userRoles.size > 0;
 
-      // Fallback: check database if no RBAC roles found
+      // Database-first approach: Check database if no RBAC roles found
       if (userRoles.size === 0) {
         try {
           const svc = getServiceRoleClient();
@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
 
           if (error) {
             console.error("[whoami] database error:", error);
-            // Fallback: check if email is in ADMIN_EMAILS environment variable
+            // Step 2: Environment fallback on database error
             const adminEmails =
               process.env.ADMIN_EMAILS?.split(",").map((e) =>
                 e.trim().toLowerCase(),
@@ -157,7 +157,7 @@ export async function GET(req: NextRequest) {
           }
         } catch (e) {
           console.error("[whoami] unexpected error:", e);
-          // Fallback: check if email is in ADMIN_EMAILS environment variable
+          // Step 3: Environment fallback on unexpected error
           const adminEmails =
             process.env.ADMIN_EMAILS?.split(",").map((e) =>
               e.trim().toLowerCase(),

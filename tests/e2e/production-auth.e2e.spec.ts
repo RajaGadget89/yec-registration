@@ -15,6 +15,7 @@ test.beforeAll(() => {
 // Set overall test timeout to 60s for this spec
 test.setTimeout(60000);
 
+// Database-first approach: Get test email from environment or fallback
 const TEST_EMAIL = process.env.TEST_ADMIN_EMAIL ?? 
                    (process.env.ADMIN_EMAILS?.split(',')[0]?.trim() ?? 'raja.gadgets89@gmail.com');
 
