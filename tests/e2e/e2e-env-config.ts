@@ -39,7 +39,7 @@ export const E2E_CONFIG = {
     timeout: parseInt(process.env.TEST_TIMEOUT_MS || '30000')
   },
 
-  // Admin configuration
+  // Admin configuration (database-first approach with environment fallback)
   admin: {
     emails: process.env.ADMIN_EMAILS?.split(',') || ['raja.gadgets89@gmail.com'],
     seedSecret: process.env.ADMIN_SEED_SECRET || 'test-seed-secret'
