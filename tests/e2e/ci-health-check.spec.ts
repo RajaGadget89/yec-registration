@@ -69,7 +69,7 @@ test.describe('CI Health Check - System Validation', () => {
     });
     
     const data = await response.json();
-    expect(data.env.SUPABASE_ENV).toBe('staging');
+    expect(data.env.SUPABASE_ENV).toBe('test');
     expect(data.env.CRON_SECRET).toBe('set');
     expect(data.env.NODE_ENV).toBe('development');
   });
