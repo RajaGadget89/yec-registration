@@ -20,18 +20,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email required" }, { status: 400 });
     }
 
-    // Verify user is in admin allowlist
-    const adminEmails =
-      process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
-      [];
-    if (!adminEmails.includes(email.toLowerCase())) {
+    // Create Supabase client
+    const supabase = getSupabaseAuth();
+
+    // Database-first approach: Verify user is in admin allowlist
+    let isAllowed = false;
+    
+    try {
+      // Step 1: Check if user exists in database
+      const { data: existingUser } = await supabase
+        .from("admin_users")
+        .select("email, is_active")
+        .eq("email", email.toLowerCase())
+        .eq("is_active", true)
+        .single();
+      
+      if (existingUser) {
+        isAllowed = true;
+      } else {
+        // Step 2: Check environment variables for legacy support
+        const adminEmails =
+          process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
+          [];
+        isAllowed = adminEmails.includes(email.toLowerCase());
+      }
+    } catch {
+      // Step 3: Environment fallback on database error
+      const adminEmails =
+        process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
+        [];
+      isAllowed = adminEmails.includes(email.toLowerCase());
+    }
+    
+    if (!isAllowed) {
       return NextResponse.json(
         { error: "Email not in admin allowlist" },
         { status: 403 },
       );
     }
-
-    const supabase = getSupabaseAuth();
 
     // Create a test session for the admin user
     // This simulates the magic link authentication flow without sending actual emails
