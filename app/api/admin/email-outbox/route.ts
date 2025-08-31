@@ -1,141 +1,169 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateAdminAccess } from "../../../lib/admin-guard-server";
-import { GetEmailOutboxItems } from "../../../lib/emails/queries/GetEmailOutboxItems";
+import {
+  getCurrentUserFromRequest,
+  hasRoleFromRequest,
+} from "../../../lib/auth-utils.server";
+import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 import { logAccess } from "../../../lib/audit/auditClient";
+import { withAuditLogging } from "../../../lib/audit/withAuditAccess";
 
 /**
- * Admin API route for email outbox items (read-only)
- * GET: Get paginated list of email outbox items with filtering
+ * GET /api/admin/email-outbox
+ * View email outbox for testing purposes
  *
- * Query parameters:
- * - status: "pending" | "sent" | "failed" (optional)
- * - limit: number (optional, default: 50)
- * - offset: number (optional, default: 0)
- *
- * Authentication: Admin access required
+ * Auth: super_admin only
  */
-
-export async function GET(request: NextRequest) {
-  const requestId = crypto.randomUUID();
+async function getEmailOutbox(request: NextRequest): Promise<NextResponse> {
+  const startTime = Date.now();
+  const requestId = `email_outbox_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   try {
-    // Validate admin access
-    const adminCheck = validateAdminAccess(request);
-    if (!adminCheck.valid) {
-      console.log(
-        `[email-outbox] GET request unauthorized - no valid admin access`,
-      );
+    // Check if user is authenticated and is super_admin
+    const currentUser = await getCurrentUserFromRequest(request);
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const hasSuperAdminRole = await hasRoleFromRequest(request, "super_admin");
+    if (!hasSuperAdminRole) {
       return NextResponse.json(
-        { ok: false, error: "unauthorized" },
-        { status: 401 },
+        { error: "Insufficient permissions. Super admin access required." },
+        { status: 403 },
       );
     }
 
-    // Parse query parameters
+    // Get query parameters
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status") as
-      | "pending"
-      | "sent"
-      | "failed"
-      | null;
-    const limit = parseInt(searchParams.get("limit") || "50", 10);
-    const offset = parseInt(searchParams.get("offset") || "0", 10);
+    const template = searchParams.get("template");
+    const toEmail = searchParams.get("to_email");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const offset = parseInt(searchParams.get("offset") || "0");
 
-    // Validate parameters
-    if (status && !["pending", "sent", "failed"].includes(status)) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "invalid_status",
-          message: "Status must be pending, sent, or failed",
+    // Get client IP for logging
+    const clientIP =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+
+    // Log access
+    try {
+      await logAccess({
+        action: "admin.email_outbox.view",
+        method: "GET",
+        resource: "/api/admin/email-outbox",
+        result: "attempting",
+        request_id: requestId,
+        src_ip: clientIP,
+        user_agent: request.headers.get("user-agent") || undefined,
+        latency_ms: Date.now() - startTime,
+        meta: {
+          template: template || undefined,
+          to_email: toEmail || undefined,
+          limit,
+          offset,
         },
-        { status: 400 },
+      });
+    } catch (error) {
+      console.error("Error logging access:", error);
+    }
+
+    const supabase = getSupabaseServiceClient();
+
+    // Build query
+    let query = supabase
+      .from("email_outbox")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    // Apply filters
+    if (template) {
+      query = query.eq("template", template);
+    }
+
+    if (toEmail) {
+      query = query.eq("to_email", toEmail);
+    }
+
+    const { data: emails, error } = await query;
+
+    if (error) {
+      console.error("Error fetching email outbox:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch email outbox" },
+        { status: 500 },
       );
     }
 
-    if (limit < 1 || limit > 100) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "invalid_limit",
-          message: "Limit must be between 1 and 100",
-        },
-        { status: 400 },
-      );
+    // Get total count for pagination
+    let countQuery = supabase
+      .from("email_outbox")
+      .select("*", { count: "exact", head: true });
+
+    if (template) {
+      countQuery = countQuery.eq("template", template);
     }
 
-    if (offset < 0) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "invalid_offset",
-          message: "Offset must be non-negative",
-        },
-        { status: 400 },
-      );
+    if (toEmail) {
+      countQuery = countQuery.eq("to_email", toEmail);
     }
 
-    // Get outbox items from core use case
-    const outboxQuery = new GetEmailOutboxItems();
-    const result = await outboxQuery.execute({
-      status: status || undefined,
-      limit,
-      offset,
-    });
+    const { count } = await countQuery;
 
-    // Log access for audit
-    await logAccess({
-      action: "admin.email_outbox_items.read",
-      method: "GET",
-      resource: "/api/admin/email-outbox",
-      result: "success",
-      request_id: requestId,
-      src_ip: request.headers.get("x-forwarded-for") || undefined,
-      user_agent: request.headers.get("user-agent") || undefined,
-      meta: {
-        admin_email: adminCheck.adminEmail,
-        status,
-        limit,
-        offset,
-        total_items: result.total,
-      },
-    });
+    // Log successful access
+    try {
+      await logAccess({
+        action: "admin.email_outbox.view",
+        method: "GET",
+        resource: "/api/admin/email-outbox",
+        result: "success",
+        request_id: requestId,
+        src_ip: clientIP,
+        user_agent: request.headers.get("user-agent") || undefined,
+        latency_ms: Date.now() - startTime,
+        meta: {
+          emails_count: emails?.length || 0,
+          total_count: count || 0,
+          template: template || undefined,
+          to_email: toEmail || undefined,
+        },
+      });
+    } catch (error) {
+      console.error("Error logging success access:", error);
+    }
 
-    // Return success response
     return NextResponse.json({
-      ok: true,
-      items: result.items,
-      total: result.total,
+      emails: emails || [],
       pagination: {
         limit,
         offset,
-        has_more: offset + limit < result.total,
+        total: count || 0,
+        has_more: (count || 0) > offset + limit,
       },
     });
   } catch (error) {
-    console.error("[email-outbox] Error:", error);
+    console.error("Email outbox error:", error);
 
-    // Log access failure for audit
+    // Log error
     await logAccess({
-      action: "admin.email_outbox_items.read",
+      action: "admin.email_outbox.view",
       method: "GET",
       resource: "/api/admin/email-outbox",
       result: "error",
       request_id: requestId,
-      src_ip: request.headers.get("x-forwarded-for") || undefined,
+      src_ip: request.headers.get("x-forwarded-for") || "unknown",
       user_agent: request.headers.get("user-agent") || undefined,
+      latency_ms: Date.now() - startTime,
       meta: {
         error: error instanceof Error ? error.message : "Unknown error",
       },
     });
 
     return NextResponse.json(
-      {
-        ok: false,
-        error: "internal_server_error",
-        message: "Failed to get email outbox items",
-      },
+      { error: "Internal server error" },
       { status: 500 },
     );
   }
 }
+
+export const GET = withAuditLogging(getEmailOutbox);

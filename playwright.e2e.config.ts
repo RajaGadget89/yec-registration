@@ -48,15 +48,15 @@ export default defineConfig({
   // globalTeardown: 'e2e/global.teardown.ts',
 
   // Web server configuration with environment variables
-  // Disabled since server is already running
-  // webServer: {
-  //   command: 'npm run dev:e2e',
-  //   url: 'http://localhost:8080',
-  //   reuseExistingServer: true, // Always reuse existing server
-  //   env: {
-  //     ...e2eEnvVars,
-  //     NODE_ENV: 'test',
-  //     SUPABASE_ENV: 'test', // Use test environment
-  //   },
-  // },
+  webServer: {
+    command: 'npx dotenv -e .e2e-env -- npm run dev',
+    url: 'http://localhost:8080',
+    reuseExistingServer: true, // Always reuse existing server
+    env: {
+      ...e2eEnvVars,
+      NODE_ENV: 'test',
+      SUPABASE_ENV: 'staging', // Use staging environment
+      E2E_TEST_MODE: 'true',
+    },
+  },
 });

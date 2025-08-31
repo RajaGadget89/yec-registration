@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getSupabaseServiceClient } from "../../../../../../lib/supabase-server";
+import { getSupabaseServiceClient } from "../../../../../../../lib/supabase-server";
+import { EventFactory } from "../../../../../../../lib/events/eventFactory";
+import { EventService } from "../../../../../../../lib/events/eventService";
+import {
+  logAccess,
+  logEvent,
+} from "../../../../../../../lib/audit/auditClient";
+import { withAuditLogging } from "../../../../../../../lib/audit/withAuditAccess";
 
 // Validation schema for accept request
 const acceptSchema = z.object({
@@ -9,10 +16,14 @@ const acceptSchema = z.object({
 
 type AcceptRequest = z.infer<typeof acceptSchema>;
 
-export async function POST(
+async function acceptInvitation(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> },
 ): Promise<NextResponse> {
+  const startTime = Date.now();
+  const requestId = `accept_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const correlationId = request.headers.get("Idempotency-Key") || requestId;
+
   try {
     const { token } = await params;
 
@@ -21,6 +32,29 @@ export async function POST(
         { error: "Invitation token is required" },
         { status: 400 },
       );
+    }
+
+    // Get client IP for logging
+    const clientIP =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+
+    // Log access attempt
+    try {
+      await logAccess({
+        action: "admin.invitation.accept",
+        method: "POST",
+        resource: `/api/admin/management/invitations/token/${token}/accept`,
+        result: "attempting",
+        request_id: requestId,
+        src_ip: clientIP,
+        user_agent: request.headers.get("user-agent") || undefined,
+        latency_ms: Date.now() - startTime,
+        meta: { token: token.substring(0, 8) + "..." }, // Log partial token for security
+      });
+    } catch (error) {
+      console.error("Error logging access:", error);
     }
 
     // Parse request body (optional)
@@ -150,13 +184,77 @@ export async function POST(
 
     const result = acceptResult[0];
 
+    // Emit domain event
+    const event = EventFactory.createAdminInvitationAccepted(
+      invitation.id,
+      result.admin_user_id,
+    );
+    await EventService.emit(event);
+
+    // Log successful event
+    try {
+      await logEvent({
+        action: "admin.invitation.accepted",
+        resource: "admin_invitations",
+        resource_id: invitation.id,
+        actor_id: invitation.email,
+        actor_role: "user",
+        result: "success",
+        correlation_id: correlationId,
+        meta: {
+          invitation_id: invitation.id,
+          email: invitation.email,
+          admin_user_id: result.admin_user_id,
+        },
+      });
+    } catch (error) {
+      console.error("Error logging event:", error);
+    }
+
+    // Log successful access
+    try {
+      await logAccess({
+        action: "admin.invitation.accept",
+        method: "POST",
+        resource: `/api/admin/management/invitations/token/${token}/accept`,
+        result: "success",
+        request_id: requestId,
+        src_ip: clientIP,
+        user_agent: request.headers.get("user-agent") || undefined,
+        latency_ms: Date.now() - startTime,
+        meta: {
+          invitation_id: invitation.id,
+          email: invitation.email,
+          admin_user_id: result.admin_user_id,
+        },
+      });
+    } catch (error) {
+      console.error("Error logging success access:", error);
+    }
+
     return NextResponse.json({
       ok: true,
+      correlation_id: correlationId,
       message: "Invitation accepted successfully",
       admin_user_id: result.admin_user_id,
     });
   } catch (error) {
     console.error("Accept invitation error:", error);
+
+    // Log error
+    await logAccess({
+      action: "admin.invitation.accept",
+      method: "POST",
+      resource: `/api/admin/management/invitations/token/${(await params).token}/accept`,
+      result: "error",
+      request_id: requestId,
+      src_ip: request.headers.get("x-forwarded-for") || "unknown",
+      user_agent: request.headers.get("user-agent") || undefined,
+      latency_ms: Date.now() - startTime,
+      meta: {
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+    });
 
     return NextResponse.json(
       { error: "Internal server error" },
@@ -164,3 +262,5 @@ export async function POST(
     );
   }
 }
+
+export const POST = withAuditLogging(acceptInvitation);

@@ -1,11 +1,10 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { Suspense } from "react";
-import { Users, Shield, Crown, UserCheck, Filter } from "lucide-react";
+import { Users, Shield, Mail, Clock, Activity } from "lucide-react";
 import { getCurrentUser } from "../../lib/auth-utils.server";
 import { hasRole } from "../../lib/auth-utils.server";
-import AdminUserTable from "../_components/AdminUserTable";
-import AdminManagementFilters from "../_components/AdminManagementFilters";
+import { isAdminManagementEnabled } from "../../lib/features";
+import AdminManagementTabs from "./_components/AdminManagementTabs";
 
 // Force Node runtime for server-side operations
 export const runtime = "nodejs";
@@ -15,29 +14,43 @@ export const dynamic = "force-dynamic";
 
 interface ManagementPageProps {
   searchParams?: Promise<{
+    tab?: string;
     search?: string;
     role?: string;
     status?: string;
     sortBy?: string;
     sortOrder?: string;
+    page?: string;
+    size?: string;
   }>;
 }
 
 export default async function ManagementPage({
   searchParams,
 }: ManagementPageProps) {
-  // Check admin authentication and super_admin role
+  // 1. Feature Flag Check: if disabled → return 403
+  if (!isAdminManagementEnabled()) {
+    // Return 403 response for feature flag disabled
+    return new Response("Feature not available", { status: 403 });
+  }
+
+  // 2. Session Check: require valid session
   const user = await getCurrentUser();
   if (!user || !user.is_active) {
     redirect("/admin/login");
   }
 
-  // Check if user is super_admin
+  // 3. DB-first RBAC: must be super_admin
   if (!(await hasRole("super_admin"))) {
     redirect("/admin/login?unauthorized=1");
   }
 
   const params = (await searchParams) ?? {};
+
+  // Get current tab from query params, default to "invite"
+  const currentTab = params.tab || "invite";
+  const validTabs = ["invite", "pending", "admins", "activity"];
+  const activeTab = validTabs.includes(currentTab) ? currentTab : "invite";
 
   // Build filters from URL params
   const filters = {
@@ -46,54 +59,9 @@ export default async function ManagementPage({
     status: params.status || "",
     sortBy: params.sortBy || "created_at",
     sortOrder: (params.sortOrder as "asc" | "desc") || "desc",
+    page: parseInt(params.page || "1"),
+    size: Math.min(parseInt(params.size || "20"), 100),
   };
-
-  // Fetch admin users data
-  let adminUsers = [];
-  let totalCount = 0;
-  let roleStats = {
-    super_admin: 0,
-    admin: 0,
-    active: 0,
-    inactive: 0,
-  };
-
-  try {
-    // Use server-side fetch with proper cookie forwarding
-    const headersList = await headers();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/admin/users`,
-      {
-        cache: "no-store",
-        headers: {
-          "Content-Type": "application/json",
-          // Forward cookies for authentication
-          Cookie: headersList.get("cookie") || "",
-        },
-      },
-    );
-
-    if (response.ok) {
-      const data = await response.json();
-      adminUsers = data.users || [];
-      totalCount = adminUsers.length;
-
-      // Calculate role statistics
-      roleStats = adminUsers.reduce(
-        (stats: any, user: any) => {
-          if (user.role === "super_admin") stats.super_admin++;
-          if (user.role === "admin") stats.admin++;
-          if (user.is_active) stats.active++;
-          if (!user.is_active) stats.inactive++;
-          return stats;
-        },
-        { super_admin: 0, admin: 0, active: 0, inactive: 0 },
-      );
-    }
-  } catch (error) {
-    console.error("Error fetching admin users:", error);
-    // Continue with empty arrays for better UX
-  }
 
   return (
     <div className="space-y-6">
@@ -106,10 +74,10 @@ export default async function ManagementPage({
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Admin Management Team
+                Admin Management Console
               </h1>
               <p className="text-gray-700 dark:text-gray-300">
-                Manage admin users, roles, and permissions
+                Manage admin users, invitations, and system activity
               </p>
             </div>
           </div>
@@ -120,103 +88,74 @@ export default async function ManagementPage({
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Admins
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {totalCount}
-              </p>
-            </div>
-            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/20">
-              <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Super Admins
-              </p>
-              <p className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
-                {roleStats.super_admin}
-              </p>
-            </div>
-            <div className="p-2 rounded-lg bg-yellow-100 dark:bg-yellow-900/20">
-              <Crown className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Regular Admins
-              </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {roleStats.admin}
-              </p>
-            </div>
-            <div className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700">
-              <Shield className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Active Users
-              </p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {roleStats.active}
-              </p>
-            </div>
-            <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/20">
-              <UserCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <Filter className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Filters
-          </h2>
-        </div>
-
-        <AdminManagementFilters currentFilters={filters} />
-      </div>
-
-      {/* Admin Users Table */}
+      {/* Tab Navigation */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="p-6">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                Admin Users
-              </h3>
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Manage admin user roles and permissions
-              </p>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
-              <Users className="h-4 w-4" />
-              <span>{totalCount} users</span>
-            </div>
-          </div>
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <nav
+            className="flex space-x-8 px-6"
+            aria-label="Admin Management Tabs"
+          >
+            <a
+              href="/admin/management?tab=invite"
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "invite"
+                  ? "border-purple-500 text-purple-600 dark:text-purple-400"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+              }`}
+              data-testid="tab-invite"
+            >
+              <div className="flex items-center space-x-2">
+                <Mail className="h-4 w-4" />
+                <span>Invite</span>
+              </div>
+            </a>
+            <a
+              href="/admin/management?tab=pending"
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "pending"
+                  ? "border-purple-500 text-purple-600 dark:text-purple-400"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+              }`}
+              data-testid="tab-pending"
+            >
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4" />
+                <span>Pending</span>
+              </div>
+            </a>
+            <a
+              href="/admin/management?tab=admins"
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "admins"
+                  ? "border-purple-500 text-purple-600 dark:text-purple-400"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+              }`}
+              data-testid="tab-admins"
+            >
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4" />
+                <span>Admins</span>
+              </div>
+            </a>
+            <a
+              href="/admin/management?tab=activity"
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "activity"
+                  ? "border-purple-500 text-purple-600 dark:text-purple-400"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+              }`}
+              data-testid="tab-activity"
+            >
+              <div className="flex items-center space-x-2">
+                <Activity className="h-4 w-4" />
+                <span>Activity</span>
+              </div>
+            </a>
+          </nav>
+        </div>
 
+        {/* Tab Content */}
+        <div className="p-6">
           <Suspense
             fallback={
               <div className="space-y-4">
@@ -234,7 +173,7 @@ export default async function ManagementPage({
               </div>
             }
           >
-            <AdminUserTable />
+            <AdminManagementTabs activeTab={activeTab} filters={filters} />
           </Suspense>
         </div>
       </div>

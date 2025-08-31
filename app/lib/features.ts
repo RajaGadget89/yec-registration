@@ -49,6 +49,14 @@ export function isFeatureEnabled(feature: keyof FeatureFlags): boolean {
 }
 
 /**
+ * Check if Admin Management feature is enabled
+ * This is a convenience function for the specific feature flag
+ */
+export function isAdminManagementEnabled(): boolean {
+  return isFeatureEnabled("adminManagement");
+}
+
+/**
  * Get feature flags for client-side use (safe to expose)
  */
 export function getClientFeatureFlags(): Partial<FeatureFlags> {
