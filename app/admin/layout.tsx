@@ -7,6 +7,7 @@ import { EmailOutboxNavWidget } from "./_components/EmailOutboxNavWidget";
 
 import { getCurrentUser } from "../lib/auth-utils.server";
 import { getRolesForEmail } from "../lib/rbac";
+import { isAdminManagementEnabled } from "../lib/features";
 
 // Force dynamic rendering for admin routes that use cookies
 export const dynamic = "force-dynamic";
@@ -97,8 +98,7 @@ export default async function AdminLayout({
               <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
 
               {/* Admin Management Team - Super Admin Only */}
-              {isSuperAdmin &&
-                process.env.FEATURES_ADMIN_MANAGEMENT !== "false" && (
+              {isSuperAdmin && isAdminManagementEnabled() && (
                   <>
                     <Link
                       href="/admin/management"
