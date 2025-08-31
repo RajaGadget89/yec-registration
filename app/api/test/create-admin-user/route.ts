@@ -19,11 +19,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email required" }, { status: 400 });
     }
 
-    // Verify user is in admin allowlist
-    const adminEmails =
-      process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
-      [];
-    if (!adminEmails.includes(email.toLowerCase())) {
+    // Create Supabase client
+    const supabase = getSupabaseAuth();
+
+    // Database-first approach: Verify user is in admin allowlist
+    let isAllowed = false;
+
+    try {
+      // Step 1: Check if user exists in database
+      const { data: existingUser } = await supabase
+        .from("admin_users")
+        .select("email, is_active")
+        .eq("email", email.toLowerCase())
+        .eq("is_active", true)
+        .single();
+
+      if (existingUser) {
+        isAllowed = true;
+      } else {
+        // Step 2: Check environment variables for legacy support
+        const adminEmails =
+          process.env.ADMIN_EMAILS?.split(",").map((e) =>
+            e.trim().toLowerCase(),
+          ) || [];
+        isAllowed = adminEmails.includes(email.toLowerCase());
+      }
+    } catch {
+      // Step 3: Environment fallback on database error
+      const adminEmails =
+        process.env.ADMIN_EMAILS?.split(",").map((e) =>
+          e.trim().toLowerCase(),
+        ) || [];
+      isAllowed = adminEmails.includes(email.toLowerCase());
+    }
+
+    if (!isAllowed) {
       return NextResponse.json(
         { error: "Email not in admin allowlist" },
         { status: 403 },
@@ -33,11 +63,8 @@ export async function POST(request: NextRequest) {
     // Generate a UUID for the user
     const userId = crypto.randomUUID();
 
-    // Create Supabase client
-    const supabase = getSupabaseAuth();
-
-    // Check if user already exists
-    const { data: existingUser, error: checkError } = await supabase
+    // Check if user already exists in database
+    const { data: existingUserRecord, error: checkError } = await supabase
       .from("admin_users")
       .select("*")
       .eq("email", email)
@@ -56,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     let adminUser;
 
-    if (existingUser) {
+    if (existingUserRecord) {
       // Update existing user to ensure it's active and has super_admin role
       const { data: updatedUser, error: updateError } = await supabase
         .from("admin_users")
@@ -124,7 +151,7 @@ export async function POST(request: NextRequest) {
         created_at: adminUser.created_at,
         updated_at: adminUser.updated_at,
       },
-      action: existingUser ? "updated" : "created",
+      action: existingUserRecord ? "updated" : "created",
     });
 
     // Set admin-email cookie

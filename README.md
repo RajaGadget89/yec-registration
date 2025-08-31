@@ -39,6 +39,14 @@ Copy `env.template` to `.env.local` and configure:
 - `SUPABASE_URL` - Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` - Service role key for admin operations
 - `NEXT_PUBLIC_SUPABASE_URL` - Public URL for client-side operations
+- `ADMIN_EMAILS` - Admin email allowlist (fallback only, primary management via database)
+
+### Authentication System
+The system uses a **database-first approach** for admin authentication:
+1. **Primary**: Admin users are managed via the `admin_users` database table
+2. **Fallback**: `ADMIN_EMAILS` environment variable provides legacy support
+3. **Auto-creation**: Users in `ADMIN_EMAILS` are automatically created in the database
+4. **RBAC**: Role-based access control via database roles (super_admin, admin, etc.)
 
 ### Running Tests
 ```bash
