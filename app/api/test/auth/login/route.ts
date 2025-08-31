@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set("dev-user-email", email, cookieOpts);
 
     // Create or get user ID for admin_users table
-    const userId = `test-user-${Date.now()}`;
+    const userId = crypto.randomUUID();
 
     // Create admin user in admin_users table with correct role based on RBAC
     const supabase = getSupabaseServiceClient();
