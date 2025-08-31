@@ -50,14 +50,41 @@ function getSupabaseClient() {
 }
 
 /**
- * Gets the current authenticated user from Supabase session
+ * Gets the current authenticated user from Supabase session or admin-email cookie
  * @returns AuthenticatedUser object or null if not authenticated
  */
 export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   try {
     const cookieStore = await cookies();
 
-    // Create Supabase server client with cookie handling
+    // PRIORITY 1: Check for admin-email cookie (consistent with API authentication)
+    const adminEmail = cookieStore.get("admin-email")?.value;
+    if (adminEmail) {
+      console.log(
+        "[auth] getCurrentUser(): Using admin-email cookie authentication",
+      );
+      // Get user from admin_users table using email
+      const serviceClient = getSupabaseClient();
+      const { data: adminUser, error } = await serviceClient
+        .from("admin_users")
+        .select("*")
+        .eq("email", adminEmail)
+        .eq("is_active", true)
+        .single();
+
+      if (!error && adminUser) {
+        return {
+          id: adminUser.id,
+          email: adminUser.email,
+          role: adminUser.role,
+          created_at: adminUser.created_at,
+          last_login_at: adminUser.last_login_at,
+          is_active: adminUser.is_active,
+        };
+      }
+    }
+
+    // PRIORITY 2: Fallback to Supabase session (for backward compatibility)
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -91,30 +118,6 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     }
 
     if (!session) {
-      // Fallback: Check for custom admin-email cookie (for legacy support)
-      const adminEmail = cookieStore.get("admin-email")?.value;
-      if (adminEmail) {
-        console.log("Using legacy admin-email cookie fallback");
-        // Get user from admin_users table using email
-        const serviceClient = getSupabaseClient();
-        const { data: adminUser, error } = await serviceClient
-          .from("admin_users")
-          .select("*")
-          .eq("email", adminEmail)
-          .eq("is_active", true)
-          .single();
-
-        if (!error && adminUser) {
-          return {
-            id: adminUser.id,
-            email: adminUser.email,
-            role: adminUser.role,
-            created_at: adminUser.created_at,
-            last_login_at: adminUser.last_login_at,
-            is_active: adminUser.is_active,
-          };
-        }
-      }
       return null;
     }
 

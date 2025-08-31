@@ -22,22 +22,19 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // In E2E mode, bypass authentication check
-  let user = null;
+  // Get current user using unified authentication system
+  const user = await getCurrentUser();
   let isSuperAdmin = false;
-  if (process.env.E2E_TEST_MODE !== "true") {
-    user = await getCurrentUser();
 
-    // Check if user is super_admin (either from database or RBAC)
-    if (user?.email && user.is_active) {
-      // Check database role first
-      isSuperAdmin = user.role === "super_admin";
+  // Check if user is super_admin (either from database or RBAC)
+  if (user?.email && user.is_active) {
+    // Check database role first
+    isSuperAdmin = user.role === "super_admin";
 
-      // If not super_admin in database, check RBAC system
-      if (!isSuperAdmin) {
-        const rbacRoles = getRolesForEmail(user.email);
-        isSuperAdmin = rbacRoles.has("super_admin");
-      }
+    // If not super_admin in database, check RBAC system
+    if (!isSuperAdmin) {
+      const rbacRoles = getRolesForEmail(user.email);
+      isSuperAdmin = rbacRoles.has("super_admin");
     }
   }
 

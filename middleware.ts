@@ -7,7 +7,7 @@ import { isAdminManagementEnabled } from './app/lib/features';
  * Mirrors the logic from getCurrentUser() in auth-utils.server.ts
  */
 async function getCurrentUserFromCookie(email: string | undefined): Promise<{is_active: boolean, role: string} | null> {
-  if (!email || process.env.NODE_ENV === 'production') {
+  if (!email) {
     return null;
   }
   
@@ -214,16 +214,20 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // 3. Fallback: Check admin-email cookie (non-production only)
-    if (authMethod === 'none' && process.env.NODE_ENV !== 'production') {
+    // 3. Fallback: Check admin-email cookie (consistent with API authentication)
+    if (authMethod === 'none') {
       const adminEmail = request.cookies.get("admin-email")?.value;
       if (adminEmail) {
+        console.log(`[auth-debug] middleware: checking admin-email cookie: ${adminEmail}`);
         const cookieUser = await getCurrentUserFromCookie(adminEmail);
         if (cookieUser) {
           userEmail = adminEmail.toLowerCase();
           userRole = cookieUser.role;
           isUserActive = cookieUser.is_active;
           authMethod = 'admin-email-cookie';
+          console.log(`[auth-debug] middleware: admin-email cookie authentication successful`);
+        } else {
+          console.log(`[auth-debug] middleware: admin-email cookie authentication failed`);
         }
       }
     }
