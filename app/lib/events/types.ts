@@ -20,6 +20,8 @@ export type RegistrationEventType =
   | "email.retry_requested"
   | "admin.invitation.created"
   | "admin.invitation.accepted"
+  | "admin.invitation.resent"
+  | "admin.invitation.cancelled"
   | "admin.invitation.revoked"
   | "admin.role.assigned"
   | "admin.role.revoked"
@@ -138,6 +140,8 @@ export interface AdminEvent extends DomainEvent<AdminEventPayload> {
     | "admin.invitation.created"
     | "admin.invitation.accepted"
     | "admin.invitation.revoked"
+    | "admin.invitation.resent"
+    | "admin.invitation.cancelled"
     | "admin.role.assigned"
     | "admin.role.revoked"
     | "admin.suspended"
@@ -181,6 +185,8 @@ export const STATUS_TRANSITIONS: Record<RegistrationEventType, string> = {
   "admin.invitation.created": "system", // Admin events don't change registration status
   "admin.invitation.accepted": "system", // Admin events don't change registration status
   "admin.invitation.revoked": "system", // Admin events don't change registration status
+  "admin.invitation.resent": "system", // Admin events don't change registration status
+  "admin.invitation.cancelled": "system", // Admin events don't change registration status
   "admin.role.assigned": "system", // Admin events don't change registration status
   "admin.role.revoked": "system", // Admin events don't change registration status
   "admin.suspended": "system", // Admin events don't change registration status
@@ -223,6 +229,8 @@ export const EMAIL_TEMPLATES: Record<RegistrationEventType, string> = {
   "admin.invitation.created": "admin_invite", // Admin invitation email
   "admin.invitation.accepted": "system", // No email for acceptance
   "admin.invitation.revoked": "system", // No email for revocation
+  "admin.invitation.resent": "admin_invite", // Admin invitation email
+  "admin.invitation.cancelled": "system", // No email for cancellation
   "admin.role.assigned": "system", // No email for role assignment
   "admin.role.revoked": "system", // No email for role revocation
   "admin.suspended": "system", // No email for suspension
