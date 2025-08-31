@@ -142,7 +142,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     if (session.user.email) {
       // Database-first approach: Check if user should be auto-created based on database or environment
       let shouldAutoCreate = false;
-      
+
       try {
         // Step 1: Check if user exists in database (already handled above, but double-check)
         const { data: existingUser } = await supabase
@@ -151,28 +151,31 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
           .eq("email", session.user.email.toLowerCase())
           .eq("is_active", true)
           .single();
-        
+
         if (existingUser) {
           // User already exists, no need to auto-create
           return null;
         }
-        
+
         // Step 2: Check environment variables for auto-creation (legacy support)
         const adminEmails =
           process.env.ADMIN_EMAILS?.split(",").map((e) =>
             e.trim().toLowerCase(),
           ) || [];
-        shouldAutoCreate = adminEmails.includes(session.user.email.toLowerCase());
-        
+        shouldAutoCreate = adminEmails.includes(
+          session.user.email.toLowerCase(),
+        );
       } catch {
         // Step 3: Environment fallback on database error
         const adminEmails =
           process.env.ADMIN_EMAILS?.split(",").map((e) =>
             e.trim().toLowerCase(),
           ) || [];
-        shouldAutoCreate = adminEmails.includes(session.user.email.toLowerCase());
+        shouldAutoCreate = adminEmails.includes(
+          session.user.email.toLowerCase(),
+        );
       }
-      
+
       if (shouldAutoCreate) {
         // Auto-create admin user if they're in the allowlist
         console.log("Auto-creating admin user for:", session.user.email);
