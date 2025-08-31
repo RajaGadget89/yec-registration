@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Send, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { Mail, Send } from "lucide-react";
 import { Alert, Button, Input, Checkbox } from "./shared/AdminUIComponents";
 
 interface InviteFormData {
@@ -31,30 +31,13 @@ export default function InviteTab() {
     { value: "super_admin", label: "Super Admin" },
   ];
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, email: e.target.value }));
-    setError(null);
-    setSuccess(null);
-  };
-
-  const handleRoleChange = (role: string) => {
-    setFormData(prev => ({
-      ...prev,
-      roles: prev.roles.includes(role)
-        ? prev.roles.filter(r => r !== role)
-        : [...prev.roles, role]
-    }));
-    setError(null);
-    setSuccess(null);
-  };
-
   const generateIdempotencyKey = () => {
     return `invite_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.email || formData.roles.length === 0) {
       setError("Please fill in all required fields");
       return;
@@ -100,7 +83,7 @@ export default function InviteTab() {
           setError(data.error || "Failed to send invitation");
         }
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
@@ -126,13 +109,19 @@ export default function InviteTab() {
 
       {/* Invite Form */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <form onSubmit={handleSubmit} className="space-y-6" data-testid="invite-form">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6"
+          data-testid="invite-form"
+        >
           {/* Email Field */}
           <Input
             label="Email Address"
             type="email"
             value={formData.email}
-            onChange={(value) => setFormData(prev => ({ ...prev, email: value }))}
+            onChange={(value) =>
+              setFormData((prev) => ({ ...prev, email: value }))
+            }
             placeholder="Enter email address"
             required
             data-testid="invite-email"
@@ -151,14 +140,14 @@ export default function InviteTab() {
                   checked={formData.roles.includes(role.value)}
                   onChange={(checked) => {
                     if (checked) {
-                      setFormData(prev => ({
+                      setFormData((prev) => ({
                         ...prev,
-                        roles: [...prev.roles, role.value]
+                        roles: [...prev.roles, role.value],
                       }));
                     } else {
-                      setFormData(prev => ({
+                      setFormData((prev) => ({
                         ...prev,
-                        roles: prev.roles.filter(r => r !== role.value)
+                        roles: prev.roles.filter((r) => r !== role.value),
                       }));
                     }
                   }}
@@ -176,7 +165,9 @@ export default function InviteTab() {
               type="submit"
               variant="primary"
               loading={loading}
-              disabled={loading || !formData.email || formData.roles.length === 0}
+              disabled={
+                loading || !formData.email || formData.roles.length === 0
+              }
               data-testid="invite-submit"
             >
               <Send className="h-4 w-4 mr-2" />
@@ -188,7 +179,11 @@ export default function InviteTab() {
 
       {/* Error Message */}
       {error && (
-        <Alert type="error" onClose={() => setError(null)} data-testid="invite-error">
+        <Alert
+          type="error"
+          onClose={() => setError(null)}
+          data-testid="invite-error"
+        >
           {error}
         </Alert>
       )}
@@ -207,7 +202,8 @@ export default function InviteTab() {
               </a>
             </div>
             <div className="text-xs">
-              Invitation ID: {success.id} | Expires: {new Date(success.expires_at).toLocaleString()}
+              Invitation ID: {success.id} | Expires:{" "}
+              {new Date(success.expires_at).toLocaleString()}
             </div>
           </div>
         </Alert>
