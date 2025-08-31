@@ -1,16 +1,18 @@
 import { Resend } from "resend";
 import { getSupabaseServiceClient } from "../../lib/supabase-server";
 import { getEmailFromAddress } from "../../lib/config";
+import { promises as fs } from "fs";
+import path from "path";
 
 export interface EmailProvider {
   sendInvitationEmail(params: {
     email: string;
     token: string;
-    locale: 'en' | 'th';
+    locale: "en" | "th";
   }): Promise<{
     messageId: string;
     provider: string;
-    status: 'success' | 'error';
+    status: "success" | "error";
     error?: string;
   }>;
 }
@@ -33,19 +35,22 @@ export class TestEmailProvider implements EmailProvider {
   async sendInvitationEmail(params: {
     email: string;
     token: string;
-    locale: 'en' | 'th';
+    locale: "en" | "th";
   }): Promise<{
     messageId: string;
     provider: string;
-    status: 'success' | 'error';
+    status: "success" | "error";
     error?: string;
   }> {
     try {
       const messageId = `test_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       // Get email templates
-      const templates = await this.getEmailTemplates(params.token, params.locale);
-      
+      const templates = await this.getEmailTemplates(
+        params.token,
+        params.locale,
+      );
+
       // Create email message
       const message: EmailMessage = {
         to: params.email,
@@ -61,26 +66,28 @@ export class TestEmailProvider implements EmailProvider {
 
       return {
         messageId,
-        provider: 'test',
-        status: 'success',
+        provider: "test",
+        status: "success",
       };
     } catch (error) {
-      console.error('TestEmailProvider error:', error);
+      console.error("TestEmailProvider error:", error);
       return {
         messageId: `error_${Date.now()}`,
-        provider: 'test',
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        provider: "test",
+        status: "error",
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
 
-  private async getEmailTemplates(token: string, locale: 'en' | 'th') {
-    const acceptUrl = `${process.env.APP_URL || 'http://localhost:3000'}/admin/accept?token=${token}`;
-    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toLocaleString();
+  private async getEmailTemplates(token: string, locale: "en" | "th") {
+    const acceptUrl = `${process.env.APP_URL || "http://localhost:3000"}/admin/accept?token=${token}`;
+    const expiresAt = new Date(
+      Date.now() + 48 * 60 * 60 * 1000,
+    ).toLocaleString();
     const supportEmail = "info@yecday.com";
 
-    if (locale === 'th') {
+    if (locale === "th") {
       return {
         subject: "เชิญเข้าร่วมเป็นผู้ดูแลระบบ YEC Day (หมดอายุใน 48 ชั่วโมง)",
         html: `
@@ -131,7 +138,7 @@ export class TestEmailProvider implements EmailProvider {
 หากคุณมีคำถามใดๆ กรุณาติดต่อเราที่ ${supportEmail}
 
 ขอแสดงความนับถือ
-ทีมผู้ดูแล YEC Day`
+ทีมผู้ดูแล YEC Day`,
       };
     } else {
       return {
@@ -184,7 +191,7 @@ Important:
 If you have any questions, please contact us at ${supportEmail}
 
 Best regards,
-YEC Day Admin Team`
+YEC Day Admin Team`,
       };
     }
   }
@@ -193,49 +200,53 @@ YEC Day Admin Team`
     try {
       // Try to write to database outbox first
       const supabase = getSupabaseServiceClient();
-      const { error } = await supabase
-        .from('email_outbox')
-        .insert({
-          id: messageId,
-          to_email: message.to,
-          subject: message.subject,
-          html_content: message.html,
-          text_content: message.text,
-          template: 'admin.invitation',
-          payload: {
-            token: message.token,
-            acceptUrl: `${process.env.APP_URL || 'http://localhost:3000'}/admin/accept?token=${message.token}`,
-            expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000).toLocaleString(),
-            supportEmail: "info@yecday.com"
-          },
-          created_at: message.created_at,
-          status: 'sent'
-        });
+      const { error } = await supabase.from("email_outbox").insert({
+        id: messageId,
+        to_email: message.to,
+        subject: message.subject,
+        html_content: message.html,
+        text_content: message.text,
+        template: "admin.invitation",
+        payload: {
+          token: message.token,
+          acceptUrl: `${process.env.APP_URL || "http://localhost:3000"}/admin/accept?token=${message.token}`,
+          expiresAt: new Date(
+            Date.now() + 48 * 60 * 60 * 1000,
+          ).toLocaleString(),
+          supportEmail: "info@yecday.com",
+        },
+        created_at: message.created_at,
+        status: "sent",
+      });
 
       if (error) {
-        console.warn('Failed to write to database outbox, falling back to file:', error);
+        console.warn(
+          "Failed to write to database outbox, falling back to file:",
+          error,
+        );
         await this.writeToLocalFile(message, messageId);
       }
     } catch (error) {
-      console.warn('Database outbox not available, writing to local file:', error);
+      console.warn(
+        "Database outbox not available, writing to local file:",
+        error,
+      );
       await this.writeToLocalFile(message, messageId);
     }
   }
 
   private async writeToLocalFile(message: EmailMessage, messageId: string) {
     // Write to local file for E2E testing
-    const fs = require('fs').promises;
-    const path = require('path');
-    
-    const mailDir = path.join(process.cwd(), '.e2e', 'mail');
+
+    const mailDir = path.join(process.cwd(), ".e2e", "mail");
     const filePath = path.join(mailDir, `${messageId}.json`);
-    
+
     try {
       await fs.mkdir(mailDir, { recursive: true });
       await fs.writeFile(filePath, JSON.stringify(message, null, 2));
       console.log(`Test email written to: ${filePath}`);
     } catch (error) {
-      console.error('Failed to write test email to file:', error);
+      console.error("Failed to write test email to file:", error);
       throw error;
     }
   }
@@ -251,7 +262,9 @@ export class SmtpEmailProvider implements EmailProvider {
   constructor() {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
-      throw new Error('RESEND_API_KEY environment variable is required for SmtpEmailProvider');
+      throw new Error(
+        "RESEND_API_KEY environment variable is required for SmtpEmailProvider",
+      );
     }
     this.resend = new Resend(apiKey);
   }
@@ -259,19 +272,22 @@ export class SmtpEmailProvider implements EmailProvider {
   async sendInvitationEmail(params: {
     email: string;
     token: string;
-    locale: 'en' | 'th';
+    locale: "en" | "th";
   }): Promise<{
     messageId: string;
     provider: string;
-    status: 'success' | 'error';
+    status: "success" | "error";
     error?: string;
   }> {
     try {
       const messageId = `smtp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       // Get email templates
-      const templates = await this.getEmailTemplates(params.token, params.locale);
-      
+      const templates = await this.getEmailTemplates(
+        params.token,
+        params.locale,
+      );
+
       // Send via Resend
       const { data, error } = await this.resend.emails.send({
         from: getEmailFromAddress(),
@@ -281,37 +297,39 @@ export class SmtpEmailProvider implements EmailProvider {
       });
 
       if (error) {
-        console.error('SMTP email sending error:', error);
+        console.error("SMTP email sending error:", error);
         return {
           messageId,
-          provider: 'smtp',
-          status: 'error',
-          error: error.message || 'Failed to send email',
+          provider: "smtp",
+          status: "error",
+          error: error.message || "Failed to send email",
         };
       }
 
       return {
         messageId: data?.id || messageId,
-        provider: 'smtp',
-        status: 'success',
+        provider: "smtp",
+        status: "success",
       };
     } catch (error) {
-      console.error('SmtpEmailProvider error:', error);
+      console.error("SmtpEmailProvider error:", error);
       return {
         messageId: `error_${Date.now()}`,
-        provider: 'smtp',
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        provider: "smtp",
+        status: "error",
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
 
-  private async getEmailTemplates(token: string, locale: 'en' | 'th') {
-    const acceptUrl = `${process.env.APP_URL || 'https://staging.yecday.com'}/admin/accept?token=${token}`;
-    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toLocaleString();
+  private async getEmailTemplates(token: string, locale: "en" | "th") {
+    const acceptUrl = `${process.env.APP_URL || "https://staging.yecday.com"}/admin/accept?token=${token}`;
+    const expiresAt = new Date(
+      Date.now() + 48 * 60 * 60 * 1000,
+    ).toLocaleString();
     const supportEmail = "info@yecday.com";
 
-    if (locale === 'th') {
+    if (locale === "th") {
       return {
         subject: "เชิญเข้าร่วมเป็นผู้ดูแลระบบ YEC Day (หมดอายุใน 48 ชั่วโมง)",
         html: `
@@ -345,7 +363,7 @@ export class SmtpEmailProvider implements EmailProvider {
             <p>ขอแสดงความนับถือ<br>
             ทีมผู้ดูแล YEC Day</p>
           </div>
-        `
+        `,
       };
     } else {
       return {
@@ -381,7 +399,7 @@ export class SmtpEmailProvider implements EmailProvider {
             <p>Best regards,<br>
             YEC Day Admin Team</p>
           </div>
-        `
+        `,
       };
     }
   }
@@ -391,13 +409,14 @@ export class SmtpEmailProvider implements EmailProvider {
  * Factory function to create the appropriate email provider
  */
 export function createEmailProvider(): EmailProvider {
-  const provider = process.env.EMAIL_PROVIDER || 
-    (process.env.NODE_ENV === 'test' ? 'test' : 'smtp');
+  const provider =
+    process.env.EMAIL_PROVIDER ||
+    (process.env.NODE_ENV === "test" ? "test" : "smtp");
 
   switch (provider) {
-    case 'test':
+    case "test":
       return new TestEmailProvider();
-    case 'smtp':
+    case "smtp":
       return new SmtpEmailProvider();
     default:
       throw new Error(`Unknown email provider: ${provider}`);
@@ -410,16 +429,16 @@ export function createEmailProvider(): EmailProvider {
 export async function sendInvitationEmail(params: {
   email: string;
   token: string;
-  locale?: 'en' | 'th';
+  locale?: "en" | "th";
 }): Promise<{
   messageId: string;
   provider: string;
-  status: 'success' | 'error';
+  status: "success" | "error";
   error?: string;
 }> {
   const provider = createEmailProvider();
-  const locale = params.locale || 'en';
-  
+  const locale = params.locale || "en";
+
   return provider.sendInvitationEmail({
     email: params.email,
     token: params.token,

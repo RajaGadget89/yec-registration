@@ -66,7 +66,9 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
 
     const allowedSortFields = ["created_at", "email", "role", "last_login_at"];
     const isSortByAllowed = allowedSortFields.includes(sortByParam);
-    const isOrderAllowed = ["asc", "desc"].includes(sortOrderParam.toLowerCase());
+    const isOrderAllowed = ["asc", "desc"].includes(
+      sortOrderParam.toLowerCase(),
+    );
 
     if (!isSortByAllowed || !isOrderAllowed) {
       return NextResponse.json(
