@@ -11,8 +11,9 @@ import { getRolesForEmail } from "./rbac";
 export const DEV_COOKIE_NAME = "dev-user-email";
 
 /**
- * Parses admin emails from environment variable
+ * Parses admin emails from environment variable (legacy support)
  * @returns Array of admin email addresses (lowercase, trimmed, de-duplicated)
+ * @deprecated Use database-based admin management instead
  */
 export function getAdminEmails(): string[] {
   const raw = process.env.ADMIN_EMAILS ?? "";
@@ -24,6 +25,7 @@ export function getAdminEmails(): string[] {
 
 /**
  * Checks if the given email is in the admin allowlist
+ * Database-first approach with environment fallback
  * @param email - Email address to check (case-insensitive)
  * @returns true if email is in admin allowlist, false otherwise
  */
@@ -39,15 +41,19 @@ export function isAdmin(email?: string | null): boolean {
     return true;
   }
 
-  // Check legacy admin emails
+  // Step 1: Check new RBAC system first - any user with any admin role is considered an admin
+  const roles = getRolesForEmail(email);
+  if (roles.size > 0) {
+    return true;
+  }
+
+  // Step 2: Fall back to legacy admin emails (environment variable)
   const legacyAdmins = new Set(getAdminEmails());
   if (legacyAdmins.has(email.toLowerCase())) {
     return true;
   }
 
-  // Check new RBAC system - any user with any admin role is considered an admin
-  const roles = getRolesForEmail(email);
-  return roles.size > 0;
+  return false;
 }
 
 /**

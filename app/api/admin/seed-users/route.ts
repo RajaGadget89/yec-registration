@@ -19,19 +19,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const adminEmails =
-      process.env.ADMIN_EMAILS?.split(",")
+    const supabase = getSupabaseAuth();
+    
+    // Database-first approach: Get admin emails from database or environment
+    let adminEmails: string[] = [];
+    
+    try {
+      // Step 1: Try to get admin emails from database
+      const { data: dbUsers, error: dbError } = await supabase
+        .from("admin_users")
+        .select("email")
+        .eq("is_active", true);
+      
+      if (!dbError && dbUsers && dbUsers.length > 0) {
+        adminEmails = dbUsers.map(user => user.email);
+      } else {
+        // Step 2: Fall back to environment variable
+        adminEmails = process.env.ADMIN_EMAILS?.split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean) || [];
+      }
+    } catch {
+      // Step 3: Environment fallback on database error
+      adminEmails = process.env.ADMIN_EMAILS?.split(",")
         .map((e) => e.trim().toLowerCase())
         .filter(Boolean) || [];
+    }
 
     if (adminEmails.length === 0) {
       return NextResponse.json(
-        { error: "No admin emails found in ADMIN_EMAILS environment variable" },
+        { error: "No admin emails found in database or ADMIN_EMAILS environment variable" },
         { status: 400 },
       );
     }
-
-    const supabase = getSupabaseAuth();
     const results: Array<{ email: string; success: boolean; error?: string }> =
       [];
 
