@@ -91,3 +91,4 @@ export function logEnvironmentConfig(): void {
   console.log(`  Rate Limit (per minute): ${rateLimit.perMinute}`);
   console.log(`  Rate Limit (per day): ${rateLimit.perDay}`);
 }
+

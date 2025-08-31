@@ -71,6 +71,12 @@ interface AdminMeResponse {
   email: string;
   roles: Role[];
   envBuildId: string;
+  // Add database user information for compatibility with getCurrentUser()
+  id?: string;
+  role?: "admin" | "super_admin";
+  created_at?: string;
+  last_login_at?: string | null;
+  is_active?: boolean;
 }
 
 export async function GET(req: NextRequest) {
@@ -146,10 +152,39 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Not authorized" }, { status: 403 });
     }
 
+    // Get database user information for compatibility with getCurrentUser()
+    let dbUser = null;
+    try {
+      const { getSupabaseServiceClient } = await import(
+        "../../../lib/supabase-server"
+      );
+      const supabase = getSupabaseServiceClient();
+      const { data: adminUser, error } = await supabase
+        .from("admin_users")
+        .select("*")
+        .eq("email", email.toLowerCase())
+        .eq("is_active", true)
+        .single();
+
+      if (!error && adminUser) {
+        dbUser = adminUser;
+      }
+    } catch (error) {
+      console.log("[admin/me] Could not fetch database user info:", error);
+    }
+
     const response: AdminMeResponse = {
       email: normalizeEmail(email),
       roles: Array.from(roles),
       envBuildId: getEnvBuildId(),
+      // Add database user information if available
+      ...(dbUser && {
+        id: dbUser.id,
+        role: dbUser.role,
+        created_at: dbUser.created_at,
+        last_login_at: dbUser.last_login_at,
+        is_active: dbUser.is_active,
+      }),
     };
 
     return NextResponse.json(response, { status: 200, headers: res.headers });
