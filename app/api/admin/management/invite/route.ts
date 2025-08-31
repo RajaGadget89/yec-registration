@@ -15,7 +15,7 @@ import {
 import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
 import { getBaseUrl } from "../../../../lib/config";
 import { isFeatureEnabled } from "../../../../lib/features";
-import { sendAdminInvitationEmail } from "../../../../lib/emailService";
+import { sendInvitationEmail } from "../../../../server/email/provider";
 
 // Validation schema for invite request
 const inviteSchema = z.object({
@@ -41,6 +41,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
   console.log("[INVITE_ROUTE] Function called");
   const startTime = Date.now();
   const requestId = `invite_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const correlationId = request.headers.get("Idempotency-Key") || requestId;
 
   try {
     console.log("[INVITE_ROUTE] Starting invite process");
@@ -62,6 +63,9 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       console.log("[INVITE_ROUTE] No current user found");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    console.log("[INVITE_ROUTE] Current user ID:", currentUser.id);
+    console.log("[INVITE_ROUTE] Current user email:", currentUser.email);
 
     // Check if user has super_admin role
     console.log("[INVITE_ROUTE] Checking super_admin role");
@@ -197,6 +201,29 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       roles,
     );
 
+    // Idempotency check (if Idempotency-Key is provided)
+    if (request.headers.get("Idempotency-Key")) {
+      const supabase = getSupabaseServiceClient();
+      const { data: existingInvitation, error: idempotencyError } = await supabase
+        .from("admin_invitations")
+        .select("id, email, expires_at")
+        .eq("invited_by_admin_id", currentUser.id)
+        .eq("email", email.toLowerCase())
+        .eq("status", "pending")
+        .single();
+
+      if (!idempotencyError && existingInvitation) {
+        console.log("[INVITE_ROUTE] Idempotency hit, returning existing invitation");
+        return NextResponse.json({
+          id: existingInvitation.id,
+          email: existingInvitation.email,
+          expires_at: existingInvitation.expires_at,
+          message: "Invitation already created (idempotency)",
+          correlation_id: correlationId,
+        }, { status: 201 });
+      }
+    }
+
     // Get client IP for logging
     const clientIP =
       request.headers.get("x-forwarded-for") ||
@@ -265,9 +292,12 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
     }
 
     // Generate invitation token using database function
+    console.log("[INVITE_ROUTE] Calling generate_admin_invitation_token RPC");
     const { data: tokenData, error: tokenError } = await supabase.rpc(
       "generate_admin_invitation_token",
     );
+
+    console.log("[INVITE_ROUTE] Token generation result:", { tokenData, tokenError });
 
     if (tokenError || !tokenData) {
       console.error("Error generating invitation token:", tokenError);
@@ -281,6 +311,15 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
     // Create invitation record
+    console.log("[INVITE_ROUTE] Creating invitation record with data:", {
+      email: email.toLowerCase(),
+      token: tokenData,
+      expires_at: expiresAt,
+      invited_by_admin_id: currentUser.id,
+      status: "pending",
+      roles: roles,
+    });
+
     const { data: invitation, error: createError } = await supabase
       .from("admin_invitations")
       .insert({
@@ -289,10 +328,12 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         expires_at: expiresAt,
         invited_by_admin_id: currentUser.id,
         status: "pending",
-        metadata: { roles },
+        roles: roles,
       })
       .select()
       .single();
+
+    console.log("[INVITE_ROUTE] Invitation creation result:", { invitation, createError });
 
     if (createError) {
       console.error("Error creating invitation:", createError);
@@ -302,18 +343,21 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Send invitation email
-    const acceptUrl = `${getBaseUrl()}/admin/management/accept?token=${tokenData}`;
-    const expiresAtFormatted = new Date(expiresAt).toLocaleString();
-    const supportEmail = "info@yecday.com";
-
+    // Send invitation email using new provider
     try {
-      await sendAdminInvitationEmail({
-        to: email,
-        acceptUrl,
-        expiresAt: expiresAtFormatted,
-        supportEmail,
+      const emailResult = await sendInvitationEmail({
+        email,
+        token: tokenData,
+        locale: 'en', // Default to English, could be made configurable
       });
+
+      if (emailResult.status === 'error') {
+        console.error("Failed to send invitation email:", emailResult.error);
+        // Don't fail the request if email fails, but log it
+        // The invitation is still created and can be resent later
+      } else {
+        console.log("Invitation email sent successfully:", emailResult.messageId);
+      }
     } catch (emailError) {
       console.error("Failed to send invitation email:", emailError);
       // Don't fail the request if email fails, but log it
@@ -368,6 +412,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
           email,
           roles,
           inviter: currentUser.email,
+          email_provider: 'new_provider', // Track that we're using the new email provider
         },
       });
       console.log("[INVITE_ROUTE] Success access log created successfully");
@@ -381,6 +426,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       email: invitation.email,
       expires_at: invitation.expires_at,
       message: "Invitation created successfully",
+      correlation_id: correlationId,
     };
 
     // Include token for E2E tests only

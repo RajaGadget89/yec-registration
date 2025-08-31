@@ -20,6 +20,8 @@ export type RegistrationEventType =
   | "email.retry_requested"
   | "admin.invitation.created"
   | "admin.invitation.accepted"
+  | "admin.invitation.resent"
+  | "admin.invitation.cancelled"
   | "admin.invitation.revoked"
   | "admin.role.assigned"
   | "admin.role.revoked"
