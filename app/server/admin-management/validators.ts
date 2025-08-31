@@ -48,7 +48,7 @@ export function validateEmail(email: string): boolean {
 
 export function validateRoles(roles: string[]): boolean {
   const validRoles = ["admin", "super_admin"];
-  return roles.every(role => validRoles.includes(role));
+  return roles.every((role) => validRoles.includes(role));
 }
 
 export function sanitizeSearchQuery(search: string): string {
@@ -67,7 +67,7 @@ export function createErrorResponse(
   status: number,
   code: string,
   message: string,
-  details?: any
+  details?: any,
 ) {
   return {
     error: message,
@@ -81,7 +81,7 @@ export function createValidationErrorResponse(validationError: z.ZodError) {
     422,
     ERROR_CODES.VALIDATION_ERROR,
     "Validation failed",
-    validationError.errors
+    validationError.errors,
   );
 }
 
@@ -90,7 +90,7 @@ export function createRateLimitErrorResponse(
   retryAfter: number,
   limit: number,
   remaining: number,
-  resetTime: number
+  resetTime: number,
 ) {
   return {
     error: "Rate limit exceeded",

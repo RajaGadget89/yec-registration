@@ -13,9 +13,14 @@ import {
   ADMIN_INVITE_RATE_LIMITS,
 } from "../../../../lib/rate-limit";
 import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
-import { getBaseUrl } from "../../../../lib/config";
+
 import { isFeatureEnabled } from "../../../../lib/features";
 import { sendInvitationEmail } from "../../../../server/email/provider";
+import {
+  idempotencyCache,
+  canonicalizeInvitePayload,
+  hashPayload,
+} from "../../../../lib/idempotency-cache";
 
 // Validation schema for invite request
 const inviteSchema = z.object({
@@ -201,26 +206,48 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       roles,
     );
 
-    // Idempotency check (if Idempotency-Key is provided)
-    if (request.headers.get("Idempotency-Key")) {
-      const supabase = getSupabaseServiceClient();
-      const { data: existingInvitation, error: idempotencyError } = await supabase
-        .from("admin_invitations")
-        .select("id, email, expires_at")
-        .eq("invited_by_admin_id", currentUser.id)
-        .eq("email", email.toLowerCase())
-        .eq("status", "pending")
-        .single();
+    // Parse Idempotency-Key header (optional)
+    const idempotencyKey = request.headers.get("Idempotency-Key");
 
-      if (!idempotencyError && existingInvitation) {
-        console.log("[INVITE_ROUTE] Idempotency hit, returning existing invitation");
-        return NextResponse.json({
-          id: existingInvitation.id,
-          email: existingInvitation.email,
-          expires_at: existingInvitation.expires_at,
-          message: "Invitation already created (idempotency)",
-          correlation_id: correlationId,
-        }, { status: 201 });
+    // Canonicalize and hash payload for idempotency comparison
+    const canonicalPayload = canonicalizeInvitePayload({ email, roles });
+    const payloadHash = hashPayload(canonicalPayload);
+
+    // Idempotency check (if Idempotency-Key is provided)
+    if (idempotencyKey) {
+      const snapshot = idempotencyCache.getSnapshot(
+        currentUser.id,
+        "/api/admin/management/invite",
+        idempotencyKey,
+      );
+
+      if (snapshot) {
+        // Found existing snapshot
+        if (snapshot.payloadHash === payloadHash) {
+          // Same key + same body → return bit-equal prior result
+          console.log(
+            "[INVITE_ROUTE] Idempotency hit - same payload, returning stored result",
+          );
+          const response = NextResponse.json(JSON.parse(snapshot.body), {
+            status: snapshot.status,
+          });
+          response.headers.set("X-Idempotency-Hit", "true");
+          return response;
+        } else {
+          // Same key + different body → 422 IDEMPOTENCY_PAYLOAD_MISMATCH
+          console.log(
+            "[INVITE_ROUTE] Idempotency key conflict - payload mismatch",
+          );
+          return NextResponse.json(
+            {
+              error: "Idempotency key conflict",
+              code: "IDEMPOTENCY_PAYLOAD_MISMATCH",
+              expectedHash: snapshot.payloadHash,
+              receivedHash: payloadHash,
+            },
+            { status: 422 },
+          );
+        }
       }
     }
 
@@ -297,7 +324,10 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       "generate_admin_invitation_token",
     );
 
-    console.log("[INVITE_ROUTE] Token generation result:", { tokenData, tokenError });
+    console.log("[INVITE_ROUTE] Token generation result:", {
+      tokenData,
+      tokenError,
+    });
 
     if (tokenError || !tokenData) {
       console.error("Error generating invitation token:", tokenError);
@@ -333,7 +363,10 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       .select()
       .single();
 
-    console.log("[INVITE_ROUTE] Invitation creation result:", { invitation, createError });
+    console.log("[INVITE_ROUTE] Invitation creation result:", {
+      invitation,
+      createError,
+    });
 
     if (createError) {
       console.error("Error creating invitation:", createError);
@@ -348,15 +381,18 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       const emailResult = await sendInvitationEmail({
         email,
         token: tokenData,
-        locale: 'en', // Default to English, could be made configurable
+        locale: "en", // Default to English, could be made configurable
       });
 
-      if (emailResult.status === 'error') {
+      if (emailResult.status === "error") {
         console.error("Failed to send invitation email:", emailResult.error);
         // Don't fail the request if email fails, but log it
         // The invitation is still created and can be resent later
       } else {
-        console.log("Invitation email sent successfully:", emailResult.messageId);
+        console.log(
+          "Invitation email sent successfully:",
+          emailResult.messageId,
+        );
       }
     } catch (emailError) {
       console.error("Failed to send invitation email:", emailError);
@@ -412,7 +448,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
           email,
           roles,
           inviter: currentUser.email,
-          email_provider: 'new_provider', // Track that we're using the new email provider
+          email_provider: "new_provider", // Track that we're using the new email provider
         },
       });
       console.log("[INVITE_ROUTE] Success access log created successfully");
@@ -420,7 +456,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       console.error("[INVITE_ROUTE] Error logging success access:", error);
     }
 
-    // For E2E tests, include the token in the response
+    // Build canonical response body
     const responseData: any = {
       id: invitation.id,
       email: invitation.email,
@@ -434,7 +470,31 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       responseData.token = tokenData;
     }
 
-    return NextResponse.json(responseData, { status: 201 });
+    // Store idempotency snapshot if key was provided
+    if (idempotencyKey) {
+      const responseBody = JSON.stringify(responseData);
+      idempotencyCache.setSnapshot(
+        currentUser.id,
+        "/api/admin/management/invite",
+        idempotencyKey,
+        {
+          payloadHash,
+          status: 201,
+          body: responseBody,
+        },
+      );
+      console.log(
+        "[INVITE_ROUTE] Idempotency snapshot stored for key:",
+        idempotencyKey,
+      );
+    }
+
+    // Return response with appropriate idempotency header
+    const response = NextResponse.json(responseData, { status: 201 });
+    if (idempotencyKey) {
+      response.headers.set("X-Idempotency-Hit", "false");
+    }
+    return response;
   } catch (error) {
     console.error("Admin invitation error:", error);
 

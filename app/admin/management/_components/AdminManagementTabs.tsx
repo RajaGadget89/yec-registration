@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import InviteTab from "./InviteTab";
 import PendingTab from "./PendingTab";
 import AdminsTab from "./AdminsTab";
@@ -29,16 +28,13 @@ interface Filters {
 interface AdminManagementTabsProps {
   activeTab: string;
   filters: Filters;
-  user: AdminUser | null;
+  user?: AdminUser | null;
 }
 
 export default function AdminManagementTabs({
   activeTab,
   filters,
-  user,
 }: AdminManagementTabsProps) {
-  const [loading, setLoading] = useState(false);
-
   // Render the appropriate tab content based on activeTab
   const renderTabContent = () => {
     switch (activeTab) {
@@ -55,9 +51,5 @@ export default function AdminManagementTabs({
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {renderTabContent()}
-    </div>
-  );
+  return <div className="space-y-6">{renderTabContent()}</div>;
 }
