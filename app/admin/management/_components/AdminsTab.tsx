@@ -1,7 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Users, Search, Filter, Crown, Shield, Edit3, MoreVertical, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Users,
+  Search,
+  Filter,
+  Crown,
+  Shield,
+  Edit3,
+  Loader2,
+} from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
 interface AdminUser {
@@ -43,15 +51,11 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
   const [totalCount, setTotalCount] = useState(0);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchAdmins();
-  }, [page, pageSize, searchTerm, roleFilter, statusFilter, sortBy, sortOrder]);
-
-  const fetchAdmins = async () => {
+  const fetchAdmins = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams({
         page: page.toString(),
         pageSize: pageSize.toString(),
@@ -63,7 +67,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
       });
 
       const response = await fetch(`/api/admin/management/admins?${params}`);
-      
+
       if (response.ok) {
         const data = await response.json();
         setAdmins(data.admins || []);
@@ -71,12 +75,25 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
       } else {
         setError("Failed to load admin users");
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, searchTerm, roleFilter, statusFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    fetchAdmins();
+  }, [
+    page,
+    pageSize,
+    searchTerm,
+    roleFilter,
+    statusFilter,
+    sortBy,
+    sortOrder,
+    fetchAdmins,
+  ]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +127,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
         const data = await response.json();
         setError(data.error || "Failed to update role");
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please try again.");
     } finally {
       setActionLoading(null);
@@ -135,7 +152,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
         const data = await response.json();
         setError(data.error || "Failed to update status");
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please try again.");
     } finally {
       setActionLoading(null);
@@ -204,7 +221,9 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
     return (
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
         <div className="flex items-center">
-          <span className="text-sm text-red-700 dark:text-red-400">{error}</span>
+          <span className="text-sm text-red-700 dark:text-red-400">
+            {error}
+          </span>
         </div>
       </div>
     );
@@ -342,7 +361,10 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
       {/* Admins Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" data-testid="admins-table">
+          <table
+            className="min-w-full divide-y divide-gray-200 dark:divide-gray-700"
+            data-testid="admins-table"
+          >
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -367,7 +389,11 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {admins.map((admin) => (
-                <tr key={admin.id} className="hover:bg-gray-50 dark:hover:bg-gray-800" data-testid={`admins-row-${admin.id}`}>
+                <tr
+                  key={admin.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                  data-testid={`admins-row-${admin.id}`}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
@@ -418,7 +444,14 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
                       <button
-                        onClick={() => handleRoleChange(admin.id, admin.role === "super_admin" ? "admin" : "super_admin")}
+                        onClick={() =>
+                          handleRoleChange(
+                            admin.id,
+                            admin.role === "super_admin"
+                              ? "admin"
+                              : "super_admin",
+                          )
+                        }
                         disabled={actionLoading === `role-${admin.id}`}
                         className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md transition-colors ${
                           actionLoading === `role-${admin.id}`
@@ -435,14 +468,19 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                         Change Role
                       </button>
                       <button
-                        onClick={() => handleStatusChange(admin.id, admin.is_active ? "suspended" : "active")}
+                        onClick={() =>
+                          handleStatusChange(
+                            admin.id,
+                            admin.is_active ? "suspended" : "active",
+                          )
+                        }
                         disabled={actionLoading === `status-${admin.id}`}
                         className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md transition-colors ${
                           actionLoading === `status-${admin.id}`
                             ? "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
                             : admin.is_active
-                            ? "text-red-700 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
-                            : "text-green-700 bg-green-100 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30"
+                              ? "text-red-700 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                              : "text-green-700 bg-green-100 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30"
                         }`}
                         data-testid="admins-action-status"
                       >
@@ -481,9 +519,15 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700 dark:text-gray-300">
-                  Showing <span className="font-medium">{((page - 1) * pageSize) + 1}</span> to{" "}
-                  <span className="font-medium">{Math.min(page * pageSize, totalCount)}</span> of{" "}
-                  <span className="font-medium">{totalCount}</span> results
+                  Showing{" "}
+                  <span className="font-medium">
+                    {(page - 1) * pageSize + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-medium">
+                    {Math.min(page * pageSize, totalCount)}
+                  </span>{" "}
+                  of <span className="font-medium">{totalCount}</span> results
                 </p>
               </div>
               <div>

@@ -473,7 +473,7 @@ test.describe('UAT-04: Admin Invite Creation & Validations', () => {
   });
 
   test.describe('Idempotency - Replay Behavior', () => {
-    test('should return identical response for same idempotency key', async ({ request }) => {
+    test('should return identical response for same idempotency key + same body', async ({ request }) => {
       // Arrange
       const email = generateUniqueEmail('idempotency');
       const roles = ['admin'];
@@ -493,8 +493,12 @@ test.describe('UAT-04: Admin Invite Creation & Validations', () => {
 
       expect(response1.status()).toBe(201);
       const data1 = await response1.json();
+      
+      // Verify first request has X-Idempotency-Hit: false
+      const headers1 = response1.headers();
+      expect(headers1['x-idempotency-hit']).toBe('false');
 
-      // Act - Second request with same idempotency key
+      // Act - Second request with same idempotency key + same body
       const response2 = await request.post(`${BASE_URL}/api/admin/management/invite`, {
         headers: {
           ...superAdminHeaders,
@@ -506,21 +510,25 @@ test.describe('UAT-04: Admin Invite Creation & Validations', () => {
         },
       });
 
-      // Assert - Should return identical response
+      // Assert - Should return identical response with X-Idempotency-Hit: true
       expect(response2.status()).toBe(201);
       const data2 = await response2.json();
-
+      
       // Verify identical response
       expect(data2.id).toBe(data1.id);
       expect(data2.email).toBe(data1.email);
       expect(data2.expires_at).toBe(data1.expires_at);
       expect(data2.correlation_id).toBe(data1.correlation_id);
-      expect(data2.message).toBe('Invitation already created (idempotency)');
+      expect(data2.message).toBe(data1.message);
+      
+      // Verify second request has X-Idempotency-Hit: true
+      const headers2 = response2.headers();
+      expect(headers2['x-idempotency-hit']).toBe('true');
 
-      console.log(`[UAT-04] Idempotency confirmed: same key returns identical response for ${email}`);
+      console.log(`[UAT-04] Idempotency confirmed: same key + same body returns bit-equal response for ${email}`);
     });
 
-    test('should return identical response even with different payload', async ({ request }) => {
+    test('should return 422 for same key + different body', async ({ request }) => {
       // Arrange
       const email1 = generateUniqueEmail('idempotency-diff1');
       const email2 = generateUniqueEmail('idempotency-diff2');
@@ -553,17 +561,19 @@ test.describe('UAT-04: Admin Invite Creation & Validations', () => {
         },
       });
 
-      // Assert - Should still return identical response from first request
-      expect(response2.status()).toBe(201);
-      const data2 = await response2.json();
+      // Assert - Should return 422 IDEMPOTENCY_PAYLOAD_MISMATCH
+      expect(response2.status()).toBe(422);
+      const errorData = await response2.json();
+      
+      expect(errorData).toHaveProperty('error', 'Idempotency key conflict');
+      expect(errorData).toHaveProperty('code', 'IDEMPOTENCY_PAYLOAD_MISMATCH');
+      expect(errorData).toHaveProperty('expectedHash');
+      expect(errorData).toHaveProperty('receivedHash');
+      expect(typeof errorData.expectedHash).toBe('string');
+      expect(typeof errorData.receivedHash).toBe('string');
+      expect(errorData.expectedHash).not.toBe(errorData.receivedHash);
 
-      // Verify identical response (should be from first request)
-      expect(data2.id).toBe(data1.id);
-      expect(data2.email).toBe(data1.email); // Should be email1, not email2
-      expect(data2.expires_at).toBe(data1.expires_at);
-      expect(data2.correlation_id).toBe(data1.correlation_id);
-
-      console.log(`[UAT-04] Idempotency with different payload: key overrides payload changes`);
+      console.log(`[UAT-04] Idempotency payload mismatch: same key + different body returns 422`);
     });
 
     test('should handle idempotency without Idempotency-Key header', async ({ request }) => {
@@ -722,8 +732,8 @@ test.describe('UAT-04: Admin Invite Creation & Validations', () => {
       const email = generateUniqueEmail('hit-header');
       const idempotencyKey = generateIdempotencyKey('hit-header');
 
-      // Act - First request
-      await request.post(`${BASE_URL}/api/admin/management/invite`, {
+      // Act - First request (should have X-Idempotency-Hit: false)
+      const response1 = await request.post(`${BASE_URL}/api/admin/management/invite`, {
         headers: {
           ...superAdminHeaders,
           'Idempotency-Key': idempotencyKey,
@@ -734,8 +744,12 @@ test.describe('UAT-04: Admin Invite Creation & Validations', () => {
         },
       });
 
-      // Act - Second request (should be idempotency hit)
-      const response = await request.post(`${BASE_URL}/api/admin/management/invite`, {
+      expect(response1.status()).toBe(201);
+      const headers1 = response1.headers();
+      expect(headers1['x-idempotency-hit']).toBe('false');
+
+      // Act - Second request (should have X-Idempotency-Hit: true)
+      const response2 = await request.post(`${BASE_URL}/api/admin/management/invite`, {
         headers: {
           ...superAdminHeaders,
           'Idempotency-Key': idempotencyKey,
@@ -747,13 +761,11 @@ test.describe('UAT-04: Admin Invite Creation & Validations', () => {
       });
 
       // Assert
-      expect(response.status()).toBe(201);
+      expect(response2.status()).toBe(201);
+      const headers2 = response2.headers();
+      expect(headers2['x-idempotency-hit']).toBe('true');
       
-      const headers = response.headers();
-      // Note: The current implementation doesn't include X-Idempotency-Hit header
-      // This is a potential enhancement for future versions
-      
-      console.log(`[UAT-04] Idempotency response headers: ${JSON.stringify(headers)}`);
+      console.log(`[UAT-04] Idempotency headers verified: first=false, second=true`);
     });
   });
 });
