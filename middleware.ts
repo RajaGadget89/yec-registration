@@ -1,5 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { isAdminManagementEnabled } from './app/lib/features';
+
+/**
+ * Helper function to get current user from admin-email cookie (non-production fallback)
+ * Mirrors the logic from getCurrentUser() in auth-utils.server.ts
+ */
+async function getCurrentUserFromCookie(email: string | undefined): Promise<{is_active: boolean, role: string} | null> {
+  if (!email || process.env.NODE_ENV === 'production') {
+    return null;
+  }
+  
+  try {
+    // Create service client for database access
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        cookies: {
+          get: () => undefined,
+          set: () => {},
+          remove: () => {},
+        },
+      },
+    );
+    
+    const { data: adminUser, error } = await supabase
+      .from("admin_users")
+      .select("is_active, role")
+      .eq("email", email.toLowerCase())
+      .eq("is_active", true)
+      .single();
+    
+    if (!error && adminUser) {
+      return {
+        is_active: adminUser.is_active,
+        role: adminUser.role
+      };
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Helper function to check if user is admin (database-first approach)
@@ -43,6 +87,7 @@ async function checkUserAdminStatus(email: string | undefined): Promise<boolean>
 /**
  * Middleware to protect admin routes
  * Checks for Supabase session to authorize access
+ * UNIFIED: Now uses same auth logic as page guard (getCurrentUser)
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -96,7 +141,19 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
   try {
-    // Create Supabase server client with writable cookie handling
+    // UNIFIED AUTH LOGIC: Same as page guard (getCurrentUser)
+    
+    // 1. Feature Flag Check: if disabled → return 403
+    if (!isAdminManagementEnabled()) {
+      if (AUTH_TRACE) {
+        console.log(`[auth-debug] middleware: feature flag disabled`);
+      }
+      const forbiddenResponse = new NextResponse("Feature not available", { status: 403 });
+      forbiddenResponse.headers.set('x-admin-guard', 'deny:feature-flag-off');
+      return forbiddenResponse;
+    }
+
+    // 2. Try Supabase session first (fast path)
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -118,26 +175,63 @@ export async function middleware(request: NextRequest) {
     // Get the current session (this will automatically refresh if needed)
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-    if (sessionError) {
-      if (AUTH_TRACE) {
-        console.log(`[auth-debug] middleware: session error:`, sessionError.message);
+    let userEmail: string | undefined;
+    let userRole: string | undefined;
+    let isUserActive: boolean = false;
+    let authMethod: 'supabase-session' | 'admin-email-cookie' | 'none' = 'none';
+
+    if (!sessionError && session) {
+      // Supabase session exists - get user details
+      userEmail = session.user.email?.toLowerCase();
+      const isUserAdmin = await checkUserAdminStatus(userEmail);
+      
+      if (isUserAdmin) {
+        // Get full user details from database
+        const serviceClient = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!,
+          {
+            cookies: {
+              get: () => undefined,
+              set: () => {},
+              remove: () => {},
+            },
+          },
+        );
+        
+        const { data: adminUser } = await serviceClient
+          .from("admin_users")
+          .select("role, is_active")
+          .eq("email", userEmail)
+          .eq("is_active", true)
+          .single();
+        
+        if (adminUser) {
+          userRole = adminUser.role;
+          isUserActive = adminUser.is_active;
+          authMethod = 'supabase-session';
+        }
       }
-      // Session error, redirect to login
-      const redirectResponse = NextResponse.redirect(
-        new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
-        307
-      );
-      redirectResponse.headers.set('x-admin-guard', 'deny:session-error');
-      // Copy any cookies from our response to the redirect response
-      response.cookies.getAll().forEach((cookie) => {
-        redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
-      });
-      return redirectResponse;
     }
 
-    if (!session) {
+    // 3. Fallback: Check admin-email cookie (non-production only)
+    if (authMethod === 'none' && process.env.NODE_ENV !== 'production') {
+      const adminEmail = request.cookies.get("admin-email")?.value;
+      if (adminEmail) {
+        const cookieUser = await getCurrentUserFromCookie(adminEmail);
+        if (cookieUser) {
+          userEmail = adminEmail.toLowerCase();
+          userRole = cookieUser.role;
+          isUserActive = cookieUser.is_active;
+          authMethod = 'admin-email-cookie';
+        }
+      }
+    }
+
+    // 4. Decision logic (same as page guard)
+    if (authMethod === 'none') {
       if (AUTH_TRACE) {
-        console.log(`[auth-debug] middleware: no session found`);
+        console.log(`[auth-debug] middleware: no valid session found`);
       }
       // No session, redirect to login
       const redirectResponse = NextResponse.redirect(
@@ -152,20 +246,16 @@ export async function middleware(request: NextRequest) {
       return redirectResponse;
     }
 
-    // Check if user is admin (database-first approach)
-    const userEmail = session.user.email?.toLowerCase();
-    const isUserAdmin = await checkUserAdminStatus(userEmail);
-    
-    if (!isUserAdmin) {
+    if (!isUserActive) {
       if (AUTH_TRACE) {
-        console.log(`[auth-debug] middleware: user not admin:`, userEmail);
+        console.log(`[auth-debug] middleware: user not active:`, userEmail);
       }
-      // User not admin, redirect to login
+      // User not active, redirect to login
       const redirectResponse = NextResponse.redirect(
         new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
         307
       );
-      redirectResponse.headers.set('x-admin-guard', 'deny:not-admin');
+      redirectResponse.headers.set('x-admin-guard', 'deny:not-active');
       // Copy any cookies from our response to the redirect response
       response.cookies.getAll().forEach((cookie) => {
         redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
@@ -173,11 +263,21 @@ export async function middleware(request: NextRequest) {
       return redirectResponse;
     }
 
-    // User is authenticated and is admin, allow access
-    response.headers.set('x-admin-guard', 'ok:supabase-session');
+    if (userRole !== 'super_admin') {
+      if (AUTH_TRACE) {
+        console.log(`[auth-debug] middleware: user not super_admin:`, userEmail, userRole);
+      }
+      // User not super_admin, return 403
+      const forbiddenResponse = new NextResponse("Forbidden", { status: 403 });
+      forbiddenResponse.headers.set('x-admin-guard', 'deny:not-super-admin');
+      return forbiddenResponse;
+    }
+
+    // User is authenticated, active, and super_admin, allow access
+    response.headers.set('x-admin-guard', `ok:${authMethod}`);
     
     if (AUTH_TRACE) {
-      console.log(`[auth-debug] middleware: allowing access (supabase session + admin email)`);
+      console.log(`[auth-debug] middleware: allowing access (${authMethod})`);
     }
     
     return response;
