@@ -287,6 +287,27 @@ export class EventFactory {
   }
 
   /**
+   * Create an admin invitation resent event
+   */
+  static createAdminInvitationResent(
+    invitationId: string,
+    email: string,
+    resentBy: string,
+  ): AdminEvent {
+    return {
+      id: randomUUID(),
+      type: "admin.invitation.resent",
+      payload: {
+        invitation_id: invitationId,
+        email,
+        invited_by: resentBy,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: invitationId,
+    };
+  }
+
+  /**
    * Create an admin role assigned event
    */
   static createAdminRoleAssigned(
@@ -368,6 +389,27 @@ export class EventFactory {
         invitation_id: invitationId,
         email,
         invited_by: revokedBy,
+      },
+      timestamp: new Date().toISOString(),
+      correlation_id: invitationId,
+    };
+  }
+
+  /**
+   * Create an admin invitation cancelled event
+   */
+  static createAdminInvitationCancelled(
+    invitationId: string,
+    email: string,
+    cancelledBy: string,
+  ): AdminEvent {
+    return {
+      id: randomUUID(),
+      type: "admin.invitation.cancelled",
+      payload: {
+        invitation_id: invitationId,
+        email,
+        invited_by: cancelledBy,
       },
       timestamp: new Date().toISOString(),
       correlation_id: invitationId,
