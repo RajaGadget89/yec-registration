@@ -2,6 +2,45 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 /**
+ * Helper function to check if user is admin (database-first approach)
+ */
+async function checkUserAdminStatus(email: string | undefined): Promise<boolean> {
+  if (!email) return false;
+  
+  try {
+    // Check database first
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get: () => undefined,
+          set: () => {},
+          remove: () => {},
+        },
+      },
+    );
+    
+    const { data: adminUser } = await supabase
+      .from("admin_users")
+      .select("email")
+      .eq("email", email.toLowerCase())
+      .eq("is_active", true)
+      .single();
+    
+    if (adminUser) return true;
+    
+    // Fall back to environment variables
+    const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
+    return adminEmails.includes(email.toLowerCase());
+  } catch {
+    // Environment fallback on database error
+    const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
+    return adminEmails.includes(email.toLowerCase());
+  }
+}
+
+/**
  * Middleware to protect admin routes
  * Checks for Supabase session to authorize access
  */
@@ -113,15 +152,15 @@ export async function middleware(request: NextRequest) {
       return redirectResponse;
     }
 
-    // Check if user is in admin allowlist
-    const adminEmails = process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) || [];
+    // Check if user is admin (database-first approach)
     const userEmail = session.user.email?.toLowerCase();
+    const isUserAdmin = await checkUserAdminStatus(userEmail);
     
-    if (!userEmail || !adminEmails.includes(userEmail)) {
+    if (!isUserAdmin) {
       if (AUTH_TRACE) {
-        console.log(`[auth-debug] middleware: user not in admin allowlist:`, userEmail);
+        console.log(`[auth-debug] middleware: user not admin:`, userEmail);
       }
-      // User not in admin allowlist, redirect to login
+      // User not admin, redirect to login
       const redirectResponse = NextResponse.redirect(
         new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
         307
