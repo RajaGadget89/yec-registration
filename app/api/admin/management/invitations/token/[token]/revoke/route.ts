@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withSuperAdminApiGuard } from "../../../../../../lib/admin-guard-server";
-import { getCurrentUserFromRequest } from "../../../../../../lib/auth-utils.server";
-import { logAccess, logEvent } from "../../../../../../lib/audit/auditClient";
-import { getSupabaseServiceClient } from "../../../../../../lib/supabase-server";
-import { EventService } from "../../../../../../lib/events/eventService";
-import { EventFactory } from "../../../../../../lib/events/eventFactory";
-import { isFeatureEnabled } from "../../../../../../lib/features";
+import { withSuperAdminApiGuard } from "../../../../../../../lib/admin-guard-server";
+import { getCurrentUserFromRequest } from "../../../../../../../lib/auth-utils.server";
+import { logAccess, logEvent } from "../../../../../../../lib/audit/auditClient";
+import { getSupabaseServiceClient } from "../../../../../../../lib/supabase-server";
+import { EventService } from "../../../../../../../lib/events/eventService";
+import { EventFactory } from "../../../../../../../lib/events/eventFactory";
+import { isFeatureEnabled } from "../../../../../../../lib/features";
 
 export async function POST(
   request: NextRequest,
@@ -38,7 +38,7 @@ export async function POST(
       await logAccess({
         action: "admin.invitation.revoke",
         method: "POST",
-        resource: `/api/admin/management/invitations/${token}/revoke`,
+        resource: `/api/admin/management/invitations/token/${token}/revoke`,
         result: "attempting",
         request_id: req.headers.get("x-request-id") || "unknown",
         src_ip: req.headers.get("x-forwarded-for") || undefined,
