@@ -168,3 +168,4 @@ export function generateIdempotencyEmails(basePrefix: string = 'idempotency', co
 export function generateValidationEmails(basePrefix: string = 'validation', count: number = 5): string[] {
   return generateScenarioEmails(basePrefix, count);
 }
+

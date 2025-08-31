@@ -297,7 +297,7 @@ export async function withSuperAdminApiGuard<T extends any[]>(
 
         const { data: adminUser, error } = await supabase
           .from("admin_users")
-          .select("role, status")
+          .select("role, is_active")
           .eq("email", adminEmail || "")
           .single();
 
@@ -327,7 +327,7 @@ export async function withSuperAdminApiGuard<T extends any[]>(
           );
         }
 
-        if (adminUser.status !== "active") {
+        if (!adminUser.is_active) {
           console.log("[SUPER_ADMIN_GUARD] Access denied - user not active");
           return NextResponse.json(
             {
