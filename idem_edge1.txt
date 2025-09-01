@@ -1,0 +1,10 @@
+HTTP/1.1 201 Created
+vary: RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch
+content-type: application/json
+x-request-id: bb345565-aa5f-489c-b3e7-b5d10be469d1
+Date: Sun, 31 Aug 2025 15:36:30 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"id":"96dd6d0b-52ac-4fb5-bf8f-aee042b66a74","email":"uat04.edge+1756654589@example.com","expires_at":"2025-09-02T15:36:29.616+00:00","message":"Invitation created successfully","token":"xonGTmlg6i8G1n7skJPMxpjTOc1efQFmfaKXACsDqm0="}

@@ -4,7 +4,7 @@
  */
 
 import { APIRequestContext } from '@playwright/test';
-import { getTestHeaders } from './testRequestHelper';
+import { getTestHeaders, getCronSecretHeaders } from './testRequestHelper';
 
 export interface DBFingerprint {
   dbTarget: string;
@@ -135,7 +135,7 @@ export async function performACPreflightCheck(request: APIRequestContext): Promi
 export async function validateServerReadiness(request: APIRequestContext): Promise<void> {
   console.log('[Server Preflight] Checking server readiness...');
 
-  const readyRes = await request.get('/api/test/ready');
+  const readyRes = await request.get('/api/test/ready', { headers: getCronSecretHeaders() });
   if (!readyRes.ok()) {
     const errorText = await readyRes.text();
     throw new Error(`Server readiness check failed: ${readyRes.status()} - ${errorText}`);

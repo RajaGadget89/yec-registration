@@ -28,7 +28,7 @@ interface Filters {
 interface AdminManagementTabsProps {
   activeTab: string;
   filters: Filters;
-  user: AdminUser | null;
+  user?: AdminUser | null;
 }
 
 export default function AdminManagementTabs({
