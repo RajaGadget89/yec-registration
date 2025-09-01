@@ -20,8 +20,7 @@ test.describe('CI Health Check - System Validation', () => {
     // The health endpoint doesn't return database routing info in current implementation
     // Just verify the basic health structure
     expect(data.status).toBe('healthy');
-    // CI might use different environment, accept common values
-    expect(['development', 'test', 'production']).toContain(data.environment);
+    expect(data.environment).toBe('development');
   });
 
   test('should have working Supabase connectivity', async ({ request }) => {
@@ -70,11 +69,10 @@ test.describe('CI Health Check - System Validation', () => {
     });
     
     const data = await response.json();
-    // CI uses staging, local uses test - accept both
-    expect(['test', 'staging']).toContain(data.env.SUPABASE_ENV);
+    // Accept either 'staging' or 'test' as both are safe for CI health checks
+    expect(['staging', 'test']).toContain(data.env.SUPABASE_ENV);
     expect(data.env.CRON_SECRET).toBe('set');
-    // CI might use different NODE_ENV, accept common values
-    expect(['development', 'test', 'production']).toContain(data.env.NODE_ENV);
+    expect(data.env.NODE_ENV).toBe('development');
   });
 
   test('should have working test endpoints structure', async ({ request }) => {

@@ -45,8 +45,6 @@ export default function AcceptInvitationPage() {
         );
 
         if (response.ok) {
-          await response.json();
-
           setState("success");
 
           // Fire analytics event

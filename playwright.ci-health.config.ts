@@ -1,8 +1,9 @@
 import { defineConfig } from '@playwright/test';
 import { config as loadDotenv } from 'dotenv';
 
-// Load environment variables from .e2e-env file
-loadDotenv({ path: '.e2e-env' });
+// For CI health checks, don't load .e2e-env as it overrides the environment
+// variables set by the pre-CI/CD script. The script already sets SUPABASE_ENV=staging.
+// loadDotenv({ path: '.e2e-env' });
 
 export default defineConfig({
   testDir: './tests/e2e',

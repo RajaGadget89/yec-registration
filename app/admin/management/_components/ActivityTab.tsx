@@ -18,21 +18,7 @@ interface AuditEntry {
   meta?: Record<string, any>;
 }
 
-interface Filters {
-  search: string;
-  role: string;
-  status: string;
-  sortBy: string;
-  sortOrder: "asc" | "desc";
-  page: number;
-  size: number;
-}
-
-interface ActivityTabProps {
-  filters: Filters;
-}
-
-export default function ActivityTab({}: ActivityTabProps) {
+export default function ActivityTab() {
   const [activities, setActivities] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +54,7 @@ export default function ActivityTab({}: ActivityTabProps) {
 
   useEffect(() => {
     fetchActivities();
-  }, [correlationFilter, actionFilter, fetchActivities]);
+  }, [fetchActivities]);
 
   const handleCopyCorrelationId = async (correlationId: string) => {
     try {
