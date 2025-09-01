@@ -34,10 +34,10 @@ async function getEmailOutbox(request: NextRequest): Promise<NextResponse> {
 
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const template = searchParams.get('template');
-    const toEmail = searchParams.get('to_email');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const template = searchParams.get("template");
+    const toEmail = searchParams.get("to_email");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const offset = parseInt(searchParams.get("offset") || "0");
 
     // Get client IP for logging
     const clientIP =
@@ -56,11 +56,11 @@ async function getEmailOutbox(request: NextRequest): Promise<NextResponse> {
         src_ip: clientIP,
         user_agent: request.headers.get("user-agent") || undefined,
         latency_ms: Date.now() - startTime,
-        meta: { 
+        meta: {
           template: template || undefined,
           to_email: toEmail || undefined,
           limit,
-          offset
+          offset,
         },
       });
     } catch (error) {

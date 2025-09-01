@@ -13,7 +13,7 @@ import {
   ADMIN_INVITE_RATE_LIMITS,
 } from "../../../../lib/rate-limit";
 import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
-import { getBaseUrl } from "../../../../lib/config";
+
 import { isFeatureEnabled } from "../../../../lib/features";
 import { sendInvitationEmail } from "../../../../server/email/provider";
 
@@ -204,23 +204,29 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
     // Idempotency check (if Idempotency-Key is provided)
     if (request.headers.get("Idempotency-Key")) {
       const supabase = getSupabaseServiceClient();
-      const { data: existingInvitation, error: idempotencyError } = await supabase
-        .from("admin_invitations")
-        .select("id, email, expires_at")
-        .eq("invited_by_admin_id", currentUser.id)
-        .eq("email", email.toLowerCase())
-        .eq("status", "pending")
-        .single();
+      const { data: existingInvitation, error: idempotencyError } =
+        await supabase
+          .from("admin_invitations")
+          .select("id, email, expires_at")
+          .eq("invited_by_admin_id", currentUser.id)
+          .eq("email", email.toLowerCase())
+          .eq("status", "pending")
+          .single();
 
       if (!idempotencyError && existingInvitation) {
-        console.log("[INVITE_ROUTE] Idempotency hit, returning existing invitation");
-        return NextResponse.json({
-          id: existingInvitation.id,
-          email: existingInvitation.email,
-          expires_at: existingInvitation.expires_at,
-          message: "Invitation already created (idempotency)",
-          correlation_id: correlationId,
-        }, { status: 201 });
+        console.log(
+          "[INVITE_ROUTE] Idempotency hit, returning existing invitation",
+        );
+        return NextResponse.json(
+          {
+            id: existingInvitation.id,
+            email: existingInvitation.email,
+            expires_at: existingInvitation.expires_at,
+            message: "Invitation already created (idempotency)",
+            correlation_id: correlationId,
+          },
+          { status: 201 },
+        );
       }
     }
 
@@ -297,7 +303,10 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       "generate_admin_invitation_token",
     );
 
-    console.log("[INVITE_ROUTE] Token generation result:", { tokenData, tokenError });
+    console.log("[INVITE_ROUTE] Token generation result:", {
+      tokenData,
+      tokenError,
+    });
 
     if (tokenError || !tokenData) {
       console.error("Error generating invitation token:", tokenError);
@@ -333,7 +342,10 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       .select()
       .single();
 
-    console.log("[INVITE_ROUTE] Invitation creation result:", { invitation, createError });
+    console.log("[INVITE_ROUTE] Invitation creation result:", {
+      invitation,
+      createError,
+    });
 
     if (createError) {
       console.error("Error creating invitation:", createError);
@@ -348,15 +360,18 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       const emailResult = await sendInvitationEmail({
         email,
         token: tokenData,
-        locale: 'en', // Default to English, could be made configurable
+        locale: "en", // Default to English, could be made configurable
       });
 
-      if (emailResult.status === 'error') {
+      if (emailResult.status === "error") {
         console.error("Failed to send invitation email:", emailResult.error);
         // Don't fail the request if email fails, but log it
         // The invitation is still created and can be resent later
       } else {
-        console.log("Invitation email sent successfully:", emailResult.messageId);
+        console.log(
+          "Invitation email sent successfully:",
+          emailResult.messageId,
+        );
       }
     } catch (emailError) {
       console.error("Failed to send invitation email:", emailError);
@@ -412,7 +427,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
           email,
           roles,
           inviter: currentUser.email,
-          email_provider: 'new_provider', // Track that we're using the new email provider
+          email_provider: "new_provider", // Track that we're using the new email provider
         },
       });
       console.log("[INVITE_ROUTE] Success access log created successfully");

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Activity, Search, Filter, Copy, CheckCircle, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Activity, Filter, Copy, CheckCircle } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
 interface AuditEntry {
@@ -18,21 +18,7 @@ interface AuditEntry {
   meta?: Record<string, any>;
 }
 
-interface Filters {
-  search: string;
-  role: string;
-  status: string;
-  sortBy: string;
-  sortOrder: "asc" | "desc";
-  page: number;
-  size: number;
-}
-
-interface ActivityTabProps {
-  filters: Filters;
-}
-
-export default function ActivityTab({ filters }: ActivityTabProps) {
+export default function ActivityTab() {
   const [activities, setActivities] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,15 +26,11 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
   const [actionFilter, setActionFilter] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchActivities();
-  }, [correlationFilter, actionFilter]);
-
-  const fetchActivities = async () => {
+  const fetchActivities = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const params = new URLSearchParams({
         ...(correlationFilter && { correlation_id: correlationFilter }),
         ...(actionFilter && { action: actionFilter }),
@@ -56,26 +38,30 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
       });
 
       const response = await fetch(`/api/admin/management/activity?${params}`);
-      
+
       if (response.ok) {
         const data = await response.json();
         setActivities(data.activities || []);
       } else {
         setError("Failed to load activity data");
       }
-    } catch (err) {
+    } catch {
       setError("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [correlationFilter, actionFilter]);
+
+  useEffect(() => {
+    fetchActivities();
+  }, [fetchActivities]);
 
   const handleCopyCorrelationId = async (correlationId: string) => {
     try {
       await navigator.clipboard.writeText(correlationId);
       setCopiedId(correlationId);
       setTimeout(() => setCopiedId(null), 2000);
-    } catch (err) {
+    } catch {
       // Fallback for older browsers
       const textArea = document.createElement("textarea");
       textArea.value = correlationId;
@@ -102,18 +88,28 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
 
   const getActionBadge = (action: string) => {
     const actionColors: Record<string, string> = {
-      "admin.invitation.created": "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200",
-      "admin.invitation.resent": "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200",
-      "admin.invitation.cancelled": "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200",
-      "admin.invitation.accepted": "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-200",
-      "admin.role.updated": "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200",
-      "admin.status.updated": "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-200",
+      "admin.invitation.created":
+        "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200",
+      "admin.invitation.resent":
+        "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200",
+      "admin.invitation.cancelled":
+        "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200",
+      "admin.invitation.accepted":
+        "bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-200",
+      "admin.role.updated":
+        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200",
+      "admin.status.updated":
+        "bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-200",
     };
 
-    const colorClass = actionColors[action] || "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-200";
+    const colorClass =
+      actionColors[action] ||
+      "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-200";
 
     return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colorClass}`}>
+      <span
+        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colorClass}`}
+      >
         {action.replace("admin.", "").replace(".", " ")}
       </span>
     );
@@ -136,7 +132,7 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
 
   const formatMeta = (meta: Record<string, any> | undefined) => {
     if (!meta) return "No additional details";
-    
+
     try {
       return JSON.stringify(meta, null, 2);
     } catch {
@@ -149,8 +145,12 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
       <div className="text-center py-12">
         <div className="text-gray-600 dark:text-gray-300">
           <Activity className="h-12 w-12 mx-auto mb-4 text-gray-400 animate-pulse" />
-          <div className="text-lg font-medium mb-2">Loading activity data...</div>
-          <div className="text-sm">Please wait while we fetch the audit logs</div>
+          <div className="text-lg font-medium mb-2">
+            Loading activity data...
+          </div>
+          <div className="text-sm">
+            Please wait while we fetch the audit logs
+          </div>
         </div>
       </div>
     );
@@ -160,7 +160,9 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
     return (
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
         <div className="flex items-center">
-          <span className="text-sm text-red-700 dark:text-red-400">{error}</span>
+          <span className="text-sm text-red-700 dark:text-red-400">
+            {error}
+          </span>
         </div>
       </div>
     );
@@ -218,10 +220,16 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
               className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500 focus:border-transparent"
             >
               <option value="">All Actions</option>
-              <option value="admin.invitation.created">Invitation Created</option>
+              <option value="admin.invitation.created">
+                Invitation Created
+              </option>
               <option value="admin.invitation.resent">Invitation Resent</option>
-              <option value="admin.invitation.cancelled">Invitation Cancelled</option>
-              <option value="admin.invitation.accepted">Invitation Accepted</option>
+              <option value="admin.invitation.cancelled">
+                Invitation Cancelled
+              </option>
+              <option value="admin.invitation.accepted">
+                Invitation Accepted
+              </option>
               <option value="admin.role.updated">Role Updated</option>
               <option value="admin.status.updated">Status Updated</option>
             </select>
@@ -232,7 +240,10 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
       {/* Activity Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" data-testid="activity-table">
+          <table
+            className="min-w-full divide-y divide-gray-200 dark:divide-gray-700"
+            data-testid="activity-table"
+          >
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -260,10 +271,16 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
             </thead>
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
               {activities.map((activity) => (
-                <tr key={activity.id} className="hover:bg-gray-50 dark:hover:bg-gray-800" data-testid={`activity-row-${activity.id}`}>
+                <tr
+                  key={activity.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                  data-testid={`activity-row-${activity.id}`}
+                >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     <div>
-                      <div>{formatTime(activity.occurred_at_utc).formatted}</div>
+                      <div>
+                        {formatTime(activity.occurred_at_utc).formatted}
+                      </div>
                       <div className="text-xs text-gray-600 dark:text-gray-400">
                         {formatTime(activity.occurred_at_utc).timeAgo}
                       </div>
@@ -296,7 +313,9 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
                         {activity.correlation_id.slice(0, 12)}...
                       </span>
                       <button
-                        onClick={() => handleCopyCorrelationId(activity.correlation_id)}
+                        onClick={() =>
+                          handleCopyCorrelationId(activity.correlation_id)
+                        }
                         className="inline-flex items-center p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                         title="Copy correlation ID"
                       >
@@ -315,19 +334,21 @@ export default function ActivityTab({ filters }: ActivityTabProps) {
                     <div className="text-sm text-gray-900 dark:text-white">
                       {activity.reason && (
                         <div className="mb-1">
-                          <span className="font-medium">Reason:</span> {activity.reason}
+                          <span className="font-medium">Reason:</span>{" "}
+                          {activity.reason}
                         </div>
                       )}
-                      {activity.meta && Object.keys(activity.meta).length > 0 && (
-                        <details className="mt-1">
-                          <summary className="cursor-pointer text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
-                            View Details
-                          </summary>
-                          <pre className="mt-2 text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded overflow-x-auto">
-                            {formatMeta(activity.meta)}
-                          </pre>
-                        </details>
-                      )}
+                      {activity.meta &&
+                        Object.keys(activity.meta).length > 0 && (
+                          <details className="mt-1">
+                            <summary className="cursor-pointer text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                              View Details
+                            </summary>
+                            <pre className="mt-2 text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded overflow-x-auto">
+                              {formatMeta(activity.meta)}
+                            </pre>
+                          </details>
+                        )}
                     </div>
                   </td>
                 </tr>
