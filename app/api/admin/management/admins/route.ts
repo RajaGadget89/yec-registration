@@ -15,7 +15,7 @@ const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
  * List all admin users with pagination and filtering
  *
  * Auth: super_admin only
- * Query params: q (search), status, role, page, pageSize
+ * Query params: q (search), status, role, page, pageSize, sortBy, sortOrder
  */
 async function listAdmins(request: NextRequest): Promise<NextResponse> {
   try {
@@ -60,6 +60,25 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
       100,
     );
 
+    // Parse and validate sorting parameters
+    const sortByParam = url.searchParams.get("sortBy") || "created_at";
+    const sortOrderParam = url.searchParams.get("sortOrder") || "desc";
+
+    const allowedSortFields = ["created_at", "email", "role", "last_login_at"];
+    const isSortByAllowed = allowedSortFields.includes(sortByParam);
+    const isOrderAllowed = ["asc", "desc"].includes(
+      sortOrderParam.toLowerCase(),
+    );
+
+    if (!isSortByAllowed || !isOrderAllowed) {
+      return NextResponse.json(
+        { error: "Invalid sort parameters", code: "validation_error" },
+        { status: 422 },
+      );
+    }
+
+    const ascending = sortOrderParam.toLowerCase() === "asc";
+
     // Validate pagination parameters
     if (page < 1 || pageSize < 1 || pageSize > 100) {
       return NextResponse.json(
@@ -86,10 +105,10 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
       query = query.eq("role", role);
     }
 
-    // Apply pagination
+    // Apply pagination and sorting
     const offset = (page - 1) * pageSize;
     query = query
-      .order("created_at", { ascending: false })
+      .order(sortByParam, { ascending })
       .range(offset, offset + pageSize - 1);
 
     // Execute query

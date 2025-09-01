@@ -25,6 +25,22 @@ export function getTestHeaders(options: TestRequestOptions = {}): Record<string,
 }
 
 /**
+ * Get headers for test endpoints that use x-cron-secret (like /api/test/ready)
+ */
+export function getCronSecretHeaders(options: TestRequestOptions = {}): Record<string, string> {
+  const baseHeaders = {
+    'X-Test-Helpers-Enabled': '1',
+    'x-cron-secret': process.env.CRON_SECRET || '',
+    'Content-Type': 'application/json',
+  };
+
+  return {
+    ...baseHeaders,
+    ...options.headers,
+  };
+}
+
+/**
  * Get test headers for admin endpoints
  */
 export function getAdminTestHeaders(options: TestRequestOptions = {}): Record<string, string> {
