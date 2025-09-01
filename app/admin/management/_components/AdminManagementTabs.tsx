@@ -45,7 +45,7 @@ export default function AdminManagementTabs({
       case "admins":
         return <AdminsTab filters={filters} />;
       case "activity":
-        return <ActivityTab filters={filters} />;
+        return <ActivityTab />;
       default:
         return <InviteTab />;
     }

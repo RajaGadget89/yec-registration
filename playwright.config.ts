@@ -5,7 +5,10 @@ import fs from 'fs';
 import path from 'path';
 
 // Load environment variables from .env.e2e file
-loadDotenv({ path: '.env.e2e' });
+// Skip loading .env.e2e for CI health checks to avoid overriding SUPABASE_ENV
+if (process.env.SKIP_E2E_ENV !== 'true') {
+  loadDotenv({ path: '.env.e2e' });
+}
 
 /**
  * @see https://playwright.dev/docs/test-configuration
