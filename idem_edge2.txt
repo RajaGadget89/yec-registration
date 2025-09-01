@@ -1,0 +1,10 @@
+HTTP/1.1 409 Conflict
+vary: RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch
+content-type: application/json
+x-request-id: 64723e8d-33c2-4f55-ba90-a928b8eeff4b
+Date: Sun, 31 Aug 2025 15:36:35 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+
+{"error":"Invitation already exists for this email","code":"INVITE_EXISTS","invitation_id":"96dd6d0b-52ac-4fb5-bf8f-aee042b66a74"}
