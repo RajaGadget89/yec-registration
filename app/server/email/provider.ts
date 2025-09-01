@@ -237,7 +237,6 @@ YEC Day Admin Team`,
 
   private async writeToLocalFile(message: EmailMessage, messageId: string) {
     // Write to local file for E2E testing
-
     const mailDir = path.join(process.cwd(), ".e2e", "mail");
     const filePath = path.join(mailDir, `${messageId}.json`);
 

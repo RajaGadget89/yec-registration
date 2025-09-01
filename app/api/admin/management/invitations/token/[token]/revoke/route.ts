@@ -1,139 +1,138 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withSuperAdminApiGuard } from "../../../../../../../lib/admin-guard-server";
 import { getCurrentUserFromRequest } from "../../../../../../../lib/auth-utils.server";
-import { logEvent } from "../../../../../../../lib/audit/auditClient";
+import {
+  logAccess,
+  logEvent,
+} from "../../../../../../../lib/audit/auditClient";
 import { getSupabaseServiceClient } from "../../../../../../../lib/supabase-server";
 import { EventService } from "../../../../../../../lib/events/eventService";
 import { EventFactory } from "../../../../../../../lib/events/eventFactory";
-import {
-  gone,
-  ok,
-  INVITATION_ERROR_CODES,
-} from "../../../../../../../lib/api/errorMapping";
+import { isFeatureEnabled } from "../../../../../../../lib/features";
 
-/**
- * POST /api/admin/management/invitations/token/[token]/revoke
- * Revoke an admin invitation by token
- *
- * Auth: super_admin only
- * Idempotency: Supported - repeated revoke returns 200 with stable body
- */
-async function revokeInvitation(
+export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> },
-): Promise<NextResponse> {
-  const request_id = request.headers.get("x-request-id") ?? crypto.randomUUID();
-  const { token } = await params;
-
-  if (!token) {
-    return gone({
-      code: INVITATION_ERROR_CODES.INVALID_TOKEN,
-      request_id,
-    });
-  }
-
-  // Feature flag check (hardening is enabled by default)
-  if (process.env.INVITES_HARDENING_ENABLED === "false") {
+) {
+  // Check feature flag
+  if (!isFeatureEnabled("adminManagement")) {
     return NextResponse.json(
       { error: "Feature not available" },
       { status: 404 },
     );
   }
 
-  const supabase = getSupabaseServiceClient();
+  return withSuperAdminApiGuard(async (req) => {
+    try {
+      const currentUser = await getCurrentUserFromRequest(req);
+      if (!currentUser) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
 
-  // Lookup invitation by token
-  const { data: invitation, error: fetchError } = await supabase
-    .from("admin_invitations")
-    .select("*")
-    .eq("token", token)
-    .single();
+      const { token } = await params;
+      if (!token) {
+        return NextResponse.json(
+          { error: "Invitation token is required" },
+          { status: 400 },
+        );
+      }
 
-  if (fetchError || !invitation) {
-    return gone({
-      code: INVITATION_ERROR_CODES.INVALID_TOKEN,
-      request_id,
-    });
-  }
+      // Log access
+      await logAccess({
+        action: "admin.invitation.revoke",
+        method: "POST",
+        resource: `/api/admin/management/invitations/token/${token}/revoke`,
+        result: "attempting",
+        request_id: req.headers.get("x-request-id") || "unknown",
+        src_ip: req.headers.get("x-forwarded-for") || undefined,
+        user_agent: req.headers.get("user-agent") || undefined,
+        latency_ms: 0,
+        meta: {
+          token,
+        },
+      });
 
-  // Check if already revoked (idempotent behavior)
-  if (invitation.status === "revoked") {
-    return ok({
-      ok: true,
-      code: "INVITE_REVOKED",
-      invitation_id: invitation.id,
-      request_id,
-    });
-  }
+      const supabase = getSupabaseServiceClient();
 
-  // Check if already accepted
-  if (invitation.status === "accepted") {
-    return gone({
-      code: INVITATION_ERROR_CODES.ALREADY_ACCEPTED,
-      request_id,
-    });
-  }
+      // First, get the invitation details by token
+      const { data: invitation, error: fetchError } = await supabase
+        .from("admin_invitations")
+        .select("*")
+        .eq("token", token)
+        .single();
 
-  // Only revoke if pending
-  if (invitation.status !== "pending") {
-    return gone({
-      code: INVITATION_ERROR_CODES.INVALID_TOKEN,
-      request_id,
-    });
-  }
+      if (fetchError || !invitation) {
+        return NextResponse.json(
+          { error: "Invitation not found" },
+          { status: 404 },
+        );
+      }
 
-  // Revoke the invitation (idempotent update)
-  const { error: revokeError } = await supabase
-    .from("admin_invitations")
-    .update({
-      status: "revoked",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("token", token)
-    .eq("status", "pending");
+      // Check if invitation is already processed
+      if (invitation.status !== "pending") {
+        return NextResponse.json(
+          { error: "Invitation is already processed and cannot be revoked" },
+          { status: 409 },
+        );
+      }
 
-  if (revokeError) {
-    console.error("Error revoking invitation:", revokeError);
-    return NextResponse.json(
-      { error: "Failed to revoke invitation" },
-      { status: 500 },
-    );
-  }
+      // Revoke the invitation using the database function
+      const { data: revokeResult, error: revokeError } = await supabase.rpc(
+        "revoke_admin_invitation",
+        {
+          p_invitation_id: invitation.id,
+          p_revoked_by_admin_id: currentUser.id,
+        },
+      );
 
-  // Get current user for audit
-  const currentUser = await getCurrentUserFromRequest(request);
+      if (revokeError || !revokeResult || !revokeResult[0]?.success) {
+        console.error("Error revoking invitation:", revokeError);
+        return NextResponse.json(
+          { error: "Failed to revoke invitation" },
+          { status: 500 },
+        );
+      }
 
-  // Emit domain event
-  const event = EventFactory.createAdminInvitationRevoked(
-    invitation.id,
-    invitation.email,
-    currentUser?.email || "unknown",
-  );
-  await EventService.emit(event);
+      // Emit domain event
+      const event = EventFactory.createAdminInvitationRevoked(
+        invitation.id,
+        invitation.email,
+        currentUser.email,
+      );
+      await EventService.emit(event);
 
-  // Log event
-  await logEvent({
-    action: "admin.invitation.revoked",
-    resource: "admin_invitations",
-    resource_id: invitation.id,
-    actor_id: currentUser?.email || "unknown",
-    actor_role: "admin",
-    result: "success",
-    correlation_id: request_id,
-    meta: {
-      invitation_id: invitation.id,
-      invited_email: invitation.email,
-      revoked_by: currentUser?.email || "unknown",
-      original_status: invitation.status,
-    },
-  });
+      // Log event
+      await logEvent({
+        action: "admin.invitation.revoked",
+        resource: "admin_invitations",
+        resource_id: invitation.id,
+        actor_id: currentUser.email,
+        actor_role: "admin",
+        result: "success",
+        correlation_id: req.headers.get("x-request-id") || "unknown",
+        meta: {
+          invitation_id: invitation.id,
+          invited_email: invitation.email,
+          revoked_by: currentUser.email,
+          original_status: invitation.status,
+        },
+      });
 
-  return ok({
-    ok: true,
-    code: "INVITE_REVOKED",
-    invitation_id: invitation.id,
-    request_id,
+      return NextResponse.json({
+        success: true,
+        message: "Invitation revoked successfully",
+        invitation: {
+          id: invitation.id,
+          email: invitation.email,
+          status: "revoked",
+        },
+      });
+    } catch (error) {
+      console.error("Error in revoke invitation endpoint:", error);
+      return NextResponse.json(
+        { error: "Internal server error" },
+        { status: 500 },
+      );
+    }
   });
 }
-
-export const POST = withSuperAdminApiGuard(revokeInvitation);

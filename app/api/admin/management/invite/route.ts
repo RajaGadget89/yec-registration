@@ -16,11 +16,6 @@ import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
 
 import { isFeatureEnabled } from "../../../../lib/features";
 import { sendInvitationEmail } from "../../../../server/email/provider";
-import {
-  idempotencyCache,
-  canonicalizeInvitePayload,
-  hashPayload,
-} from "../../../../lib/idempotency-cache";
 
 // Validation schema for invite request
 const inviteSchema = z.object({
@@ -206,48 +201,32 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       roles,
     );
 
-    // Parse Idempotency-Key header (optional)
-    const idempotencyKey = request.headers.get("Idempotency-Key");
-
-    // Canonicalize and hash payload for idempotency comparison
-    const canonicalPayload = canonicalizeInvitePayload({ email, roles });
-    const payloadHash = hashPayload(canonicalPayload);
-
     // Idempotency check (if Idempotency-Key is provided)
-    if (idempotencyKey) {
-      const snapshot = idempotencyCache.getSnapshot(
-        currentUser.id,
-        "/api/admin/management/invite",
-        idempotencyKey,
-      );
+    if (request.headers.get("Idempotency-Key")) {
+      const supabase = getSupabaseServiceClient();
+      const { data: existingInvitation, error: idempotencyError } =
+        await supabase
+          .from("admin_invitations")
+          .select("id, email, expires_at")
+          .eq("invited_by_admin_id", currentUser.id)
+          .eq("email", email.toLowerCase())
+          .eq("status", "pending")
+          .single();
 
-      if (snapshot) {
-        // Found existing snapshot
-        if (snapshot.payloadHash === payloadHash) {
-          // Same key + same body → return bit-equal prior result
-          console.log(
-            "[INVITE_ROUTE] Idempotency hit - same payload, returning stored result",
-          );
-          const response = NextResponse.json(JSON.parse(snapshot.body), {
-            status: snapshot.status,
-          });
-          response.headers.set("X-Idempotency-Hit", "true");
-          return response;
-        } else {
-          // Same key + different body → 422 IDEMPOTENCY_PAYLOAD_MISMATCH
-          console.log(
-            "[INVITE_ROUTE] Idempotency key conflict - payload mismatch",
-          );
-          return NextResponse.json(
-            {
-              error: "Idempotency key conflict",
-              code: "IDEMPOTENCY_PAYLOAD_MISMATCH",
-              expectedHash: snapshot.payloadHash,
-              receivedHash: payloadHash,
-            },
-            { status: 422 },
-          );
-        }
+      if (!idempotencyError && existingInvitation) {
+        console.log(
+          "[INVITE_ROUTE] Idempotency hit, returning existing invitation",
+        );
+        return NextResponse.json(
+          {
+            id: existingInvitation.id,
+            email: existingInvitation.email,
+            expires_at: existingInvitation.expires_at,
+            message: "Invitation already created (idempotency)",
+            correlation_id: correlationId,
+          },
+          { status: 201 },
+        );
       }
     }
 
@@ -456,7 +435,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       console.error("[INVITE_ROUTE] Error logging success access:", error);
     }
 
-    // Build canonical response body
+    // For E2E tests, include the token in the response
     const responseData: any = {
       id: invitation.id,
       email: invitation.email,
@@ -470,31 +449,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       responseData.token = tokenData;
     }
 
-    // Store idempotency snapshot if key was provided
-    if (idempotencyKey) {
-      const responseBody = JSON.stringify(responseData);
-      idempotencyCache.setSnapshot(
-        currentUser.id,
-        "/api/admin/management/invite",
-        idempotencyKey,
-        {
-          payloadHash,
-          status: 201,
-          body: responseBody,
-        },
-      );
-      console.log(
-        "[INVITE_ROUTE] Idempotency snapshot stored for key:",
-        idempotencyKey,
-      );
-    }
-
-    // Return response with appropriate idempotency header
-    const response = NextResponse.json(responseData, { status: 201 });
-    if (idempotencyKey) {
-      response.headers.set("X-Idempotency-Hit", "false");
-    }
-    return response;
+    return NextResponse.json(responseData, { status: 201 });
   } catch (error) {
     console.error("Admin invitation error:", error);
 
