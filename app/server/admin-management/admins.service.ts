@@ -60,7 +60,7 @@ export class AdminsService {
     const page = params.page || 1;
     const pageSize = Math.min(params.pageSize || 20, 50);
     const offset = (page - 1) * pageSize;
-    
+
     query = query
       .order("email", { ascending: true })
       .order("created_at", { ascending: true })
@@ -105,7 +105,10 @@ export class AdminsService {
     }
 
     // Check if trying to demote the last super_admin
-    if (params.removeRoles?.includes("super_admin") || params.status === "suspended") {
+    if (
+      params.removeRoles?.includes("super_admin") ||
+      params.status === "suspended"
+    ) {
       const { data: superAdmins, error: countError } = await supabase
         .from("admin_users")
         .select("id")
@@ -151,10 +154,16 @@ export class AdminsService {
 
     // Emit appropriate events
     if (params.addRoles?.includes("super_admin")) {
-      const event = EventFactory.createAdminRoleAssigned(params.adminId, "super_admin");
+      const event = EventFactory.createAdminRoleAssigned(
+        params.adminId,
+        "super_admin",
+      );
       await EventService.emit(event);
     } else if (params.removeRoles?.includes("super_admin")) {
-      const event = EventFactory.createAdminRoleRevoked(params.adminId, "super_admin");
+      const event = EventFactory.createAdminRoleRevoked(
+        params.adminId,
+        "super_admin",
+      );
       await EventService.emit(event);
     }
 

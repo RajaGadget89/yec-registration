@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withSuperAdminApiGuard } from "../../../../../../../lib/admin-guard-server";
 import { getCurrentUserFromRequest } from "../../../../../../../lib/auth-utils.server";
-import { logAccess, logEvent } from "../../../../../../../lib/audit/auditClient";
+import {
+  logAccess,
+  logEvent,
+} from "../../../../../../../lib/audit/auditClient";
 import { getSupabaseServiceClient } from "../../../../../../../lib/supabase-server";
 import { EventService } from "../../../../../../../lib/events/eventService";
 import { EventFactory } from "../../../../../../../lib/events/eventFactory";

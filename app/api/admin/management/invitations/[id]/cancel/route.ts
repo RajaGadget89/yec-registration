@@ -22,7 +22,7 @@ const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
  */
 async function cancelInvitation(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const startTime = Date.now();
   const requestId = `cancel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -33,7 +33,7 @@ async function cancelInvitation(
     if (!isFeatureEnabled("adminManagement")) {
       return NextResponse.json(
         { error: "Feature not available" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -48,7 +48,7 @@ async function cancelInvitation(
     if (!hasSuperAdminRole) {
       return NextResponse.json(
         { error: "Insufficient permissions. Super admin access required." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -56,7 +56,7 @@ async function cancelInvitation(
     if (!SUPER_ADMIN_ALLOWLIST.includes(currentUser.email.toLowerCase())) {
       return NextResponse.json(
         { error: "Access denied. Not in super admin allowlist." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -64,7 +64,7 @@ async function cancelInvitation(
     if (!id) {
       return NextResponse.json(
         { error: "Invitation ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -107,26 +107,24 @@ async function cancelInvitation(
           error: "Invitation not found or not pending",
           code: "invitation_not_found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Update invitation status to revoked
-    const { data: updatedInvitation, error: updateError } = await supabase
+    const { error: updateError } = await supabase
       .from("admin_invitations")
       .update({
         status: "revoked",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", id)
-      .select()
-      .single();
+      .eq("id", id);
 
     if (updateError) {
       console.error("Error updating invitation:", updateError);
       return NextResponse.json(
         { error: "Failed to cancel invitation" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -134,7 +132,7 @@ async function cancelInvitation(
     const event = EventFactory.createAdminInvitationCancelled(
       invitation.id,
       invitation.email,
-      currentUser.email
+      currentUser.email,
     );
     await EventService.emit(event);
 
@@ -203,7 +201,7 @@ async function cancelInvitation(
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

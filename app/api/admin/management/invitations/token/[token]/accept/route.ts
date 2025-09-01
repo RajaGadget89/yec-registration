@@ -3,7 +3,10 @@ import { z } from "zod";
 import { getSupabaseServiceClient } from "../../../../../../../lib/supabase-server";
 import { EventFactory } from "../../../../../../../lib/events/eventFactory";
 import { EventService } from "../../../../../../../lib/events/eventService";
-import { logAccess, logEvent } from "../../../../../../../lib/audit/auditClient";
+import {
+  logAccess,
+  logEvent,
+} from "../../../../../../../lib/audit/auditClient";
 import { withAuditLogging } from "../../../../../../../lib/audit/withAuditAccess";
 
 // Validation schema for accept request
@@ -184,7 +187,7 @@ async function acceptInvitation(
     // Emit domain event
     const event = EventFactory.createAdminInvitationAccepted(
       invitation.id,
-      result.admin_user_id
+      result.admin_user_id,
     );
     await EventService.emit(event);
 

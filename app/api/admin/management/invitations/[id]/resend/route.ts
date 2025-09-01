@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import {
   getCurrentUserFromRequest,
   hasRoleFromRequest,
@@ -13,7 +12,6 @@ import {
   ADMIN_INVITE_RATE_LIMITS,
 } from "../../../../../../lib/rate-limit";
 import { withAuditLogging } from "../../../../../../lib/audit/withAuditAccess";
-import { getBaseUrl } from "../../../../../../lib/config";
 import { isFeatureEnabled } from "../../../../../../lib/features";
 import { sendInvitationEmail } from "../../../../../../server/email/provider";
 
@@ -30,7 +28,7 @@ const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
  */
 async function resendInvitation(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   const startTime = Date.now();
   const requestId = `resend_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -41,7 +39,7 @@ async function resendInvitation(
     if (!isFeatureEnabled("adminManagement")) {
       return NextResponse.json(
         { error: "Feature not available" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -56,7 +54,7 @@ async function resendInvitation(
     if (!hasSuperAdminRole) {
       return NextResponse.json(
         { error: "Insufficient permissions. Super admin access required." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -64,7 +62,7 @@ async function resendInvitation(
     if (!SUPER_ADMIN_ALLOWLIST.includes(currentUser.email.toLowerCase())) {
       return NextResponse.json(
         { error: "Access denied. Not in super admin allowlist." },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -79,7 +77,7 @@ async function resendInvitation(
       const minuteLimit = checkRateLimit(
         `resend_minute_${clientIP}`,
         ADMIN_INVITE_RATE_LIMITS.PER_MINUTE,
-        ADMIN_INVITE_RATE_LIMITS.WINDOW_MS.MINUTE
+        ADMIN_INVITE_RATE_LIMITS.WINDOW_MS.MINUTE,
       );
 
       if (!minuteLimit.allowed) {
@@ -93,13 +91,16 @@ async function resendInvitation(
             status: 429,
             headers: {
               "Retry-After": Math.ceil(
-                (minuteLimit.resetTime - Date.now()) / 1000
+                (minuteLimit.resetTime - Date.now()) / 1000,
               ).toString(),
-              "X-RateLimit-Limit": ADMIN_INVITE_RATE_LIMITS.PER_MINUTE.toString(),
+              "X-RateLimit-Limit":
+                ADMIN_INVITE_RATE_LIMITS.PER_MINUTE.toString(),
               "X-RateLimit-Remaining": minuteLimit.remaining.toString(),
-              "X-RateLimit-Reset": new Date(minuteLimit.resetTime).toISOString(),
+              "X-RateLimit-Reset": new Date(
+                minuteLimit.resetTime,
+              ).toISOString(),
             },
-          }
+          },
         );
       }
 
@@ -107,7 +108,7 @@ async function resendInvitation(
       const dayLimit = checkRateLimit(
         `resend_day_${currentUser.email}`,
         ADMIN_INVITE_RATE_LIMITS.PER_DAY,
-        ADMIN_INVITE_RATE_LIMITS.WINDOW_MS.DAY
+        ADMIN_INVITE_RATE_LIMITS.WINDOW_MS.DAY,
       );
 
       if (!dayLimit.allowed) {
@@ -121,13 +122,13 @@ async function resendInvitation(
             status: 429,
             headers: {
               "Retry-After": Math.ceil(
-                (dayLimit.resetTime - Date.now()) / 1000
+                (dayLimit.resetTime - Date.now()) / 1000,
               ).toString(),
               "X-RateLimit-Limit": ADMIN_INVITE_RATE_LIMITS.PER_DAY.toString(),
               "X-RateLimit-Remaining": dayLimit.remaining.toString(),
               "X-RateLimit-Reset": new Date(dayLimit.resetTime).toISOString(),
             },
-          }
+          },
         );
       }
     }
@@ -136,7 +137,7 @@ async function resendInvitation(
     if (!id) {
       return NextResponse.json(
         { error: "Invitation ID is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -179,7 +180,7 @@ async function resendInvitation(
           error: "Invitation not found or not pending",
           code: "invitation_not_found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -190,7 +191,7 @@ async function resendInvitation(
           error: "Invitation has expired",
           code: "invitation_expired",
         },
-        { status: 410 }
+        { status: 410 },
       );
     }
 
@@ -209,7 +210,7 @@ async function resendInvitation(
       console.error("Error updating invitation:", updateError);
       return NextResponse.json(
         { error: "Failed to update invitation" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -218,14 +219,17 @@ async function resendInvitation(
       const emailResult = await sendInvitationEmail({
         email: invitation.email,
         token: invitation.token,
-        locale: 'en', // Default to English, could be made configurable
+        locale: "en", // Default to English, could be made configurable
       });
 
-      if (emailResult.status === 'error') {
+      if (emailResult.status === "error") {
         console.error("Failed to send invitation email:", emailResult.error);
         // Don't fail the request if email fails, but log it
       } else {
-        console.log("Invitation email resent successfully:", emailResult.messageId);
+        console.log(
+          "Invitation email resent successfully:",
+          emailResult.messageId,
+        );
       }
     } catch (emailError) {
       console.error("Failed to send invitation email:", emailError);
@@ -236,7 +240,7 @@ async function resendInvitation(
     const event = EventFactory.createAdminInvitationResent(
       invitation.id,
       invitation.email,
-      currentUser.email
+      currentUser.email,
     );
     await EventService.emit(event);
 
@@ -255,7 +259,7 @@ async function resendInvitation(
           email: invitation.email,
           resender: currentUser.email,
           resend_count: updatedInvitation.resend_count,
-          email_provider: 'new_provider', // Track that we're using the new email provider
+          email_provider: "new_provider", // Track that we're using the new email provider
         },
       });
     } catch (error) {
@@ -278,7 +282,7 @@ async function resendInvitation(
           email: invitation.email,
           resender: currentUser.email,
           resend_count: updatedInvitation.resend_count,
-          email_provider: 'new_provider', // Track that we're using the new email provider
+          email_provider: "new_provider", // Track that we're using the new email provider
         },
       });
     } catch (error) {
@@ -310,7 +314,7 @@ async function resendInvitation(
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -30,7 +30,7 @@ export const E2E_CONFIG = {
     url: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
     serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
     anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    env: process.env.SUPABASE_ENV || 'test'
+    env: process.env.SUPABASE_ENV || 'staging'
   },
 
   // Application configuration

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { Suspense } from "react";
-import { Users, Shield, Crown, UserCheck, Filter, Mail, Clock, Activity } from "lucide-react";
+import { Users, Shield, Mail, Clock, Activity } from "lucide-react";
 import { getCurrentUser } from "../../lib/auth-utils.server";
 import { hasRole } from "../../lib/auth-utils.server";
 import { isAdminManagementEnabled } from "../../lib/features";
@@ -92,7 +91,10 @@ export default async function ManagementPage({
       {/* Tab Navigation */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
         <div className="border-b border-gray-200 dark:border-gray-700">
-          <nav className="flex space-x-8 px-6" aria-label="Admin Management Tabs">
+          <nav
+            className="flex space-x-8 px-6"
+            aria-label="Admin Management Tabs"
+          >
             <a
               href="/admin/management?tab=invite"
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
@@ -171,8 +173,8 @@ export default async function ManagementPage({
               </div>
             }
           >
-            <AdminManagementTabs 
-              activeTab={activeTab} 
+            <AdminManagementTabs
+              activeTab={activeTab}
               filters={filters}
               user={user}
             />
