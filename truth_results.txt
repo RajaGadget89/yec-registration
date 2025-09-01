@@ -1,0 +1,15 @@
+[0;34m🔍 ARCHITECTURAL TRUTH VALIDATION[0m
+[0;34m====================================[0m
+Testing the dual authentication system disconnect theory
+Based on your troubleshooting documents
+Date: Mon Sep  1 22:52:40 +07 2025
+
+[0;35m🔐 SECTION 1: Dual Authentication Systems Validation[0m
+========================================================
+[0;34mℹ️  Testing the theory of dual authentication systems...[0m
+
+[0;36mTest 1.1: API Authentication System[0m
+Testing admin-email cookie authentication...
+[1;33m⚠️  No admin-email cookie found in browser[0m
+Testing API endpoint with admin-email header...
+[0;31m❌ API endpoint fails with admin-email header[0m

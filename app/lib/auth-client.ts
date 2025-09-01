@@ -9,6 +9,7 @@ export interface AuthenticatedUser {
   email: string;
   role: "admin" | "super_admin";
   created_at: string;
+  updated_at: string;
   last_login_at: string | null;
   is_active: boolean;
 }
@@ -71,6 +72,7 @@ export async function getClientUser(): Promise<AuthenticatedUser | null> {
           email: adminUser.email,
           role: adminUser.role,
           created_at: adminUser.created_at,
+          updated_at: adminUser.updated_at,
           last_login_at: adminUser.last_login_at,
           is_active: adminUser.is_active,
         };
