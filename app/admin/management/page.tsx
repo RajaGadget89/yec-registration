@@ -173,7 +173,11 @@ export default async function ManagementPage({
               </div>
             }
           >
-            <AdminManagementTabs activeTab={activeTab} filters={filters} />
+            <AdminManagementTabs
+              activeTab={activeTab}
+              filters={filters}
+              user={user}
+            />
           </Suspense>
         </div>
       </div>

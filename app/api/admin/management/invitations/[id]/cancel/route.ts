@@ -118,9 +118,7 @@ async function cancelInvitation(
         status: "revoked",
         updated_at: new Date().toISOString(),
       })
-      .eq("id", id)
-      .select()
-      .single();
+      .eq("id", id);
 
     if (updateError) {
       console.error("Error updating invitation:", updateError);

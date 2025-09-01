@@ -137,7 +137,8 @@
     "tailwindcss": "^4",
     "tsx": "^4.20.4",
     "typescript": "^5",
-    "vitest": "^3.2.4",
+    "vite": "^4.5.14",
+    "vitest": "^1.6.1",
     "wait-on": "^8.0.1"
   }
 }

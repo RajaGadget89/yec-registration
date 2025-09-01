@@ -84,16 +84,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
 
   useEffect(() => {
     fetchAdmins();
-  }, [
-    page,
-    pageSize,
-    searchTerm,
-    roleFilter,
-    statusFilter,
-    sortBy,
-    sortOrder,
-    fetchAdmins,
-  ]);
+  }, [fetchAdmins]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
