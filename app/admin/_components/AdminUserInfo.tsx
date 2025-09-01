@@ -34,6 +34,7 @@ export default function AdminUserInfo() {
               ? "super_admin"
               : "admin",
             created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
             last_login_at: new Date().toISOString(),
             is_active: true,
           });
@@ -64,6 +65,7 @@ export default function AdminUserInfo() {
               email: adminUser.email,
               role: adminUser.role,
               created_at: adminUser.created_at,
+              updated_at: adminUser.updated_at,
               last_login_at: adminUser.last_login_at,
               is_active: adminUser.is_active,
             });

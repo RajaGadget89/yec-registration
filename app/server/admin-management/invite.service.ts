@@ -1,7 +1,7 @@
 import { getSupabaseServiceClient } from "../../lib/supabase-server";
 import { EventFactory } from "../../lib/events/eventFactory";
 import { EventService } from "../../lib/events/eventService";
-import { logEvent } from "../../lib/audit/auditClient";
+
 import { getBaseUrl } from "../../lib/config";
 import { sendAdminInvitationEmail } from "../../lib/emailService";
 
@@ -36,7 +36,9 @@ export class InviteService {
   /**
    * Create a new admin invitation
    */
-  static async createInvitation(params: CreateInvitationParams): Promise<InvitationResult> {
+  static async createInvitation(
+    params: CreateInvitationParams,
+  ): Promise<InvitationResult> {
     const supabase = getSupabaseServiceClient();
 
     // Check for existing pending invitation
@@ -51,13 +53,16 @@ export class InviteService {
       throw new Error("Failed to check existing invitations");
     }
 
-    if (existingInvitation && new Date(existingInvitation.expires_at) > new Date()) {
+    if (
+      existingInvitation &&
+      new Date(existingInvitation.expires_at) > new Date()
+    ) {
       throw new Error("Invitation already exists for this email");
     }
 
     // Generate invitation token
     const { data: tokenData, error: tokenError } = await supabase.rpc(
-      "generate_admin_invitation_token"
+      "generate_admin_invitation_token",
     );
 
     if (tokenError || !tokenData) {
@@ -107,7 +112,7 @@ export class InviteService {
     const event = EventFactory.createAdminInvitationCreated(
       invitation.id,
       params.email,
-      params.createdBy
+      params.createdBy,
     );
     await EventService.emit(event);
 
@@ -123,7 +128,9 @@ export class InviteService {
   /**
    * Resend an admin invitation
    */
-  static async resendInvitation(params: ResendInvitationParams): Promise<{ resendCount: number }> {
+  static async resendInvitation(
+    params: ResendInvitationParams,
+  ): Promise<{ resendCount: number }> {
     const supabase = getSupabaseServiceClient();
 
     // Check if invitation exists and is pending
@@ -179,7 +186,7 @@ export class InviteService {
     const event = EventFactory.createAdminInvitationResent(
       invitation.id,
       invitation.email,
-      params.resentBy
+      params.resentBy,
     );
     await EventService.emit(event);
 
@@ -223,7 +230,7 @@ export class InviteService {
     const event = EventFactory.createAdminInvitationCancelled(
       invitation.id,
       invitation.email,
-      params.cancelledBy
+      params.cancelledBy,
     );
     await EventService.emit(event);
   }
@@ -231,9 +238,12 @@ export class InviteService {
   /**
    * Check idempotency for invitation creation
    */
-  static async checkIdempotency(correlationId: string, createdBy: string): Promise<InvitationResult | null> {
+  static async checkIdempotency(
+    correlationId: string,
+    createdBy: string,
+  ): Promise<InvitationResult | null> {
     const supabase = getSupabaseServiceClient();
-    
+
     const { data: existingInvitation, error } = await supabase
       .from("admin_invitations")
       .select("id, email, expires_at, correlation_id")

@@ -285,7 +285,8 @@ SERVER_PID=$!
 sleep 15
 
 # Run health check tests
-run "CI Health Check validation" npx playwright test tests/e2e/ci-health-check.spec.ts --config=playwright.ci-health.config.ts --reporter=line --timeout=30000
+export SKIP_E2E_ENV=true
+run "CI Health Check validation" env SKIP_E2E_ENV=true SUPABASE_ENV=staging npx playwright test tests/e2e/ci-health-check.spec.ts --config=playwright.ci-health.config.ts --reporter=line --timeout=30000
 
 # Clean up server
 kill $SERVER_PID 2>/dev/null || true

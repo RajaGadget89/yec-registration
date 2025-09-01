@@ -24,7 +24,12 @@ export default async function AdminLayout({
   // In E2E mode, bypass authentication check
   let user = null;
   let isSuperAdmin = false;
-  if (process.env.E2E_TEST_MODE !== "true") {
+
+  if (process.env.E2E_TEST_MODE === "true") {
+    // E2E mode: bypass authentication and grant super admin access
+    isSuperAdmin = true;
+  } else {
+    // Normal mode: perform full authentication check
     user = await getCurrentUser();
 
     // Check if user is super_admin (either from database or RBAC)
