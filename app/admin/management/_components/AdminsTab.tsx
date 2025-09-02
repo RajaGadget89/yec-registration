@@ -16,7 +16,7 @@ interface AdminUser {
   id: string;
   email: string;
   role: "admin" | "super_admin";
-  status: string;
+  status: "active" | "suspended";
   created_at: string;
   updated_at: string;
   last_login_at: string | null;

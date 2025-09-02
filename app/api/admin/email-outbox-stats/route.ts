@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateAdminAccess } from "../../../lib/admin-guard-server";
+import { getCurrentUser } from "../../../lib/auth-utils.server";
 import { getOutboxStats } from "../../../lib/emails/dispatcher";
 import { logAccess } from "../../../lib/audit/auditClient";
+
+export const dynamic = "force-dynamic";
 
 /**
  * Admin API route for email outbox statistics (read-only)
@@ -18,20 +20,24 @@ export async function GET(request: NextRequest) {
   const requestId = crypto.randomUUID();
 
   try {
-    // Validate admin access
-    const adminCheck = validateAdminAccess(request);
-    if (!adminCheck.valid) {
-      console.log(
-        `[email-outbox-stats] GET request unauthorized - requester: ${request.headers.get("user-agent") || "unknown"}, result: 401, reason: ${adminCheck.error}`,
-      );
+    // Validate admin access using proper Supabase authentication
+    const user = await getCurrentUser();
+    if (!user) {
       return NextResponse.json(
-        { ok: false, error: "unauthorized" },
+        { ok: false, error: "Unauthorized" },
         { status: 401 },
       );
     }
 
+    if (user.role !== "admin" && user.role !== "super_admin") {
+      return NextResponse.json(
+        { ok: false, error: "Not authorized" },
+        { status: 403 },
+      );
+    }
+
     console.log(
-      `[email-outbox-stats] GET request authorized - requester: ${adminCheck.adminEmail}, result: 200`,
+      `[email-outbox-stats] GET request authorized - requester: ${user.email}, result: 200`,
     );
 
     // Get outbox statistics using core service
@@ -47,14 +53,14 @@ export async function GET(request: NextRequest) {
       src_ip: request.headers.get("x-forwarded-for") || undefined,
       user_agent: request.headers.get("user-agent") || undefined,
       meta: {
-        admin_email: adminCheck.adminEmail,
+        admin_email: user.email,
         stats: stats,
       },
     });
 
     // Log for observability (dev sanity checks)
     console.log(
-      `[email-outbox-stats] Stats requested by ${adminCheck.adminEmail}: pending=${stats.total_pending}, sent=${stats.total_sent}, error=${stats.total_error}`,
+      `[email-outbox-stats] Stats requested by ${user.email}: pending=${stats.total_pending}, sent=${stats.total_sent}, error=${stats.total_error}`,
     );
 
     return NextResponse.json({

@@ -92,6 +92,12 @@ async function checkUserAdminStatus(email: string | undefined): Promise<boolean>
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
+  // --- UAT-04S: allow public accept page with token ---
+  // Allow unauthenticated access to the invite accept page
+  if (pathname === "/admin/accept" && request.nextUrl.searchParams.has("token")) {
+    return NextResponse.next();
+  }
+  
   // Auth tracing
   const AUTH_TRACE = process.env.AUTH_TRACE === '1' || process.env.NODE_ENV === 'development';
   
@@ -267,13 +273,15 @@ export async function middleware(request: NextRequest) {
       return redirectResponse;
     }
 
-    if (userRole !== 'super_admin') {
+    // Authorize both super_admin and admin for general /admin routes
+    const isAdminRole = userRole === 'super_admin' || userRole === 'admin';
+    const isSuperOnlyPath = pathname.startsWith('/admin/management');
+    if (!isAdminRole || (isSuperOnlyPath && userRole !== 'super_admin')) {
       if (AUTH_TRACE) {
-        console.log(`[auth-debug] middleware: user not super_admin:`, userEmail, userRole);
+        console.log(`[auth-debug] middleware deny`, { userEmail, userRole, isSuperOnlyPath });
       }
-      // User not super_admin, return 403
       const forbiddenResponse = new NextResponse("Forbidden", { status: 403 });
-      forbiddenResponse.headers.set('x-admin-guard', 'deny:not-super-admin');
+      forbiddenResponse.headers.set('x-admin-guard', isSuperOnlyPath ? 'deny:super-only' : 'deny:not-admin');
       return forbiddenResponse;
     }
 

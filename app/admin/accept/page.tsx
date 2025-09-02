@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
   CheckCircle,
@@ -24,6 +24,7 @@ export default function AcceptInvitationPage() {
   const router = useRouter();
   const [state, setState] = useState<AcceptState>("loading");
   const [error, setError] = useState<string>("");
+  const [acceptedEmail, setAcceptedEmail] = useState<string>("");
 
   const acceptInvitation = useCallback(
     async (token: string) => {
@@ -32,7 +33,7 @@ export default function AcceptInvitationPage() {
         setError("");
 
         const response = await fetch(
-          `/api/admin/management/invitations/${token}/accept`,
+          `/api/admin/management/invitations/token/${encodeURIComponent(token)}/accept`,
           {
             method: "POST",
             headers: {
@@ -47,6 +48,16 @@ export default function AcceptInvitationPage() {
         if (response.ok) {
           setState("success");
 
+          // Extract email from response for login handoff
+          try {
+            const responseData = await response.json();
+            if (responseData.email) {
+              setAcceptedEmail(responseData.email);
+            }
+          } catch (e) {
+            console.warn("Could not parse response for email:", e);
+          }
+
           // Fire analytics event
           if (typeof window !== "undefined" && (window as any).gtag) {
             (window as any).gtag("event", "accept_invite_result", {
@@ -56,20 +67,24 @@ export default function AcceptInvitationPage() {
             });
           }
         } else {
-          const errorData = await response.json();
+          let errMsg = "Failed to accept invitation";
+          try {
+            const j = await response.json();
+            errMsg = j?.error || errMsg;
+          } catch {}
 
           // Handle different error states
           if (response.status === 410) {
-            if (errorData.code === "EXPIRED_TOKEN") {
+            if (errMsg.includes("EXPIRED_TOKEN")) {
               setState("expired");
-            } else if (errorData.code === "INVALID_TOKEN") {
+            } else if (errMsg.includes("INVALID_TOKEN")) {
               setState("used");
             } else {
               setState("revoked");
             }
           } else {
-            setState("error");
-            setError(errorData.error || "Failed to accept invitation");
+            setState(response.status === 410 ? "invalid" : "error");
+            setError(errMsg);
           }
 
           // Fire analytics event for error states
@@ -99,7 +114,11 @@ export default function AcceptInvitationPage() {
     [state],
   );
 
+  const startedRef = useRef(false);
   useEffect(() => {
+    if (startedRef.current) return; // one-shot guard
+    startedRef.current = true;
+
     const token = searchParams.get("token");
 
     if (!token) {
@@ -112,7 +131,9 @@ export default function AcceptInvitationPage() {
   }, [searchParams, acceptInvitation]);
 
   const handleGoToAdminConsole = () => {
-    router.push("/admin");
+    // Use email from API response to prefill login; do not assume user is signed-in here
+    const loginUrl = `/admin/login?next=%2Fadmin${acceptedEmail ? `&email=${encodeURIComponent(acceptedEmail)}` : ""}`;
+    router.push(loginUrl);
   };
 
   const handleRequestNewInvite = () => {
