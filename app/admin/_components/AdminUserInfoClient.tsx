@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { LogOut, User, Shield, Crown } from "lucide-react";
 import type { AuthenticatedUser } from "../../lib/auth-client";
 
@@ -20,25 +21,38 @@ export default function AdminUserInfoClient({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [clientUser, setClientUser] = useState<ClientUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const pathname = usePathname();
 
   // Fetch user data from client-side API (same as RBAC system)
   useEffect(() => {
-    async function fetchUserData() {
-      try {
-        const response = await fetch("/api/admin/me");
-        if (response.ok) {
-          const userData: ClientUser = await response.json();
-          setClientUser(userData);
-        }
-      } catch (error) {
-        console.error("Error fetching user data:", error);
-      } finally {
-        setIsLoading(false);
-      }
+    // On the login page we intentionally skip probing /api/admin/me to avoid expected 401s
+    if (pathname === "/admin/login") {
+      setIsLoading(false);
+      return;
     }
 
-    fetchUserData();
-  }, []);
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/me", {
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        if (!alive) return;
+        if (res.ok) {
+          const data: ClientUser = await res.json();
+          setClientUser(data);
+        }
+      } catch (e) {
+        console.warn("[topbar] me fetch error", e);
+      } finally {
+        if (alive) setIsLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [pathname]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -54,12 +68,12 @@ export default function AdminUserInfoClient({
   // Use client-side user data if available, fallback to server user
   const isAuthenticated = !!(clientUser || serverUser);
 
-  if (isLoading) {
+  if (isLoading && !isAuthenticated) {
     return (
-      <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 backdrop-blur-sm">
-        <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></div>
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
-          Loading...
+      <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full border bg-gray-50 dark:bg-gray-800/40">
+        <div className="h-2 w-2 rounded-full animate-pulse bg-gray-400" />
+        <span className="text-sm text-gray-600 dark:text-gray-300">
+          Checking session…
         </span>
       </div>
     );
@@ -77,9 +91,13 @@ export default function AdminUserInfoClient({
   }
 
   // Determine role from client or server data
-  const userRole = clientUser?.roles?.includes("super_admin")
+  const userRole: "super_admin" | "admin" = clientUser?.roles?.includes(
+    "super_admin",
+  )
     ? "super_admin"
-    : serverUser?.role || "admin";
+    : serverUser?.role === "super_admin"
+      ? "super_admin"
+      : "admin";
 
   const userEmail = clientUser?.email || serverUser?.email || "Unknown";
 

@@ -68,6 +68,7 @@ interface AuthTokens {
 }
 
 interface AdminMeResponse {
+  ok: boolean;
   email: string;
   roles: Role[];
   envBuildId: string;
@@ -141,18 +142,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Get user roles from RBAC system
-    const roles = getRolesForEmail(email);
-
-    // Log RBAC info for debugging
-    logRBACInfo(email, roles);
-
-    // Check if user has any admin roles
-    if (roles.size === 0) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 403 });
-    }
-
-    // Get database user information for compatibility with getCurrentUser()
+    // Get database user information first to check admin status
     let dbUser = null;
     try {
       const { getSupabaseServiceClient } = await import(
@@ -163,7 +153,6 @@ export async function GET(req: NextRequest) {
         .from("admin_users")
         .select("*")
         .eq("email", email.toLowerCase())
-        .eq("is_active", true)
         .single();
 
       if (!error && adminUser) {
@@ -173,18 +162,39 @@ export async function GET(req: NextRequest) {
       console.log("[admin/me] Could not fetch database user info:", error);
     }
 
+    // Authorize based on database record: allow both admin and super_admin roles
+    if (!dbUser) {
+      return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+    }
+
+    const role = dbUser.role; // 'admin' | 'super_admin'
+    const active = dbUser.is_active !== false;
+
+    if (!active) {
+      return NextResponse.json({ error: "Suspended" }, { status: 403 });
+    }
+
+    if (role !== "admin" && role !== "super_admin") {
+      return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+    }
+
+    // Get user roles from RBAC system for additional context
+    const roles = getRolesForEmail(email);
+
+    // Log RBAC info for debugging
+    logRBACInfo(email, roles);
+
     const response: AdminMeResponse = {
+      ok: true,
       email: normalizeEmail(email),
       roles: Array.from(roles),
       envBuildId: getEnvBuildId(),
-      // Add database user information if available
-      ...(dbUser && {
-        id: dbUser.id,
-        role: dbUser.role,
-        created_at: dbUser.created_at,
-        last_login_at: dbUser.last_login_at,
-        is_active: dbUser.is_active,
-      }),
+      // Add database user information
+      id: dbUser.id,
+      role: dbUser.role,
+      created_at: dbUser.created_at,
+      last_login_at: dbUser.last_login_at,
+      is_active: dbUser.is_active,
     };
 
     return NextResponse.json(response, { status: 200, headers: res.headers });
