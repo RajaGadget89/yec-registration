@@ -7,6 +7,7 @@ import { EmailOutboxNavWidget } from "./_components/EmailOutboxNavWidget";
 
 import { getCurrentUser } from "../lib/auth-utils.server";
 import { getRolesForEmail } from "../lib/rbac";
+import { headers } from "next/headers";
 
 // Force dynamic rendering for admin routes that use cookies
 export const dynamic = "force-dynamic";
@@ -21,28 +22,31 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // In E2E mode, bypass authentication check
+  // Normal mode: perform full authentication check
   let user = null;
   let isSuperAdmin = false;
 
-  if (process.env.E2E_TEST_MODE === "true") {
-    // E2E mode: bypass authentication and grant super admin access
-    isSuperAdmin = true;
-  } else {
-    // Normal mode: perform full authentication check
-    user = await getCurrentUser();
+  user = await getCurrentUser();
 
-    // Check if user is super_admin (either from database or RBAC)
-    if (user?.email && user.is_active) {
-      // Check database role first
-      isSuperAdmin = user.role === "super_admin";
+  // Check if user is super_admin (either from database or RBAC)
+  if (user?.email && user.is_active) {
+    // Check database role first
+    isSuperAdmin = user.role === "super_admin";
 
-      // If not super_admin in database, check RBAC system
-      if (!isSuperAdmin) {
-        const rbacRoles = getRolesForEmail(user.email);
-        isSuperAdmin = rbacRoles.has("super_admin");
-      }
+    // If not super_admin in database, check RBAC system
+    if (!isSuperAdmin) {
+      const rbacRoles = getRolesForEmail(user.email);
+      isSuperAdmin = rbacRoles.has("super_admin");
     }
+  }
+
+  // Safe E2E bypass: env + explicit header
+  const headersList = await headers();
+  const e2eActive =
+    process.env.E2E_TEST_MODE === "true" &&
+    headersList.get("x-e2e-rbac") === "1";
+  if (!isSuperAdmin && e2eActive) {
+    isSuperAdmin = true; // enabled only in real E2E runs
   }
 
   return (

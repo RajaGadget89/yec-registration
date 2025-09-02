@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { getSupabaseServiceClient } from "../../lib/supabase-server";
 import { getEmailFromAddress } from "../../lib/config";
+import { getAppBaseUrl } from "../../lib/app-url";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -81,7 +82,10 @@ export class TestEmailProvider implements EmailProvider {
   }
 
   private async getEmailTemplates(token: string, locale: "en" | "th") {
-    const acceptUrl = `${process.env.APP_URL || "http://localhost:3000"}/admin/accept?token=${token}`;
+    const base = await getAppBaseUrl();
+    const u = new URL("/admin/accept", base);
+    u.searchParams.set("token", token);
+    const acceptUrl = u.toString();
     const expiresAt = new Date(
       Date.now() + 48 * 60 * 60 * 1000,
     ).toLocaleString();
@@ -209,7 +213,7 @@ YEC Day Admin Team`,
         template: "admin.invitation",
         payload: {
           token: message.token,
-          acceptUrl: `${process.env.APP_URL || "http://localhost:3000"}/admin/accept?token=${message.token}`,
+          acceptUrl: `${getAppBaseUrl()}/admin/accept?token=${message.token}`,
           expiresAt: new Date(
             Date.now() + 48 * 60 * 60 * 1000,
           ).toLocaleString(),
@@ -322,7 +326,10 @@ export class SmtpEmailProvider implements EmailProvider {
   }
 
   private async getEmailTemplates(token: string, locale: "en" | "th") {
-    const acceptUrl = `${process.env.APP_URL || "https://staging.yecday.com"}/admin/accept?token=${token}`;
+    const base = await getAppBaseUrl();
+    const u = new URL("/admin/accept", base);
+    u.searchParams.set("token", token);
+    const acceptUrl = u.toString();
     const expiresAt = new Date(
       Date.now() + 48 * 60 * 60 * 1000,
     ).toLocaleString();

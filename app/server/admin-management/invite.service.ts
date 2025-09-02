@@ -2,7 +2,6 @@ import { getSupabaseServiceClient } from "../../lib/supabase-server";
 import { EventFactory } from "../../lib/events/eventFactory";
 import { EventService } from "../../lib/events/eventService";
 
-import { getBaseUrl } from "../../lib/config";
 import { sendAdminInvitationEmail } from "../../lib/emailService";
 
 export interface CreateInvitationParams {
@@ -92,7 +91,16 @@ export class InviteService {
     }
 
     // Send invitation email
-    const acceptUrl = `${getBaseUrl()}/admin/management/accept?token=${tokenData}`;
+    // UAT-04S v2 — base URL = NEXT_PUBLIC_APP_URL only
+    const base = process.env.NEXT_PUBLIC_APP_URL;
+    if (!base) {
+      throw new Error("NEXT_PUBLIC_APP_URL is required to build accept links");
+    }
+
+    // Always URL‑encode token via URL.searchParams
+    const accept = new URL("/admin/accept", base);
+    accept.searchParams.set("token", tokenData); // encodes + and /
+    const acceptUrl = accept.toString();
     const expiresAtFormatted = new Date(expiresAt).toLocaleString();
     const supportEmail = "info@yecday.com";
 
@@ -166,7 +174,14 @@ export class InviteService {
     }
 
     // Send invitation email
-    const acceptUrl = `${getBaseUrl()}/admin/management/accept?token=${invitation.token}`;
+    const base = process.env.NEXT_PUBLIC_APP_URL;
+    if (!base) {
+      throw new Error("NEXT_PUBLIC_APP_URL is required to build accept links");
+    }
+
+    const accept = new URL("/admin/accept", base);
+    accept.searchParams.set("token", invitation.token);
+    const acceptUrl = accept.toString();
     const expiresAtFormatted = new Date(invitation.expires_at).toLocaleString();
     const supportEmail = "info@yecday.com";
 

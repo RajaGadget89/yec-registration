@@ -26,21 +26,33 @@ export function EmailOutboxNavWidget() {
   const [loading, setLoading] = useState(false);
   const [dispatching, setDispatching] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [authState, setAuthState] = useState<
+    "unknown" | "unauth" | "authed" | "forbidden"
+  >("unknown");
 
   // Fetch outbox statistics
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/email-outbox-stats");
-      if (!response.ok) {
-        throw new Error(`Failed to fetch outbox stats: ${response.status}`);
+      const res = await fetch("/api/admin/email-outbox-stats", {
+        cache: "no-store",
+      });
+      if (res.status === 401) {
+        setAuthState("unauth");
+        return;
       }
-      const data = await response.json();
-      if (data.ok && data.stats) {
-        setStats(data.stats);
+      if (res.status === 403) {
+        setAuthState("forbidden");
+        return;
       }
+      if (!res.ok) {
+        console.warn("[outbox] stats", res.status);
+        return; // avoid throwing to keep nav clean
+      }
+      const data = await res.json();
+      if (data?.ok && data.stats) setStats(data.stats);
     } catch (error) {
-      console.error("Failed to fetch outbox stats:", error);
+      console.warn("[outbox] stats fetch error:", error);
     } finally {
       setLoading(false);
     }
@@ -49,16 +61,27 @@ export function EmailOutboxNavWidget() {
   // Fetch outbox trends and alerts
   const fetchTrends = async () => {
     try {
-      const response = await fetch("/api/admin/email-outbox-trends");
-      if (!response.ok) {
-        throw new Error(`Failed to fetch outbox trends: ${response.status}`);
+      const res = await fetch("/api/admin/email-outbox-trends", {
+        cache: "no-store",
+      });
+      if (res.status === 401) {
+        setAuthState("unauth");
+        return;
       }
-      const data = await response.json();
-      if (data.ok && data.trends) {
+      if (res.status === 403) {
+        setAuthState("forbidden");
+        return;
+      }
+      if (!res.ok) {
+        console.warn("[outbox] trends", res.status);
+        return;
+      }
+      const data = await res.json();
+      if (data?.ok && data.trends) {
         setAlert(data.alert || null);
       }
     } catch (error) {
-      console.error("Failed to fetch outbox trends:", error);
+      console.warn("[outbox] trends fetch error:", error);
     }
   };
 
@@ -91,18 +114,50 @@ export function EmailOutboxNavWidget() {
 
   // Load stats and trends on component mount
   useEffect(() => {
-    fetchStats();
-    fetchTrends();
+    let alive = true;
+    (async () => {
+      try {
+        // Probe auth once – prevents 401 spam on /admin/login
+        const me = await fetch("/api/admin/me", { cache: "no-store" });
+        if (!alive) return;
+
+        if (me.status === 401) {
+          setAuthState("unauth");
+          return;
+        }
+        if (me.status === 403) {
+          setAuthState("forbidden");
+          return;
+        }
+        if (!me.ok) {
+          console.warn("[outbox] me probe", me.status);
+          setAuthState("forbidden");
+          return;
+        }
+
+        setAuthState("authed");
+        await fetchStats();
+        await fetchTrends();
+      } catch (e) {
+        console.warn("[outbox] probe error", e);
+        setAuthState("forbidden");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  // Auto-refresh stats every 60 seconds
+  // Auto-refresh only when authenticated
   useEffect(() => {
+    if (authState !== "authed") return;
+
     const interval = setInterval(() => {
       fetchStats();
       fetchTrends();
-    }, 60000);
+    }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [authState]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -135,8 +190,22 @@ export function EmailOutboxNavWidget() {
     <div className="relative email-outbox-nav-widget">
       {/* Clickable Navigation Item */}
       <button
-        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-        className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
+        onClick={() =>
+          authState === "authed" && setIsDropdownOpen(!isDropdownOpen)
+        }
+        disabled={authState !== "authed"}
+        className={`flex items-center space-x-2 transition-all duration-300 group ${
+          authState === "authed"
+            ? "text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent hover:scale-105"
+            : "text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-60"
+        }`}
+        title={
+          authState === "unauth"
+            ? "Sign in to view"
+            : authState === "forbidden"
+              ? "No permission"
+              : "Email Outbox"
+        }
       >
         {/* Email Outbox Icon with Badge */}
         <div className="relative">
@@ -174,7 +243,7 @@ export function EmailOutboxNavWidget() {
       </button>
 
       {/* Dropdown Menu */}
-      {isDropdownOpen && (
+      {isDropdownOpen && authState === "authed" && (
         <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50">
           {/* Header */}
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
