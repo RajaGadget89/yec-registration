@@ -16,6 +16,63 @@ const acceptSchema = z.object({
 
 type AcceptRequest = z.infer<typeof acceptSchema>;
 
+async function getOrCreateAuthUserByEmailCompat(
+  admin: any,
+  email: string,
+  invitedByAdminId: string,
+) {
+  // Prefer native getUserByEmail when available (future-proofing)
+  if (typeof admin.getUserByEmail === "function") {
+    const g = await admin.getUserByEmail(email);
+    if (g?.data?.user) return g.data.user;
+    const c = await admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: {
+        role: "admin",
+        invited_by: invitedByAdminId,
+      },
+    });
+    if (c?.data?.user) return c.data.user;
+    if (
+      c?.error &&
+      (c.error.status === 422 || /exist|already/i.test(c.error.message || ""))
+    ) {
+      const g2 = await admin.getUserByEmail(email);
+      if (g2?.data?.user) return g2.data.user;
+    }
+    throw c?.error || new Error("createUser_failed");
+  }
+
+  // Fallback path (current SDK): try create; if duplicate → fetch via listUsers and filter
+  const c = await admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: {
+      role: "admin",
+      invited_by: invitedByAdminId,
+    },
+  });
+
+  if (c?.data?.user) return c.data.user;
+
+  if (
+    c?.error &&
+    (c.error.status === 422 ||
+      /exist|already|duplicate/i.test(c.error.message || ""))
+  ) {
+    if (typeof admin.listUsers === "function") {
+      const l = await admin.listUsers({ page: 1, perPage: 200 });
+      const found = l?.data?.users?.find(
+        (u: any) => u.email?.toLowerCase() === email.toLowerCase(),
+      );
+      if (found) return found;
+    }
+  }
+
+  throw c?.error || new Error("createUser_failed");
+}
+
 async function acceptInvitation(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> },
@@ -122,39 +179,47 @@ async function acceptInvitation(
 
     const invitation = invitationData;
 
-    // Create user in auth system first
-    const { data: authUser, error: authError } =
-      await supabase.auth.admin.createUser({
-        email: invitation.email,
-        email_confirm: true,
-        user_metadata: {
-          role: "admin",
-          invited_by: invitation.invited_by_admin_id,
-        },
-      });
-
-    if (authError) {
-      console.error("Error creating auth user:", authError);
-      return NextResponse.json(
-        {
-          error: "Failed to create user account",
-          code: "AUTH_ERROR",
-          details: authError.message,
-        },
-        { status: 500 },
-      );
-    }
-
-    const adminId = authUser.user.id;
+    // Create user in auth system first (idempotent for duplicate emails)
+    const user = await getOrCreateAuthUserByEmailCompat(
+      supabase.auth.admin,
+      invitation.email,
+      invitation.invited_by_admin_id,
+    );
+    const adminId = user.id;
 
     // Now call accept_admin_invitation RPC with both token and admin_id
-    const { data: acceptResult, error: acceptError } = await supabase.rpc(
-      "accept_admin_invitation",
-      {
+    let acceptResult: any, acceptError: any;
+    try {
+      const rpcResponse = await supabase.rpc("accept_admin_invitation", {
         p_token: token,
         p_admin_id: adminId,
-      },
-    );
+      });
+      acceptResult = rpcResponse.data;
+      acceptError = rpcResponse.error;
+    } catch (e: any) {
+      const code = `${e?.code || ""}`;
+      if (
+        code === "23505" ||
+        /duplicate key|unique_violation/i.test(e?.message || "")
+      ) {
+        // Idempotent accept: treat as already accepted → return same success shape
+        return NextResponse.json(
+          {
+            ok: true,
+            correlation_id: correlationId,
+            message: "Invitation already accepted",
+            idempotent: true,
+          },
+          { status: 200 },
+        );
+      }
+      const codeStr = e?.code || e?.details || e?.hint || e?.message;
+      console.error("[ACCEPT][rpc]", {
+        code: codeStr,
+        msg: e?.message?.slice(0, 160),
+      });
+      throw e; // keep current mapping for now
+    }
 
     // Handle all token validation failures as 410
     if (acceptError) {
@@ -237,6 +302,7 @@ async function acceptInvitation(
       correlation_id: correlationId,
       message: "Invitation accepted successfully",
       admin_user_id: result.admin_user_id,
+      email: invitation.email,
     });
   } catch (error) {
     console.error("Accept invitation error:", error);
