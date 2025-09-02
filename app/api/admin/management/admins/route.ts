@@ -97,8 +97,10 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
       query = query.ilike("email", `%${search}%`);
     }
 
-    if (status && ["active", "suspended"].includes(status)) {
-      query = query.eq("status", status);
+    if (status === "active") {
+      query = query.eq("is_active", true);
+    } else if (status === "suspended") {
+      query = query.eq("is_active", false);
     }
 
     if (role && ["admin", "super_admin"].includes(role)) {
@@ -132,7 +134,7 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
         id: admin.id,
         email: admin.email,
         role: admin.role,
-        status: admin.status,
+        status: admin.is_active ? "active" : "suspended",
         created_at: admin.created_at,
         updated_at: admin.updated_at,
         last_login_at: admin.last_login_at,
