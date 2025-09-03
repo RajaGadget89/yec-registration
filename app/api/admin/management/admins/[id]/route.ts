@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { withSuperAdminApiGuard } from "../../../../../lib/admin-guard-server";
-import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
+import { withRequestContext } from "../../../../_lib/withRequestContext";
+import { withAuditLogging } from "../../../../_lib/withAuditLogging";
+import { withSuperAdminApiGuard } from "../../../../_lib/withSuperAdminApiGuard";
 import {
   safeLogAccess,
   safeLogEvent,
@@ -10,6 +11,16 @@ import { getSupabaseServiceClient } from "../../../../../lib/supabase-server";
 import { EventService } from "../../../../../lib/events/eventService";
 import { EventFactory } from "../../../../../lib/events/eventFactory";
 import { isFeatureEnabled } from "../../../../../lib/features";
+import {
+  buildDeletePlan,
+  executeDeletePlan,
+} from "../../../../../lib/admin-delete-utils";
+import {
+  saveArtifact,
+  formatTimestampForDir,
+} from "../../../../../lib/artifacts-utils";
+
+export const dynamic = "force-dynamic";
 
 const updateSchema = z.object({
   roles: z.array(z.enum(["admin", "super_admin"])).optional(),
@@ -283,138 +294,238 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  // Feature flag check temporarily disabled for E2E testing
-  // if (!isFeatureEnabled("adminManagement")) {
-  //   return NextResponse.json(
-  //     { error: "Feature not available" },
-  //     { status: 404 }
-  //   );
-  // }
+// Core handler functions for admin delete operations
+async function getDeletePlanHandler(req: Request, ctx: any) {
+  // Feature flag (dev-only)
+  if (process.env.DEV_ADMIN_DELETE_ENABLED !== "true") {
+    return NextResponse.json(
+      { ok: false, error: "Feature disabled" },
+      { status: 403 },
+    );
+  }
 
-  return withSuperAdminApiGuard(async (req) => {
-    try {
-      const currentUser = await getCurrentUserFromRequest(req);
-      if (!currentUser) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+  // Check environment safety
+  const appEnv = process.env.APP_ENV || process.env.NODE_ENV;
+  if (appEnv === "production") {
+    return NextResponse.json(
+      { ok: false, error: "Feature not available in production" },
+      { status: 403 },
+    );
+  }
 
-      const { id: adminId } = await params;
-      if (!adminId) {
-        return NextResponse.json(
-          { error: "Admin ID is required" },
-          { status: 400 },
-        );
-      }
+  const { id: adminId } = await ctx.params;
+  if (!adminId) {
+    return NextResponse.json(
+      { error: "Admin ID is required" },
+      { status: 400 },
+    );
+  }
 
-      // Prevent self-deletion
-      if (adminId === currentUser.id) {
-        return NextResponse.json(
-          { error: "Cannot delete your own account" },
-          { status: 400 },
-        );
-      }
+  // Prevent self-deletion
+  if (ctx.me && adminId === ctx.me.id) {
+    return NextResponse.json(
+      { error: "Cannot delete your own account" },
+      { status: 400 },
+    );
+  }
 
-      // Log access
-      await safeLogAccess({
-        action: "admin_delete",
-        method: "DELETE",
-        resource: "admin_users",
-        result: "success",
-        request_id: req.headers.get("x-request-id") || "unknown",
-        src_ip:
-          req.headers.get("x-forwarded-for") ||
-          req.headers.get("x-real-ip") ||
-          undefined,
-        user_agent: req.headers.get("user-agent") || undefined,
-        meta: {
-          adminId,
-        },
-      });
+  const supabase = getSupabaseServiceClient();
 
-      // Create database client
-      const supabase = getSupabaseServiceClient();
+  // Load the target row first to enforce the "not super_admin" rule
+  const { data: target, error: loadErr } = await supabase
+    .from("admin_users")
+    .select("id, email, role")
+    .eq("id", adminId)
+    .single();
 
-      // Get current admin state
-      const { data: currentAdmin, error: fetchError } = await supabase
-        .from("admin_users")
-        .select("*")
-        .eq("id", adminId)
-        .single();
+  if (loadErr || !target) {
+    return NextResponse.json(
+      { ok: false, error: "Not found" },
+      { status: 404 },
+    );
+  }
 
-      if (fetchError || !currentAdmin) {
-        return NextResponse.json({ error: "Admin not found" }, { status: 404 });
-      }
+  if (target.role === "super_admin") {
+    return NextResponse.json(
+      { ok: false, error: "Cannot delete super_admin" },
+      { status: 403 },
+    );
+  }
 
-      // Soft delete by setting is_active to false and clearing role
-      const { data: deletedAdmin, error: deleteError } = await supabase
-        .from("admin_users")
-        .update({
-          is_active: false,
-          role: "admin", // Reset to basic admin role
-          status: "suspended", // Set status to suspended
-        })
-        .eq("id", adminId)
-        .select()
-        .single();
+  // Build delete plan
+  const plan = await buildDeletePlan(
+    supabase,
+    target.id,
+    target.email,
+    target.role,
+  );
 
-      if (deleteError) {
-        console.error("Error deleting admin:", deleteError);
-        return NextResponse.json(
-          { error: "Failed to delete admin" },
-          { status: 500 },
-        );
-      }
+  // Save plan artifact
+  const timestamp = formatTimestampForDir();
+  await saveArtifact("plan", plan, timestamp);
 
-      // Emit domain events for role revocation and suspension
-      const roleEvent = EventFactory.createAdminRoleRevoked(
-        adminId,
-        currentAdmin.role,
-      );
-      await EventService.emit(roleEvent);
-
-      const suspendEvent = EventFactory.createAdminSuspended(adminId);
-      await EventService.emit(suspendEvent);
-
-      // Log event
-      await safeLogEvent({
-        action: "admin_deleted",
-        resource: "admin_users",
-        resource_id: adminId,
-        actor_id: currentUser.email,
-        actor_role: "admin",
-        result: "success",
-        correlation_id: req.headers.get("x-request-id") || "unknown",
-        meta: {
-          adminId,
-          deletedBy: currentUser.email,
-          previousState: {
-            role: currentAdmin.role,
-            status: currentAdmin.status,
-            is_active: currentAdmin.is_active,
-          },
-          newState: {
-            role: deletedAdmin.role,
-            status: deletedAdmin.status,
-            is_active: deletedAdmin.is_active,
-          },
-        },
-      });
-
-      return NextResponse.json({
-        success: true,
-        message: "Admin deleted successfully",
-        admin: deletedAdmin,
-      });
-    } catch (error) {
-      console.error("Error in delete admin endpoint:", error);
-      return NextResponse.json(
-        { error: "Internal server error" },
-        { status: 500 },
-      );
-    }
-  });
+  return NextResponse.json({ ok: true, plan });
 }
+
+async function executeDeleteHandler(req: Request, ctx: any) {
+  // Feature flag (dev-only)
+  if (process.env.DEV_ADMIN_DELETE_ENABLED !== "true") {
+    return NextResponse.json(
+      { ok: false, error: "Feature disabled" },
+      { status: 403 },
+    );
+  }
+
+  // Check environment safety
+  const appEnv = process.env.APP_ENV || process.env.NODE_ENV;
+  if (appEnv === "production") {
+    return NextResponse.json(
+      { ok: false, error: "Feature not available in production" },
+      { status: 403 },
+    );
+  }
+
+  // Parse query parameters
+  const url = new URL(req.url);
+  const includeAudit = url.searchParams.get("include_audit") === "true";
+
+  const { id: adminId } = await ctx.params;
+  if (!adminId) {
+    return NextResponse.json(
+      { error: "Admin ID is required" },
+      { status: 400 },
+    );
+  }
+
+  // Prevent self-deletion
+  if (ctx.me && adminId === ctx.me.id) {
+    return NextResponse.json(
+      { error: "Cannot delete your own account" },
+      { status: 400 },
+    );
+  }
+
+  // Log access
+  await safeLogAccess({
+    action: "admin_delete",
+    method: "DELETE",
+    resource: "admin_users",
+    result: "success",
+    request_id: req.headers.get("x-request-id") || "unknown",
+    src_ip:
+      req.headers.get("x-forwarded-for") ||
+      req.headers.get("x-real-ip") ||
+      undefined,
+    user_agent: req.headers.get("user-agent") || undefined,
+    meta: {
+      adminId,
+    },
+  });
+
+  const supabase = getSupabaseServiceClient();
+
+  // Load the target row first to enforce the "not super_admin" rule
+  const { data: target, error: loadErr } = await supabase
+    .from("admin_users")
+    .select("id, email, role")
+    .eq("id", adminId)
+    .single();
+
+  if (loadErr || !target) {
+    return NextResponse.json(
+      { ok: false, error: "Not found" },
+      { status: 404 },
+    );
+  }
+
+  if (target.role === "super_admin") {
+    return NextResponse.json(
+      { ok: false, error: "Cannot delete super_admin" },
+      { status: 403 },
+    );
+  }
+
+  // Build delete plan
+  const plan = await buildDeletePlan(
+    supabase,
+    target.id,
+    target.email,
+    target.role,
+  );
+
+  // Execute delete plan
+  const summary = await executeDeletePlan(supabase, plan, includeAudit);
+
+  // Save summary artifact
+  const timestamp = formatTimestampForDir();
+  await saveArtifact("summary", summary, timestamp);
+
+  if (!summary.success) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: summary.error || "Delete operation failed",
+        at: summary.at,
+      },
+      { status: 500 },
+    );
+  }
+
+  // Log event
+  await safeLogEvent({
+    action: "admin_deleted",
+    resource: "admin_users",
+    resource_id: adminId,
+    actor_id: ctx.me.email,
+    actor_role: "admin",
+    result: "success",
+    correlation_id: req.headers.get("x-request-id") || "unknown",
+    meta: {
+      adminId,
+      deletedBy: ctx.me.email,
+      targetEmail: target.email,
+      targetRole: target.role,
+      summary: summary,
+    },
+  });
+
+  return NextResponse.json({ ok: true, summary });
+}
+
+// Compose the handlers with proper wrapper chain
+const guardedGet = withRequestContext(
+  withAuditLogging(
+    "admin.delete.GET",
+    withSuperAdminApiGuard(getDeletePlanHandler),
+  ),
+);
+
+const guardedDelete = withRequestContext(
+  withAuditLogging(
+    "admin.delete.DELETE",
+    withSuperAdminApiGuard(executeDeleteHandler),
+  ),
+);
+
+// Export the wrapped handlers with error handling
+export const GET = (req: Request, ctx: any) =>
+  guardedGet(req, ctx).catch((e: any) =>
+    NextResponse.json(
+      {
+        ok: false,
+        error: String(e?.message || e),
+      },
+      { status: 500 },
+    ),
+  );
+
+export const DELETE = (req: Request, ctx: any) =>
+  guardedDelete(req, ctx).catch((e: any) =>
+    NextResponse.json(
+      {
+        ok: false,
+        error: String(e?.message || e),
+      },
+      { status: 500 },
+    ),
+  );
