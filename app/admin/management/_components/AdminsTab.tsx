@@ -9,8 +9,10 @@ import {
   Shield,
   Edit3,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface AdminUser {
   id: string;
@@ -38,6 +40,9 @@ interface AdminsTabProps {
 }
 
 export default function AdminsTab({ filters }: AdminsTabProps) {
+  // Feature flag for dev-only admin delete
+  const DEV_DELETE = process.env.NEXT_PUBLIC_DEV_ADMIN_DELETE === "true";
+
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,6 +147,79 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
       } else {
         const data = await response.json();
         setError(data.error || "Failed to update status");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const [deletePlan, setDeletePlan] = useState<any>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  const handleDeleteClick = async (adminId: string) => {
+    try {
+      // Get the delete plan (dry-run)
+      const planResponse = await fetch(
+        `/api/admin/management/admins/${adminId}?dry_run=1`,
+        {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store",
+        },
+      );
+
+      if (!planResponse.ok) {
+        if (planResponse.status === 401) {
+          console.warn(
+            "Admin delete unauthorized (401): missing credentials or session",
+          );
+        }
+        const errorData = await planResponse.json();
+        setError(errorData.error || "Failed to get delete plan");
+        return;
+      }
+
+      const planData = await planResponse.json();
+      setDeletePlan(planData.plan);
+      setPendingDeleteId(adminId);
+      setShowDeleteDialog(true);
+    } catch {
+      setError("Network error. Please try again.");
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!pendingDeleteId || !deletePlan) return;
+
+    setActionLoading(`delete-${pendingDeleteId}`);
+    try {
+      // Execute the delete
+      const deleteResponse = await fetch(
+        `/api/admin/management/admins/${pendingDeleteId}`,
+        {
+          method: "DELETE",
+          credentials: "same-origin",
+        },
+      );
+
+      if (deleteResponse.ok) {
+        const result = await deleteResponse.json();
+        console.log("Delete successful:", result);
+        await fetchAdmins(); // Refresh the list
+        setShowDeleteDialog(false);
+        setDeletePlan(null);
+        setPendingDeleteId(null);
+      } else {
+        if (deleteResponse.status === 401) {
+          console.warn(
+            "Admin delete unauthorized (401): missing credentials or session",
+          );
+        }
+        const errorData = await deleteResponse.json();
+        setError(errorData.error || "Failed to delete admin");
       }
     } catch {
       setError("Network error. Please try again.");
@@ -480,6 +558,43 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                         ) : null}
                         {admin.is_active ? "Suspend" : "Activate"}
                       </button>
+
+                      {/* DEV-ONLY: Delete button for admin users (not super_admin) */}
+                      {DEV_DELETE && admin.role === "admin" ? (
+                        <button
+                          onClick={() => handleDeleteClick(admin.id)}
+                          disabled={actionLoading === `delete-${admin.id}`}
+                          title={
+                            actionLoading === `delete-${admin.id}`
+                              ? "Deleting..."
+                              : "Delete this admin user"
+                          }
+                          className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md transition-colors ${
+                            actionLoading === `delete-${admin.id}`
+                              ? "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
+                              : "text-red-700 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
+                          }`}
+                          data-testid="admins-action-delete"
+                        >
+                          {actionLoading === `delete-${admin.id}` ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3 w-3 mr-1" />
+                          )}
+                          Delete
+                        </button>
+                      ) : (
+                        <span
+                          className="text-muted text-xs"
+                          title={
+                            admin.role === "super_admin"
+                              ? "Cannot delete super_admin users"
+                              : "Delete feature disabled"
+                          }
+                        >
+                          —
+                        </span>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -543,6 +658,20 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && deletePlan && (
+        <ConfirmDialog
+          title="Delete admin?"
+          description={`This will remove ${deletePlan.admin.email} from admin_users (Auth user is NOT deleted).`}
+          confirmText="Delete"
+          confirmVariant="destructive"
+          onConfirm={handleDeleteConfirm}
+          plan={deletePlan}
+        >
+          <div></div> {/* This div is not used but required by ConfirmDialog */}
+        </ConfirmDialog>
+      )}
     </div>
   );
 }
