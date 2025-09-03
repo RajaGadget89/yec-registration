@@ -2,13 +2,38 @@
 
 ## Overview
 
-This E2E test suite simulates real user/admin flows with **exactly one manual cycle** (no cron). The tests cover complete registration workflows and validate email dispatch functionality with secure, controlled testing.
+This E2E test suite simulates real user/admin flows with **exactly one manual cycle** (no cron). The tests cover complete registration workflows, admin invitation flows, and validate email dispatch functionality with secure, controlled testing.
 
 ## Test Coverage
 
+### UAT-04S: Admin Invitation & Role Management Tests
+
+#### 1. Invitation Acceptance Flow (`uat04s.invitation.spec.ts`)
+- **Flow**: Send invitation → Accept link valid once → Replay returns 410
+- **Actions**: 
+  - Send admin invitation via real API endpoint
+  - Retrieve accept URL from email outbox/token table
+  - Test first acceptance (should succeed with 200/3xx)
+  - Test replay acceptance (should fail with 410)
+  - Verify invalid tokens return 410
+  - Confirm accept endpoint is publicly accessible
+- **Expected**: Accept link works exactly once, replay fails correctly
+
+#### 2. Role-Based Navigation (`uat04s.role.nav.spec.ts`)
+- **Flow**: Accept invitation → Magic link login → Verify role constraints
+- **Actions**:
+  - Accept admin invitation (creates admin user)
+  - Login via magic link (UI-based, not bypass)
+  - Verify `/api/admin/me` returns 200 with role=admin
+  - Check top bar shows "Admin" role chip
+  - Verify "Admin Management Team" is hidden for admin users
+  - Confirm direct access to super-admin routes returns 401/403
+  - Test logout clears authentication state
+- **Expected**: Proper role-based access control and navigation
+
 ### Workflow Tests
 
-#### 1. Happy Path (`workflow.happy-path.spec.ts`)
+#### 3. Happy Path (`workflow.happy-path.spec.ts`)
 - **Flow**: Public Form → `waiting_for_review` → PASS all → `approved`
 - **Actions**: 
   - Fill registration form with required fields
@@ -18,7 +43,7 @@ This E2E test suite simulates real user/admin flows with **exactly one manual cy
   - Manual email dispatch call
 - **Expected**: Final status `approved` with proper email counters
 
-#### 2. Update Loop - Payment (`workflow.update-loop.payment.spec.ts`)
+#### 4. Update Loop - Payment (`workflow.update-loop.payment.spec.ts`)
 - **Flow**: Registration → Request Update (payment) → Deep-link → Resubmit → `approved`
 - **Actions**:
   - Create registration (same as happy path)
@@ -32,7 +57,7 @@ This E2E test suite simulates real user/admin flows with **exactly one manual cy
 
 ### Dispatch Tests
 
-#### 3. Single Cycle Capped (`dispatch.single-cycle.capped.spec.ts`)
+#### 5. Single Cycle Capped (`dispatch.single-cycle.capped.spec.ts`)
 - **Purpose**: Perform exactly one real email send with cap enforcement
 - **Mode**: Only runs when `DISPATCH_DRY_RUN=false` and `EMAIL_MODE=CAPPED`
 - **Expected**: `sent=1`, `blocked≈2`, `capped≥1` (per report schema)
@@ -46,6 +71,10 @@ This E2E test suite simulates real user/admin flows with **exactly one manual cy
 PLAYWRIGHT_BASE_URL=http://localhost:8080
 CRON_SECRET=local-secret
 DISPATCH_DRY_RUN=true
+
+# For UAT-04S tests
+E2E_TEST_MODE=true
+SUPER_ADMIN_EMAIL=raja.gadgets89@gmail.com
 
 # For capped real-send mode
 EMAIL_MODE=CAPPED
@@ -82,7 +111,25 @@ EMAIL_ALLOWLIST=raja.gadgets89@gmail.com
    npm run e2e:install
    ```
 
+3. **Set E2E environment**:
+   ```bash
+   export E2E_TEST_MODE=true
+   export SUPER_ADMIN_EMAIL=raja.gadgets89@gmail.com
+   ```
+
 ### Test Commands
+
+#### UAT-04S Tests (New)
+```bash
+# Run invitation acceptance tests
+E2E_TEST_MODE=true pnpm playwright test tests/e2e/uat04s.invitation.spec.ts
+
+# Run role navigation tests
+E2E_TEST_MODE=true pnpm playwright test tests/e2e/uat04s.role.nav.spec.ts
+
+# Run all UAT-04S tests
+E2E_TEST_MODE=true pnpm playwright test tests/e2e/uat04s
+```
 
 #### Option A: Dry-Run Tests (Recommended)
 ```bash
@@ -98,126 +145,132 @@ BLOCK_NON_ALLOWLIST=true EMAIL_ALLOWLIST=raja.gadgets89@gmail.com \
 DISPATCH_DRY_RUN=false npm run dev
 
 # Run single capped dispatch test
-npm run test:e2e:capped:one
 ```
 
-#### Option C: All Tests
-```bash
-# Run all E2E tests (includes existing tests)
-npm run test:e2e:all
-```
+## Test Architecture
 
-## Test Structure
+### Helper Functions
 
-### Fixtures
-```
-tests/fixtures/
-├── payment-slip.png    # Test payment slip image
-├── profile.jpg         # Test profile image
-└── tcc.jpg            # Test TCC card image
-```
+#### `invite-helpers.ts`
+- `sendAdminInvite()` - Send admin invitation via real API
+- `getAcceptUrl()` - Retrieve accept URL from email outbox/token table
+- `waitForInvitationEmail()` - Poll for invitation email creation
 
-### Utilities
-```
-tests/e2e/utils/
-├── env.ts             # Environment variable handling
-└── dispatch.ts        # Email dispatch utilities
-```
+#### `email-helpers.ts`
+- `waitForOutboxLink()` - Wait for specific email link types
+- `getLatestOutboxLink()` - Get latest email link without waiting
+- `cleanupTestEmails()` - Clean up test email data
 
-### Test Helper Endpoint
-```
-app/api/test/latest-deeplink/route.ts
-```
-- **Purpose**: Fetch most recent deep-link token for testing
-- **Security**: Guarded with `NODE_ENV === 'test'` and `CRON_SECRET`
-- **Returns**: `{ token, dimension, created_at, registration_id }`
+#### `auth-helpers.ts`
+- `loginViaMagicLink()` - Complete magic link authentication flow
+- `checkAuthStatus()` - Verify authentication state
+- `logout()` - Clear authentication state
+- `waitForAuthComplete()` - Wait for auth completion
 
-## Expected Results
+### Database Access
 
-### Dry-Run Mode
-```json
-{
-  "ok": true,
-  "dryRun": true,
-  "sent": 0,
-  "wouldSend": 3,
-  "capped": 0,
-  "blocked": 0,
-  "errors": 0,
-  "remaining": 1,
-  "rateLimited": 0,
-  "retries": 0,
-  "timestamp": "2025-01-27T12:00:00.000Z"
-}
-```
+Tests use `supabaseTestClient` with service role key for:
+- Reading email outbox entries
+- Querying admin invitations
+- Checking admin user records
+- Cleanup operations
 
-### Capped Real-Send Mode
-```json
-{
-  "ok": true,
-  "dryRun": false,
-  "sent": 1,
-  "wouldSend": 0,
-  "capped": 1,
-  "blocked": 2,
-  "errors": 0,
-  "remaining": 0,
-  "rateLimited": 0,
-  "retries": 0,
-  "timestamp": "2025-01-27T12:00:00.000Z"
-}
-```
+### E2E RBAC Header
 
-## Safety Features
+For test endpoints requiring E2E bypass:
+- Set `E2E_TEST_MODE=true`
+- Include header `x-e2e-rbac: 1`
+- Only used for test helper endpoints, not main app routes
 
-### Email Safety
-- **Cap Enforcement**: Maximum 1 email per test run
-- **Allowlist Protection**: Only authorized addresses receive emails
-- **Throttle Protection**: 500ms delay between sends
-- **Retry Protection**: Automatic retry with backoff for rate limits
+## Test Data Management
 
-### Test Safety
-- **Environment Guards**: Tests only run in test environment
-- **CRON_SECRET Protection**: All API calls require proper authentication
-- **Skip Logic**: Update loop test skipped in capped mode
-- **Dry-Run Default**: Default mode prevents accidental email sends
+### Email Generation
+- Uses timestamp-based emails: `uat04s-admin-${Date.now()}@example.com`
+- Prevents conflicts between test runs
+- Automatic cleanup after each test
+
+### Cleanup Strategy
+- `afterEach` hooks clean up test data
+- Removes email outbox entries
+- Cleans up admin invitations and users
+- Uses pattern matching for safe cleanup
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Test Helper Endpoint 403**
-   - Ensure `NODE_ENV=test` or `TEST_HELPERS_ENABLED=1`
-   - Verify `CRON_SECRET` is set correctly
+1. **Rate Limiting**: Magic link requests may be rate limited
+   - Tests automatically wait for cooldown period
+   - Retry logic handles rate limit responses
 
-2. **Email Dispatch 401**
-   - Check `CRON_SECRET` environment variable
-   - Verify Authorization header format
+2. **Email Delivery**: Invitation emails may not appear immediately
+   - Tests poll email outbox with configurable timeout
+   - Fallback to direct database queries
 
-3. **Test Images Not Found**
-   - Ensure test fixtures exist in `tests/fixtures/`
-   - Check file paths in test specifications
+3. **Authentication State**: Session management issues
+   - Tests use fresh browser contexts for isolation
+   - Explicit logout and cleanup between tests
 
-4. **Deep-Link Token Not Found**
-   - Ensure registration was created successfully
-   - Check audit events table for `review.request_update` events
+### Debug Information
 
-### Debug Mode
+Tests include comprehensive logging:
+- Step-by-step progress indicators
+- API response status codes
+- Authentication state verification
+- Error details for failed assertions
 
-Enable debug logging by setting environment variables:
-```bash
-DEBUG=playwright:* npm run test:e2e:dryrun
-```
+### Screenshots on Failure
 
-## Integration
+Playwright automatically captures screenshots on test failures:
+- Stored in `playwright-report/` directory
+- Includes page state at failure point
+- Helps debug UI-related issues
 
-### CI/CD Pipeline
-The E2E tests are designed to run in CI/CD environments:
-- **Dry-run mode** for automated testing
-- **Capped mode** for production validation
-- **Parallel execution** support via Playwright
+## Security Considerations
 
-### Cross-Reference
-- **`tests/REPORT_EMAIL_DISPATCH_LOCAL.md`**: Detailed test report with examples
-- **`docs/SESSION_TRACKING_SYSTEM.md`**: Project documentation and runbook
-- **`app/api/admin/dispatch-emails/route.ts`**: Email dispatch endpoint implementation
+### Test Isolation
+- Each test uses unique email addresses
+- Fresh browser contexts prevent session leakage
+- Automatic cleanup removes test data
+
+### Production Safety
+- Tests only run in local/dev/staging environments
+- No schema modifications or production data access
+- E2E bypass requires explicit header + environment flag
+
+### Guardrail Compliance
+- No git operations or snapshots
+- No global E2E bypass activation
+- Tests respect existing RBAC and security controls
+
+## Integration with CI/CD
+
+### Environment Requirements
+- `E2E_TEST_MODE=true` for test execution
+- Valid Supabase service role key
+- Application running on test URL
+- Email system configured for testing
+
+### Test Execution
+- Tests can run in parallel (isolated data)
+- Configurable timeouts for CI environments
+- Artifact collection for debugging
+- Exit codes for CI integration
+
+## Future Enhancements
+
+### Planned Features
+- Enhanced test endpoint for email retrieval
+- Better rate limit handling
+- Performance optimization for CI environments
+- Additional role-based test scenarios
+
+### Test Coverage Expansion
+- Super-admin invitation flows
+- Admin role promotion/demotion
+- Bulk invitation scenarios
+- Audit log verification
+
+---
+
+*This E2E test suite provides comprehensive coverage of the YEC Registration System's admin workflows while maintaining security and production safety.*
