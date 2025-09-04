@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../types/database";
 import type { AdminUser } from "../types/database";
 import { assertDbRouting } from "./env-guards";
+import { getSupabaseServiceClient } from "./supabase-server";
 
 /**
  * Interface for authenticated user data
@@ -50,201 +51,35 @@ function getSupabaseClient() {
   });
 }
 
-/**
- * Gets the current authenticated user from Supabase session
- * @returns AuthenticatedUser object or null if not authenticated
- */
 export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   try {
     const cookieStore = await cookies();
-
-    // Create Supabase server client with cookie handling
-    const supabase = createServerClient(
+    const supa = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
-          get: (key: string) => cookieStore.get(key)?.value,
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          set: (key, value, options) => {
-            // This is read-only, so we don't need to implement set
-          },
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          remove: (key, options) => {
-            // This is read-only, so we don't need to implement remove
-          },
+          get: (n: string) => cookieStore.get(n)?.value,
+          set: () => {},
+          remove: () => {},
         },
       },
     );
-
-    // Get the current session
     const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
+      data: { user },
+    } = await supa.auth.getUser();
+    if (!user?.email) return null;
 
-    if (sessionError) {
-      // Only log genuine errors, not "no session" states
-      if (process.env.NODE_ENV !== "production") {
-        console.error("[auth] getCurrentUser(): session error:", sessionError);
-      }
-      return null;
-    }
-
-    if (!session) {
-      // Fallback: Check for custom admin-email cookie (for legacy support)
-      const adminEmail = cookieStore.get("admin-email")?.value;
-      if (adminEmail) {
-        console.log("Using legacy admin-email cookie fallback");
-        // Get user from admin_users table using email
-        const serviceClient = getSupabaseClient();
-        const { data: adminUser, error } = await serviceClient
-          .from("admin_users")
-          .select("*")
-          .eq("email", adminEmail)
-          .eq("is_active", true)
-          .single();
-
-        if (!error && adminUser) {
-          return {
-            id: adminUser.id,
-            email: adminUser.email,
-            role: adminUser.role,
-            created_at: adminUser.created_at,
-            updated_at: adminUser.updated_at,
-            last_login_at: adminUser.last_login_at,
-            is_active: adminUser.is_active,
-          };
-        }
-      }
-      return null;
-    }
-
-    // Get user from admin_users table using Supabase session
-    const serviceClient = getSupabaseClient();
-    const { data: adminUser, error } = await serviceClient
+    const svc = getSupabaseServiceClient();
+    const { data: adminUser } = await svc
       .from("admin_users")
       .select("*")
-      .eq("id", session.user.id)
+      .eq("email", user.email.toLowerCase())
       .eq("is_active", true)
       .single();
 
-    if (!error && adminUser) {
-      return {
-        id: adminUser.id,
-        email: adminUser.email,
-        role: adminUser.role,
-        created_at: adminUser.created_at,
-        updated_at: adminUser.updated_at,
-        last_login_at: adminUser.last_login_at,
-        is_active: adminUser.is_active,
-      };
-    }
-
-    // If user not found in admin_users table, check if they should be auto-created
-    if (session.user.email) {
-      // Database-first approach: Check if user should be auto-created based on database or environment
-      let shouldAutoCreate = false;
-
-      try {
-        // Step 1: Check if user exists in database (already handled above, but double-check)
-        const { data: existingUser } = await supabase
-          .from("admin_users")
-          .select("email")
-          .eq("email", session.user.email.toLowerCase())
-          .eq("is_active", true)
-          .single();
-
-        if (existingUser) {
-          // User already exists, no need to auto-create
-          return null;
-        }
-
-        // Step 2: Check environment variables for auto-creation (legacy support)
-        const adminEmails =
-          process.env.ADMIN_EMAILS?.split(",").map((e) =>
-            e.trim().toLowerCase(),
-          ) || [];
-        shouldAutoCreate = adminEmails.includes(
-          session.user.email.toLowerCase(),
-        );
-      } catch {
-        // Step 3: Environment fallback on database error
-        const adminEmails =
-          process.env.ADMIN_EMAILS?.split(",").map((e) =>
-            e.trim().toLowerCase(),
-          ) || [];
-        shouldAutoCreate = adminEmails.includes(
-          session.user.email.toLowerCase(),
-        );
-      }
-
-      if (shouldAutoCreate) {
-        // Auto-create admin user if they're in the allowlist
-        console.log("Auto-creating admin user for:", session.user.email);
-        const newAdminUser = await upsertAdminUser({
-          id: session.user.id,
-          email: session.user.email,
-          role: "admin",
-        });
-
-        if (newAdminUser) {
-          return {
-            id: newAdminUser.id,
-            email: newAdminUser.email,
-            role: newAdminUser.role,
-            created_at: newAdminUser.created_at,
-            updated_at: newAdminUser.updated_at,
-            last_login_at: newAdminUser.last_login_at,
-            is_active: newAdminUser.is_active,
-          };
-        }
-      }
-    }
-
-    return null;
-  } catch (error) {
-    // Only log genuine errors in development
-    if (process.env.NODE_ENV !== "production") {
-      console.error("[auth] getCurrentUser(): unexpected error:", error);
-    }
-    return null;
-  }
-}
-
-/**
- * Gets the current authenticated user from request headers or cookies
- * @returns AuthenticatedUser object or null if not authenticated
- */
-export async function getCurrentUserFromRequest(
-  request: Request,
-): Promise<AuthenticatedUser | null> {
-  try {
-    const supabase = getSupabaseClient();
-
-    // Debug: log all headers
-    console.log(
-      "Request headers:",
-      Object.fromEntries(request.headers.entries()),
-    );
-
-    // Check for admin-email header first (for testing)
-    const adminEmail = request.headers.get("admin-email");
-    console.log("Admin email header:", adminEmail);
-    if (adminEmail) {
-      console.log("Using admin-email header for authentication:", adminEmail);
-      // Get user from admin_users table using email
-      const { data: adminUser, error } = await supabase
-        .from("admin_users")
-        .select("*")
-        .eq("email", adminEmail)
-        .eq("is_active", true)
-        .single();
-
-      if (!error && adminUser) {
-        console.log("Found admin user:", adminUser);
-        console.log("User role:", adminUser.role);
-        return {
+    return adminUser
+      ? {
           id: adminUser.id,
           email: adminUser.email,
           role: adminUser.role,
@@ -252,91 +87,74 @@ export async function getCurrentUserFromRequest(
           updated_at: adminUser.updated_at,
           last_login_at: adminUser.last_login_at,
           is_active: adminUser.is_active,
-        };
-      } else {
-        console.log("Admin user not found or error:", error);
-      }
-    }
+        }
+      : null;
+  } catch (e) {
+    if (process.env.NODE_ENV !== "production")
+      console.error("[auth] getCurrentUser():", e);
+    return null;
+  }
+}
 
-    // Extract session from request headers
-    const authHeader = request.headers.get("authorization");
+export async function getCurrentUserFromRequest(
+  req: Request,
+): Promise<AuthenticatedUser | null> {
+  try {
+    const cookieStore = await cookies();
+    const supa = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get: (n: string) => cookieStore.get(n)?.value,
+          set: () => {},
+          remove: () => {}, // no-op
+        },
+      },
+    );
+    const {
+      data: { user },
+    } = await supa.auth.getUser();
 
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.substring(7);
-
-      // Verify the token and get user
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser(token);
-
-      if (error || !user) {
-        return null;
-      }
-
-      // Get user from admin_users table
-      const { data: adminUser, error: adminError } = await supabase
-        .from("admin_users")
-        .select("*")
-        .eq("id", user.id)
-        .eq("is_active", true)
-        .single();
-
-      if (adminError || !adminUser) {
-        return null;
-      }
-
-      return {
-        id: adminUser.id,
-        email: adminUser.email,
-        role: adminUser.role,
-        created_at: adminUser.created_at,
-        updated_at: adminUser.updated_at,
-        last_login_at: adminUser.last_login_at,
-        is_active: adminUser.is_active,
-      };
-    }
-
-    // Fallback: check for admin-email cookie (works in both E2E and production)
-    const cookieHeader = request.headers.get("cookie");
-    if (cookieHeader) {
-      const cookies = Object.fromEntries(
-        cookieHeader.split(";").map((cookie) => {
-          const [name, value] = cookie.trim().split("=");
-          return [name, value];
-        }),
-      );
-
-      const adminEmail = cookies["admin-email"];
-      if (adminEmail) {
-        // URL-decode the email since cookies are automatically encoded
-        const decodedEmail = decodeURIComponent(adminEmail);
-
-        // Get user from admin_users table using email
-        const { data: adminUser, error } = await supabase
-          .from("admin_users")
-          .select("*")
-          .eq("email", decodedEmail)
-          .eq("is_active", true)
-          .single();
-
-        if (!error && adminUser) {
-          return {
-            id: adminUser.id,
-            email: adminUser.email,
-            role: adminUser.role,
-            created_at: adminUser.created_at,
-            updated_at: adminUser.updated_at,
-            last_login_at: adminUser.last_login_at,
-            is_active: adminUser.is_active,
-          };
+    // If no Supabase session, try to get admin email from cookie as fallback
+    let adminEmail = user?.email;
+    if (!adminEmail) {
+      const cookieHeader = req.headers.get("cookie");
+      if (cookieHeader) {
+        const adminEmailMatch = cookieHeader.match(/admin-email=([^;]+)/);
+        if (adminEmailMatch) {
+          adminEmail = decodeURIComponent(adminEmailMatch[1]);
+          console.log(
+            `[AUTH] No Supabase session, but found admin-email cookie: ${adminEmail}`,
+          );
         }
       }
     }
 
-    return null;
-  } catch (error) {
-    console.error("Error getting current user from request:", error);
+    if (!adminEmail) return null;
+
+    const svc = getSupabaseServiceClient();
+    const { data: adminUser } = await svc
+      .from("admin_users")
+      .select("*")
+      .eq("email", adminEmail.toLowerCase())
+      .eq("is_active", true)
+      .single();
+
+    return adminUser
+      ? {
+          id: adminUser.id,
+          email: adminUser.email,
+          role: adminUser.role,
+          created_at: adminUser.created_at,
+          updated_at: adminUser.updated_at,
+          last_login_at: adminUser.last_login_at,
+          is_active: adminUser.is_active,
+        }
+      : null;
+  } catch (e) {
+    if (process.env.NODE_ENV !== "production")
+      console.error("[auth] getCurrentUserFromRequest():", e);
     return null;
   }
 }

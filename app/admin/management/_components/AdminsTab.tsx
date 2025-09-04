@@ -208,10 +208,23 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
       if (deleteResponse.ok) {
         const result = await deleteResponse.json();
         console.log("Delete successful:", result);
-        await fetchAdmins(); // Refresh the list
+
+        // Close dialog first
         setShowDeleteDialog(false);
         setDeletePlan(null);
         setPendingDeleteId(null);
+
+        // Force UI refresh with explicit state management
+        setLoading(true);
+        try {
+          await fetchAdmins();
+          console.log("Admin list refreshed successfully");
+        } catch (refreshError) {
+          console.error("Failed to refresh admin list:", refreshError);
+          setError(
+            "Admin deleted but failed to refresh list. Please reload the page.",
+          );
+        }
       } else {
         if (deleteResponse.status === 401) {
           console.warn(
