@@ -14,7 +14,7 @@ services:
       - .:/app       # Hot reload
       - /app/node_modules # Exclude local node_modules
     env_file:
-      - .e2e-env
+      - .env.local
     environment:
       - NODE_ENV=development
       - HOSTNAME=0.0.0.0
