@@ -208,12 +208,12 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
       if (deleteResponse.ok) {
         const result = await deleteResponse.json();
         console.log("Delete successful:", result);
-        
+
         // Close dialog first
         setShowDeleteDialog(false);
         setDeletePlan(null);
         setPendingDeleteId(null);
-        
+
         // Force UI refresh with explicit state management
         setLoading(true);
         try {
@@ -221,7 +221,9 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
           console.log("Admin list refreshed successfully");
         } catch (refreshError) {
           console.error("Failed to refresh admin list:", refreshError);
-          setError("Admin deleted but failed to refresh list. Please reload the page.");
+          setError(
+            "Admin deleted but failed to refresh list. Please reload the page.",
+          );
         }
       } else {
         if (deleteResponse.status === 401) {

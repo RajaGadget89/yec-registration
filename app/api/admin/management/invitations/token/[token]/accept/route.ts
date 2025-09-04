@@ -80,8 +80,8 @@ async function getOrCreateAuthUserByEmailCompat(
  */
 async function redirectToMagicLink(email: string, supabase: any) {
   const appUrl = getAppUrl();
-  const redirectTo = `${appUrl}/auth/callback?next=${encodeURIComponent('/admin')}`;
-  
+  const redirectTo = `${appUrl}/auth/callback?next=${encodeURIComponent("/admin")}`;
+
   console.log("[UAT-04] Generating magic link for authentication:", {
     email,
     redirectTo,
@@ -89,35 +89,46 @@ async function redirectToMagicLink(email: string, supabase: any) {
   });
 
   try {
-    const { data: magicLinkData, error: magicLinkError } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-      options: { 
-        redirectTo: redirectTo 
-      },
-    });
+    const { data: magicLinkData, error: magicLinkError } =
+      await supabase.auth.admin.generateLink({
+        type: "magiclink",
+        email,
+        options: {
+          redirectTo: redirectTo,
+        },
+      });
 
     if (magicLinkError || !magicLinkData?.properties?.action_link) {
       console.error("[UAT-04] Failed to generate magic link:", magicLinkError);
-      return NextResponse.json({ 
-        ok: false, 
-        error: 'FAILED_TO_GENERATE_LINK',
-        message: 'Failed to generate authentication link. Please try again or contact support.'
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "FAILED_TO_GENERATE_LINK",
+          message:
+            "Failed to generate authentication link. Please try again or contact support.",
+        },
+        { status: 500 },
+      );
     }
 
     const actionLink = magicLinkData.properties.action_link;
-    console.log("[UAT-04] Magic link generated successfully, redirecting to:", actionLink);
+    console.log(
+      "[UAT-04] Magic link generated successfully, redirecting to:",
+      actionLink,
+    );
 
     return NextResponse.redirect(actionLink, 303);
-
   } catch (magicLinkError) {
     console.error("[UAT-04] Error in magic link generation:", magicLinkError);
-    return NextResponse.json({ 
-      ok: false, 
-      error: 'MAGIC_LINK_GENERATION_ERROR',
-      message: 'Authentication link generation failed. Please try again or contact support.'
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "MAGIC_LINK_GENERATION_ERROR",
+        message:
+          "Authentication link generation failed. Please try again or contact support.",
+      },
+      { status: 500 },
+    );
   }
 }
 
@@ -216,11 +227,14 @@ async function acceptInvitation(
 
     // UAT-04: Handle different invitation statuses appropriately
     const invitation = invitationData;
-    
-    if (invitation.status === 'pending' || invitation.status === 'sent') {
+
+    if (invitation.status === "pending" || invitation.status === "sent") {
       // New invitation - proceed with acceptance
-      console.log("[UAT-04] Processing new invitation:", { status: invitation.status, email: invitation.email });
-      
+      console.log("[UAT-04] Processing new invitation:", {
+        status: invitation.status,
+        email: invitation.email,
+      });
+
       // Create user in auth system first (idempotent for duplicate emails)
       const user = await getOrCreateAuthUserByEmailCompat(
         supabase.auth.admin,
@@ -245,7 +259,9 @@ async function acceptInvitation(
           /duplicate key|unique_violation/i.test(e?.message || "")
         ) {
           // Idempotent accept: treat as already accepted → redirect to magic link
-          console.log("[UAT-04] Invitation already accepted, redirecting to magic link");
+          console.log(
+            "[UAT-04] Invitation already accepted, redirecting to magic link",
+          );
           return await redirectToMagicLink(invitation.email, supabase);
         }
         const codeStr = e?.code || e?.details || e?.hint || e?.message;
@@ -334,26 +350,35 @@ async function acceptInvitation(
 
       // UAT-04: Generate magic link and redirect to establish session
       return await redirectToMagicLink(invitation.email, supabase);
-
-    } else if (invitation.status === 'accepted') {
+    } else if (invitation.status === "accepted") {
       // Already accepted invitation - check if user has valid session
-      console.log("[UAT-04] Processing already accepted invitation:", { email: invitation.email });
-      
+      console.log("[UAT-04] Processing already accepted invitation:", {
+        email: invitation.email,
+      });
+
       const currentUser = await getCurrentUserFromRequest(request);
-      
-      if (currentUser?.email?.toLowerCase() === invitation.email.toLowerCase()) {
+
+      if (
+        currentUser?.email?.toLowerCase() === invitation.email.toLowerCase()
+      ) {
         // User has valid session and matches invited email - redirect to admin
         console.log("[UAT-04] User has valid session, redirecting to admin");
-        return NextResponse.redirect(new URL('/admin', getAppUrl()), 303);
+        return NextResponse.redirect(new URL("/admin", getAppUrl()), 303);
       } else {
         // User has no session or different user - issue new magic link for re-authentication
-        console.log("[UAT-04] User has no session, issuing new magic link for re-authentication");
+        console.log(
+          "[UAT-04] User has no session, issuing new magic link for re-authentication",
+        );
         return await redirectToMagicLink(invitation.email, supabase);
       }
-
-    } else if (invitation.status === 'revoked' || invitation.status === 'expired') {
+    } else if (
+      invitation.status === "revoked" ||
+      invitation.status === "expired"
+    ) {
       // Revoked or expired invitation
-      console.log("[UAT-04] Invitation is revoked or expired:", { status: invitation.status });
+      console.log("[UAT-04] Invitation is revoked or expired:", {
+        status: invitation.status,
+      });
       return NextResponse.json(
         {
           error: "Invitation has been revoked or expired",
@@ -363,7 +388,9 @@ async function acceptInvitation(
       );
     } else {
       // Unknown status
-      console.log("[UAT-04] Unknown invitation status:", { status: invitation.status });
+      console.log("[UAT-04] Unknown invitation status:", {
+        status: invitation.status,
+      });
       return NextResponse.json(
         {
           error: "Invalid invitation status",
@@ -372,7 +399,6 @@ async function acceptInvitation(
         { status: 400 },
       );
     }
-
   } catch (error) {
     console.error("Accept invitation error:", error);
 
