@@ -60,31 +60,45 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
       {
         cookies: {
           get: (n: string) => cookieStore.get(n)?.value,
-          set: () => {}, remove: () => {}
-        }
-      }
+          set: () => {},
+          remove: () => {},
+        },
+      },
     );
-    const { data: { user } } = await supa.auth.getUser();
+    const {
+      data: { user },
+    } = await supa.auth.getUser();
     if (!user?.email) return null;
 
     const svc = getSupabaseServiceClient();
     const { data: adminUser } = await svc
-      .from("admin_users").select("*")
-      .eq("email", user.email.toLowerCase()).eq("is_active", true)
+      .from("admin_users")
+      .select("*")
+      .eq("email", user.email.toLowerCase())
+      .eq("is_active", true)
       .single();
 
-    return adminUser ? {
-      id: adminUser.id, email: adminUser.email, role: adminUser.role,
-      created_at: adminUser.created_at, updated_at: adminUser.updated_at,
-      last_login_at: adminUser.last_login_at, is_active: adminUser.is_active
-    } : null;
+    return adminUser
+      ? {
+          id: adminUser.id,
+          email: adminUser.email,
+          role: adminUser.role,
+          created_at: adminUser.created_at,
+          updated_at: adminUser.updated_at,
+          last_login_at: adminUser.last_login_at,
+          is_active: adminUser.is_active,
+        }
+      : null;
   } catch (e) {
-    if (process.env.NODE_ENV !== "production") console.error("[auth] getCurrentUser():", e);
+    if (process.env.NODE_ENV !== "production")
+      console.error("[auth] getCurrentUser():", e);
     return null;
   }
 }
 
-export async function getCurrentUserFromRequest(req: Request): Promise<AuthenticatedUser | null> {
+export async function getCurrentUserFromRequest(
+  req: Request,
+): Promise<AuthenticatedUser | null> {
   try {
     const cookieStore = await cookies();
     const supa = createServerClient(
@@ -93,12 +107,15 @@ export async function getCurrentUserFromRequest(req: Request): Promise<Authentic
       {
         cookies: {
           get: (n: string) => cookieStore.get(n)?.value,
-          set: () => {}, remove: () => {} // no-op
-        }
-      }
+          set: () => {},
+          remove: () => {}, // no-op
+        },
+      },
     );
-    const { data: { user } } = await supa.auth.getUser();
-    
+    const {
+      data: { user },
+    } = await supa.auth.getUser();
+
     // If no Supabase session, try to get admin email from cookie as fallback
     let adminEmail = user?.email;
     if (!adminEmail) {
@@ -107,26 +124,37 @@ export async function getCurrentUserFromRequest(req: Request): Promise<Authentic
         const adminEmailMatch = cookieHeader.match(/admin-email=([^;]+)/);
         if (adminEmailMatch) {
           adminEmail = decodeURIComponent(adminEmailMatch[1]);
-          console.log(`[AUTH] No Supabase session, but found admin-email cookie: ${adminEmail}`);
+          console.log(
+            `[AUTH] No Supabase session, but found admin-email cookie: ${adminEmail}`,
+          );
         }
       }
     }
-    
+
     if (!adminEmail) return null;
 
     const svc = getSupabaseServiceClient();
     const { data: adminUser } = await svc
-      .from("admin_users").select("*")
-      .eq("email", adminEmail.toLowerCase()).eq("is_active", true)
+      .from("admin_users")
+      .select("*")
+      .eq("email", adminEmail.toLowerCase())
+      .eq("is_active", true)
       .single();
 
-    return adminUser ? {
-      id: adminUser.id, email: adminUser.email, role: adminUser.role,
-      created_at: adminUser.created_at, updated_at: adminUser.updated_at,
-      last_login_at: adminUser.last_login_at, is_active: adminUser.is_active
-    } : null;
+    return adminUser
+      ? {
+          id: adminUser.id,
+          email: adminUser.email,
+          role: adminUser.role,
+          created_at: adminUser.created_at,
+          updated_at: adminUser.updated_at,
+          last_login_at: adminUser.last_login_at,
+          is_active: adminUser.is_active,
+        }
+      : null;
   } catch (e) {
-    if (process.env.NODE_ENV !== "production") console.error("[auth] getCurrentUserFromRequest():", e);
+    if (process.env.NODE_ENV !== "production")
+      console.error("[auth] getCurrentUserFromRequest():", e);
     return null;
   }
 }

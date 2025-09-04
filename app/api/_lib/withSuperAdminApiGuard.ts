@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { ApiHandler, ApiCtx } from "./types";
 
 // Robust cookie parsing function
-function parseCookieValue(cookieHeader: string | null, cookieName: string): string | null {
+function parseCookieValue(
+  cookieHeader: string | null,
+  cookieName: string,
+): string | null {
   if (!cookieHeader) return null;
-  
-  const cookies = cookieHeader.split(';').map(cookie => cookie.trim());
+
+  const cookies = cookieHeader.split(";").map((cookie) => cookie.trim());
   for (const cookie of cookies) {
     if (cookie.startsWith(`${cookieName}=`)) {
       const value = cookie.substring(cookieName.length + 1);
@@ -28,25 +31,29 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
       console.log(`[SUPER_ADMIN_GUARD] Environment variables:`, {
         DEV_ADMIN_DELETE_ENABLED: process.env.DEV_ADMIN_DELETE_ENABLED,
         NODE_ENV: process.env.NODE_ENV,
-        APP_ENV: process.env.APP_ENV
+        APP_ENV: process.env.APP_ENV,
       });
 
       let adminEmail: string | null = null;
-      let authMethod: 'cookie' | 'supabase-session' | 'none' = 'none';
+      let authMethod: "cookie" | "supabase-session" | "none" = "none";
 
       // Method 1: Try robust cookie parsing first
       const cookieHeader = req.headers.get("cookie");
       adminEmail = parseCookieValue(cookieHeader, "admin-email");
-      
+
       if (adminEmail) {
-        authMethod = 'cookie';
-        console.log(`[SUPER_ADMIN_GUARD] Found admin-email cookie: ${adminEmail}`);
+        authMethod = "cookie";
+        console.log(
+          `[SUPER_ADMIN_GUARD] Found admin-email cookie: ${adminEmail}`,
+        );
       }
 
       // Method 2: Fallback to Supabase session authentication
       if (!adminEmail) {
-        console.log(`[SUPER_ADMIN_GUARD] No admin-email cookie, trying Supabase session fallback`);
-        
+        console.log(
+          `[SUPER_ADMIN_GUARD] No admin-email cookie, trying Supabase session fallback`,
+        );
+
         try {
           const { createServerClient } = await import("@supabase/ssr");
           const supabase = createServerClient(
@@ -54,33 +61,47 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             {
               cookies: {
-                get: (name: string) => req.headers.get("cookie")?.split(`${name}=`)[1]?.split(";")[0],
+                get: (name: string) =>
+                  req.headers
+                    .get("cookie")
+                    ?.split(`${name}=`)[1]
+                    ?.split(";")[0],
                 set: () => {},
                 remove: () => {},
               },
-            }
+            },
           );
 
-          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          
+          const {
+            data: { session },
+            error: sessionError,
+          } = await supabase.auth.getSession();
+
           if (!sessionError && session?.user?.email) {
             // Check if this user is an admin
             const { isAdmin } = await import("../../lib/admin-guard");
             if (isAdmin(session.user.email)) {
               adminEmail = session.user.email;
-              authMethod = 'supabase-session';
-              console.log(`[SUPER_ADMIN_GUARD] Supabase session authentication successful: ${adminEmail}`);
+              authMethod = "supabase-session";
+              console.log(
+                `[SUPER_ADMIN_GUARD] Supabase session authentication successful: ${adminEmail}`,
+              );
             }
           }
         } catch (error) {
-          console.log(`[SUPER_ADMIN_GUARD] Supabase session fallback failed:`, error);
+          console.log(
+            `[SUPER_ADMIN_GUARD] Supabase session fallback failed:`,
+            error,
+          );
         }
       }
 
       console.log("[SUPER_ADMIN_GUARD] Final admin email:", adminEmail);
 
       if (!adminEmail) {
-        console.log(`[SUPER_ADMIN_GUARD] Access denied - no valid authentication found`);
+        console.log(
+          `[SUPER_ADMIN_GUARD] Access denied - no valid authentication found`,
+        );
         return NextResponse.json(
           {
             error: "Unauthorized. Admin access required.",
@@ -93,7 +114,9 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
       // Check if user is in admin allowlist
       const { isAdmin } = await import("../../lib/admin-guard");
       if (!isAdmin(adminEmail)) {
-        console.log(`[SUPER_ADMIN_GUARD] Access denied - not in admin allowlist: ${adminEmail}`);
+        console.log(
+          `[SUPER_ADMIN_GUARD] Access denied - not in admin allowlist: ${adminEmail}`,
+        );
         return NextResponse.json(
           {
             error: "Unauthorized. Admin access required.",
@@ -104,7 +127,9 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
       }
 
       // Check if user has super_admin role in database
-      const { getSupabaseServiceClient } = await import("../../lib/supabase-server");
+      const { getSupabaseServiceClient } = await import(
+        "../../lib/supabase-server"
+      );
       const supabase = getSupabaseServiceClient();
 
       const { data: adminUser, error } = await supabase
@@ -114,7 +139,9 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
         .single();
 
       if (error || !adminUser) {
-        console.log(`[SUPER_ADMIN_GUARD] Access denied - user not found in database: ${adminEmail}`);
+        console.log(
+          `[SUPER_ADMIN_GUARD] Access denied - user not found in database: ${adminEmail}`,
+        );
         return NextResponse.json(
           {
             error: "Unauthorized. Admin access required.",
@@ -125,7 +152,9 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
       }
 
       if (adminUser.role !== "super_admin") {
-        console.log(`[SUPER_ADMIN_GUARD] Access denied - not super_admin role: ${adminUser.role}`);
+        console.log(
+          `[SUPER_ADMIN_GUARD] Access denied - not super_admin role: ${adminUser.role}`,
+        );
         return NextResponse.json(
           {
             error: "Forbidden: Super admin access required",
@@ -136,7 +165,9 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
       }
 
       if (!adminUser.is_active) {
-        console.log(`[SUPER_ADMIN_GUARD] Access denied - user not active: ${adminEmail}`);
+        console.log(
+          `[SUPER_ADMIN_GUARD] Access denied - user not active: ${adminEmail}`,
+        );
         return NextResponse.json(
           {
             error: "Forbidden: Admin account is not active",
@@ -147,7 +178,9 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
       }
 
       // Log successful authentication
-      console.log(`[SUPER_ADMIN_API_ACCESS] ${adminEmail} accessed ${req.url} via ${authMethod}`);
+      console.log(
+        `[SUPER_ADMIN_API_ACCESS] ${adminEmail} accessed ${req.url} via ${authMethod}`,
+      );
 
       // Create user context and call handler
       const userCtx: ApiCtx = {
