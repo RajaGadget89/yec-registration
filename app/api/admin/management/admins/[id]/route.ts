@@ -301,13 +301,15 @@ async function getDeletePlanHandler(req: Request, ctx: any) {
   console.log(`[ADMIN_DELETE] Environment variables:`, {
     DEV_ADMIN_DELETE_ENABLED: process.env.DEV_ADMIN_DELETE_ENABLED,
     NODE_ENV: process.env.NODE_ENV,
-    APP_ENV: process.env.APP_ENV
+    APP_ENV: process.env.APP_ENV,
   });
   console.log(`[ADMIN_DELETE] User context:`, ctx.me);
 
   // Feature flag (dev-only)
   if (process.env.DEV_ADMIN_DELETE_ENABLED !== "true") {
-    console.log(`[ADMIN_DELETE] Feature disabled - DEV_ADMIN_DELETE_ENABLED not set to true`);
+    console.log(
+      `[ADMIN_DELETE] Feature disabled - DEV_ADMIN_DELETE_ENABLED not set to true`,
+    );
     return NextResponse.json(
       { ok: false, error: "Feature disabled" },
       { status: 403 },

@@ -24,12 +24,14 @@ export async function GET(request: NextRequest) {
 
     // Check for specific cookies
     const cookieHeader = request.headers.get("cookie");
-    const cookies = cookieHeader ? Object.fromEntries(
-      cookieHeader.split(";").map((cookie) => {
-        const [name, value] = cookie.trim().split("=");
-        return [name, value];
-      })
-    ) : {};
+    const cookies = cookieHeader
+      ? Object.fromEntries(
+          cookieHeader.split(";").map((cookie) => {
+            const [name, value] = cookie.trim().split("=");
+            return [name, value];
+          }),
+        )
+      : {};
 
     // Check for Supabase session cookies
     const supabaseCookies = {
@@ -39,13 +41,16 @@ export async function GET(request: NextRequest) {
     };
 
     if (!user) {
-      return NextResponse.json({ 
-        ok: false, 
-        email: null, 
-        err: "Not authenticated",
-        cookies: supabaseCookies,
-        headers: Object.keys(headers)
-      }, { status: 401 });
+      return NextResponse.json(
+        {
+          ok: false,
+          email: null,
+          err: "Not authenticated",
+          cookies: supabaseCookies,
+          headers: Object.keys(headers),
+        },
+        { status: 401 },
+      );
     }
 
     return NextResponse.json({
@@ -54,16 +59,19 @@ export async function GET(request: NextRequest) {
       role: user.role,
       isActive: user.is_active,
       cookies: supabaseCookies,
-      headers: Object.keys(headers)
+      headers: Object.keys(headers),
     });
   } catch (error) {
     console.error("[ROUTE_AUTH_CHECK] Error:", error);
-    return NextResponse.json({ 
-      ok: false, 
-      email: null, 
-      err: String(error),
-      cookies: {},
-      headers: []
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        ok: false,
+        email: null,
+        err: String(error),
+        cookies: {},
+        headers: [],
+      },
+      { status: 500 },
+    );
   }
 }
