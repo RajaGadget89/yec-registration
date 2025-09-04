@@ -24,7 +24,7 @@ export default function AcceptInvitationPage() {
   const router = useRouter();
   const [state, setState] = useState<AcceptState>("loading");
   const [error, setError] = useState<string>("");
-  const [acceptedEmail, setAcceptedEmail] = useState<string>("");
+  // Note: acceptedEmail state removed as it's no longer needed with form submission approach
 
   const acceptInvitation = useCallback(
     async (token: string) => {
@@ -32,70 +32,29 @@ export default function AcceptInvitationPage() {
         setState("loading");
         setError("");
 
-        const response = await fetch(
-          `/api/admin/management/invitations/token/${encodeURIComponent(token)}/accept`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              name: "Admin User", // Optional name field
-            }),
-          },
-        );
+        // UAT-04 Hotfix: Replace fetch with form submission to avoid CORS error on 303 redirect
+        // The API returns 303 redirect to magic link, which should be followed by browser navigation
+        const acceptUrl = `/api/admin/management/invitations/token/${encodeURIComponent(token)}/accept`;
 
-        if (response.ok) {
-          setState("success");
+        // Create and submit a form to trigger browser navigation
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = acceptUrl;
+        form.style.display = "none";
 
-          // Extract email from response for login handoff
-          try {
-            const responseData = await response.json();
-            if (responseData.email) {
-              setAcceptedEmail(responseData.email);
-            }
-          } catch (e) {
-            console.warn("Could not parse response for email:", e);
-          }
+        // Add the name field as hidden input
+        const nameInput = document.createElement("input");
+        nameInput.type = "hidden";
+        nameInput.name = "name";
+        nameInput.value = "Admin User";
+        form.appendChild(nameInput);
 
-          // Fire analytics event
-          if (typeof window !== "undefined" && (window as any).gtag) {
-            (window as any).gtag("event", "accept_invite_result", {
-              event_category: "admin_invitation",
-              event_label: "success",
-              value: 1,
-            });
-          }
-        } else {
-          let errMsg = "Failed to accept invitation";
-          try {
-            const j = await response.json();
-            errMsg = j?.error || errMsg;
-          } catch {}
+        // Submit the form - this will navigate the browser and follow the 303 redirect
+        document.body.appendChild(form);
+        form.submit();
 
-          // Handle different error states
-          if (response.status === 410) {
-            if (errMsg.includes("EXPIRED_TOKEN")) {
-              setState("expired");
-            } else if (errMsg.includes("INVALID_TOKEN")) {
-              setState("used");
-            } else {
-              setState("revoked");
-            }
-          } else {
-            setState(response.status === 410 ? "invalid" : "error");
-            setError(errMsg);
-          }
-
-          // Fire analytics event for error states
-          if (typeof window !== "undefined" && (window as any).gtag) {
-            (window as any).gtag("event", "accept_invite_result", {
-              event_category: "admin_invitation",
-              event_label: state,
-              value: 0,
-            });
-          }
-        }
+        // Note: Page will navigate away, so no need for response handling
+        // The browser will handle the 303 redirect to the magic link properly
       } catch (err) {
         console.error("Error accepting invitation:", err);
         setState("error");
@@ -111,7 +70,7 @@ export default function AcceptInvitationPage() {
         }
       }
     },
-    [state],
+    [], // Removed 'state' dependency as it's no longer used
   );
 
   const startedRef = useRef(false);
@@ -131,8 +90,8 @@ export default function AcceptInvitationPage() {
   }, [searchParams, acceptInvitation]);
 
   const handleGoToAdminConsole = () => {
-    // Use email from API response to prefill login; do not assume user is signed-in here
-    const loginUrl = `/admin/login?next=%2Fadmin${acceptedEmail ? `&email=${encodeURIComponent(acceptedEmail)}` : ""}`;
+    // Navigate to admin login - user will need to authenticate with magic link
+    const loginUrl = `/admin/login?next=%2Fadmin`;
     router.push(loginUrl);
   };
 

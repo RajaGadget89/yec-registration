@@ -768,4 +768,225 @@ test.describe('UAT-04: Admin Invite Creation & Validations', () => {
       console.log(`[UAT-04] Idempotency headers verified: first=false, second=true`);
     });
   });
+
+  test.describe('Accept Invitation - UAT-04 Automatic Authentication', () => {
+    test('should redirect to magic link action URL after successful acceptance', async ({ request }) => {
+      // Arrange
+      const email = generateUniqueEmail('uat04-auth');
+      const roles = ['admin'];
+      const idempotencyKey = generateIdempotencyKey('uat04-auth');
+
+      // Create invitation
+      const inviteResponse = await request.post(`${BASE_URL}/api/admin/management/invite`, {
+        headers: {
+          ...superAdminHeaders,
+          'Idempotency-Key': idempotencyKey,
+        },
+        data: {
+          email,
+          roles,
+        },
+      });
+
+      expect(inviteResponse.status()).toBe(201);
+      const inviteData = await inviteResponse.json();
+      const token = inviteData.token;
+      expect(token).toBeTruthy();
+
+      // Act: Accept invitation
+      const acceptResponse = await request.post(`${BASE_URL}/api/admin/management/invitations/token/${token}/accept`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `accept-${idempotencyKey}`,
+        },
+        data: {
+          name: 'UAT-04 Test Admin',
+        },
+      });
+
+      // Assert: Should get 303 redirect to magic link action URL
+      expect(acceptResponse.status()).toBe(303);
+      
+      // Check for Location header pointing to Supabase magic link
+      const locationHeader = acceptResponse.headers().get('location');
+      expect(locationHeader).toBeTruthy();
+      expect(locationHeader).toContain('supabase.co');
+      expect(locationHeader).toContain('/auth/v1/verify');
+      
+      console.log(`[UAT-04] Magic link redirect URL: ${locationHeader}`);
+    });
+
+    test('should handle already accepted invitations with idempotent re-auth', async ({ request }) => {
+      // Arrange: Create invitation
+      const email = generateUniqueEmail('uat04-idempotent');
+      const roles = ['admin'];
+      const idempotencyKey = generateIdempotencyKey('uat04-idempotent');
+
+      const inviteResponse = await request.post(`${BASE_URL}/api/admin/management/invite`, {
+        headers: {
+          ...superAdminHeaders,
+          'Idempotency-Key': idempotencyKey,
+        },
+        data: {
+          email,
+          roles,
+        },
+      });
+
+      expect(inviteResponse.status()).toBe(201);
+      const inviteData = await inviteResponse.json();
+      const token = inviteData.token;
+
+      // Act 1: First acceptance (should work normally)
+      const firstAcceptResponse = await request.post(`${BASE_URL}/api/admin/management/invitations/token/${token}/accept`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `accept-first-${idempotencyKey}`,
+        },
+        data: {
+          name: 'UAT-04 Idempotent Test Admin',
+        },
+      });
+
+      // First acceptance should redirect to magic link
+      expect(firstAcceptResponse.status()).toBe(303);
+      const firstLocationHeader = firstAcceptResponse.headers().get('location');
+      expect(firstLocationHeader).toContain('supabase.co');
+
+      // Act 2: Second acceptance (idempotent re-auth)
+      const secondAcceptResponse = await request.post(`${BASE_URL}/api/admin/management/invitations/token/${token}/accept`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `accept-second-${idempotencyKey}`,
+        },
+        data: {
+          name: 'UAT-04 Idempotent Test Admin (Replay)',
+        },
+      });
+
+      // Second acceptance should also redirect to magic link (not 410)
+      expect(secondAcceptResponse.status()).toBe(303);
+      const secondLocationHeader = secondAcceptResponse.headers().get('location');
+      expect(secondLocationHeader).toContain('supabase.co');
+
+      console.log(`[UAT-04] Idempotent re-auth working: first=${firstLocationHeader?.substring(0, 50)}..., second=${secondLocationHeader?.substring(0, 50)}...`);
+    });
+
+    test('should handle already accepted invitations with existing session', async ({ request }) => {
+      // Arrange: Create invitation
+      const email = generateUniqueEmail('uat04-session');
+      const roles = ['admin'];
+      const idempotencyKey = generateIdempotencyKey('uat04-session');
+
+      const inviteResponse = await request.post(`${BASE_URL}/api/admin/management/invite`, {
+        headers: {
+          ...superAdminHeaders,
+          'Idempotency-Key': idempotencyKey,
+        },
+        data: {
+          email,
+          roles,
+        },
+      });
+
+      expect(inviteResponse.status()).toBe(201);
+      const inviteData = await inviteResponse.json();
+      const token = inviteData.token;
+
+      // Act: Accept invitation with admin-email header (simulating existing session)
+      const acceptResponse = await request.post(`${BASE_URL}/api/admin/management/invitations/token/${token}/accept`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `accept-session-${idempotencyKey}`,
+          'admin-email': email, // Simulate existing session
+        },
+        data: {
+          name: 'UAT-04 Session Test Admin',
+        },
+      });
+
+      // Should redirect directly to /admin if user has valid session
+      expect(acceptResponse.status()).toBe(303);
+      const locationHeader = acceptResponse.headers().get('location');
+      expect(locationHeader).toContain('/admin');
+
+      console.log(`[UAT-04] Session-based redirect working: ${locationHeader}`);
+    });
+
+    test('should return proper error codes for revoked/expired invitations', async ({ request }) => {
+      // This test would require setting up revoked/expired invitations
+      // For now, we'll test with invalid tokens to verify error handling
+      
+      const invalidToken = 'invalid-token-12345';
+      
+      const acceptResponse = await request.post(`${BASE_URL}/api/admin/management/invitations/token/${invalidToken}/accept`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `invalid-test-${Date.now()}`,
+        },
+        data: {
+          name: 'Invalid Token Test',
+        },
+      });
+
+      // Should return 410 for invalid tokens
+      expect(acceptResponse.status()).toBe(410);
+      const errorData = await acceptResponse.json();
+      expect(errorData.code).toBe('INVALID_TOKEN');
+      
+      console.log(`[UAT-04] Error handling working: ${errorData.code}`);
+    });
+
+    test('should fallback to JSON response if magic link generation fails', async ({ request }) => {
+      // This test verifies the fallback behavior when magic link generation fails
+      // We can't easily simulate this failure, but we can verify the API handles errors gracefully
+      
+      // Arrange: Create invitation with a potentially problematic email
+      const email = generateUniqueEmail('uat04-fallback');
+      const roles = ['admin'];
+      const idempotencyKey = generateIdempotencyKey('uat04-fallback');
+
+      const inviteResponse = await request.post(`${BASE_URL}/api/admin/management/invite`, {
+        headers: {
+          ...superAdminHeaders,
+          'Idempotency-Key': idempotencyKey,
+        },
+        data: {
+          email,
+          roles,
+        },
+      });
+
+      expect(inviteResponse.status()).toBe(201);
+      const inviteData = await inviteResponse.json();
+      const token = inviteData.token;
+
+      // Act: Accept invitation
+      const acceptResponse = await request.post(`${BASE_URL}/api/admin/management/invitations/token/${token}/accept`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': `accept-${idempotencyKey}`,
+        },
+        data: {
+          name: 'UAT-04 Fallback Test',
+        },
+      });
+
+      // Assert: Should either redirect (303) or return JSON with fallback message
+      if (acceptResponse.status() === 303) {
+        // Success case: magic link generated
+        const locationHeader = acceptResponse.headers().get('location');
+        expect(locationHeader).toBeTruthy();
+        console.log(`[UAT-04] Magic link generated successfully: ${locationHeader}`);
+      } else {
+        // Fallback case: magic link generation failed
+        expect(acceptResponse.status()).toBe(200);
+        const data = await acceptResponse.json();
+        expect(data.ok).toBe(true);
+        expect(data.message).toContain('Please login to access admin console');
+        expect(data.note).toContain('manual login required');
+        console.log(`[UAT-04] Fallback response received: ${data.note}`);
+      }
+    });
+  });
 });
