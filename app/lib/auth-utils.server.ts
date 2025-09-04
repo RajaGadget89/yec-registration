@@ -84,7 +84,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   }
 }
 
-export async function getCurrentUserFromRequest(_req: Request): Promise<AuthenticatedUser | null> {
+export async function getCurrentUserFromRequest(req: Request): Promise<AuthenticatedUser | null> {
   try {
     const cookieStore = await cookies();
     const supa = createServerClient(
@@ -98,12 +98,26 @@ export async function getCurrentUserFromRequest(_req: Request): Promise<Authenti
       }
     );
     const { data: { user } } = await supa.auth.getUser();
-    if (!user?.email) return null;
+    
+    // If no Supabase session, try to get admin email from cookie as fallback
+    let adminEmail = user?.email;
+    if (!adminEmail) {
+      const cookieHeader = req.headers.get("cookie");
+      if (cookieHeader) {
+        const adminEmailMatch = cookieHeader.match(/admin-email=([^;]+)/);
+        if (adminEmailMatch) {
+          adminEmail = decodeURIComponent(adminEmailMatch[1]);
+          console.log(`[AUTH] No Supabase session, but found admin-email cookie: ${adminEmail}`);
+        }
+      }
+    }
+    
+    if (!adminEmail) return null;
 
     const svc = getSupabaseServiceClient();
     const { data: adminUser } = await svc
       .from("admin_users").select("*")
-      .eq("email", user.email.toLowerCase()).eq("is_active", true)
+      .eq("email", adminEmail.toLowerCase()).eq("is_active", true)
       .single();
 
     return adminUser ? {
