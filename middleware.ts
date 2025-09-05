@@ -13,17 +13,8 @@ async function getCurrentUserFromCookie(email: string | undefined): Promise<{is_
   
   try {
     // Create service client for database access
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      {
-        cookies: {
-          get: () => undefined,
-          set: () => {},
-          remove: () => {},
-        },
-      },
-    );
+    const { getSupabaseServiceClient } = await import("./app/lib/supabase-server");
+    const supabase = getSupabaseServiceClient();
     
     const { data: adminUser, error } = await supabase
       .from("admin_users")
@@ -39,6 +30,20 @@ async function getCurrentUserFromCookie(email: string | undefined): Promise<{is_
       };
     }
     
+    // Fall back to RBAC system when database is unavailable
+    console.log(`[auth-debug] middleware: database query failed for ${email}, falling back to RBAC`);
+    const { getRolesForEmail } = await import("./app/lib/rbac");
+    const roles = getRolesForEmail(email);
+    
+    if (roles.size > 0) {
+      console.log(`[auth-debug] middleware: RBAC fallback successful for ${email}, roles:`, Array.from(roles));
+      return {
+        is_active: true,
+        role: roles.has("super_admin") ? "super_admin" : "admin"
+      };
+    }
+    
+    console.log(`[auth-debug] middleware: RBAC fallback failed for ${email}, no roles found`);
     return null;
   } catch {
     return null;
@@ -53,17 +58,8 @@ async function checkUserAdminStatus(email: string | undefined): Promise<boolean>
   
   try {
     // Check database first
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get: () => undefined,
-          set: () => {},
-          remove: () => {},
-        },
-      },
-    );
+    const { getSupabaseServiceClient } = await import("./app/lib/supabase-server");
+    const supabase = getSupabaseServiceClient();
     
     const { data: adminUser } = await supabase
       .from("admin_users")
@@ -90,6 +86,19 @@ async function checkUserAdminStatus(email: string | undefined): Promise<boolean>
  * UNIFIED: Now uses same auth logic as page guard (getCurrentUser)
  */
 export async function middleware(request: NextRequest) {
+  // Debug: Add header at the very beginning
+  const response = NextResponse.next();
+  response.headers.set('x-debug-start', 'middleware-started');
+  
+  console.log('[middleware] EXECUTING middleware for:', request.url);
+  console.log('[middleware] Environment check:', {
+    hasSupabaseUrl: !!process.env.SUPABASE_URL,
+    hasNextPublicSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    hasSupabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    supabaseUrl: process.env.SUPABASE_URL?.substring(0, 50) + '...',
+    nextPublicSupabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 50) + '...'
+  });
   const { pathname } = request.nextUrl;
   
   // --- UAT-04S: allow public accept page with token ---
@@ -143,8 +152,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Create response object for cookie handling
-  const response = NextResponse.next();
+  // Response object already created at the beginning for debug headers
 
   try {
     // UNIFIED AUTH LOGIC: Same as page guard (getCurrentUser)
@@ -178,15 +186,36 @@ export async function middleware(request: NextRequest) {
       },
     );
 
+    // Debug: Log cookie values
+    const authCookie = request.cookies.get('sb-nuxahfrelvfvsmhzvxqm-auth-token');
+    const adminEmailCookie = request.cookies.get('admin-email');
+    console.log('[middleware] Cookie debug:', {
+      hasAuthCookie: !!authCookie,
+      authCookieValue: authCookie?.value?.substring(0, 50) + '...',
+      hasAdminEmailCookie: !!adminEmailCookie,
+      adminEmailValue: adminEmailCookie?.value
+    });
+
     // Get the current session (this will automatically refresh if needed)
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    console.log('[middleware] Session debug:', {
+      hasSession: !!session,
+      sessionError: sessionError?.message,
+      sessionUser: session?.user?.email
+    });
 
     let userEmail: string | undefined;
     let userRole: string | undefined;
     let isUserActive: boolean = false;
     let authMethod: 'supabase-session' | 'admin-email-cookie' | 'none' = 'none';
+    
+    // Debug: Track middleware execution
+    response.headers.set('x-debug-middleware', 'executing');
 
     if (!sessionError && session) {
+      // Debug: Track Supabase session path
+      response.headers.set('x-debug-supabase', 'has-session');
       // Supabase session exists - get user details
       userEmail = session.user.email?.toLowerCase();
       const isUserAdmin = await checkUserAdminStatus(userEmail);
@@ -218,26 +247,47 @@ export async function middleware(request: NextRequest) {
           authMethod = 'supabase-session';
         }
       }
+    } else {
+      // Debug: Track no Supabase session path
+      response.headers.set('x-debug-supabase', 'no-session');
     }
+
+    // Debug: Track authMethod before fallback
+    response.headers.set('x-debug-authmethod', authMethod);
 
     // 3. Fallback: Check admin-email cookie (consistent with API authentication)
     if (authMethod === 'none') {
       const adminEmail = request.cookies.get("admin-email")?.value;
+      // Debug: Add header to track cookie detection
+      response.headers.set('x-debug-admin-email', adminEmail ? 'found' : 'not-found');
       if (adminEmail) {
         console.log(`[auth-debug] middleware: checking admin-email cookie: ${adminEmail}`);
-        const cookieUser = await getCurrentUserFromCookie(adminEmail);
-        if (cookieUser) {
-          userEmail = adminEmail.toLowerCase();
-          userRole = cookieUser.role;
-          isUserActive = cookieUser.is_active;
-          authMethod = 'admin-email-cookie';
-          console.log(`[auth-debug] middleware: admin-email cookie authentication successful`);
-        } else {
-          console.log(`[auth-debug] middleware: admin-email cookie authentication failed`);
+        try {
+          response.headers.set('x-debug-cookie-lookup', 'attempting');
+          const cookieUser = await getCurrentUserFromCookie(adminEmail);
+          if (cookieUser) {
+            response.headers.set('x-debug-cookie-lookup', 'success');
+            userEmail = adminEmail.toLowerCase();
+            userRole = cookieUser.role;
+            isUserActive = cookieUser.is_active;
+            authMethod = 'admin-email-cookie';
+            console.log(`[auth-debug] middleware: admin-email cookie auth successful: ${userEmail}, role: ${userRole}`);
+          } else {
+            response.headers.set('x-debug-cookie-lookup', 'user-not-found');
+            console.log(`[auth-debug] middleware: admin-email cookie user not found: ${adminEmail}`);
+          }
+        } catch (error) {
+          response.headers.set('x-debug-cookie-lookup', 'error');
+          console.error(`[auth-debug] middleware: error checking admin-email cookie:`, error);
         }
+      } else {
+        console.log(`[auth-debug] middleware: no admin-email cookie found`);
       }
     }
 
+    // Debug: Track final authMethod
+    response.headers.set('x-debug-final-authmethod', authMethod);
+    
     // 4. Decision logic (same as page guard)
     if (authMethod === 'none') {
       if (AUTH_TRACE) {
@@ -249,6 +299,12 @@ export async function middleware(request: NextRequest) {
         307
       );
       redirectResponse.headers.set('x-admin-guard', 'deny:no-session');
+      // Copy debug headers from our response to the redirect response
+      for (const [key, value] of response.headers.entries()) {
+        if (key.startsWith('x-debug-')) {
+          redirectResponse.headers.set(key, value);
+        }
+      }
       // Copy any cookies from our response to the redirect response
       response.cookies.getAll().forEach((cookie) => {
         redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
@@ -285,6 +341,30 @@ export async function middleware(request: NextRequest) {
       return forbiddenResponse;
     }
 
+    // Check business role permissions for specific routes
+    if (userEmail && pathname.includes('/management') && userRole === 'admin') {
+      try {
+        const { getBusinessRoles } = await import('./app/lib/rbac');
+        const businessRoles = await getBusinessRoles(userEmail);
+        if (!businessRoles.includes('user_profile')) {
+          if (AUTH_TRACE) {
+            console.log(`[auth-debug] middleware: insufficient business role for management`, { userEmail, businessRoles });
+          }
+          const redirectResponse = NextResponse.redirect(
+            new URL('/admin/login?unauthorized=1', request.url),
+            307
+          );
+          redirectResponse.headers.set('x-admin-guard', 'deny:insufficient-business-role');
+          return redirectResponse;
+        }
+      } catch (error) {
+        if (AUTH_TRACE) {
+          console.log(`[auth-debug] middleware: business role check failed`, error);
+        }
+        // Continue with normal flow if business role check fails
+      }
+    }
+
     // User is authenticated, active, and super_admin, allow access
     response.headers.set('x-admin-guard', `ok:${authMethod}`);
     
@@ -295,9 +375,8 @@ export async function middleware(request: NextRequest) {
     return response;
 
   } catch (error) {
-    if (AUTH_TRACE) {
-      console.log(`[auth-debug] middleware: unexpected error:`, error);
-    }
+    console.log(`[auth-debug] middleware: unexpected error:`, error);
+    console.log(`[auth-debug] middleware: error stack:`, error instanceof Error ? error.stack : 'No stack trace');
     // Unexpected error, redirect to login
     const redirectResponse = NextResponse.redirect(
       new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
@@ -314,7 +393,11 @@ export async function middleware(request: NextRequest) {
 
 /**
  * Configure which routes to run middleware on
+ * Exclude auth callback routes to prevent interference with authentication flow
  */
 export const config = {
-  matcher: ['/admin', '/admin/(.*)'],
+  matcher: [
+    '/admin',
+    '/admin/((?!login|logout|callback).*)', // Exclude login, logout, and callback routes
+  ],
 };

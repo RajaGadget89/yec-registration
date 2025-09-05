@@ -1,10 +1,12 @@
 /**
  * RBAC (Role-Based Access Control) utility for YEC Registration
- * Implements staging-ready RBAC using environment-based allowlists
+ * Implements database-first RBAC with environment fallback
  *
  * This is the SINGLE SOURCE OF TRUTH for role determination.
  * All server-side RBAC checks should use this utility.
  */
+
+import { isAdminJobAssignmentEnabled } from "./features";
 
 export type Role =
   | "super_admin"
@@ -13,6 +15,9 @@ export type Role =
   | "admin_tcc";
 
 export type Dimension = "payment" | "profile" | "tcc";
+
+// Business role types for granular permissions
+export type BusinessRole = "user_profile" | "payment_slip" | "tcc_card";
 
 /**
  * Normalizes email for consistent comparison
@@ -96,6 +101,155 @@ export function canReviewDimension(
     default:
       return false;
   }
+}
+
+/**
+ * Checks if a user has a specific business role from database
+ * @param email - User email address
+ * @param businessRole - Business role to check
+ * @returns true if user has the business role, false otherwise
+ */
+export async function hasBusinessRole(
+  email: string,
+  businessRole: BusinessRole,
+): Promise<boolean> {
+  if (!email) return false;
+
+  // If feature is disabled, fall back to environment-based RBAC
+  if (!isAdminJobAssignmentEnabled()) {
+    return hasBusinessRoleFromEnv(email, businessRole);
+  }
+
+  try {
+    // Import here to avoid circular dependencies
+    const { getSupabaseServiceClient } = await import("./supabase-server");
+    const supabase = getSupabaseServiceClient();
+
+    const { data: admin, error } = await supabase
+      .from("admin_users")
+      .select("role, business_roles")
+      .eq("email", email.toLowerCase())
+      .eq("is_active", true)
+      .single();
+
+    if (error || !admin) {
+      // Fall back to environment-based RBAC
+      return hasBusinessRoleFromEnv(email, businessRole);
+    }
+
+    // Super admin has all business roles
+    if (admin.role === "super_admin") {
+      return true;
+    }
+
+    // Check if user has the specific business role
+    // If business_roles is null or undefined (column doesn't exist), fall back to environment-based RBAC
+    if (!admin.business_roles || admin.business_roles.length === 0) {
+      return hasBusinessRoleFromEnv(email, businessRole);
+    }
+    return admin.business_roles.includes(businessRole);
+  } catch (error) {
+    console.error("Error checking business role from database:", error);
+    // Fall back to environment-based RBAC
+    return hasBusinessRoleFromEnv(email, businessRole);
+  }
+}
+
+/**
+ * Checks if a user has a specific business role from environment variables (fallback)
+ * @param email - User email address
+ * @param businessRole - Business role to check
+ * @returns true if user has the business role, false otherwise
+ */
+function hasBusinessRoleFromEnv(
+  email: string,
+  businessRole: BusinessRole,
+): boolean {
+  const roles = getRolesForEmail(email);
+
+  // Super admin has all business roles
+  if (roles.has("super_admin")) {
+    return true;
+  }
+
+  // Map business roles to RBAC roles
+  switch (businessRole) {
+    case "user_profile":
+      return roles.has("admin_profile");
+    case "payment_slip":
+      return roles.has("admin_payment");
+    case "tcc_card":
+      return roles.has("admin_tcc");
+    default:
+      return false;
+  }
+}
+
+/**
+ * Gets all business roles for a user from database
+ * @param email - User email address
+ * @returns Array of business roles
+ */
+export async function getBusinessRoles(email: string): Promise<BusinessRole[]> {
+  if (!email) return [];
+
+  try {
+    // Import here to avoid circular dependencies
+    const { getSupabaseServiceClient } = await import("./supabase-server");
+    const supabase = getSupabaseServiceClient();
+
+    const { data: admin, error } = await supabase
+      .from("admin_users")
+      .select("role, business_roles")
+      .eq("email", email.toLowerCase())
+      .eq("is_active", true)
+      .single();
+
+    if (error || !admin) {
+      // Fall back to environment-based RBAC
+      return getBusinessRolesFromEnv(email);
+    }
+
+    // Super admin has all business roles
+    if (admin.role === "super_admin") {
+      return ["user_profile", "payment_slip", "tcc_card"];
+    }
+
+    // Return actual business roles
+    return admin.business_roles || [];
+  } catch (error) {
+    console.error("Error getting business roles from database:", error);
+    // Fall back to environment-based RBAC
+    return getBusinessRolesFromEnv(email);
+  }
+}
+
+/**
+ * Gets all business roles for a user from environment variables (fallback)
+ * @param email - User email address
+ * @returns Array of business roles
+ */
+function getBusinessRolesFromEnv(email: string): BusinessRole[] {
+  const roles = getRolesForEmail(email);
+  const businessRoles: BusinessRole[] = [];
+
+  // Super admin has all business roles
+  if (roles.has("super_admin")) {
+    return ["user_profile", "payment_slip", "tcc_card"];
+  }
+
+  // Map RBAC roles to business roles
+  if (roles.has("admin_profile")) {
+    businessRoles.push("user_profile");
+  }
+  if (roles.has("admin_payment")) {
+    businessRoles.push("payment_slip");
+  }
+  if (roles.has("admin_tcc")) {
+    businessRoles.push("tcc_card");
+  }
+
+  return businessRoles;
 }
 
 /**

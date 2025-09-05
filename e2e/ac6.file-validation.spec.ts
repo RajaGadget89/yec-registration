@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { config as loadDotenv } from 'dotenv';
 
 // Load environment variables for the test
-loadDotenv({ path: '.env.e2e' });
+loadDotenv({ path: '.env.local' });
 
 test.describe('AC6: File Validation Flow', () => {
   test('should validate file size and type via update flow', async ({ page, programmaticLogin }) => {

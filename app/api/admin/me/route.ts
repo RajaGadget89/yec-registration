@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import {
   getRolesForEmail,
+  getBusinessRoles,
   getEnvBuildId,
   logRBACInfo,
   normalizeEmail,
@@ -71,6 +72,7 @@ interface AdminMeResponse {
   ok: boolean;
   email: string;
   roles: Role[];
+  business_roles: string[];
   envBuildId: string;
   // Add database user information for compatibility with getCurrentUser()
   id?: string;
@@ -164,7 +166,24 @@ export async function GET(req: NextRequest) {
 
     // Authorize based on database record: allow both admin and super_admin roles
     if (!dbUser) {
-      return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+      // Fall back to RBAC system when database is unavailable
+      const roles = getRolesForEmail(email);
+      if (roles.size === 0) {
+        return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+      }
+
+      // Create a mock dbUser for RBAC fallback
+      dbUser = {
+        id: "rbac-fallback",
+        email: email,
+        role: roles.has("super_admin") ? "super_admin" : "admin",
+        is_active: true,
+        status: "active",
+        business_roles: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_login_at: null,
+      };
     }
 
     const role = dbUser.role; // 'admin' | 'super_admin'
@@ -180,6 +199,7 @@ export async function GET(req: NextRequest) {
 
     // Get user roles from RBAC system for additional context
     const roles = getRolesForEmail(email);
+    const businessRoles = await getBusinessRoles(email);
 
     // Log RBAC info for debugging
     logRBACInfo(email, roles);
@@ -188,6 +208,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       email: normalizeEmail(email),
       roles: Array.from(roles),
+      business_roles: businessRoles,
       envBuildId: getEnvBuildId(),
       // Add database user information
       id: dbUser.id,

@@ -28,6 +28,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
+    // Validate business role permissions for user management access
+    const { hasBusinessRole } = await import("../../../lib/rbac");
+    const hasUserManagementAccess = await hasBusinessRole(
+      currentUser.email,
+      "user_profile",
+    );
+    if (!hasUserManagementAccess) {
+      return NextResponse.json(
+        { error: "Insufficient permissions for user management access" },
+        { status: 403 },
+      );
+    }
+
     const supabase = getSupabaseAuth();
 
     // Get all admin users

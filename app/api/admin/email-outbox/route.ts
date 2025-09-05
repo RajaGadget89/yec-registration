@@ -32,6 +32,23 @@ async function getEmailOutbox(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Validate business role permissions for email outbox access (super_admin has all roles)
+    // Super admin automatically has user_profile business role, but let's be explicit
+    const { hasBusinessRole } = await import("../../../lib/rbac");
+    const hasEmailAccess = await hasBusinessRole(
+      currentUser.email,
+      "user_profile",
+    );
+    if (!hasEmailAccess) {
+      return NextResponse.json(
+        {
+          error:
+            "Insufficient business role permissions for email outbox access",
+        },
+        { status: 403 },
+      );
+    }
+
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const template = searchParams.get("template");
