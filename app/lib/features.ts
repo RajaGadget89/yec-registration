@@ -1,69 +1,44 @@
 /**
- * Feature flags system for controlling feature availability
- * Features can be enabled/disabled based on environment and configuration
- *
- * DEFAULT BEHAVIOR:
- * - TEST_HELPERS_ENABLED: OFF by default (must be explicitly set to '1')
- * - FEATURES_ADMIN_MANAGEMENT: OFF in production, ON in development/staging by default
+ * Feature flags for YEC Registration
+ * Controls the availability of new features
  */
 
-export interface FeatureFlags {
-  adminManagement: boolean;
+/**
+ * Check if a feature is enabled
+ * @param feature - Feature name to check
+ * @returns true if feature is enabled, false otherwise
+ */
+export function isFeatureEnabled(feature: string): boolean {
+  const envValue = process.env[`FEATURES_${feature.toUpperCase()}`];
+  return envValue === "true";
 }
 
 /**
- * Get feature flags based on environment
- * Default: ON in staging, OFF in production
+ * Feature flags
  */
-export function getFeatureFlags(): FeatureFlags {
-  const env = process.env.NODE_ENV || "development";
-  const adminManagementFlag = process.env.FEATURES_ADMIN_MANAGEMENT;
+export const FEATURES = {
+  ADMIN_JOB_ASSIGNMENT: "ADMIN_JOB_ASSIGNMENT",
+  GRANULAR_RBAC: "GRANULAR_RBAC",
+  ADMIN_MANAGEMENT: "ADMIN_MANAGEMENT",
+} as const;
 
-  // Explicit flag override
-  if (adminManagementFlag !== undefined) {
-    return {
-      adminManagement:
-        adminManagementFlag === "true" || adminManagementFlag === "1",
-    };
-  }
-
-  // Environment-based defaults
-  if (env === "production") {
-    return {
-      adminManagement: false, // OFF in production by default
-    };
-  }
-
-  // Development and staging defaults
-  return {
-    adminManagement: true, // ON in development/staging by default
-  };
+/**
+ * Check if admin job assignment feature is enabled
+ */
+export function isAdminJobAssignmentEnabled(): boolean {
+  return isFeatureEnabled(FEATURES.ADMIN_JOB_ASSIGNMENT);
 }
 
 /**
- * Check if a specific feature is enabled
+ * Check if granular RBAC feature is enabled
  */
-export function isFeatureEnabled(feature: keyof FeatureFlags): boolean {
-  const flags = getFeatureFlags();
-  return flags[feature];
+export function isGranularRBACEnabled(): boolean {
+  return isFeatureEnabled(FEATURES.GRANULAR_RBAC);
 }
 
 /**
- * Check if Admin Management feature is enabled
- * This is a convenience function for the specific feature flag
+ * Check if admin management feature is enabled
  */
 export function isAdminManagementEnabled(): boolean {
-  return isFeatureEnabled("adminManagement");
-}
-
-/**
- * Get feature flags for client-side use (safe to expose)
- */
-export function getClientFeatureFlags(): Partial<FeatureFlags> {
-  const flags = getFeatureFlags();
-
-  // Only expose features that are safe for client-side
-  return {
-    adminManagement: flags.adminManagement,
-  };
+  return isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT);
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseAuth } from "../../../lib/auth-client";
+import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 
 /**
  * Supabase Health Check Endpoint
@@ -13,7 +13,7 @@ export async function GET() {
   }
 
   try {
-    const supabase = getSupabaseAuth();
+    const supabase = getSupabaseServiceClient();
 
     // Test basic connectivity by checking if we can query the database
     const { error } = await supabase

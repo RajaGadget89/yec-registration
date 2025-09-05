@@ -1,0 +1,22 @@
+{
+  "timestamp": "2025-09-05T13:10:52.815Z",
+  "results": {
+    "database": {},
+    "authentication": {
+      "endpointsAccessible": true,
+      "adminMeEndpoint": true
+    },
+    "ac1ac6": {
+      "error": "adminUsers is not iterable"
+    },
+    "roleAssignment": {
+      "error": "Cannot read properties of null (reading 'filter')"
+    },
+    "apiEndpoints": {
+      "accessible": true
+    }
+  },
+  "recommendations": "Review failed tests",
+  "testEmail": "raja.gadgets89@gmail.com",
+  "appUrl": "http://localhost:8080"
+}

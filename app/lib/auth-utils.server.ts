@@ -14,6 +14,7 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   role: "admin" | "super_admin";
+  business_roles: string[];
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
@@ -68,27 +69,69 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     const {
       data: { user },
     } = await supa.auth.getUser();
-    if (!user?.email) return null;
 
-    const svc = getSupabaseServiceClient();
-    const { data: adminUser } = await svc
-      .from("admin_users")
-      .select("*")
-      .eq("email", user.email.toLowerCase())
-      .eq("is_active", true)
-      .single();
+    // If no Supabase session, try to get admin email from cookie as fallback
+    let adminEmail = user?.email;
+    if (!adminEmail) {
+      const adminEmailCookie = cookieStore.get("admin-email")?.value;
+      if (adminEmailCookie) {
+        adminEmail = decodeURIComponent(adminEmailCookie);
+        console.log(
+          `[AUTH] No Supabase session, but found admin-email cookie: ${adminEmail}`,
+        );
+      }
+    }
 
-    return adminUser
-      ? {
+    if (!adminEmail) return null;
+
+    // Try database first
+    try {
+      const svc = getSupabaseServiceClient();
+      const { data: adminUser } = await svc
+        .from("admin_users")
+        .select("*")
+        .eq("email", adminEmail.toLowerCase())
+        .eq("is_active", true)
+        .eq("status", "active")
+        .single();
+
+      if (adminUser) {
+        return {
           id: adminUser.id,
           email: adminUser.email,
           role: adminUser.role,
+          business_roles: adminUser.business_roles || [],
           created_at: adminUser.created_at,
           updated_at: adminUser.updated_at,
           last_login_at: adminUser.last_login_at,
           is_active: adminUser.is_active,
-        }
-      : null;
+        };
+      }
+    } catch (dbError) {
+      console.log(
+        "[auth] Database query failed, falling back to RBAC:",
+        dbError,
+      );
+    }
+
+    // Fall back to RBAC system when database is unavailable
+    const { getRolesForEmail, getBusinessRoles } = await import("./rbac");
+    const roles = getRolesForEmail(adminEmail);
+    if (roles.size > 0) {
+      const businessRoles = await getBusinessRoles(adminEmail);
+      return {
+        id: "rbac-fallback",
+        email: adminEmail,
+        role: roles.has("super_admin") ? "super_admin" : "admin",
+        business_roles: businessRoles,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_login_at: null,
+        is_active: true,
+      };
+    }
+
+    return null;
   } catch (e) {
     if (process.env.NODE_ENV !== "production")
       console.error("[auth] getCurrentUser():", e);
@@ -133,25 +176,54 @@ export async function getCurrentUserFromRequest(
 
     if (!adminEmail) return null;
 
-    const svc = getSupabaseServiceClient();
-    const { data: adminUser } = await svc
-      .from("admin_users")
-      .select("*")
-      .eq("email", adminEmail.toLowerCase())
-      .eq("is_active", true)
-      .single();
+    // Try database first
+    try {
+      const svc = getSupabaseServiceClient();
+      const { data: adminUser } = await svc
+        .from("admin_users")
+        .select("*")
+        .eq("email", adminEmail.toLowerCase())
+        .eq("is_active", true)
+        .eq("status", "active")
+        .single();
 
-    return adminUser
-      ? {
+      if (adminUser) {
+        return {
           id: adminUser.id,
           email: adminUser.email,
           role: adminUser.role,
+          business_roles: adminUser.business_roles || [],
           created_at: adminUser.created_at,
           updated_at: adminUser.updated_at,
           last_login_at: adminUser.last_login_at,
           is_active: adminUser.is_active,
-        }
-      : null;
+        };
+      }
+    } catch (dbError) {
+      console.log(
+        "[auth] Database query failed, falling back to RBAC:",
+        dbError,
+      );
+    }
+
+    // Fall back to RBAC system when database is unavailable
+    const { getRolesForEmail, getBusinessRoles } = await import("./rbac");
+    const roles = getRolesForEmail(adminEmail);
+    if (roles.size > 0) {
+      const businessRoles = await getBusinessRoles(adminEmail);
+      return {
+        id: "rbac-fallback",
+        email: adminEmail,
+        role: roles.has("super_admin") ? "super_admin" : "admin",
+        business_roles: businessRoles,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_login_at: null,
+        is_active: true,
+      };
+    }
+
+    return null;
   } catch (e) {
     if (process.env.NODE_ENV !== "production")
       console.error("[auth] getCurrentUserFromRequest():", e);

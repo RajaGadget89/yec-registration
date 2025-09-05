@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 import { config as loadDotenv } from 'dotenv';
 
 // Load environment variables
-loadDotenv({ path: '.env.e2e' });
+loadDotenv({ path: '.env.local' });
 
 /**
  * @see https://playwright.dev/docs/test-configuration

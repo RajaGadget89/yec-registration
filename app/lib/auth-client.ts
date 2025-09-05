@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "../types/database";
 
 /**
@@ -15,7 +15,7 @@ export interface AuthenticatedUser {
 }
 
 /**
- * Get Supabase client for client-side operations
+ * Get Supabase client for client-side operations with proper cookie persistence
  */
 function getSupabaseClientSide() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -25,7 +25,7 @@ function getSupabaseClientSide() {
     throw new Error("Missing Supabase environment variables");
   }
 
-  return createClient<Database>(supabaseUrl, supabaseAnonKey);
+  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
 }
 
 /**

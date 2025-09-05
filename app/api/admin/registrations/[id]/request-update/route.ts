@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { maybeServiceClient } from "../../../../../lib/supabase/server";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
 import { isAdmin } from "../../../../../lib/admin-guard";
-import { canReviewDimension } from "../../../../../lib/rbac";
+import { canReviewDimension, hasBusinessRole } from "../../../../../lib/rbac";
 import { EventService } from "../../../../../lib/events/eventService";
 import { withAuditLogging } from "../../../../../lib/audit/withAuditAccess";
 import { eventDrivenEmailService } from "../../../../../lib/emails/enhancedEmailService";
@@ -14,13 +14,25 @@ async function handlePOST(
   try {
     // Check admin authentication
     const user = await getCurrentUserFromRequest(request);
-    if (!user || !isAdmin(user.email)) {
+    const isAdminUser = user ? isAdmin(user.email) : false;
+
+    // Debug logging for E2E tests
+    if (process.env.E2E_TEST_MODE === "true") {
+      console.log(`[DEBUG] Admin check:`);
+      console.log(`  - User: ${user?.email || "null"}`);
+      console.log(`  - Is admin: ${isAdminUser}`);
+    }
+
+    if (!user || !isAdminUser) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     const { id } = params;
     const body = await request.json();
-    const { dimension, notes } = body;
+    const { dimension, notes } = body as {
+      dimension: "payment" | "profile" | "tcc";
+      notes?: string;
+    };
 
     // Validate dimension
     if (!dimension || !["payment", "profile", "tcc"].includes(dimension)) {
@@ -34,12 +46,52 @@ async function handlePOST(
     }
 
     // Check RBAC permissions for the specific dimension
-    if (!canReviewDimension(user.email, dimension)) {
+    const canReview = canReviewDimension(user.email, dimension);
+
+    // Debug logging for E2E tests
+    if (process.env.E2E_TEST_MODE === "true") {
+      console.log(`[DEBUG] RBAC check for ${user.email}:`);
+      console.log(`  - Dimension: ${dimension}`);
+      console.log(`  - Can review dimension: ${canReview}`);
+    }
+
+    if (!canReview) {
       return NextResponse.json(
         {
           ok: false,
           error: "forbidden",
           message: `You do not have permission to request updates for ${dimension} dimension`,
+        },
+        { status: 403 },
+      );
+    }
+
+    // Check business role permissions for the specific dimension
+    const businessRoleMap = {
+      payment: "payment_slip" as const,
+      profile: "user_profile" as const,
+      tcc: "tcc_card" as const,
+    };
+
+    const requiredBusinessRole = businessRoleMap[dimension];
+    const hasRequiredRole = await hasBusinessRole(
+      user.email,
+      requiredBusinessRole,
+    );
+
+    // Debug logging for E2E tests
+    if (process.env.E2E_TEST_MODE === "true") {
+      console.log(`[DEBUG] Request update check for ${user.email}:`);
+      console.log(`  - Dimension: ${dimension}`);
+      console.log(`  - Required business role: ${requiredBusinessRole}`);
+      console.log(`  - Has required role: ${hasRequiredRole}`);
+    }
+
+    if (!hasRequiredRole) {
+      return NextResponse.json(
+        {
+          error: "insufficient permissions",
+          message: `Admin does not have ${requiredBusinessRole} scope`,
         },
         { status: 403 },
       );

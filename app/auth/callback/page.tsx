@@ -1,18 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, AlertCircle, CheckCircle, Mail } from "lucide-react";
+import { getSupabaseAuth } from "../../lib/auth-client";
 
 /**
  * Auth Callback Page
  *
  * This page handles the OAuth callback from Supabase magic links.
- * It extracts tokens from the URL hash and posts them to /api/auth/callback.
- * The server-side callback now establishes proper Supabase sessions.
+ * It supports both hash-based tokens and PKCE code exchange.
  */
 
 export default function AuthCallbackPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "error" | "success">(
     "loading",
   );
@@ -47,148 +50,132 @@ export default function AuthCallbackPage() {
           return;
         }
 
-        // Parse location.hash for tokens
+        const supabase = getSupabaseAuth();
+        const nextParam = searchParams.get("next") || "/admin";
+
+        // 1) Try hash tokens first (email link variant)
         const hash = window.location.hash;
-        const hashParams = new URLSearchParams(hash.substring(1)); // Remove the # symbol
+        const hashParams = new URLSearchParams(
+          hash.startsWith("#") ? hash.slice(1) : hash,
+        );
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
-        const nextParam = new URLSearchParams(window.location.search).get(
-          "next",
-        );
 
-        // DEBUG: Log all URL parameters
-        console.log("[callback] URL analysis:", {
-          hash,
-          hashParams: Object.fromEntries(hashParams.entries()),
-          searchParams: Object.fromEntries(
-            new URLSearchParams(window.location.search).entries(),
-          ),
-          accessTokenLength: accessToken?.length || 0,
-          refreshTokenLength: refreshToken?.length || 0,
-          nextParam,
-          fullUrl: window.location.href,
-        });
+        if (accessToken && refreshToken) {
+          console.log("[callback] found hash tokens, setting server cookies");
+          console.log("[callback] token lengths:", {
+            accessToken: accessToken.length,
+            refreshToken: refreshToken.length,
+          });
 
-        if (!accessToken || !refreshToken) {
-          console.log("[callback] missing tokens in hash");
-          setStatus("error");
-          setErrorMessage(
-            "No access token or refresh token found in URL. Please request a new magic link.",
-          );
-          return;
-        }
+          // Validate token format (basic check)
+          if (accessToken.split(".").length !== 3) {
+            console.log("[callback] invalid access token format");
+            setStatus("error");
+            setErrorMessage(
+              "Invalid magic link format. Please request a new one.",
+            );
+            return;
+          }
 
-        // Validate token format (basic check)
-        if (accessToken.split(".").length !== 3) {
-          console.log("[callback] invalid access token format");
-          setStatus("error");
-          setErrorMessage(
-            "Invalid magic link format. Please request a new one.",
-          );
-          return;
-        }
+          // Set server cookies first
+          const serverResponse = await fetch("/api/auth/session", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            }),
+          });
 
-        console.log("[callback] tokens found, posting to server");
-        console.log("[callback] token lengths:", {
-          accessToken: accessToken?.length || 0,
-          refreshToken: refreshToken?.length || 0,
-        });
+          if (!serverResponse.ok) {
+            console.error(
+              "[callback] server cookie set failed:",
+              serverResponse.status,
+            );
+            setStatus("error");
+            setErrorMessage(
+              "Authentication failed: Server session setup failed",
+            );
+            return;
+          }
 
-        // POST tokens to API route for session establishment
-        const response = await fetch("/api/auth/callback", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+          // Keep client session in sync (optional but fine)
+          const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
-            next: nextParam,
-          }),
-        });
+          });
 
-        console.log("[callback] API response status:", response.status);
-        console.log(
-          "[callback] API response headers:",
-          Object.fromEntries(response.headers.entries()),
-        );
+          if (error) {
+            console.warn("[callback] client session sync failed:", error);
+            // Don't fail the whole flow for client sync issues
+          }
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error("[callback] API error response:", errorData);
-          setStatus("error");
-          setErrorMessage(
-            `Authentication failed: ${errorData.message || response.statusText}`,
+          console.log("[callback] server cookies set successfully");
+          setStatus("success");
+          setSuccessMessage(
+            "Authentication successful! Redirecting to admin dashboard...",
           );
+
+          // Clean URL and redirect
+          console.log("[callback] redirecting to:", nextParam);
+          setTimeout(() => {
+            history.replaceState({}, "", "/auth/callback");
+            console.log(
+              "[callback] executing window.location.href redirect to:",
+              nextParam,
+            );
+            window.location.href = nextParam;
+          }, 500);
           return;
         }
 
-        // Check for redirect location
-        const location = response.headers.get("location");
-        console.log("[callback] location header:", location);
-
-        if (location) {
-          console.log("[callback] redirecting to:", location);
-
-          // Show success message briefly before redirect
-          setStatus("success");
-          setSuccessMessage(
-            "Authentication successful! Redirecting to admin dashboard...",
-          );
-
-          // Clean the URL and redirect after a brief delay
-          setTimeout(() => {
-            // Clean the URL first
-            history.replaceState({}, "", "/auth/callback");
-
-            // Then redirect
-            window.location.href = location;
-          }, 1000);
-        } else if (response.redirected) {
-          // Browser already followed the redirect, check if we're on admin page
+        // 2) Fallback to PKCE code in query
+        const code = searchParams.get("code");
+        if (code) {
           console.log(
-            "[callback] browser followed redirect, checking current location...",
+            "[callback] found code parameter, exchanging for server session",
           );
 
-          // Check if we're already on the admin page
-          if (window.location.pathname === "/admin") {
-            console.log(
-              "[callback] already on admin page, authentication successful!",
-            );
-            setStatus("success");
-            setSuccessMessage(
-              "Authentication successful! You are now on the admin dashboard.",
-            );
+          // Set server cookies via code exchange
+          const serverResponse = await fetch("/api/auth/session", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ code }),
+          });
 
-            // Clean the URL
-            history.replaceState({}, "", "/admin");
-          } else {
-            // Redirect happened but we're not on admin page
-            console.log(
-              "[callback] redirect followed but not on admin page, redirecting manually...",
+          if (!serverResponse.ok) {
+            console.error(
+              "[callback] server code exchange failed:",
+              serverResponse.status,
             );
-            setStatus("success");
-            setSuccessMessage(
-              "Authentication successful! Redirecting to admin dashboard...",
+            setStatus("error");
+            setErrorMessage(
+              "Authentication failed: Server session setup failed",
             );
-
-            // Redirect to admin page
-            setTimeout(() => {
-              window.location.href = "/admin";
-            }, 1000);
+            return;
           }
-        } else {
-          // No redirect - this shouldn't happen with the new implementation
-          console.log("[callback] no redirect found, redirecting manually");
+
+          console.log("[callback] server code exchange successful");
           setStatus("success");
           setSuccessMessage(
             "Authentication successful! Redirecting to admin dashboard...",
           );
 
+          // Clean URL and redirect
           setTimeout(() => {
-            window.location.href = "/admin";
+            history.replaceState({}, "", "/auth/callback");
+            router.replace(nextParam);
           }, 1000);
+          return;
         }
+
+        // 3) Nothing usable → error state
+        console.log("[callback] no usable tokens or code found");
+        setStatus("error");
+        setErrorMessage(
+          "No authentication tokens found in URL. Please request a new magic link.",
+        );
       } catch (error) {
         console.error("[callback] unexpected error:", error);
         setStatus("error");
@@ -199,7 +186,7 @@ export default function AuthCallbackPage() {
     };
 
     handleAuthCallback();
-  }, []);
+  }, [router, searchParams]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-yec-primary via-blue-600 to-blue-500 flex items-center justify-center p-4">
