@@ -1,11 +1,27 @@
 import { test as base, expect } from '@playwright/test';
 import crypto from 'crypto';
+import { signInAs, getAdminApi, getUserEmail, type UserRole } from '../utils/auth';
 
 export interface AuthFixtures {
   programmaticLogin: (email: string) => Promise<void>;
+  signInAs: (role: UserRole) => Promise<void>;
+  getAdminApi: (role?: UserRole) => Promise<any>;
+  getUserEmail: (role: UserRole) => string;
 }
 
-// Test user email mapping
+// Check if test helpers are enabled
+const E2E_ON = process.env.E2E_TEST_MODE === 'true' && process.env.TEST_HELPERS_ENABLED === '1';
+
+// Centralize test actors (adjust to AC2 expectations)
+export const TEST_ACTORS = E2E_ON ? {
+  super: 'raja.gadgets89@gmail.com',
+  admin_payment: 'raja.gadgets89@gmail.com',
+  admin_tcc: 'dave@yec.dev',
+  admin_profile: 'raja.gadgets89@gmail.com',
+  dave: 'dave@yec.dev',
+} : {} as const;
+
+// Test user email mapping (legacy - use utils/auth.ts instead)
 const TEST_USERS = {
   'publicUser': 'test@example.com',
   'adminProfile': 'raja.gadgets89@gmail.com',
@@ -14,38 +30,60 @@ const TEST_USERS = {
   'superAdmin': 'raja.gadgets89@gmail.com', // Updated to match the actual super admin
 } as const;
 
-export function getUserEmail(userType: keyof typeof TEST_USERS): string {
-  return TEST_USERS[userType];
+/**
+ * Generate HMAC signature for E2E authentication
+ */
+function signE2E({ method, path, ts, secret }: { method: string; path: string; ts: string; secret: string }) {
+  const msg = `${method}:${path}:${ts}`;
+  return crypto.createHmac('sha256', secret).update(msg).digest('hex');
 }
 
 export const test = base.extend<AuthFixtures>({
+  signInAs: async ({ page }, use) => {
+    await use(async (role: UserRole) => {
+      await signInAs(page, role);
+    });
+  },
+  
+  getAdminApi: async ({ page }, use) => {
+    await use(async (role: UserRole = 'super_admin') => {
+      return await getAdminApi(page, role);
+    });
+  },
+  
+  getUserEmail: async ({}, use) => {
+    await use((role: UserRole) => {
+      return getUserEmail(role);
+    });
+  },
+
   programmaticLogin: async ({ page }, use) => {
     await use(async (email: string) => {
+      if (!E2E_ON) {
+        throw new Error('E2E helpers disabled');
+      }
+
       const e2eAuthSecret = process.env.E2E_AUTH_SECRET;
       if (!e2eAuthSecret) {
         throw new Error('E2E_AUTH_SECRET environment variable is required');
       }
 
-      // Calculate HMAC for authentication
+      // Calculate HMAC for authentication dynamically
       const payload = JSON.stringify({ email });
-      
-      // Use the correct HMAC that the server expects
-      let hmac;
-      if (email === 'alice@yec.dev') {
-        hmac = '11160da6d01074c04b4e9410da15b02a5b23cfebc4762e468a026da4bd301f3a';
-      } else if (email === 'raja.gadgets89@gmail.com') {
-        hmac = 'ffdec3490673129170ccc456c6658e701ae99cda36d72ae0528fcbacc2d73e8c';
-      } else if (email === 'dave@yec.dev') {
-        hmac = '4b51e0fa450fcd864c3fec17b07e4f57721cb73a0ba1252449c171bab70cced2';
-      } else {
-        hmac = crypto
-          .createHmac('sha256', e2eAuthSecret)
-          .update(payload)
-          .digest('hex');
-      }
+      const hmac = crypto
+        .createHmac('sha256', e2eAuthSecret)
+        .update(payload)
+        .digest('hex');
 
       // Use the page context to make the request so cookies are properly shared
       const base = process.env.E2E_BASE_URL || 'http://localhost:8080';
+      
+      // Debug logging
+      console.log(`[DEBUG] programmaticLogin calling test auth endpoint for ${email}`);
+      console.log(`[DEBUG] E2E_TEST_MODE: ${process.env.E2E_TEST_MODE}`);
+      console.log(`[DEBUG] TEST_HELPERS_ENABLED: ${process.env.TEST_HELPERS_ENABLED}`);
+      console.log(`[DEBUG] HMAC: ${hmac}`);
+      
       const response = await page.request.post(`${base}/api/test/auth/login`, {
         headers: {
           'Content-Type': 'application/json',
@@ -54,6 +92,9 @@ export const test = base.extend<AuthFixtures>({
         data: { email },
       });
 
+      console.log(`[DEBUG] Test auth login response status: ${response.status()}`);
+      console.log(`[DEBUG] Test auth login response text: ${await response.text()}`);
+      
       if (response.status() !== 204) {
         throw new Error(`Login failed: ${response.status()} ${response.statusText()}`);
       }

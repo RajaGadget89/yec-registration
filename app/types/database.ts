@@ -244,11 +244,15 @@ export interface RegistrationUpdate {
   updated_at?: string;
 }
 
+// Business role types for granular admin permissions
+export type BusinessRole = "user_profile" | "payment_slip" | "tcc_card";
+
 // Admin user table types
 export interface AdminUser {
   id: string;
   email: string;
   role: "admin" | "super_admin";
+  business_roles: BusinessRole[];
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
@@ -258,6 +262,7 @@ export interface AdminUser {
 export interface AdminUserInsert {
   email: string;
   role?: "admin" | "super_admin";
+  business_roles?: BusinessRole[];
   created_at?: string;
   updated_at?: string;
 }
@@ -265,6 +270,7 @@ export interface AdminUserInsert {
 export interface AdminUserUpdate {
   email?: string;
   role?: "admin" | "super_admin";
+  business_roles?: BusinessRole[];
   created_at?: string;
   updated_at?: string;
 }

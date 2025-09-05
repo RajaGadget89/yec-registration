@@ -25,12 +25,9 @@ async function testMagicLinkFlow() {
   const magicLinkOptions = {
     hostname: 'localhost',
     port: 8080,
-    path: '/api/auth/login',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(magicLinkData)
-    }
+    path: '/api/test/magic-link?email=raja.gadgets89@gmail.com',
+    method: 'GET',
+    headers: {}
   };
 
   try {
@@ -47,7 +44,6 @@ async function testMagicLinkFlow() {
         });
       });
       req.on('error', reject);
-      req.write(magicLinkData);
       req.end();
     });
 

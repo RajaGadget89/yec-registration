@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 import { getAppUrl } from "../../../lib/auth-utils";
 import { isE2E } from "../../../lib/env/isE2E";
+import { getEmailTransport } from "../../../lib/emails/transport";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -149,6 +150,45 @@ export async function GET(request: NextRequest) {
       redirectTo,
       dataProperties: data.properties,
     });
+
+    // Send the magic link via email
+    try {
+      const emailTransport = getEmailTransport();
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">YEC Admin Login (Test)</h2>
+          <p>Click the link below to sign in to your admin account:</p>
+          <a href="${data.properties.action_link}" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 20px 0;">
+            Sign In to Admin Dashboard
+          </a>
+          <p style="color: #666; font-size: 14px;">
+            If the button doesn't work, copy and paste this link into your browser:<br>
+            <a href="${data.properties.action_link}">${data.properties.action_link}</a>
+          </p>
+          <p style="color: #666; font-size: 12px;">
+            This link will expire in 1 hour for security reasons.
+          </p>
+        </div>
+      `;
+
+      const emailResult = await emailTransport.send({
+        to: email,
+        subject: "YEC Admin Login - Magic Link (Test)",
+        html: emailHtml,
+      });
+
+      if (emailResult.ok) {
+        console.log("[magic-link] Test email sent successfully to:", email);
+      } else {
+        console.error(
+          "[magic-link] Test email sending failed:",
+          emailResult.reason,
+        );
+      }
+    } catch (emailError) {
+      console.error("[magic-link] Test email sending error:", emailError);
+    }
 
     return NextResponse.json({
       ok: true,
