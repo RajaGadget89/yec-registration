@@ -1,19 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, AlertCircle, CheckCircle, Mail } from "lucide-react";
 import { getSupabaseAuth } from "../../lib/auth-client";
 
 /**
- * Auth Callback Page
+ * Auth Callback Content Component
  *
- * This page handles the OAuth callback from Supabase magic links.
- * It supports both hash-based tokens and PKCE code exchange.
+ * This component handles the OAuth callback logic and must be wrapped in Suspense
+ * because it uses useSearchParams() which requires Suspense boundary in Next.js App Router.
  */
-
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "error" | "success">(
@@ -244,5 +243,51 @@ export default function AuthCallbackPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Loading fallback component for Suspense boundary
+ */
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-yec-primary via-blue-600 to-blue-500 flex items-center justify-center p-4">
+      {/* Background decorations */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-blue-300/30 to-yec-accent/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-yec-highlight/30 to-blue-300/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] bg-gradient-to-br from-blue-200/10 to-blue-300/10 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="w-full max-w-md">
+        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 text-yec-primary animate-spin mx-auto mb-4" />
+            <h1 className="text-xl font-bold text-gray-900 mb-2">
+              Loading Authentication
+            </h1>
+            <p className="text-gray-600">
+              Please wait while we prepare your authentication...
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Auth Callback Page
+ *
+ * This page handles the OAuth callback from Supabase magic links.
+ * It supports both hash-based tokens and PKCE code exchange.
+ *
+ * Wrapped in Suspense boundary to handle useSearchParams() properly in Next.js App Router.
+ */
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
