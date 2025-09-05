@@ -1,6 +1,7 @@
 import { getSupabaseServiceClient } from "../../lib/supabase-server";
 import { EventFactory } from "../../lib/events/eventFactory";
 import { EventService } from "../../lib/events/eventService";
+import { BusinessRole } from "../../types/database";
 
 export interface ListAdminsParams {
   search?: string;
@@ -22,6 +23,7 @@ export interface UpdateAdminParams {
   adminId: string;
   addRoles?: string[];
   removeRoles?: string[];
+  businessRoles?: BusinessRole[];
   status?: "active" | "suspended";
   updatedBy: string;
   correlationId: string;
@@ -74,7 +76,10 @@ export class AdminsService {
     }
 
     return {
-      admins: admins || [],
+      admins: (admins || []).map((admin) => ({
+        ...admin,
+        business_roles: admin.business_roles || [],
+      })),
       total: count || 0,
       page,
       pageSize,
@@ -135,6 +140,11 @@ export class AdminsService {
       } else if (params.removeRoles?.includes("super_admin")) {
         updateData.role = "admin";
       }
+    }
+
+    // Handle business roles updates
+    if (params.businessRoles !== undefined) {
+      updateData.business_roles = params.businessRoles;
     }
 
     // Handle status updates

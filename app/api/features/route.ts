@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
-import { getClientFeatureFlags } from "../../lib/features";
+import { isFeatureEnabled, FEATURES } from "../../lib/features";
 
 export async function GET() {
   try {
-    const flags = getClientFeatureFlags();
+    const flags = {
+      adminJobAssignment: isFeatureEnabled(FEATURES.ADMIN_JOB_ASSIGNMENT),
+      granularRBAC: isFeatureEnabled(FEATURES.GRANULAR_RBAC),
+      adminManagement: isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT),
+    };
 
     return NextResponse.json(flags);
   } catch (error) {

@@ -4,10 +4,10 @@ import { config as loadDotenv } from 'dotenv';
 import fs from 'fs';
 import path from 'path';
 
-// Load environment variables from .env.e2e file
-// Skip loading .env.e2e for CI health checks to avoid overriding SUPABASE_ENV
+// Load environment variables from .env.local file
+// Skip loading .env.local for CI health checks to avoid overriding SUPABASE_ENV
 if (process.env.SKIP_E2E_ENV !== 'true') {
-  loadDotenv({ path: '.env.e2e' });
+  loadDotenv({ path: '.env.local' });
 }
 
 /**
@@ -33,6 +33,9 @@ export default defineConfig({
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
   },
+  
+  /* Set environment variables for tests */
+  globalSetup: require.resolve('./e2e/global.setup.ts'),
 
   /* Configure projects for major browsers */
   projects: [

@@ -18,6 +18,7 @@ interface AdminUser {
   id: string;
   email: string;
   role: "admin" | "super_admin";
+  business_roles: string[];
   status: "active" | "suspended";
   created_at: string;
   updated_at: string;
@@ -155,9 +156,69 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
     }
   };
 
+  const handleBusinessRolesChange = async (
+    adminId: string,
+    newBusinessRoles: string[],
+  ) => {
+    setActionLoading(`business-roles-${adminId}`);
+    try {
+      const response = await fetch(
+        `/api/admin/management/admins/${adminId}/roles`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ business_roles: newBusinessRoles }),
+        },
+      );
+
+      if (response.ok) {
+        // Refresh the list
+        await fetchAdmins();
+      } else {
+        const data = await response.json();
+        setError(data.error || "Failed to update business roles");
+      }
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const [deletePlan, setDeletePlan] = useState<any>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [editingBusinessRoles, setEditingBusinessRoles] = useState<
+    string | null
+  >(null);
+  const [tempBusinessRoles, setTempBusinessRoles] = useState<string[]>([]);
+
+  const startEditingBusinessRoles = (
+    adminId: string,
+    currentRoles: string[],
+  ) => {
+    setEditingBusinessRoles(adminId);
+    setTempBusinessRoles([...currentRoles]);
+  };
+
+  const cancelEditingBusinessRoles = () => {
+    setEditingBusinessRoles(null);
+    setTempBusinessRoles([]);
+  };
+
+  const saveBusinessRoles = async (adminId: string) => {
+    await handleBusinessRolesChange(adminId, tempBusinessRoles);
+    setEditingBusinessRoles(null);
+    setTempBusinessRoles([]);
+  };
+
+  const toggleBusinessRole = (role: string) => {
+    setTempBusinessRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
+    );
+  };
 
   const handleDeleteClick = async (adminId: string) => {
     try {
@@ -456,6 +517,9 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                   Role
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  Job Scopes
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
@@ -497,6 +561,81 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getRoleBadge(admin.role)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {editingBusinessRoles === admin.id ? (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-1">
+                          {["user_profile", "payment_slip", "tcc_card"].map(
+                            (role) => (
+                              <label
+                                key={role}
+                                className="flex items-center space-x-1"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={tempBusinessRoles.includes(role)}
+                                  onChange={() => toggleBusinessRole(role)}
+                                  className="rounded border-gray-300"
+                                />
+                                <span className="text-xs text-gray-700 dark:text-gray-300">
+                                  {role
+                                    .replace("_", " ")
+                                    .replace(/\b\w/g, (l) => l.toUpperCase())}
+                                </span>
+                              </label>
+                            ),
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => saveBusinessRoles(admin.id)}
+                            className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={cancelEditingBusinessRoles}
+                            className="px-2 py-1 text-xs bg-gray-600 text-white rounded hover:bg-gray-700"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap gap-1">
+                          {admin.business_roles &&
+                          admin.business_roles.length > 0 ? (
+                            admin.business_roles.map((role) => (
+                              <span
+                                key={role}
+                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200"
+                              >
+                                {role
+                                  .replace("_", " ")
+                                  .replace(/\b\w/g, (l) => l.toUpperCase())}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-gray-500 dark:text-gray-400 text-xs">
+                              No scopes
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() =>
+                            startEditingBusinessRoles(
+                              admin.id,
+                              admin.business_roles || [],
+                            )
+                          }
+                          className="text-blue-600 hover:text-blue-800 text-xs"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(admin.status, admin.is_active)}

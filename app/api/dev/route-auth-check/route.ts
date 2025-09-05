@@ -1,77 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUserFromRequest } from "../../../lib/auth-utils.server";
-import { guardTestEndpoint } from "@/app/lib/test-guard";
+import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
 
+/**
+ * Test-only authentication probe endpoint for E2E testing
+ * Only works when E2E_TEST_MODE=true AND TEST_HELPERS_ENABLED=1
+ * Validates HMAC signature and returns auth readiness status
+ */
 export async function GET(request: NextRequest) {
-  const guard = guardTestEndpoint(request);
-  if (!guard.allowed) {
-    return new Response(guard.message, { status: guard.status });
+  // Check if both test flags are enabled
+  const e2eTestMode = process.env.E2E_TEST_MODE === "true";
+  const testHelpersEnabled = process.env.TEST_HELPERS_ENABLED === "1";
+
+  if (!e2eTestMode || !testHelpersEnabled) {
+    return new NextResponse("Not Found", { status: 404 });
   }
 
-  console.log("[ROUTE_AUTH_CHECK] Endpoint called");
-
   try {
-    // Test the fixed getCurrentUserFromRequest function
-    const user = await getCurrentUserFromRequest(request);
-    console.log("[ROUTE_AUTH_CHECK] User from request:", user);
+    // Validate HMAC signature
+    const authHeader = request.headers.get("X-E2E-SIGN");
+    const e2eAuthSecret = process.env.E2E_AUTH_SECRET;
+    const timestamp = request.headers.get("X-E2E-TIMESTAMP");
 
-    // Get all request headers for debugging
-    const headers = Object.fromEntries(request.headers.entries());
-    console.log("[ROUTE_AUTH_CHECK] Request headers:", headers);
-
-    // Check for specific cookies
-    const cookieHeader = request.headers.get("cookie");
-    const cookies = cookieHeader
-      ? Object.fromEntries(
-          cookieHeader.split(";").map((cookie) => {
-            const [name, value] = cookie.trim().split("=");
-            return [name, value];
-          }),
-        )
-      : {};
-
-    // Check for Supabase session cookies
-    const supabaseCookies = {
-      accessToken: cookies["sb-access-token"],
-      refreshToken: cookies["sb-refresh-token"],
-      adminEmail: cookies["admin-email"],
-    };
-
-    if (!user) {
-      return NextResponse.json(
-        {
-          ok: false,
-          email: null,
-          err: "Not authenticated",
-          cookies: supabaseCookies,
-          headers: Object.keys(headers),
-        },
-        { status: 401 },
-      );
+    if (!authHeader || !e2eAuthSecret || !timestamp) {
+      return new NextResponse("Missing authentication headers", {
+        status: 403,
+      });
     }
 
-    return NextResponse.json({
-      ok: true,
-      email: user.email,
-      role: user.role,
-      isActive: user.is_active,
-      cookies: supabaseCookies,
-      headers: Object.keys(headers),
+    // Check timestamp skew (allow 60 seconds)
+    const now = Math.floor(Date.now() / 1000);
+    const requestTime = parseInt(timestamp, 10);
+    if (Math.abs(now - requestTime) > 60) {
+      return new NextResponse("Request timestamp too old", { status: 403 });
+    }
+
+    // Calculate expected HMAC: method:path:timestamp
+    const method = "GET";
+    const path = "/api/dev/route-auth-check";
+    const payload = `${method}:${path}:${timestamp}`;
+    const expectedHmac = crypto
+      .createHmac("sha256", e2eAuthSecret)
+      .update(payload)
+      .digest("hex");
+
+    if (authHeader !== expectedHmac) {
+      return new NextResponse("Invalid authentication signature", {
+        status: 403,
+      });
+    }
+
+    // Return 204 with e2e header to indicate ready state
+    return new NextResponse(null, {
+      status: 204,
+      headers: {
+        "x-e2e": "true",
+        "x-auth-ready": "true",
+      },
     });
   } catch (error) {
-    console.error("[ROUTE_AUTH_CHECK] Error:", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        email: null,
-        err: String(error),
-        cookies: {},
-        headers: [],
-      },
-      { status: 500 },
-    );
+    console.error("[dev/route-auth-check] error:", error);
+    return new NextResponse("Internal server error", { status: 500 });
   }
 }

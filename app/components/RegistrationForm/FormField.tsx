@@ -18,6 +18,8 @@ interface FormFieldType {
     maxFileSize?: number;
     customValidation?: (value: any) => string | null;
   };
+  accept?: string;
+  multiple?: boolean;
 }
 
 interface FormFieldProps {
@@ -152,6 +154,60 @@ export default function FormField({
           />
         );
 
+      case "upload": {
+        const inputId = field.id;
+        const accept =
+          field.accept ||
+          (field.validation?.fileTypes
+            ? field.validation.fileTypes.join(",")
+            : "*/*");
+        const multiple = Boolean(field.multiple);
+
+        return (
+          <input
+            id={inputId}
+            name={inputId}
+            type="file"
+            data-testid={`input-file-${inputId}`}
+            accept={accept}
+            multiple={multiple}
+            onChange={(e) => {
+              const files = e.currentTarget.files
+                ? Array.from(e.currentTarget.files)
+                : [];
+              // Pass File[] upward; parent form state may store as File | File[] | undefined
+              onChange(multiple ? files : (files[0] ?? null));
+            }}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            className={`w-full p-3 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white ${getBorderColor()} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100`}
+            required={field.required}
+            aria-invalid={Boolean(error) || undefined}
+            aria-describedby={error ? `${inputId}-error` : undefined}
+          />
+        );
+      }
+
+      case "province":
+        return (
+          <select
+            id={field.id}
+            value={value || ""}
+            onChange={handleChange}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            className={`w-full p-3 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white ${getBorderColor()} focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
+            required={field.required}
+          >
+            <option value="">{field.placeholder || "เลือกจังหวัด..."}</option>
+            {field.options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
+
       default:
         return (
           <input
@@ -187,7 +243,12 @@ export default function FormField({
       {renderField()}
 
       {error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        <p
+          id={`${field.id}-error`}
+          className="text-sm text-red-600 dark:text-red-400"
+        >
+          {error}
+        </p>
       )}
 
       {field.validation?.message && !error && (
