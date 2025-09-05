@@ -5,7 +5,10 @@ import {
 } from "../../../../lib/auth-utils.server";
 import { getSupabaseServiceClient } from "../../../../lib/supabase-server";
 import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
-import { isFeatureEnabled } from "../../../../lib/features";
+import {
+  isAdminJobAssignmentEnabled,
+  isFeatureEnabled,
+} from "../../../../lib/features";
 
 // Super admin allowlist as specified in requirements
 const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
@@ -134,6 +137,9 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
         id: admin.id,
         email: admin.email,
         role: admin.role,
+        ...(isAdminJobAssignmentEnabled() && {
+          business_roles: admin.business_roles || [],
+        }),
         status: admin.is_active ? "active" : "suspended",
         created_at: admin.created_at,
         updated_at: admin.updated_at,

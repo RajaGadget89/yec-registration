@@ -44,8 +44,8 @@ All tests use stable `data-testid` selectors:
 ### 1. Environment Configuration
 Copy the environment template and configure:
 ```bash
-cp env.e2e.template .env.e2e
-# Edit .env.e2e with your values
+cp env.e2e.template .env.local
+# Edit .env.local with your values
 ```
 
 ### 2. Feature Flag Configuration

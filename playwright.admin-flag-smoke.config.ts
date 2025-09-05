@@ -2,8 +2,8 @@
 import { defineConfig, devices } from '@playwright/test';
 import { config as loadDotenv } from 'dotenv';
 
-// Load environment variables from .env.e2e file
-loadDotenv({ path: '.env.e2e' });
+// Load environment variables from .env.local file
+loadDotenv({ path: '.env.local' });
 
 /**
  * Configuration for Admin Management Feature Flag Smoke Tests

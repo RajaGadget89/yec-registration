@@ -31,7 +31,7 @@ export {
 
 /**
  * Check if email is in admin allowlist
- * Database-first approach with environment variable fallback
+ * Database-first approach with RBAC system fallback and legacy environment variable support
  */
 export async function isAdmin(email: string): Promise<boolean> {
   if (!email) return false;
@@ -43,22 +43,40 @@ export async function isAdmin(email: string): Promise<boolean> {
 
     const { data: adminUser, error } = await supabase
       .from("admin_users")
-      .select("email, role, is_active")
+      .select("email, role, is_active, status")
       .eq("email", email.toLowerCase())
       .eq("is_active", true)
+      .eq("status", "active")
       .single();
 
     if (!error && adminUser) {
       return true; // User exists in database and is active
     }
 
-    // Step 2: Fall back to environment variables (legacy support)
+    // Step 2: Fall back to RBAC system (new approach for AC1-AC6)
+    const { getRolesForEmail } = await import("./rbac");
+    const roles = getRolesForEmail(email);
+    if (roles.size > 0) {
+      return true; // User has any admin role
+    }
+
+    // Step 3: Fall back to legacy ADMIN_EMAILS (backward compatibility)
     const adminEmails =
       process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
       [];
     return adminEmails.includes(email.toLowerCase());
   } catch {
-    // Step 3: Environment fallback on database error
+    // Step 4: Environment fallback on any error
+    try {
+      const { getRolesForEmail } = await import("./rbac");
+      const roles = getRolesForEmail(email);
+      if (roles.size > 0) {
+        return true;
+      }
+    } catch {
+      // Ignore RBAC errors and continue to legacy fallback
+    }
+
     const adminEmails =
       process.env.ADMIN_EMAILS?.split(",").map((e) => e.trim().toLowerCase()) ||
       [];
