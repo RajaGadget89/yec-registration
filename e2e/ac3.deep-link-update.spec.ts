@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import { config as loadDotenv } from 'dotenv';
 
 // Load environment variables for the test
-loadDotenv({ path: '.env.e2e' });
+loadDotenv({ path: '.env.local' });
 
 test.describe('AC3 - Deep-link Update', () => {
   test('should handle invalid deep-link token', async ({ page }) => {

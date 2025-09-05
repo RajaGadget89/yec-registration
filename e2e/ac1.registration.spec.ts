@@ -24,42 +24,49 @@ test.describe('AC1 - Complete Registration Flow', () => {
     // Step 2: Fill all required form fields
     console.log('Filling registration form...');
     
+    // Wait for form to be fully loaded
+    await page.waitForSelector('form', { timeout: 10000 });
+    
     // Basic information
-    await page.selectOption('select[name="title"]', 'Mr.');
-    await page.fill('input[name="firstName"]', 'Test');
-    await page.fill('input[name="lastName"]', 'User');
-    await page.fill('input[name="nickname"]', `Test${testId.substring(0, 8)}`);
-    await page.fill('input[name="phone"]', '0812345678');
-    await page.fill('input[name="lineId"]', `test${testId.substring(0, 8)}`);
-    await page.fill('input[name="email"]', testEmail);
-    await page.fill('input[name="companyName"]', 'Test Company Ltd.');
+    await page.selectOption('select[id="title"]', 'Mr.');
+    await page.fill('input[id="firstName"]', 'Test');
+    await page.fill('input[id="lastName"]', 'User');
+    await page.fill('input[id="nickname"]', `Test${testId.substring(0, 8)}`);
+    await page.fill('input[id="phone"]', '0812345678');
+    await page.fill('input[id="lineId"]', `test${testId.substring(0, 8)}`);
+    await page.fill('input[id="email"]', testEmail);
+    await page.fill('input[id="companyName"]', 'Test Company Ltd.');
     
     // Business information
-    await page.selectOption('select[name="businessType"]', 'technology');
+    await page.selectOption('select[id="businessType"]', 'technology');
     
-    // Handle yecProvince dropdown
+    // Handle yecProvince field (it's a select field)
     console.log('Setting yecProvince...');
-    await page.selectOption('select[name="yecProvince"]', 'bangkok');
+    await page.selectOption('select[id="yecProvince"]', 'bangkok');
     
-    // Hotel and travel preferences - skip problematic fields for now
+    // Hotel and travel preferences
     console.log('Setting hotelChoice to in-quota...');
-    await page.selectOption('select[name="hotelChoice"]', 'in-quota');
-    await page.selectOption('select[name="travelType"]', 'private-car');
+    await page.selectOption('select[id="hotelChoice"]', 'in-quota');
+    
+    // Wait for roomType field to appear and fill it
+    await page.waitForSelector('select[id="roomType"]', { timeout: 5000 });
+    await page.selectOption('select[id="roomType"]', 'single');
+    
+    await page.selectOption('select[id="travelType"]', 'private-car');
     
     // Step 3: Upload required files
-    console.log('Uploading test files...');
-    
-    // Upload profile image
-    const profileImagePath = path.join(__dirname, 'files', 'profile-ok.jpg');
-    await page.setInputFiles('input[name="profileImage"]', profileImagePath);
+    console.log('Uploading required files...');
     
     // Upload payment slip
-    const paymentSlipPath = path.join(__dirname, 'files', 'payment-ok.jpg');
-    await page.setInputFiles('input[name="paymentSlip"]', paymentSlipPath);
+    await page.setInputFiles('[data-testid="input-file-paymentSlip"]', 'e2e/files/payment-ok.jpg');
     
     // Upload chamber card
-    const chamberCardPath = path.join(__dirname, 'files', 'tcc-ok.jpg');
-    await page.setInputFiles('input[name="chamberCard"]', chamberCardPath);
+    await page.setInputFiles('[data-testid="input-file-chamberCard"]', 'e2e/files/tcc-ok.jpg');
+    
+    // Upload profile image
+    await page.setInputFiles('[data-testid="input-file-profileImage"]', 'e2e/files/profile-ok.jpg');
+    
+    console.log('File uploads completed');
     
     // Step 4: Submit form
     console.log('Submitting form...');
@@ -130,27 +137,27 @@ test.describe('AC1 - Complete Registration Flow', () => {
     await expect(page.locator('form')).toBeVisible();
     
     // Check that all required input fields are present
-    await expect(page.locator('input[name="firstName"]')).toBeVisible();
-    await expect(page.locator('input[name="lastName"]')).toBeVisible();
-    await expect(page.locator('input[name="email"]')).toBeVisible();
-    await expect(page.locator('input[name="phone"]')).toBeVisible();
-    await expect(page.locator('input[name="nickname"]')).toBeVisible();
-    await expect(page.locator('input[name="lineId"]')).toBeVisible();
-    await expect(page.locator('input[name="companyName"]')).toBeVisible();
+    await expect(page.locator('input[id="firstName"]')).toBeVisible();
+    await expect(page.locator('input[id="lastName"]')).toBeVisible();
+    await expect(page.locator('input[id="email"]')).toBeVisible();
+    await expect(page.locator('input[id="phone"]')).toBeVisible();
+    await expect(page.locator('input[id="nickname"]')).toBeVisible();
+    await expect(page.locator('input[id="lineId"]')).toBeVisible();
+    await expect(page.locator('input[id="companyName"]')).toBeVisible();
     
     // Check that all required select fields are present
-    await expect(page.locator('select[name="title"]')).toBeVisible();
-    await expect(page.locator('select[name="businessType"]')).toBeVisible();
-    await expect(page.locator('select[name="hotelChoice"]')).toBeVisible();
-    await expect(page.locator('select[name="travelType"]')).toBeVisible();
+    await expect(page.locator('select[id="title"]')).toBeVisible();
+    await expect(page.locator('select[id="businessType"]')).toBeVisible();
+    await expect(page.locator('select[id="hotelChoice"]')).toBeVisible();
+    await expect(page.locator('select[id="travelType"]')).toBeVisible();
     
     // Check that the yecProvince select is present
-    await expect(page.locator('select[name="yecProvince"]')).toBeVisible();
+    await expect(page.locator('select[id="yecProvince"]')).toBeVisible();
     
-    // Check that all required file upload fields are present (they're hidden but exist)
-    await expect(page.locator('input[name="profileImage"]')).toBeAttached();
-    await expect(page.locator('input[name="paymentSlip"]')).toBeAttached();
-    await expect(page.locator('input[name="chamberCard"]')).toBeAttached();
+    // Check that all required file upload fields are present
+    await expect(page.locator('[data-testid="input-file-paymentSlip"]')).toBeVisible();
+    await expect(page.locator('[data-testid="input-file-chamberCard"]')).toBeVisible();
+    await expect(page.locator('[data-testid="input-file-profileImage"]')).toBeVisible();
     
     // Check that the submit button is present (but likely disabled initially)
     const submitButton = page.locator('button[type="submit"]');

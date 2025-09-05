@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { maybeServiceClient } from "../../../../../lib/supabase/server";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
 import { isAdmin } from "../../../../../lib/admin-guard";
-import { canReviewDimension } from "../../../../../lib/rbac";
+import { canReviewDimension, hasBusinessRole } from "../../../../../lib/rbac";
 import { EventService } from "../../../../../lib/events/eventService";
 import { withAuditLogging } from "../../../../../lib/audit/withAuditAccess";
 
@@ -19,7 +19,7 @@ async function handlePOST(
 
     const { id } = params;
     const body = await request.json();
-    const { dimension } = body;
+    const { dimension } = body as { dimension: "payment" | "profile" | "tcc" };
 
     // Validate dimension
     if (!dimension || !["payment", "profile", "tcc"].includes(dimension)) {
@@ -35,6 +35,29 @@ async function handlePOST(
     // Check RBAC permissions for the specific dimension
     if (!canReviewDimension(user.email, dimension)) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+
+    // Check business role permissions for the specific dimension
+    const businessRoleMap = {
+      payment: "payment_slip" as const,
+      profile: "user_profile" as const,
+      tcc: "tcc_card" as const,
+    };
+
+    const requiredBusinessRole = businessRoleMap[dimension];
+    const hasRequiredRole = await hasBusinessRole(
+      user.email,
+      requiredBusinessRole,
+    );
+
+    if (!hasRequiredRole) {
+      return NextResponse.json(
+        {
+          error: "insufficient permissions",
+          message: `Admin does not have ${requiredBusinessRole} scope`,
+        },
+        { status: 403 },
+      );
     }
 
     // Get appropriate Supabase client (service client if E2E bypass enabled)
