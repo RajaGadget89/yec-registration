@@ -515,9 +515,19 @@ alter table "public"."registrations" add constraint "chk_status" CHECK ((status 
 
 alter table "public"."registrations" validate constraint "chk_status";
 
-alter table "public"."registrations" add constraint "chk_update_reason" CHECK (((update_reason IS NULL) OR (update_reason = ANY (ARRAY['payment'::text, 'info'::text, 'tcc'::text])))) not valid;
-
-alter table "public"."registrations" validate constraint "chk_update_reason";
+-- Add constraint only if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE constraint_name = 'chk_update_reason' 
+    AND table_name = 'registrations' 
+    AND table_schema = 'public'
+  ) THEN
+    ALTER TABLE "public"."registrations" ADD CONSTRAINT "chk_update_reason" CHECK (((update_reason IS NULL) OR (update_reason = ANY (ARRAY['payment'::text, 'info'::text, 'tcc'::text])))) NOT VALID;
+    ALTER TABLE "public"."registrations" VALIDATE CONSTRAINT "chk_update_reason";
+  END IF;
+END $$;
 
 alter table "public"."registrations" add constraint "external_hotel_required_when_out_quota" CHECK (((((hotel_choice)::text = 'out-of-quota'::text) AND (external_hotel_name IS NOT NULL)) OR (((hotel_choice)::text = 'in-quota'::text) AND (external_hotel_name IS NULL)))) not valid;
 
