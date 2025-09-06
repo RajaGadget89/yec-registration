@@ -8,6 +8,7 @@ import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
 import {
   isAdminJobAssignmentEnabled,
   isFeatureEnabled,
+  FEATURES,
 } from "../../../../lib/features";
 
 // Super admin allowlist as specified in requirements
@@ -23,7 +24,7 @@ const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
 async function listAdmins(request: NextRequest): Promise<NextResponse> {
   try {
     // Check feature flag
-    if (!isFeatureEnabled("adminManagement")) {
+    if (!isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT)) {
       return NextResponse.json(
         { error: "Feature not available" },
         { status: 404 },

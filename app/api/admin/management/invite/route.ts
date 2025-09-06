@@ -14,7 +14,7 @@ import {
 } from "../../../../lib/rate-limit";
 import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
 
-import { isFeatureEnabled } from "../../../../lib/features";
+import { isFeatureEnabled, FEATURES } from "../../../../lib/features";
 import { sendInvitationEmail } from "../../../../server/email/provider";
 
 // Validation schema for invite request
@@ -46,7 +46,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
   try {
     console.log("[INVITE_ROUTE] Starting invite process");
     // Check feature flag
-    if (!isFeatureEnabled("adminManagement")) {
+    if (!isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT)) {
       console.log("[INVITE_ROUTE] Feature flag disabled");
       return NextResponse.json(
         { error: "Feature not available" },
@@ -337,7 +337,6 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         expires_at: expiresAt,
         invited_by_admin_id: currentUser.id,
         status: "pending",
-        roles: roles,
       })
       .select()
       .single();

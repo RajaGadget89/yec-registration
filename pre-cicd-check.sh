@@ -291,6 +291,39 @@ run "CI Health Check validation" env SKIP_E2E_ENV=true SUPABASE_ENV=staging npx 
 # Clean up server
 kill $SERVER_PID 2>/dev/null || true
 
+# ---------- 6a) API Smoke Tests (RBAC Enforcement) ----------
+title "🚀 API Smoke Tests (RBAC Enforcement)"
+echo "Running API smoke tests with auto-login and RBAC validation..."
+
+# Check if smoke tests should be skipped
+if [ "${SKIP_SMOKE_TESTS:-0}" = "1" ]; then
+  echo "Smoke tests skipped (SKIP_SMOKE_TESTS=1)"; ok "Smoke tests skipped"
+elif [ -f "run-smoke-tests.sh" ] && [ -f "e2e/smoke.api.enforcement.spec.ts" ]; then
+  echo "✅ Smoke test files found"
+  
+  # Check if required environment variables are set for smoke tests
+  if [ -n "${SUPER_ADMIN_EMAIL:-}" ] && [ -n "${PAYMENT_ONLY_EMAIL:-}" ] && [ -n "${TCC_ONLY_EMAIL:-}" ]; then
+    echo "✅ Test actor emails configured"
+    
+    # Set up smoke test environment
+    export E2E_TEST_MODE=true
+    export TEST_HELPERS_ENABLED=1
+    export FEATURES_ADMIN_MANAGEMENT=true
+    export FEATURES_ADMIN_JOB_ASSIGNMENT=true
+    
+    # Run smoke tests
+    run "API Smoke Tests (RBAC Enforcement)" ./run-smoke-tests.sh
+  else
+    echo "⚠️  Smoke test actor emails not configured"
+    echo "   Set SUPER_ADMIN_EMAIL, PAYMENT_ONLY_EMAIL, TCC_ONLY_EMAIL to enable smoke tests"
+    warn "Smoke tests skipped - missing test actor configuration"
+  fi
+else
+  echo "⚠️  Smoke test files not found"
+  echo "   Expected: run-smoke-tests.sh, e2e/smoke.api.enforcement.spec.ts"
+  warn "Smoke tests skipped - files not found"
+fi
+
 # ---------- 7) Optional full test suite ----------
 title "🧪 Full Test Suite (Optional)"
 if [ "${RUN_FULL:-0}" = "1" ]; then
@@ -302,4 +335,9 @@ fi
 echo -e "\n🎉 All Pre-CI/CD Checks Passed!\n=================================="
 echo -e "${GREEN}✅ Ready for CI/CD deployment${NC}"
 echo -e "${GREEN}✅ No credential exposures detected${NC}"
+echo -e "${GREEN}✅ API Smoke Tests integrated${NC}"
+echo -e "\n${BLUE}💡 Smoke Test Configuration:${NC}"
+echo -e "   Set SUPER_ADMIN_EMAIL, PAYMENT_ONLY_EMAIL, TCC_ONLY_EMAIL to enable"
+echo -e "   Set SKIP_SMOKE_TESTS=1 to skip smoke tests"
+echo -e "   Run ./run-smoke-tests.sh manually for standalone execution"
 
