@@ -50,7 +50,9 @@ artifacts/
 .env*.local.e2e
 .env*.local.ci
 .cd-env
+.cd-env.*
 .e2e-env
+.e2e-env.*
 # ========================================
 # Authentication & Test State
 # ========================================
