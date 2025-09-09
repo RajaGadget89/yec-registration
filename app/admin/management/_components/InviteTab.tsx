@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Mail, Send } from "lucide-react";
 import { Alert, Button, Input, Checkbox } from "./shared/AdminUIComponents";
+import { ssrSafeIdempotencyKey } from "../../../lib/ssr-safe";
 
 interface InviteFormData {
   email: string;
@@ -32,7 +33,7 @@ export default function InviteTab() {
   ];
 
   const generateIdempotencyKey = () => {
-    return `invite_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return ssrSafeIdempotencyKey("invite");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Clock, RefreshCw, X, AlertCircle, Loader2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
+import { ssrSafeIdempotencyKey } from "../../../lib/ssr-safe";
 
 interface PendingInvitation {
   id: string;
@@ -56,7 +57,7 @@ export default function PendingTab() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Idempotency-Key": `resend_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            "Idempotency-Key": ssrSafeIdempotencyKey("resend"),
           },
         },
       );
@@ -84,7 +85,7 @@ export default function PendingTab() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Idempotency-Key": `cancel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            "Idempotency-Key": ssrSafeIdempotencyKey("cancel"),
           },
         },
       );

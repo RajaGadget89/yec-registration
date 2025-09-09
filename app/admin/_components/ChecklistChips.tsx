@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, User, FileText, HelpCircle } from "lucide-react";
+import { CreditCard, User, FileText, HelpCircle, Minus } from "lucide-react";
 import { getStatusMessageBoth } from "../../lib/i18n";
 
 interface ChecklistChipsProps {
@@ -100,6 +100,41 @@ export default function ChecklistChips({
 
   const renderChip = (dimension: "payment" | "profile" | "tcc") => {
     const item = reviewChecklist[dimension];
+    
+    // Guard against undefined item or status
+    if (!item || typeof item.status === 'undefined') {
+      // Fallback UI: show neutral chip (no crash)
+      const dimensionConfig = getDimensionConfig(dimension);
+      const Icon = dimensionConfig.icon;
+      
+      return (
+        <div key={dimension} className="relative">
+          <div
+            data-testid={`chip-${dimension}`}
+            className={`inline-flex items-center space-x-1 px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 cursor-help bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 ${className}`}
+            onMouseEnter={() => setShowTooltip(dimension)}
+            onMouseLeave={() => setShowTooltip(null)}
+          >
+            <Icon className="h-3 w-3" />
+            <Minus className="h-3 w-3" />
+            <span className="whitespace-nowrap">{dimensionConfig.label}</span>
+          </div>
+
+          {/* Tooltip for fallback state */}
+          {showTooltip === dimension && (
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10 whitespace-nowrap">
+              <div className="font-medium">{dimensionConfig.description}</div>
+              <div className="mt-1">
+                <div className="text-gray-300">Status: pending (no data)</div>
+              </div>
+              {/* Arrow */}
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     const statusConfig = getStatusConfig(item.status);
     const dimensionConfig = getDimensionConfig(dimension);
     const Icon = dimensionConfig.icon;
