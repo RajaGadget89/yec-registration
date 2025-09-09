@@ -193,14 +193,14 @@ export async function getRegistrations(
     const statusCounts = {
       total: statusCountsData?.length || 0,
       pending:
-        statusCountsData?.filter((r) => r.status === "pending").length || 0,
+        statusCountsData?.filter((r: any) => r.status === "pending").length || 0,
       waiting_for_review:
-        statusCountsData?.filter((r) => r.status === "waiting_for_review")
+        statusCountsData?.filter((r: any) => r.status === "waiting_for_review")
           .length || 0,
       approved:
-        statusCountsData?.filter((r) => r.status === "approved").length || 0,
+        statusCountsData?.filter((r: any) => r.status === "approved").length || 0,
       rejected:
-        statusCountsData?.filter((r) => r.status === "rejected").length || 0,
+        statusCountsData?.filter((r: any) => r.status === "rejected").length || 0,
     };
 
     return {
@@ -260,7 +260,7 @@ export async function getProvinces(): Promise<string[]> {
     }
 
     const provinces = Array.from(
-      new Set(data?.map((r) => r.yec_province).filter(Boolean) || []),
+      new Set(data?.map((r: any) => r.yec_province).filter(Boolean) || []),
     );
     return provinces.sort();
   } catch (error) {
@@ -348,9 +348,9 @@ export async function exportToCSV(filters: FilterState): Promise<string> {
             // Escape commas and quotes in CSV
             if (
               typeof value === "string" &&
-              (value.includes(",") || value.includes('"'))
+              ((value as string).includes(",") || (value as string).includes('"'))
             ) {
-              return `"${value.replace(/"/g, '""')}"`;
+              return `"${(value as string).replace(/"/g, '""')}"`;
             }
             return value || "";
           })
