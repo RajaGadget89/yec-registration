@@ -363,7 +363,7 @@ export default function FormField({
         setDisplayValue("");
       }
     }
-  }, [normalizedField.type]);
+  }, [normalizedField.type, value]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
