@@ -151,9 +151,9 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
         );
       }
 
-      if (adminUser.role !== "super_admin") {
+      if ((adminUser as any).role !== "super_admin") {
         console.log(
-          `[SUPER_ADMIN_GUARD] Access denied - not super_admin role: ${adminUser.role}`,
+          `[SUPER_ADMIN_GUARD] Access denied - not super_admin role: ${(adminUser as any).role}`,
         );
         return NextResponse.json(
           {
@@ -164,7 +164,7 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
         );
       }
 
-      if (!adminUser.is_active) {
+      if (!(adminUser as any).is_active) {
         console.log(
           `[SUPER_ADMIN_GUARD] Access denied - user not active: ${adminEmail}`,
         );
@@ -186,9 +186,9 @@ export function withSuperAdminApiGuard(h: ApiHandler): ApiHandler {
       const userCtx: ApiCtx = {
         ...ctx,
         me: {
-          id: adminUser.id || adminEmail,
+          id: (adminUser as any).id || adminEmail,
           email: adminEmail,
-          role: adminUser.role as "admin" | "super_admin",
+          role: (adminUser as any).role as "admin" | "super_admin",
         },
       };
 
