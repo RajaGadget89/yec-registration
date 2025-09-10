@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      `Updating registration ${registration.id} ${reviewStatusField} to 'needs_update'`,
+      `Updating registration ${(registration as any).id} ${reviewStatusField} to 'needs_update'`,
     );
 
     // Update the review status field and let the trigger handle the global status
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     // Add notes to review_checklist if provided
     if (notes) {
-      const currentChecklist = registration.review_checklist || {};
+      const currentChecklist = (registration as any).review_checklist || {};
       const updatedChecklist = {
         ...currentChecklist,
         [dimension]: {
@@ -138,10 +138,10 @@ export async function POST(request: NextRequest) {
       updateData.review_checklist = updatedChecklist;
     }
 
-    const { data: result, error: updateError } = await supabase
+    const { data: result, error: updateError } = await (supabase as any)
       .from("registrations")
       .update(updateData)
-      .eq("id", registration.id)
+      .eq("id", (registration as any).id)
       .select();
 
     console.log("Update result:", { result, updateError });
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      registrationId: registration.registration_id,
+      registrationId: (registration as any).registration_id,
       status: updateResult.new_status,
       dimension: dimension,
       notes: notes,

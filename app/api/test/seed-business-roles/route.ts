@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     // Try to upsert with business_roles first, fallback to without if column doesn't exist
     let data, error;
     try {
-      const result = await supabase
+      const result = await (supabase as any)
         .from("admin_users")
         .upsert({
           id: userId,
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       console.log(
         `[seed-business-roles] business_roles column not available, creating admin user without business_roles`,
       );
-      const result = await supabase
+      const result = await (supabase as any)
         .from("admin_users")
         .upsert({
           id: userId,
@@ -160,10 +160,10 @@ export async function POST(request: NextRequest) {
       message:
         "Admin user seeded successfully (business_roles may not be available in database)",
       user: {
-        email: data.email,
-        role: data.role,
-        business_roles: data.business_roles || business_roles, // Return actual roles or requested roles
-        is_active: data.is_active,
+        email: (data as any).email,
+        role: (data as any).role,
+        business_roles: (data as any).business_roles || business_roles, // Return actual roles or requested roles
+        is_active: (data as any).is_active,
       },
     });
   } catch (error) {

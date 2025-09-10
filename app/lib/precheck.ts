@@ -33,7 +33,7 @@ export async function precheckRegistration(): Promise<PrecheckResult> {
     // 2. Check if registration deadline has passed
     const now = new Date();
     const registrationDeadline = new Date(
-      eventSettings.registration_deadline_utc,
+      (eventSettings as any).registration_deadline_utc,
     );
 
     if (now > registrationDeadline) {

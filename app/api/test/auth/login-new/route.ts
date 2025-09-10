@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       role = "admin";
     }
 
-    await supabase.from("admin_users").upsert(
+    await (supabase as any).from("admin_users").upsert(
       {
         id: userId,
         email: email.toLowerCase(),

@@ -97,14 +97,14 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 
       if (adminUser) {
         return {
-          id: adminUser.id,
-          email: adminUser.email,
-          role: adminUser.role,
-          business_roles: adminUser.business_roles || [],
-          created_at: adminUser.created_at,
-          updated_at: adminUser.updated_at,
-          last_login_at: adminUser.last_login_at,
-          is_active: adminUser.is_active,
+          id: (adminUser as any).id,
+          email: (adminUser as any).email,
+          role: (adminUser as any).role,
+          business_roles: (adminUser as any).business_roles || [],
+          created_at: (adminUser as any).created_at,
+          updated_at: (adminUser as any).updated_at,
+          last_login_at: (adminUser as any).last_login_at,
+          is_active: (adminUser as any).is_active,
         };
       }
     } catch (dbError) {
@@ -189,14 +189,14 @@ export async function getCurrentUserFromRequest(
 
       if (adminUser) {
         return {
-          id: adminUser.id,
-          email: adminUser.email,
-          role: adminUser.role,
-          business_roles: adminUser.business_roles || [],
-          created_at: adminUser.created_at,
-          updated_at: adminUser.updated_at,
-          last_login_at: adminUser.last_login_at,
-          is_active: adminUser.is_active,
+          id: (adminUser as any).id,
+          email: (adminUser as any).email,
+          role: (adminUser as any).role,
+          business_roles: (adminUser as any).business_roles || [],
+          created_at: (adminUser as any).created_at,
+          updated_at: (adminUser as any).updated_at,
+          last_login_at: (adminUser as any).last_login_at,
+          is_active: (adminUser as any).is_active,
         };
       }
     } catch (dbError) {
@@ -336,7 +336,7 @@ export async function hasRoleFromRequest(
 export async function updateLastLogin(userId: string): Promise<void> {
   try {
     const supabase = getSupabaseClient();
-    await supabase
+    await (supabase as any)
       .from("admin_users")
       .update({
         last_login_at: new Date().toISOString(),
@@ -362,7 +362,7 @@ export async function upsertAdminUser(userData: {
     const supabase = getSupabaseClient();
     const now = new Date().toISOString();
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("admin_users")
       .upsert({
         id: userData.id,

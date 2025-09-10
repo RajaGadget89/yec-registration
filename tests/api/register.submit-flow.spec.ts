@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 // Mock the email service

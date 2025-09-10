@@ -84,7 +84,7 @@ export async function PUT(
       );
     }
 
-    if (adminUser.role !== "super_admin") {
+    if ((adminUser as any).role !== "super_admin") {
       return NextResponse.json(
         {
           error: "Forbidden: Super admin access required",
@@ -94,7 +94,7 @@ export async function PUT(
       );
     }
 
-    if (adminUser.status !== "active") {
+    if ((adminUser as any).status !== "active") {
       return NextResponse.json(
         {
           error: "Forbidden: Admin account is not active",
@@ -149,7 +149,7 @@ export async function PUT(
     }
 
     // Prevent self-modification
-    if (adminId === adminUser.id) {
+    if (adminId === (adminUser as any).id) {
       return NextResponse.json(
         { error: "Cannot modify your own account" },
         { status: 400 },
@@ -166,7 +166,7 @@ export async function PUT(
     }
 
     // Perform database update
-    const { data: updatedAdmin, error: updateError } = await supabase
+    const { data: updatedAdmin, error: updateError } = await (supabase as any)
       .from("admin_users")
       .update(updateData)
       .eq("id", adminId)
@@ -202,7 +202,7 @@ export async function PUT(
     // Emit domain events based on changes (non-blocking)
     if (validatedData.roles && validatedData.roles.length > 0) {
       const newRole = validatedData.roles[0];
-      if (newRole !== currentAdmin.role) {
+      if (newRole !== (currentAdmin as any).role) {
         try {
           const event = EventFactory.createAdminRoleAssigned(adminId, newRole);
           await EventService.emit(event);
@@ -216,7 +216,7 @@ export async function PUT(
     if (validatedData.status) {
       if (
         validatedData.status === "suspended" &&
-        currentAdmin.status !== "suspended"
+        (currentAdmin as any).status !== "suspended"
       ) {
         try {
           const event = EventFactory.createAdminSuspended(adminId);
@@ -227,7 +227,7 @@ export async function PUT(
         }
       } else if (
         validatedData.status === "active" &&
-        currentAdmin.status !== "active"
+        (currentAdmin as any).status !== "active"
       ) {
         try {
           const event = EventFactory.createAdminActivated(adminId);
@@ -253,12 +253,12 @@ export async function PUT(
         updatedBy: adminEmail,
         changes: validatedData,
         previousState: {
-          role: currentAdmin.role,
-          status: currentAdmin.status,
+          role: (currentAdmin as any).role,
+          status: (currentAdmin as any).status,
         },
         newState: {
-          role: updatedAdmin.role,
-          status: updatedAdmin.status,
+          role: (updatedAdmin as any).role,
+          status: (updatedAdmin as any).status,
         },
       },
     });
@@ -357,7 +357,7 @@ async function getDeletePlanHandler(req: Request, ctx: any) {
     );
   }
 
-  if (target.role === "super_admin") {
+  if ((target as any).role === "super_admin") {
     return NextResponse.json(
       { ok: false, error: "Cannot delete super_admin" },
       { status: 403 },
@@ -367,9 +367,9 @@ async function getDeletePlanHandler(req: Request, ctx: any) {
   // Build delete plan
   const plan = await buildDeletePlan(
     supabase,
-    target.id,
-    target.email,
-    target.role,
+    (target as any).id,
+    (target as any).email,
+    (target as any).role,
   );
 
   // Save plan artifact
@@ -450,7 +450,7 @@ async function executeDeleteHandler(req: Request, ctx: any) {
     );
   }
 
-  if (target.role === "super_admin") {
+  if ((target as any).role === "super_admin") {
     return NextResponse.json(
       { ok: false, error: "Cannot delete super_admin" },
       { status: 403 },
@@ -460,9 +460,9 @@ async function executeDeleteHandler(req: Request, ctx: any) {
   // Build delete plan
   const plan = await buildDeletePlan(
     supabase,
-    target.id,
-    target.email,
-    target.role,
+    (target as any).id,
+    (target as any).email,
+    (target as any).role,
   );
 
   // Execute delete plan
@@ -495,8 +495,8 @@ async function executeDeleteHandler(req: Request, ctx: any) {
     meta: {
       adminId,
       deletedBy: ctx.me.email,
-      targetEmail: target.email,
-      targetRole: target.role,
+      targetEmail: (target as any).email,
+      targetRole: (target as any).role,
       summary: summary,
     },
   });

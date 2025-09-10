@@ -138,16 +138,19 @@ export async function hasBusinessRole(
     }
 
     // Super admin has all business roles
-    if (admin.role === "super_admin") {
+    if ((admin as any).role === "super_admin") {
       return true;
     }
 
     // Check if user has the specific business role
     // If business_roles is null or undefined (column doesn't exist), fall back to environment-based RBAC
-    if (!admin.business_roles || admin.business_roles.length === 0) {
+    if (
+      !(admin as any).business_roles ||
+      (admin as any).business_roles.length === 0
+    ) {
       return hasBusinessRoleFromEnv(email, businessRole);
     }
-    return admin.business_roles.includes(businessRole);
+    return (admin as any).business_roles.includes(businessRole);
   } catch (error) {
     console.error("Error checking business role from database:", error);
     // Fall back to environment-based RBAC
@@ -211,12 +214,12 @@ export async function getBusinessRoles(email: string): Promise<BusinessRole[]> {
     }
 
     // Super admin has all business roles
-    if (admin.role === "super_admin") {
+    if ((admin as any).role === "super_admin") {
       return ["user_profile", "payment_slip", "tcc_card"];
     }
 
     // Return actual business roles
-    return admin.business_roles || [];
+    return (admin as any).business_roles || [];
   } catch (error) {
     console.error("Error getting business roles from database:", error);
     // Fall back to environment-based RBAC

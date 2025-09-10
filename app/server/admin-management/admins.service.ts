@@ -77,8 +77,8 @@ export class AdminsService {
 
     return {
       admins: (admins || []).map((admin) => ({
-        ...admin,
-        business_roles: admin.business_roles || [],
+        ...(admin as any),
+        business_roles: (admin as any).business_roles || [],
       })),
       total: count || 0,
       page,
@@ -105,7 +105,7 @@ export class AdminsService {
     }
 
     // Check if trying to update self
-    if (admin.email === params.updatedBy) {
+    if ((admin as any).email === params.updatedBy) {
       throw new Error("Cannot update your own account");
     }
 
@@ -124,7 +124,10 @@ export class AdminsService {
         throw new Error("Failed to check super admin count");
       }
 
-      if (superAdmins.length === 1 && superAdmins[0].id === params.adminId) {
+      if (
+        superAdmins.length === 1 &&
+        (superAdmins[0] as any).id === params.adminId
+      ) {
         throw new Error("Cannot demote the last super admin");
       }
     }
@@ -153,7 +156,7 @@ export class AdminsService {
     }
 
     // Update admin user
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from("admin_users")
       .update(updateData)
       .eq("id", params.adminId);
@@ -204,12 +207,12 @@ export class AdminsService {
     }
 
     // Check if trying to remove self
-    if (admin.email === params.removedBy) {
+    if ((admin as any).email === params.removedBy) {
       throw new Error("Cannot remove your own account");
     }
 
     // Check if trying to remove the last super_admin
-    if (admin.role === "super_admin") {
+    if ((admin as any).role === "super_admin") {
       const { data: superAdmins, error: countError } = await supabase
         .from("admin_users")
         .select("id")
@@ -220,13 +223,16 @@ export class AdminsService {
         throw new Error("Failed to check super admin count");
       }
 
-      if (superAdmins.length === 1 && superAdmins[0].id === params.adminId) {
+      if (
+        superAdmins.length === 1 &&
+        (superAdmins[0] as any).id === params.adminId
+      ) {
         throw new Error("Cannot remove the last super admin");
       }
     }
 
     // Soft delete by setting status to suspended
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from("admin_users")
       .update({
         status: "suspended",

@@ -219,9 +219,9 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         );
         return NextResponse.json(
           {
-            id: existingInvitation.id,
-            email: existingInvitation.email,
-            expires_at: existingInvitation.expires_at,
+            id: (existingInvitation as any).id,
+            email: (existingInvitation as any).email,
+            expires_at: (existingInvitation as any).expires_at,
             message: "Invitation already created (idempotency)",
             correlation_id: correlationId,
           },
@@ -285,13 +285,13 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
 
     if (
       existingInvitation &&
-      new Date(existingInvitation.expires_at) > new Date()
+      new Date((existingInvitation as any).expires_at) > new Date()
     ) {
       return NextResponse.json(
         {
           error: "Invitation already exists for this email",
           code: "INVITE_EXISTS",
-          invitation_id: existingInvitation.id,
+          invitation_id: (existingInvitation as any).id,
         },
         { status: 409 },
       );
@@ -329,7 +329,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       roles: roles,
     });
 
-    const { data: invitation, error: createError } = await supabase
+    const { data: invitation, error: createError } = await (supabase as any)
       .from("admin_invitations")
       .insert({
         email: email.toLowerCase(),
@@ -380,7 +380,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
 
     // Emit domain event
     const event = EventFactory.createAdminInvitationCreated(
-      invitation.id,
+      (invitation as any).id,
       email,
       currentUser.email,
     );
@@ -392,7 +392,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       await logEvent({
         action: "admin.invitation.created",
         resource: "admin_invitations",
-        resource_id: invitation.id,
+        resource_id: (invitation as any).id,
         actor_id: currentUser.email,
         actor_role: "admin",
         result: "success",
@@ -422,7 +422,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         user_agent: request.headers.get("user-agent") || undefined,
         latency_ms: Date.now() - startTime,
         meta: {
-          invitation_id: invitation.id,
+          invitation_id: (invitation as any).id,
           email,
           roles,
           inviter: currentUser.email,
@@ -436,9 +436,9 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
 
     // For E2E tests, include the token in the response
     const responseData: any = {
-      id: invitation.id,
-      email: invitation.email,
-      expires_at: invitation.expires_at,
+      id: (invitation as any).id,
+      email: (invitation as any).email,
+      expires_at: (invitation as any).expires_at,
       message: "Invitation created successfully",
       correlation_id: correlationId,
     };

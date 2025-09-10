@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     // Check if generate_secure_deep_link_token function exists
     let generateFunctionExists = false;
     try {
-      await supabase.rpc("generate_secure_deep_link_token", {
+      await (supabase as any).rpc("generate_secure_deep_link_token", {
         reg_id: "00000000-0000-0000-0000-000000000000",
         dimension: "profile",
         admin_email: "test@example.com",
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     // Check if validate_and_consume_deep_link_token function exists
     let validateFunctionExists = false;
     try {
-      await supabase.rpc("validate_and_consume_deep_link_token", {
+      await (supabase as any).rpc("validate_and_consume_deep_link_token", {
         token: "test",
         reg_id: "00000000-0000-0000-0000-000000000000",
         user_email: null,
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     // Check if fn_user_resubmit function exists
     let resubmitFunctionExists = false;
     try {
-      await supabase.rpc("fn_user_resubmit", {
+      await (supabase as any).rpc("fn_user_resubmit", {
         reg_id: "00000000-0000-0000-0000-000000000000",
         payload: {},
       });

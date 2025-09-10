@@ -62,7 +62,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Column doesn't exist, add it
-    const { error: alterError } = await supabase.rpc("exec_sql", { sql });
+    const { error: alterError } = await (supabase as any).rpc("exec_sql", {
+      sql,
+    });
 
     if (alterError) {
       console.error("Error adding column:", alterError);

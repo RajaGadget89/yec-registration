@@ -49,12 +49,12 @@ export async function POST(req: Request) {
     }
 
     // 2) If already "approved" → return 200 with { success:true, status:"approved", badgeUrl: existing } (idempotent)
-    if (registration.status === "approved") {
+    if ((registration as any).status === "approved") {
       return new Response(
         JSON.stringify({
           success: true,
           status: "approved",
-          badgeUrl: registration.badge_url,
+          badgeUrl: (registration as any).badge_url,
         }),
         {
           status: 200,
@@ -67,13 +67,13 @@ export async function POST(req: Request) {
 
     // 3) Generate badge URL
     const badgeUrl = await generateBadge({
-      id: registration.id.toString(),
-      firstName: registration.first_name,
-      lastName: registration.last_name,
+      id: (registration as any).id.toString(),
+      firstName: (registration as any).first_name,
+      lastName: (registration as any).last_name,
     });
 
     // 4) Update DB: status = "approved", badge_url = generated URL
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from("registrations")
       .update({
         status: "approved",
@@ -102,9 +102,9 @@ export async function POST(req: Request) {
     let emailSent = false;
     try {
       emailSent = await sendApprovedEmail({
-        to: registration.email,
-        firstName: registration.first_name,
-        lastName: registration.last_name,
+        to: (registration as any).email,
+        firstName: (registration as any).first_name,
+        lastName: (registration as any).last_name,
         badgeUrl: badgeUrl,
       });
 

@@ -27,7 +27,7 @@ export class StatusUpdateHandler implements EventHandler<RegistrationEvent> {
 
         case "admin.approved":
           // Update to approved status (this should be rare as triggers handle most cases)
-          const { error: approveError } = await supabase
+          const { error: approveError } = await (supabase as any)
             .from("registrations")
             .update({
               status: "approved",
@@ -48,7 +48,7 @@ export class StatusUpdateHandler implements EventHandler<RegistrationEvent> {
 
         case "admin.rejected":
           // Update to rejected status
-          const { error: rejectError } = await supabase
+          const { error: rejectError } = await (supabase as any)
             .from("registrations")
             .update({
               status: "rejected",
@@ -70,7 +70,7 @@ export class StatusUpdateHandler implements EventHandler<RegistrationEvent> {
 
         case "document.reuploaded":
           // After re-upload, set status back to waiting_for_review
-          const { error: reuploadError } = await supabase
+          const { error: reuploadError } = await (supabase as any)
             .from("registrations")
             .update({
               status: "waiting_for_review",

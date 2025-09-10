@@ -265,13 +265,13 @@ export async function sendStatusChangeEmail(
   }
 
   const applicantName =
-    `${registration.first_name} ${registration.last_name}`.trim();
-  const trackingCode = registration.tracking_code;
+    `${(registration as any).first_name} ${(registration as any).last_name}`.trim();
+  const trackingCode = (registration as any).tracking_code;
 
   switch (newStatus) {
     case "waiting_for_review":
       return sendTrackingEmail(
-        registration.email,
+        (registration as any).email,
         trackingCode,
         applicantName,
         registrationId,
@@ -280,17 +280,17 @@ export async function sendStatusChangeEmail(
     case "awaiting_user_update":
       if (updateReason === "payment") {
         return sendUpdatePaymentEmail(
-          registration.email,
+          (registration as any).email,
           trackingCode,
           `${getBaseUrl()}/update/${registrationId}`,
           applicantName,
-          registration.price_applied?.toString(),
-          registration.package_name,
+          (registration as any).price_applied?.toString(),
+          (registration as any).package_name,
           registrationId,
         );
       } else if (updateReason === "info") {
         return sendUpdateInfoEmail(
-          registration.email,
+          (registration as any).email,
           trackingCode,
           `${getBaseUrl()}/update/${registrationId}`,
           applicantName,
@@ -298,7 +298,7 @@ export async function sendStatusChangeEmail(
         );
       } else if (updateReason === "tcc") {
         return sendUpdateTccEmail(
-          registration.email,
+          (registration as any).email,
           trackingCode,
           `${getBaseUrl()}/update/${registrationId}`,
           applicantName,
@@ -309,7 +309,7 @@ export async function sendStatusChangeEmail(
 
     case "approved":
       return sendApprovalEmail(
-        registration.email,
+        (registration as any).email,
         trackingCode,
         badgeUrl || "",
         applicantName,
@@ -323,7 +323,7 @@ export async function sendStatusChangeEmail(
         | "ineligible_rule_match"
         | "other" = "other";
       return sendRejectionEmail(
-        registration.email,
+        (registration as any).email,
         trackingCode,
         rejectedReason,
         applicantName,

@@ -1,4 +1,4 @@
-// Mock render function to avoid build-time issues
+import React from "react";
 import { EmailTemplateProps } from "./registry";
 import { BaseLayout } from "./components/BaseLayoutWrapper";
 import { TrackingTemplate } from "./templates/tracking";
@@ -70,23 +70,17 @@ const emailTemplates = {
 };
 
 /**
- * Mock render function to avoid build-time issues
+ * Get email template renderer (client-safe)
  * @param templateName Template name from registry
- * @param props Template props
- * @returns HTML string
+ * @returns Template renderer function
  */
-export async function renderEmailTemplate(
-  templateName: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  props?: any,
-): Promise<string> {
+export function getEmailTemplateRenderer(templateName: string) {
   const template = emailTemplates[templateName as keyof typeof emailTemplates];
   if (!template) {
     throw new Error(`Email template '${templateName}' not found`);
   }
 
-  // Return a simple HTML string for now
-  return `<html><body><p>Email template: ${templateName}</p><p>This is a mock implementation for build compatibility.</p></body></html>`;
+  return template.renderer;
 }
 
 /**

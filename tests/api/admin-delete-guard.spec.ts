@@ -4,7 +4,7 @@ import { superAdminReq, anonReq, adminReq } from './helpers/sessions';
 const ID = process.env.TEST_ADMIN_ID || '63c523f5-8d94-4c57-8f21-265098095735';
 
 test.describe('Admin Delete API Guard Tests', () => {
-  test('GET dry_run requires super_admin', async ({ playwright }) => {
+  test('GET dry_run requires super_admin', async ({ playwright: _playwright }) => {
     const base = process.env.BASE_URL || 'http://localhost:8080';
     
     // Test anonymous access - should be denied
@@ -25,7 +25,7 @@ test.describe('Admin Delete API Guard Tests', () => {
     }
   });
 
-  test('DELETE executes with wrappers and returns JSON', async ({ playwright }) => {
+  test('DELETE executes with wrappers and returns JSON', async ({ playwright: _playwright }) => {
     const base = process.env.BASE_URL || 'http://localhost:8080';
     
     // Test super admin delete - should work
@@ -39,7 +39,7 @@ test.describe('Admin Delete API Guard Tests', () => {
     expect(body).toHaveProperty('ok');
   });
 
-  test('Feature flag controls access', async ({ playwright }) => {
+  test('Feature flag controls access', async ({ playwright: _playwright }) => {
     const base = process.env.BASE_URL || 'http://localhost:8080';
     
     // This test assumes feature flag is enabled in test environment
@@ -51,7 +51,7 @@ test.describe('Admin Delete API Guard Tests', () => {
     expect([200, 403, 404]).toContain(res.status());
   });
 
-  test('Super admin cannot be deleted', async ({ playwright }) => {
+  test('Super admin cannot be deleted', async ({ playwright: _playwright }) => {
     const base = process.env.BASE_URL || 'http://localhost:8080';
     
     // Find a super_admin user to test deletion protection
@@ -70,7 +70,7 @@ test.describe('Admin Delete API Guard Tests', () => {
     }
   });
 
-  test('Non-super admin cannot delete', async ({ playwright }) => {
+  test('Non-super admin cannot delete', async ({ playwright: _playwright }) => {
     const base = process.env.BASE_URL || 'http://localhost:8080';
     
     // Test with regular admin user - should be unauthorized (user doesn't exist in DB)

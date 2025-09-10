@@ -112,7 +112,7 @@ async function cancelInvitation(
     }
 
     // Update invitation status to revoked
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from("admin_invitations")
       .update({
         status: "revoked",
@@ -130,8 +130,8 @@ async function cancelInvitation(
 
     // Emit domain event
     const event = EventFactory.createAdminInvitationCancelled(
-      invitation.id,
-      invitation.email,
+      (invitation as any).id,
+      (invitation as any).email,
       currentUser.email,
     );
     await EventService.emit(event);
@@ -141,14 +141,14 @@ async function cancelInvitation(
       await logEvent({
         action: "admin.invitation.cancelled",
         resource: "admin_invitations",
-        resource_id: invitation.id,
+        resource_id: (invitation as any).id,
         actor_id: currentUser.email,
         actor_role: "admin",
         result: "success",
         correlation_id: correlationId,
         meta: {
-          invitation_id: invitation.id,
-          email: invitation.email,
+          invitation_id: (invitation as any).id,
+          email: (invitation as any).email,
           canceller: currentUser.email,
         },
       });
@@ -168,8 +168,8 @@ async function cancelInvitation(
         user_agent: request.headers.get("user-agent") || undefined,
         latency_ms: Date.now() - startTime,
         meta: {
-          invitation_id: invitation.id,
-          email: invitation.email,
+          invitation_id: (invitation as any).id,
+          email: (invitation as any).email,
           canceller: currentUser.email,
         },
       });

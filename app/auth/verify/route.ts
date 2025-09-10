@@ -10,11 +10,13 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const token_hash = searchParams.get("token_hash");
+    const token = searchParams.get("token"); // Support both token and token_hash
     const type = searchParams.get("type");
     const next = searchParams.get("next");
 
     console.log("[auth/verify] GET request received", {
       hasTokenHash: !!token_hash,
+      hasToken: !!token,
       type: type,
       next: next,
       url: request.url,
@@ -57,12 +59,18 @@ export async function GET(request: NextRequest) {
 
     let sessionData;
 
-    if (token_hash && type) {
+    // Use token_hash if available, otherwise use token (for server-side magic links)
+    const authToken = token_hash || token;
+
+    if (authToken && type) {
       // Server-side OTP flow
-      console.log("[auth/verify] using server-side OTP flow");
+      console.log("[auth/verify] using server-side OTP flow", {
+        tokenType: token_hash ? "token_hash" : "token",
+        type: type,
+      });
       const { data, error } = await supabase.auth.verifyOtp({
         type: type as any,
-        token_hash,
+        token_hash: authToken, // Both token and token_hash work with verifyOtp
       });
 
       if (error) {
