@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydration Solution Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .console-output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .test-step {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Hydration Solution Test</h1>
+    <p>This test will verify if the proposed fix resolves the hydration mismatch without affecting other features.</p>
+
+    <div class="test-section">
+        <h2>📋 Test Instructions</h2>
+        <ol>
+            <li>Open browser console (F12 → Console tab)</li>
+            <li>Click "Start Test" button below</li>
+            <li>Follow the test steps</li>
+            <li>Check results in the console and below</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Test Steps</h2>
+        <button class="test-button" onclick="startTest()">Start Test</button>
+        <button class="test-button" onclick="clearResults()">Clear Results</button>
+        
+        <div id="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Test Results</h2>
+        <div id="results-summary"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Console Output</h2>
+        <div id="console-output" class="console-output">Console output will appear here...</div>
+    </div>
+
+    <script>
+        let testResults = {
+            baseline: {},
+            proposedFix: {},
+            sideEffects: {}
+        };
+
+        // Capture console output
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn
+        };
+
+        let consoleOutput = '';
+
+        function logToOutput(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            consoleOutput += `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            document.getElementById('console-output').textContent = consoleOutput;
+        }
+
+        // Override console methods
+        console.log = function(...args) {
+            originalConsole.log.apply(console, args);
+            logToOutput(args.join(' '), 'log');
+        };
+
+        console.error = function(...args) {
+            originalConsole.error.apply(console, args);
+            logToOutput(args.join(' '), 'error');
+        };
+
+        console.warn = function(...args) {
+            originalConsole.warn.apply(console, args);
+            logToOutput(args.join(' '), 'warn');
+        };
+
+        function addResult(message, type = 'info') {
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${type}`;
+            resultDiv.textContent = message;
+            resultsDiv.appendChild(resultDiv);
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('results-summary').innerHTML = '';
+            consoleOutput = '';
+            document.getElementById('console-output').textContent = 'Console output will appear here...';
+            testResults = { baseline: {}, proposedFix: {}, sideEffects: {} };
+        }
+
+        async function testPage(url, testName) {
+            console.log(`\n🧪 Testing: ${testName}`);
+            console.log(`📍 URL: ${url}`);
+            
+            const startTime = Date.now();
+            const errors = [];
+            const networkRequests = [];
+            
+            // Listen for errors
+            const originalError = window.onerror;
+            window.onerror = function(message, source, lineno, colno, error) {
+                errors.push({
+                    message,
+                    source,
+                    lineno,
+                    colno,
+                    error: error?.toString()
+                });
+                console.error(`❌ Error: ${message} at ${source}:${lineno}:${colno}`);
+            };
+            
+            // Listen for unhandled promise rejections
+            const originalUnhandledRejection = window.onunhandledrejection;
+            window.onunhandledrejection = function(event) {
+                errors.push({
+                    type: 'unhandledRejection',
+                    reason: event.reason?.toString()
+                });
+                console.error(`❌ Unhandled Promise Rejection: ${event.reason}`);
+            };
+            
+            try {
+                // Navigate to the page
+                window.location.href = url;
+                
+                // Wait for page to load
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                // Check for hydration errors in console
+                const hydrationErrors = errors.filter(error => 
+                    error.message?.includes('hydration') || 
+                    error.message?.includes('mismatch') ||
+                    error.reason?.includes('hydration') ||
+                    error.reason?.includes('mismatch')
+                );
+                
+                const duration = Date.now() - startTime;
+                
+                const result = {
+                    success: true,
+                    duration,
+                    errors: errors.length,
+                    hydrationErrors: hydrationErrors.length,
+                    networkRequests: networkRequests.length
+                };
+                
+                console.log(`✅ ${testName} completed in ${duration}ms`);
+                console.log(`   - Total errors: ${errors.length}`);
+                console.log(`   - Hydration errors: ${hydrationErrors.length}`);
+                
+                if (hydrationErrors.length > 0) {
+                    console.log(`   - Hydration error details:`, hydrationErrors);
+                }
+                
+                return result;
+                
+            } catch (error) {
+                const duration = Date.now() - startTime;
+                console.error(`❌ ${testName} failed:`, error.message);
+                
+                return {
+                    success: false,
+                    duration,
+                    error: error.message,
+                    errors: errors.length,
+                    hydrationErrors: 0
+                };
+            } finally {
+                // Restore original error handlers
+                window.onerror = originalError;
+                window.onunhandledrejection = originalUnhandledRejection;
+            }
+        }
+
+        async function startTest() {
+            console.log('🚀 Starting Hydration Solution Test');
+            console.log('=' .repeat(50));
+            
+            addResult('Starting comprehensive hydration test...', 'info');
+            
+            // Test 1: Baseline - Admin Login Page
+            addResult('Step 1: Testing admin login page (baseline)...', 'info');
+            testResults.baseline.loginPage = await testPage('http://localhost:8080/admin/login', 'Admin Login Page (Baseline)');
+            
+            // Test 2: Baseline - Registration Form
+            addResult('Step 2: Testing registration form (baseline)...', 'info');
+            testResults.baseline.registrationForm = await testPage('http://localhost:8080/', 'Registration Form (Baseline)');
+            
+            // Test 3: Test with proposed fix (simulate by blocking API calls)
+            addResult('Step 3: Testing with proposed fix...', 'info');
+            
+            // Simulate the fix by blocking /api/admin/me calls
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options) {
+                if (url.includes('/api/admin/me') && window.location.pathname === '/admin/login') {
+                    console.log('[TEST FIX] Blocking /api/admin/me call on login page');
+                    return Promise.resolve(new Response('{"error": "blocked for test"}', {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                }
+                return originalFetch.apply(this, arguments);
+            };
+            
+            testResults.proposedFix.loginPage = await testPage('http://localhost:8080/admin/login', 'Admin Login Page (With Fix)');
+            testResults.proposedFix.registrationForm = await testPage('http://localhost:8080/', 'Registration Form (With Fix)');
+            
+            // Restore original fetch
+            window.fetch = originalFetch;
+            
+            // Test 4: Side effects test
+            addResult('Step 4: Testing for side effects...', 'info');
+            testResults.sideEffects = await testSideEffects();
+            
+            // Generate summary
+            generateSummary();
+        }
+
+        async function testSideEffects() {
+            const sideEffectTests = [];
+            
+            // Test if pages still load correctly
+            try {
+                const response = await fetch('http://localhost:8080/admin/login');
+                sideEffectTests.push({
+                    test: 'Admin login page accessible',
+                    success: response.ok,
+                    details: `Status: ${response.status}`
+                });
+            } catch (error) {
+                sideEffectTests.push({
+                    test: 'Admin login page accessible',
+                    success: false,
+                    details: error.message
+                });
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8080/');
+                sideEffectTests.push({
+                    test: 'Registration form accessible',
+                    success: response.ok,
+                    details: `Status: ${response.status}`
+                });
+            } catch (error) {
+                sideEffectTests.push({
+                    test: 'Registration form accessible',
+                    success: false,
+                    details: error.message
+                });
+            }
+            
+            return {
+                tests: sideEffectTests,
+                summary: {
+                    totalTests: sideEffectTests.length,
+                    passedTests: sideEffectTests.filter(t => t.success).length,
+                    failedTests: sideEffectTests.filter(t => !t.success).length
+                }
+            };
+        }
+
+        function generateSummary() {
+            console.log('\n📊 TEST RESULTS SUMMARY');
+            console.log('=' .repeat(50));
+            
+            const summaryDiv = document.getElementById('results-summary');
+            summaryDiv.innerHTML = '';
+            
+            // Baseline results
+            const baselineHydrationErrors = (testResults.baseline.loginPage?.hydrationErrors || 0) + 
+                                          (testResults.baseline.registrationForm?.hydrationErrors || 0);
+            
+            // Proposed fix results
+            const proposedFixHydrationErrors = (testResults.proposedFix.loginPage?.hydrationErrors || 0) + 
+                                             (testResults.proposedFix.registrationForm?.hydrationErrors || 0);
+            
+            // Side effects
+            const sideEffectsDetected = testResults.sideEffects?.summary?.failedTests > 0;
+            
+            // Analysis
+            const hydrationErrorReduction = baselineHydrationErrors - proposedFixHydrationErrors;
+            const improvement = hydrationErrorReduction > 0;
+            
+            // Create summary HTML
+            let summaryHTML = `
+                <div class="test-step">
+                    <h3>🔍 Baseline Results</h3>
+                    <p>Hydration Errors: ${baselineHydrationErrors}</p>
+                    <p>Login Page Errors: ${testResults.baseline.loginPage?.hydrationErrors || 0}</p>
+                    <p>Registration Form Errors: ${testResults.baseline.registrationForm?.hydrationErrors || 0}</p>
+                </div>
+                
+                <div class="test-step">
+                    <h3>🔧 Proposed Fix Results</h3>
+                    <p>Hydration Errors: ${proposedFixHydrationErrors}</p>
+                    <p>Login Page Errors: ${testResults.proposedFix.loginPage?.hydrationErrors || 0}</p>
+                    <p>Registration Form Errors: ${testResults.proposedFix.registrationForm?.hydrationErrors || 0}</p>
+                </div>
+                
+                <div class="test-step">
+                    <h3>⚠️ Side Effects</h3>
+                    <p>Tests Passed: ${testResults.sideEffects?.summary?.passedTests || 0}</p>
+                    <p>Tests Failed: ${testResults.sideEffects?.summary?.failedTests || 0}</p>
+                    <p>Side Effects Detected: ${sideEffectsDetected ? 'YES' : 'NO'}</p>
+                </div>
+                
+                <div class="test-step">
+                    <h3>🎯 Analysis</h3>
+                    <p>Hydration Error Reduction: ${hydrationErrorReduction}</p>
+                    <p>Improvement: ${improvement ? 'YES' : 'NO'}</p>
+                </div>
+            `;
+            
+            // Recommendation
+            let recommendation = '';
+            if (improvement && !sideEffectsDetected) {
+                recommendation = '<div class="result success"><strong>✅ RECOMMENDATION: APPROVE</strong><br>The proposed fix reduces hydration errors without causing side effects.</div>';
+            } else if (sideEffectsDetected) {
+                recommendation = '<div class="result error"><strong>❌ RECOMMENDATION: REJECT</strong><br>The proposed fix causes side effects.</div>';
+            } else {
+                recommendation = '<div class="result info"><strong>⚠️ RECOMMENDATION: INCONCLUSIVE</strong><br>No clear improvement detected.</div>';
+            }
+            
+            summaryHTML += recommendation;
+            summaryDiv.innerHTML = summaryHTML;
+            
+            // Console summary
+            console.log(`\n🔍 Baseline Hydration Errors: ${baselineHydrationErrors}`);
+            console.log(`🔧 Proposed Fix Hydration Errors: ${proposedFixHydrationErrors}`);
+            console.log(`📈 Improvement: ${improvement ? 'YES' : 'NO'}`);
+            console.log(`⚠️ Side Effects: ${sideEffectsDetected ? 'YES' : 'NO'}`);
+            
+            if (improvement && !sideEffectsDetected) {
+                console.log('\n✅ RECOMMENDATION: APPROVE - Fix reduces hydration errors without side effects');
+                addResult('✅ RECOMMENDATION: APPROVE - Fix reduces hydration errors without side effects', 'success');
+            } else if (sideEffectsDetected) {
+                console.log('\n❌ RECOMMENDATION: REJECT - Fix causes side effects');
+                addResult('❌ RECOMMENDATION: REJECT - Fix causes side effects', 'error');
+            } else {
+                console.log('\n⚠️ RECOMMENDATION: INCONCLUSIVE - No clear improvement detected');
+                addResult('⚠️ RECOMMENDATION: INCONCLUSIVE - No clear improvement detected', 'info');
+            }
+        }
+
+        // Initialize
+        console.log('🧪 Hydration Solution Test Ready');
+        console.log('Click "Start Test" to begin the comprehensive test');
+    </script>
+</body>
+</html>

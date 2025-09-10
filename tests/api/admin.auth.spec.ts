@@ -7,11 +7,11 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key';
 process.env.ADMIN_EMAILS = 'admin1@test.org,admin2@test.org';
 
 describe('Admin Authentication System', () => {
-  let supabase: any;
+  let _supabase: any;
 
   beforeAll(() => {
     // Initialize Supabase client for testing
-    supabase = createClient(
+    _supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
@@ -106,7 +106,7 @@ describe('Admin Authentication System', () => {
 
     it('should prevent privilege escalation', () => {
       // Test that admin users cannot promote themselves to super_admin
-      const adminUser = { role: 'admin' };
+      const _adminUser = { role: 'admin' };
       const canPromoteSelf = false; // This should always be false for admin role
 
       expect(canPromoteSelf).toBe(false);

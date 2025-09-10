@@ -65,7 +65,7 @@ async function handlePOST(request: NextRequest) {
     }
 
     // Check if dimension is already passed (idempotent behavior)
-    const currentChecklist = registration.review_checklist || {
+    const currentChecklist = (registration as any).review_checklist || {
       payment: { status: "pending" },
       profile: { status: "pending" },
       tcc: { status: "pending" },
@@ -75,10 +75,10 @@ async function handlePOST(request: NextRequest) {
       // Return current snapshot for idempotent behavior
       return NextResponse.json({
         ok: true,
-        registrationId: registration.registration_id,
+        registrationId: (registration as any).registration_id,
         dimension: dimension,
         newStatus: "passed",
-        global: registration.status,
+        global: (registration as any).status,
       });
     }
 
@@ -86,7 +86,9 @@ async function handlePOST(request: NextRequest) {
     currentChecklist[dimension] = { status: "passed" };
 
     // Update registration with new checklist
-    const { data: updatedRegistration, error: updateError } = await supabase
+    const { data: updatedRegistration, error: updateError } = await (
+      supabase as any
+    )
       .from("registrations")
       .update({
         review_checklist: currentChecklist,
@@ -115,7 +117,7 @@ async function handlePOST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      registrationId: registration.registration_id,
+      registrationId: (registration as any).registration_id,
       dimension: dimension,
       newStatus: "passed",
       global: updatedRegistration.status,

@@ -13,21 +13,21 @@ import {
 } from "./formValidation";
 
 // SSR-safe utility functions
-const isBrowser = () => typeof window !== 'undefined';
+const isBrowser = () => typeof window !== "undefined";
 
 const normalizeValue = (value: any): string => {
-  if (value === null || value === undefined) return '';
+  if (value === null || value === undefined) return "";
   return String(value);
 };
 
 // Client-only wrapper component
 const ClientOnly: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [ready, setReady] = useState(false);
-  
+
   useEffect(() => {
     setReady(true);
   }, []);
-  
+
   return ready ? <>{children}</> : null;
 };
 
@@ -285,14 +285,14 @@ export default function FormField({
   onExtraFieldChange,
 }: FormFieldProps) {
   // Dev-only probe to capture SSR/CSR differences
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[probe:FormField]', { 
-      name: field.id, 
-      type: field.type, 
-      defaultValue: field.defaultValue, 
-      value: typeof value, 
-      hasWindow: typeof window !== 'undefined',
-      valueContent: value
+  if (process.env.NODE_ENV === "development") {
+    console.log("[probe:FormField]", {
+      name: field.id,
+      type: field.type,
+      defaultValue: (field as any).defaultValue,
+      value: typeof value,
+      hasWindow: typeof window !== "undefined",
+      valueContent: value,
     });
   }
 
@@ -1078,7 +1078,9 @@ export default function FormField({
                   autoComplete={getAutoCompleteValue(
                     normalizedField.extraField.id,
                   )}
-                  value={normalizeValue(formData[normalizedField.extraField.id])}
+                  value={normalizeValue(
+                    formData[normalizedField.extraField.id],
+                  )}
                   onChange={(e) =>
                     onExtraFieldChange?.(
                       normalizedField.extraField!.id,

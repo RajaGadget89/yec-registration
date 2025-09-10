@@ -25,8 +25,8 @@ async function getCurrentUserFromCookie(email: string | undefined): Promise<{is_
     
     if (!error && adminUser) {
       return {
-        is_active: adminUser.is_active,
-        role: adminUser.role
+        is_active: (adminUser as any).is_active,
+        role: (adminUser as any).role
       };
     }
     

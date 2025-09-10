@@ -132,7 +132,7 @@ async function handlePOST(req: NextRequest) {
     };
 
     const supabase = getSupabaseServiceClient();
-    const { data: registration, error } = await supabase
+    const { data: registration, error } = await (supabase as any)
       .from("registrations")
       .insert([insertPayload])
       .select()
@@ -188,7 +188,7 @@ async function handlePOST(req: NextRequest) {
         m.getEmailConfig(),
       );
       const allowCheck = await import("../../lib/emails/config").then((m) =>
-        m.isEmailAllowed(registration.email),
+        m.isEmailAllowed((registration as any).email),
       );
 
       if (!allowCheck.allowed) {
@@ -239,7 +239,7 @@ async function handlePOST(req: NextRequest) {
       success: true,
       message:
         "Registration submitted successfully and is waiting for admin review",
-      registration_id: registration.registration_id,
+      registration_id: (registration as any).registration_id,
       price_applied: priceApplied,
       currency: currency,
       is_early_bird: priceApplied

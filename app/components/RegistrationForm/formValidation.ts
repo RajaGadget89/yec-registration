@@ -459,7 +459,10 @@ export const validateForm = (
       const extraFieldValidation = validateField(
         {
           ...field.extraField,
-          required: shouldShowExtraField(field, formData),
+          required: shouldFieldBeRequired(
+            { id: field.extraField.id } as any,
+            formData,
+          ),
         },
         formData[field.extraField.id],
         formData,
@@ -471,7 +474,13 @@ export const validateForm = (
     }
 
     // Validate roommate phone field
-    if (field.roommatePhoneField && shouldShowExtraField(field, formData)) {
+    if (
+      field.roommatePhoneField &&
+      shouldFieldBeRequired(
+        { id: field.roommatePhoneField.id } as any,
+        formData,
+      )
+    ) {
       const roommatePhoneValidation = validateField(
         {
           ...field.roommatePhoneField,
@@ -730,6 +739,19 @@ export const mapFrontendToDatabase = (frontendData: any) => {
   // If in-quota, clear external hotel name
   if (frontendData.hotelChoice === "in-quota") {
     cleanedData.external_hotel_name = null;
+  }
+
+  // If out-of-quota, ensure external hotel name is provided
+  if (frontendData.hotelChoice === "out-of-quota") {
+    if (
+      !frontendData.external_hotel_name ||
+      frontendData.external_hotel_name.trim() === ""
+    ) {
+      // This should have been caught by validation, but as a safety net:
+      throw new Error(
+        "External hotel name is required when choosing out-of-quota",
+      );
+    }
   }
 
   // If room type is not double, clear roommate fields

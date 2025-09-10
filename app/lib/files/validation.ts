@@ -23,7 +23,12 @@ export interface ValidationInput {
  */
 const VALIDATION_RULES = {
   payment: {
-    allowedMimeTypes: ["application/pdf"] as const,
+    allowedMimeTypes: [
+      "application/pdf",
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+    ] as const,
     maxSizeBytes: 10 * 1024 * 1024, // 10MB
   },
   profile: {

@@ -37,7 +37,7 @@ export class TokenService {
     const supabase = getSupabaseServiceClient();
 
     try {
-      const { data: tokenId, error } = await supabase.rpc(
+      const { data: tokenId, error } = await (supabase as any).rpc(
         "create_deep_link_token",
         {
           p_registration_id: registrationId,
@@ -70,7 +70,7 @@ export class TokenService {
     const supabase = getSupabaseServiceClient();
 
     try {
-      const { data: validation, error } = await supabase.rpc(
+      const { data: validation, error } = await (supabase as any).rpc(
         "validate_deep_link_token_by_id",
         {
           p_token_id: tokenId,
@@ -91,12 +91,12 @@ export class TokenService {
 
       const result = validation[0];
       return {
-        success: result.success,
-        registration_id: result.registration_id,
-        dimension: result.dimension,
-        admin_email: result.admin_email,
-        notes: result.notes || "",
-        message: result.message,
+        success: (result as any).success,
+        registration_id: (result as any).registration_id,
+        dimension: (result as any).dimension,
+        admin_email: (result as any).admin_email,
+        notes: (result as any).notes || "",
+        message: (result as any).message,
       };
     } catch (error) {
       console.error("Token validation error:", error);
@@ -118,7 +118,7 @@ export class TokenService {
     const supabase = getSupabaseServiceClient();
 
     try {
-      const { data: success, error } = await supabase.rpc(
+      const { data: success, error } = await (supabase as any).rpc(
         "mark_deep_link_token_used_by_id",
         {
           p_token_id: tokenId,
@@ -153,7 +153,7 @@ export class TokenService {
           "token_id, token, registration_id, dimension, admin_email, notes",
         )
         .eq("token_id", tokenId)
-        .eq("used_at", null)
+        .eq("used_at", null as any)
         .gt("expires_at", new Date().toISOString())
         .limit(1);
 
@@ -164,12 +164,12 @@ export class TokenService {
 
       const token = tokens[0];
       return {
-        token_id: token.token_id,
-        token: token.token, // This is the actual token needed for the URL
-        registration_id: token.registration_id,
-        dimension: token.dimension,
-        admin_email: token.admin_email,
-        notes: token.notes,
+        token_id: (token as any).token_id,
+        token: (token as any).token, // This is the actual token needed for the URL
+        registration_id: (token as any).registration_id,
+        dimension: (token as any).dimension,
+        admin_email: (token as any).admin_email,
+        notes: (token as any).notes,
       };
     } catch (error) {
       console.error("Get token data error:", error);

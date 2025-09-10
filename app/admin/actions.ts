@@ -193,14 +193,17 @@ export async function getRegistrations(
     const statusCounts = {
       total: statusCountsData?.length || 0,
       pending:
-        statusCountsData?.filter((r: any) => r.status === "pending").length || 0,
+        statusCountsData?.filter((r: any) => r.status === "pending").length ||
+        0,
       waiting_for_review:
         statusCountsData?.filter((r: any) => r.status === "waiting_for_review")
           .length || 0,
       approved:
-        statusCountsData?.filter((r: any) => r.status === "approved").length || 0,
+        statusCountsData?.filter((r: any) => r.status === "approved").length ||
+        0,
       rejected:
-        statusCountsData?.filter((r: any) => r.status === "rejected").length || 0,
+        statusCountsData?.filter((r: any) => r.status === "rejected").length ||
+        0,
     };
 
     return {
@@ -348,7 +351,8 @@ export async function exportToCSV(filters: FilterState): Promise<string> {
             // Escape commas and quotes in CSV
             if (
               typeof value === "string" &&
-              ((value as string).includes(",") || (value as string).includes('"'))
+              ((value as string).includes(",") ||
+                (value as string).includes('"'))
             ) {
               return `"${(value as string).replace(/"/g, '""')}"`;
             }

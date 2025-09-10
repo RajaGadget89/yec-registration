@@ -314,7 +314,7 @@ export async function withSuperAdminApiGuard<T extends any[]>(
           );
         }
 
-        if (adminUser.role !== "super_admin") {
+        if ((adminUser as any).role !== "super_admin") {
           console.log(
             "[SUPER_ADMIN_GUARD] Access denied - not super_admin role",
           );
@@ -327,7 +327,7 @@ export async function withSuperAdminApiGuard<T extends any[]>(
           );
         }
 
-        if (!adminUser.is_active) {
+        if (!(adminUser as any).is_active) {
           console.log("[SUPER_ADMIN_GUARD] Access denied - user not active");
           return NextResponse.json(
             {

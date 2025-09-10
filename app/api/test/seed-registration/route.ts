@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       form_data: { test: true },
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("registrations")
       .insert(payload)
       .select("id")
@@ -80,7 +80,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true, id: data.id }, { status: 200 });
+    return NextResponse.json(
+      { ok: true, id: (data as any).id },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("[SEED_REGISTRATION] Unexpected error:", error);
     return NextResponse.json(

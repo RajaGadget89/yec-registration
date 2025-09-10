@@ -42,10 +42,10 @@ export class RetryEmailDispatch {
 
       // Check that all emails are in failed status
       const nonFailedEmails = emails.filter(
-        (email) => email.status !== "failed",
+        (email) => (email as any).status !== "failed",
       );
       if (nonFailedEmails.length > 0) {
-        const nonFailedIds = nonFailedEmails.map((email) => email.id);
+        const nonFailedIds = nonFailedEmails.map((email) => (email as any).id);
         throw new Error(
           `Cannot retry emails that are not in failed status: ${nonFailedIds.join(", ")}`,
         );

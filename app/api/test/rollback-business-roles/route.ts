@@ -36,7 +36,9 @@ export async function POST() {
       COMMENT ON TABLE admin_users IS 'Admin users table - business_roles column removed on 2025-01-27';
     `;
 
-    const { error } = await supabase.rpc("exec_sql", { sql: rollbackSQL });
+    const { error } = await (supabase as any).rpc("exec_sql", {
+      sql: rollbackSQL,
+    });
 
     if (error) {
       console.error("[rollback] Error executing rollback:", error);

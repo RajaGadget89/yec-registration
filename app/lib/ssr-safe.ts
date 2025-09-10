@@ -6,7 +6,7 @@
 /**
  * Check if code is running in browser environment
  */
-export const isBrowser = (): boolean => typeof window !== 'undefined';
+export const isBrowser = (): boolean => typeof window !== "undefined";
 
 /**
  * SSR-safe date creation
@@ -25,8 +25,12 @@ export const ssrSafeDate = (d?: string | number | Date): Date => {
  * Returns consistent value on server, random on client
  */
 export const ssrSafeRandom = (): number => {
-  if (isBrowser() && typeof crypto !== 'undefined' && 'getRandomValues' in crypto) {
-    return Number(crypto.getRandomValues(new Uint32Array(1))[0]) / 2**32;
+  if (
+    isBrowser() &&
+    typeof crypto !== "undefined" &&
+    "getRandomValues" in crypto
+  ) {
+    return Number(crypto.getRandomValues(new Uint32Array(1))[0]) / 2 ** 32;
   }
   // On server, return fixed value to prevent hydration mismatch
   return 0.5;
@@ -62,7 +66,7 @@ export const ssrSafeClipboardAvailable = (): boolean => {
   if (!isBrowser()) {
     return false;
   }
-  return 'clipboard' in navigator && 'writeText' in navigator.clipboard;
+  return "clipboard" in navigator && "writeText" in navigator.clipboard;
 };
 
 /**
@@ -76,14 +80,14 @@ export const ssrSafeDocument = {
     }
     return document.createElement(tagName);
   },
-  
+
   execCommand: (command: string): boolean => {
     if (!isBrowser()) {
       return false;
     }
     return document.execCommand(command);
   },
-  
+
   body: {
     appendChild: (node: Node): Node | null => {
       if (!isBrowser()) {
@@ -91,14 +95,14 @@ export const ssrSafeDocument = {
       }
       return document.body.appendChild(node);
     },
-    
+
     removeChild: (node: Node): Node | null => {
       if (!isBrowser()) {
         return null;
       }
       return document.body.removeChild(node);
-    }
-  }
+    },
+  },
 };
 
 /**
@@ -108,15 +112,15 @@ export const ssrSafeWindow = {
   location: {
     href: (): string => {
       if (!isBrowser()) {
-        return '';
+        return "";
       }
       return window.location.href;
     },
-    
+
     reload: (): void => {
       if (isBrowser()) {
         window.location.reload();
       }
-    }
-  }
+    },
+  },
 };

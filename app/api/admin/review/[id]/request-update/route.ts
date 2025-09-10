@@ -75,11 +75,11 @@ export async function POST(
     }
 
     // Check if registration is in reviewable state
-    if (registration.status !== "waiting_for_review") {
+    if ((registration as any).status !== "waiting_for_review") {
       return createErrorResponse(
         "INVALID_STATUS",
         "Registration not in reviewable state",
-        `Registration status is ${registration.status}, expected waiting_for_review`,
+        `Registration status is ${(registration as any).status}, expected waiting_for_review`,
         409,
       );
     }
@@ -104,7 +104,7 @@ export async function POST(
     }
 
     // Update review checklist
-    const currentChecklist = registration.review_checklist || {
+    const currentChecklist = (registration as any).review_checklist || {
       payment: { status: "pending", notes: "" },
       profile: { status: "pending", notes: "" },
       tcc: { status: "pending", notes: "" },
@@ -135,7 +135,9 @@ export async function POST(
     }
 
     // Update registration
-    const { data: updatedRegistration, error: updateError } = await supabase
+    const { data: updatedRegistration, error: updateError } = await (
+      supabase as any
+    )
       .from("registrations")
       .update({
         review_checklist: updatedChecklist,

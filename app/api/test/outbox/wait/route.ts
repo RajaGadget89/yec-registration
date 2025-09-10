@@ -106,10 +106,16 @@ export async function GET(request: NextRequest) {
 
       if (data) {
         // Extract deep link from the email payload or resolve via token_id
-        let deepLink = extractDeepLink(data.payload);
+        let deepLink = extractDeepLink((data as any).payload);
 
-        if (!deepLink && data.payload && typeof data.payload === "object") {
-          const tokenId = (data.payload as any).token_id as string | undefined;
+        if (
+          !deepLink &&
+          (data as any).payload &&
+          typeof (data as any).payload === "object"
+        ) {
+          const tokenId = ((data as any).payload as any).token_id as
+            | string
+            | undefined;
           if (tokenId) {
             try {
               const tokenData =
@@ -126,10 +132,10 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json({
           found: true,
-          id: data.id,
-          subject: data.subject,
-          to: data.to_email,
-          created_at: data.created_at,
+          id: (data as any).id,
+          subject: (data as any).subject,
+          to: (data as any).to_email,
+          created_at: (data as any).created_at,
           html: (data as any).payload?.html || "",
           deepLink,
         });

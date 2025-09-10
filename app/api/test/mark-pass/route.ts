@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if dimension is already passed (idempotent behavior)
-    const currentChecklist = registration.review_checklist || {
+    const currentChecklist = (registration as any).review_checklist || {
       payment: { status: "pending" },
       profile: { status: "pending" },
       tcc: { status: "pending" },
@@ -90,10 +90,10 @@ export async function POST(request: NextRequest) {
       // Return current snapshot for idempotent behavior
       return NextResponse.json({
         ok: true,
-        registrationId: registration.registration_id,
+        registrationId: (registration as any).registration_id,
         dimension: dimension,
         newStatus: "passed",
-        global: registration.status,
+        global: (registration as any).status,
       });
     }
 
@@ -116,7 +116,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Update registration with both checklist and individual status fields
-    const { data: updatedRegistration, error: updateError } = await supabase
+    const { data: updatedRegistration, error: updateError } = await (
+      supabase as any
+    )
       .from("registrations")
       .update(updatePayload)
       .eq("registration_id", registrationId)
@@ -146,10 +148,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      registrationId: registration.registration_id,
+      registrationId: (registration as any).registration_id,
       dimension: dimension,
       newStatus: "passed",
-      global: updatedRegistration.status,
+      global: (updatedRegistration as any).status,
     });
   } catch (error) {
     console.error("Error in test mark-pass endpoint:", error);

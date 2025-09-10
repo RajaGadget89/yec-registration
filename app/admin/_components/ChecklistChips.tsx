@@ -100,13 +100,13 @@ export default function ChecklistChips({
 
   const renderChip = (dimension: "payment" | "profile" | "tcc") => {
     const item = reviewChecklist[dimension];
-    
+
     // Guard against undefined item or status
-    if (!item || typeof item.status === 'undefined') {
+    if (!item || typeof item.status === "undefined") {
       // Fallback UI: show neutral chip (no crash)
       const dimensionConfig = getDimensionConfig(dimension);
       const Icon = dimensionConfig.icon;
-      
+
       return (
         <div key={dimension} className="relative">
           <div
