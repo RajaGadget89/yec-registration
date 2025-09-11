@@ -75,6 +75,7 @@ export async function POST(
     }
 
     // Check if registration is in reviewable state
+
     if ((registration as any).status !== "waiting_for_review") {
       return createErrorResponse(
         "INVALID_STATUS",
@@ -104,6 +105,7 @@ export async function POST(
     }
 
     // Update review checklist
+
     const currentChecklist = (registration as any).review_checklist || {
       payment: { status: "pending", notes: "" },
       profile: { status: "pending", notes: "" },
@@ -135,6 +137,7 @@ export async function POST(
     }
 
     // Update registration
+
     const { data: updatedRegistration, error: updateError } = await (
       supabase as any
     )

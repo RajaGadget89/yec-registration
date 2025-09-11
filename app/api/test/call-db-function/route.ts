@@ -31,7 +31,10 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServiceClient();
 
     // Call the database function
-    const { data, error } = await supabase.rpc(functionName, params || {});
+    const { data, error } = await (supabase as any).rpc(
+      functionName,
+      params || {},
+    );
 
     if (error) {
       console.error(`Error calling database function ${functionName}:`, error);

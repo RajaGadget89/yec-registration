@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServiceClient();
 
     // Update the registration
+
     const { data, error } = await (supabase as any)
       .from("registrations")
       .update({

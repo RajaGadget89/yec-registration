@@ -46,6 +46,7 @@ export class RetryEmailDispatch {
       );
       if (nonFailedEmails.length > 0) {
         const nonFailedIds = nonFailedEmails.map((email) => (email as any).id);
+
         throw new Error(
           `Cannot retry emails that are not in failed status: ${nonFailedIds.join(", ")}`,
         );

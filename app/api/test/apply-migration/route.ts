@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServiceClient();
 
     // Execute the migration SQL
+
     const { data, error } = await (supabase as any).rpc("exec_sql", {
       sql: migrationSQL,
     });

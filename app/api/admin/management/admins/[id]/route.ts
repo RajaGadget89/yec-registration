@@ -168,7 +168,7 @@ export async function PUT(
     // Perform database update
     const { data: updatedAdmin, error: updateError } = await (supabase as any)
       .from("admin_users")
-      .update(updateData)
+      .update(updateData as any)
       .eq("id", adminId)
       .select()
       .single();

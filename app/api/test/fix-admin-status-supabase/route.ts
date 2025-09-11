@@ -49,6 +49,7 @@ export async function POST(_request: NextRequest) {
     // Step 2: Create backup (store in memory for this session)
     const backup = currentUsers.map((user) => ({
       ...(user as any),
+
       backup_created_at: new Date().toISOString(),
     }));
 
@@ -84,6 +85,7 @@ export async function POST(_request: NextRequest) {
           "No users need updating - all active users already have status = 'active'",
         stats: {
           total_users: currentUsers.length,
+
           active_users: currentUsers.filter((u) => (u as any).is_active).length,
           users_with_proper_status: currentUsers.filter(
             (u) => (u as any).is_active && (u as any).status === "active",
@@ -103,7 +105,22 @@ export async function POST(_request: NextRequest) {
           status: "active",
           updated_at: new Date().toISOString(),
         })
+
         .eq("id", (user as any).id);
+
+      if (updateError) {
+        console.error(
+          `❌ Error updating user ${(user as any).email}:`,
+          updateError,
+        );
+        throw updateError;
+      }
+
+      return {
+        id: (user as any).id,
+        email: (user as any).email,
+        updated: true,
+      };
 
       if (updateError) {
         console.error(
@@ -150,8 +167,10 @@ export async function POST(_request: NextRequest) {
       message: "Admin users status updated successfully",
       stats: {
         total_users: updatedUsers?.length || 0,
+
         active_users:
           updatedUsers?.filter((u) => (u as any).is_active).length || 0,
+
         active_users_with_proper_status: activeUsersWithProperStatus.length,
         users_updated: updateResults.length,
       },
@@ -192,6 +211,7 @@ export async function GET() {
 
     const stats = {
       total_users: users?.length || 0,
+
       active_users: users?.filter((u) => (u as any).is_active).length || 0,
       active_users_with_proper_status:
         users?.filter(

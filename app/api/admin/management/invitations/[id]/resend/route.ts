@@ -203,7 +203,7 @@ async function resendInvitation(
       .update({
         updated_at: new Date().toISOString(),
         resend_count: ((invitation as any).resend_count || 0) + 1,
-      })
+      } as any)
       .eq("id", id)
       .select()
       .single();

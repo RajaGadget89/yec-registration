@@ -1,0 +1,15 @@
+[0;34m==========================================[0m
+[0;34m  Admin Management Tab - Comprehensive Test[0m
+[0;34m==========================================[0m
+Testing everything without applying patches
+Date: Mon Sep  1 22:44:35 +07 2025
+
+[0;35m🔧 SECTION 1: Environment & Configuration[0m
+================================================
+[0;34m[INFO][0m Checking environment configuration...
+✅ .env.local exists
+   FEATURES_ADMIN_MANAGEMENT: true
+   DEV_ADMIN_BYPASS: true
+   SUPER_ADMIN_EMAILS: raja.gadgets89@gmail.com,yecsongkhla.official@gmail.com
+   E2E_TEST_MODE: false
+[0;32m[PASS][0m Admin Management feature flag is enabled

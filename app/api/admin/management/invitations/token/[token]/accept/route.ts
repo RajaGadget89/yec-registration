@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSupabaseServiceClient } from "../../../../../../../lib/supabase-server";
 import { EventFactory } from "../../../../../../../lib/events/eventFactory";
@@ -7,7 +7,6 @@ import {
   logAccess,
   logEvent,
 } from "../../../../../../../lib/audit/auditClient";
-import { withAuditLogging } from "../../../../../../../lib/audit/withAuditAccess";
 import { getAppUrl } from "../../../../../../../lib/env";
 import { getCurrentUserFromRequest } from "../../../../../../../lib/auth-utils.server";
 
@@ -132,23 +131,22 @@ async function redirectToMagicLink(email: string, supabase: any) {
   }
 }
 
-async function acceptInvitation(
-  request: NextRequest,
-  { params }: { params: Promise<{ token: string }> },
-): Promise<NextResponse> {
+export async function POST(
+  request: Request,
+  { params }: { params: { token: string } },
+) {
   const startTime = Date.now();
   const requestId = `accept_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   const correlationId = request.headers.get("Idempotency-Key") || requestId;
 
   try {
-    const { token: encodedToken } = await params;
-    const token = decodeURIComponent(encodedToken);
+    const token = params?.token ? decodeURIComponent(params.token) : "";
 
     if (!token) {
-      return NextResponse.json(
-        { error: "Invitation token is required" },
-        { status: 400 },
-      );
+      return new Response(JSON.stringify({ error: "missing token" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     // Get client IP for logging
@@ -206,7 +204,6 @@ async function acceptInvitation(
     // First, check if the token exists and get its details (including expired ones)
     console.log("[ACCEPT] Looking for token:", token);
     console.log("[ACCEPT] Token length:", token.length);
-
     const { data: invitationData, error: invitationError } = await supabase
       .from("admin_invitations")
       .select("*")
@@ -244,7 +241,7 @@ async function acceptInvitation(
     }
 
     // UAT-04: Handle different invitation statuses appropriately
-    const invitation = invitationData;
+    const invitation = invitationData as any;
 
     if (
       (invitation as any).status === "pending" ||
@@ -257,14 +254,11 @@ async function acceptInvitation(
       });
 
       // Create user in auth system first (idempotent for duplicate emails)
-      console.log(
-        "[ACCEPT] Creating auth user for email:",
-        (invitation as any).email,
-      );
+      console.log("[ACCEPT] Creating auth user for email:", invitation.email);
       const user = await getOrCreateAuthUserByEmailCompat(
-        supabase.auth.admin,
-        (invitation as any).email,
-        (invitation as any).invited_by_admin_id,
+        (supabase as any).auth.admin,
+        invitation.email,
+        invitation.invited_by_admin_id,
       );
       console.log("[ACCEPT] Auth user created:", {
         id: user.id,
@@ -280,7 +274,6 @@ async function acceptInvitation(
           token.substring(0, 8) + "...",
         );
         console.log("[ACCEPT] Calling RPC with adminId:", adminId);
-
         const rpcResponse = await (supabase as any).rpc(
           "accept_admin_invitation",
           {
@@ -288,33 +281,29 @@ async function acceptInvitation(
             p_admin_id: adminId,
           },
         );
-
         console.log("[ACCEPT] RPC response:", {
           data: rpcResponse.data,
           error: rpcResponse.error,
         });
-
         acceptResult = rpcResponse.data;
         acceptError = rpcResponse.error;
       } catch (e: any) {
-        console.error("[ACCEPT] RPC exception:", e);
         const code = `${e?.code || ""}`;
         if (
           code === "23505" ||
           /duplicate key|unique_violation/i.test(e?.message || "")
         ) {
-          // Idempotent accept: treat as already accepted → redirect to magic link
           console.log(
             "[UAT-04] Invitation already accepted, redirecting to magic link",
           );
-          return await redirectToMagicLink((invitation as any).email, supabase);
+          return await redirectToMagicLink(invitation.email, supabase);
         }
         const codeStr = e?.code || e?.details || e?.hint || e?.message;
         console.error("[ACCEPT][rpc]", {
           code: codeStr,
           msg: e?.message?.slice(0, 160),
         });
-        throw e; // keep current mapping for now
+        throw e;
       }
 
       // Handle all token validation failures as 410
@@ -344,10 +333,9 @@ async function acceptInvitation(
       }
 
       const result = acceptResult[0];
-
       // Emit domain event
       const event = EventFactory.createAdminInvitationAccepted(
-        (invitation as any).id,
+        invitation.id,
         result.admin_user_id,
       );
       await EventService.emit(event);
@@ -357,14 +345,14 @@ async function acceptInvitation(
         await logEvent({
           action: "admin.invitation.accepted",
           resource: "admin_invitations",
-          resource_id: (invitation as any).id,
-          actor_id: (invitation as any).email,
+          resource_id: invitation.id,
+          actor_id: invitation.email,
           actor_role: "user",
           result: "success",
           correlation_id: correlationId,
           meta: {
-            invitation_id: (invitation as any).id,
-            email: (invitation as any).email,
+            invitation_id: invitation.id,
+            email: invitation.email,
             admin_user_id: result.admin_user_id,
           },
         });
@@ -384,8 +372,8 @@ async function acceptInvitation(
           user_agent: request.headers.get("user-agent") || undefined,
           latency_ms: Date.now() - startTime,
           meta: {
-            invitation_id: (invitation as any).id,
-            email: (invitation as any).email,
+            invitation_id: invitation.id,
+            email: invitation.email,
             admin_user_id: result.admin_user_id,
           },
         });
@@ -394,7 +382,8 @@ async function acceptInvitation(
       }
 
       // UAT-04: Generate magic link and redirect to establish session
-      return await redirectToMagicLink((invitation as any).email, supabase);
+
+      return await redirectToMagicLink(invitation.email, supabase);
     } else if ((invitation as any).status === "accepted") {
       // Already accepted invitation - check if user has valid session
       console.log("[UAT-04] Processing already accepted invitation:", {
@@ -415,7 +404,8 @@ async function acceptInvitation(
         console.log(
           "[UAT-04] User has no session, issuing new magic link for re-authentication",
         );
-        return await redirectToMagicLink((invitation as any).email, supabase);
+
+        return await redirectToMagicLink(invitation.email, supabase);
       }
     } else if (
       (invitation as any).status === "revoked" ||
@@ -425,24 +415,19 @@ async function acceptInvitation(
       console.log("[UAT-04] Invitation is revoked or expired:", {
         status: (invitation as any).status,
       });
+
+      return await redirectToMagicLink(invitation.email, supabase);
+    } else {
+      // Invalid/unknown invitation status
+      console.log("[UAT-04] Invalid invitation status:", {
+        status: (invitation as any).status,
+      });
       return NextResponse.json(
         {
           error: "Invitation has been revoked or expired",
           code: "INVITATION_REVOKED_OR_EXPIRED",
         },
         { status: 410 },
-      );
-    } else {
-      // Unknown status
-      console.log("[UAT-04] Unknown invitation status:", {
-        status: (invitation as any).status,
-      });
-      return NextResponse.json(
-        {
-          error: "Invalid invitation status",
-          code: "INVALID_STATUS",
-        },
-        { status: 400 },
       );
     }
   } catch (error) {
@@ -452,7 +437,7 @@ async function acceptInvitation(
     await logAccess({
       action: "admin.invitation.accept",
       method: "POST",
-      resource: `/api/admin/management/invitations/token/${(await params).token}/accept`,
+      resource: `/api/admin/management/invitations/token/${params?.token}/accept`,
       result: "error",
       request_id: requestId,
       src_ip: request.headers.get("x-forwarded-for") || "unknown",
@@ -463,11 +448,6 @@ async function acceptInvitation(
       },
     });
 
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
 }
-
-export const POST = withAuditLogging(acceptInvitation);

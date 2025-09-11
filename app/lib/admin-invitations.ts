@@ -157,7 +157,9 @@ export function getDefaultTTL(): number {
 export async function cleanupExpiredInvitations(): Promise<number> {
   const supabase = getSupabaseServiceClient();
 
-  const { error } = await supabase.rpc("cleanup_expired_admin_invitations");
+  const { error } = await (supabase as any).rpc(
+    "cleanup_expired_admin_invitations",
+  );
 
   if (error) {
     throw new Error(`Failed to cleanup expired invitations: ${error.message}`);

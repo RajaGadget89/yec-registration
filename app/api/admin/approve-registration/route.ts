@@ -73,13 +73,15 @@ export async function POST(req: Request) {
     });
 
     // 4) Update DB: status = "approved", badge_url = generated URL
+    const payload = {
+      status: "approved",
+      badge_url: badgeUrl,
+      updated_at: getThailandTimeISOString(),
+    };
+
     const { error: updateError } = await (supabase as any)
       .from("registrations")
-      .update({
-        status: "approved",
-        badge_url: badgeUrl,
-        updated_at: getThailandTimeISOString(),
-      })
+      .update(payload as any)
       .eq("registration_id", registrationId);
 
     if (updateError) {

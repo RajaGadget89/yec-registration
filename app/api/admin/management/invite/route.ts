@@ -291,6 +291,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         {
           error: "Invitation already exists for this email",
           code: "INVITE_EXISTS",
+
           invitation_id: (existingInvitation as any).id,
         },
         { status: 409 },
@@ -299,7 +300,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
 
     // Generate invitation token using database function
     console.log("[INVITE_ROUTE] Calling generate_admin_invitation_token RPC");
-    const { data: tokenData, error: tokenError } = await supabase.rpc(
+    const { data: tokenData, error: tokenError } = await (supabase as any).rpc(
       "generate_admin_invitation_token",
     );
 
@@ -337,6 +338,8 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         expires_at: expiresAt,
         invited_by_admin_id: currentUser.id,
         status: "pending",
+
+        roles: roles,
       })
       .select()
       .single();
@@ -392,7 +395,9 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       await logEvent({
         action: "admin.invitation.created",
         resource: "admin_invitations",
+
         resource_id: (invitation as any).id,
+
         actor_id: currentUser.email,
         actor_role: "admin",
         result: "success",
@@ -423,6 +428,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
         latency_ms: Date.now() - startTime,
         meta: {
           invitation_id: (invitation as any).id,
+
           email,
           roles,
           inviter: currentUser.email,
@@ -439,6 +445,7 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       id: (invitation as any).id,
       email: (invitation as any).email,
       expires_at: (invitation as any).expires_at,
+
       message: "Invitation created successfully",
       correlation_id: correlationId,
     };

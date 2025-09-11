@@ -32,9 +32,7 @@ export default function InviteTab() {
     { value: "super_admin", label: "Super Admin" },
   ];
 
-  const generateIdempotencyKey = () => {
-    return ssrSafeIdempotencyKey("invite");
-  };
+  const generateIdempotencyKey = () => ssrSafeIdempotencyKey("invite");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

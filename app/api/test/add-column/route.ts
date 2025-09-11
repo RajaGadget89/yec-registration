@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Column doesn't exist, add it
+
     const { error: alterError } = await (supabase as any).rpc("exec_sql", {
       sql,
     });

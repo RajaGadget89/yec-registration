@@ -56,6 +56,7 @@ export async function POST(
     }
 
     // Check if registration is in a valid state for approval
+
     if ((registration as any).status !== "waiting_for_review") {
       return createErrorResponse(
         "INVALID_STATUS",
@@ -66,6 +67,7 @@ export async function POST(
     }
 
     // Check if all dimensions are passed
+
     const checklist = (registration as any).review_checklist || {
       payment: { status: "pending", notes: "" },
       profile: { status: "pending", notes: "" },
@@ -87,6 +89,7 @@ export async function POST(
     }
 
     // Update registration to approved
+
     const { data: updatedRegistration, error: updateError } = await (
       supabase as any
     )

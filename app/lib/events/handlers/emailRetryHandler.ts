@@ -21,6 +21,7 @@ export class EmailRetryHandler implements EventHandler<EmailRetryEvent> {
       const supabase = getServiceRoleClient();
 
       // Mark the emails as pending for retry
+
       const { data, error } = await (supabase as any)
         .from("email_outbox")
         .update({
@@ -47,6 +48,7 @@ export class EmailRetryHandler implements EventHandler<EmailRetryEvent> {
         `[EMAIL_RETRY_HANDLER] Successfully marked ${retriedCount} emails for retry`,
         {
           eventId: event.id,
+
           retriedEmails: data?.map((email: any) => email.id) || [],
         },
       );

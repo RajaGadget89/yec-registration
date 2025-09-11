@@ -43,7 +43,7 @@ export async function PUT(
     const supabase = getSupabaseAuth();
 
     // Update user role in admin_users table
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("admin_users")
       .update({
         role,

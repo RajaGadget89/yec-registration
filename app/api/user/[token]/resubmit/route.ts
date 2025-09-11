@@ -187,6 +187,7 @@ async function handlePOST(
       (registration as any).update_reason === "info"
         ? "profile"
         : (registration as any).update_reason;
+
     const expectedDimension =
       normalizedUpdateReason === "payment"
         ? "payment"

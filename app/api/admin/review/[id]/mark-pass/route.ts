@@ -80,6 +80,7 @@ export async function POST(
       "waiting_for_update_info",
       "waiting_for_update_tcc",
     ];
+
     if (!validStates.includes((registration as any).status)) {
       return createErrorResponse(
         "INVALID_STATUS",
@@ -123,7 +124,6 @@ export async function POST(
         (dimension !== "profile" &&
           updatedChecklist.profile.status === "needs_update") ||
         (dimension !== "tcc" && updatedChecklist.tcc.status === "needs_update");
-
       if (!hasOtherUpdates) {
         newStatus = "waiting_for_review";
       }

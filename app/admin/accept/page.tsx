@@ -32,24 +32,23 @@ export default function AcceptInvitationPage() {
         setState("loading");
         setError("");
 
-        // Use form submission to handle redirects properly
-        // This allows the browser to follow 303 redirects to magic links without CORS issues
-        const acceptUrl = `/api/admin/management/invitations/token/${token}/accept`;
+        // UAT-04 Hotfix: Replace fetch with form submission to avoid CORS error on 303 redirect
+        // The API returns 303 redirect to magic link, which should be followed by browser navigation
+        const acceptUrl = `/api/admin/management/invitations/token/${encodeURIComponent(token)}/accept`;
 
-        // Create a form and submit it to handle the redirect properly
         const form = document.createElement("form");
         form.method = "POST";
         form.action = acceptUrl;
         form.style.display = "none";
 
-        // Add the name field
+        // Add the name field as hidden input
         const nameInput = document.createElement("input");
         nameInput.type = "hidden";
         nameInput.name = "name";
         nameInput.value = "Admin User";
         form.appendChild(nameInput);
 
-        // Add form to page and submit
+        // Submit the form (follows 303 redirect)
         document.body.appendChild(form);
         form.submit();
       } catch (err) {

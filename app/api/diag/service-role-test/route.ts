@@ -31,7 +31,7 @@ export async function GET() {
       .select();
 
     // Test 3: Try to call the RPC function
-    const { data: rpcData, error: rpcError } = await supabase.rpc(
+    const { data: rpcData, error: rpcError } = await (supabase as any).rpc(
       "log_access",
       {
         p: {

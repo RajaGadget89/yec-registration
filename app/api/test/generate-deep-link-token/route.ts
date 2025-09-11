@@ -68,6 +68,7 @@ export async function POST(request: NextRequest) {
       .digest("hex");
 
     // Store the token in the database
+
     const { data: tokenRecord, error: tokenError } = await (supabase as any)
       .from("deep_link_tokens")
       .insert({
