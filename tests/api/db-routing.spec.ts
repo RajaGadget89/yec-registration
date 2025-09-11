@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-=======
 /// <reference types="vitest" />
->>>>>>> origin/main
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock the environment variables

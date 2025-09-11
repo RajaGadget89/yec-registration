@@ -233,7 +233,6 @@ echo "ENV OK (masked) HOST=$SUPABASE_HOST SRK=${SUPABASE_SERVICE_ROLE_KEY:0:6}**
 title "🔍 Code Quality"
 run "Prettier format check" npm run -s format:check
 run "ESLint (no warnings)" npm run -s lint -- --max-warnings=0
-<<<<<<< HEAD
 
 # TypeScript compilation with better error handling
 echo "TypeScript compile (noEmit)..."
@@ -265,9 +264,6 @@ else
     warn "TypeScript compile (noEmit) - errors found but continuing (set FAIL_ON_TS_ERRORS=1 to fail)"
   fi
 fi
-=======
-run "TypeScript compile (noEmit)" npx -y tsc --noEmit
->>>>>>> origin/main
 
 # ---------- 3a) Optional Prettier auto-fix ----------
 if [ "${AUTO_FIX_FORMATTING:-0}" = "1" ]; then
@@ -325,7 +321,6 @@ run "CI Health Check validation" env SKIP_E2E_ENV=true SUPABASE_ENV=staging npx 
 # Clean up server
 kill $SERVER_PID 2>/dev/null || true
 
-<<<<<<< HEAD
 # ---------- 6a) Comprehensive Authentication Tests ----------
 title "🔐 Comprehensive Authentication Tests"
 echo "Running comprehensive authentication testing suite..."
@@ -381,9 +376,6 @@ else
   echo "   Expected: run-smoke-tests.sh, e2e/smoke.api.enforcement.spec.ts"
   warn "Smoke tests skipped - files not found"
 fi
-
-=======
->>>>>>> origin/main
 # ---------- 7) Optional full test suite ----------
 title "🧪 Full Test Suite (Optional)"
 if [ "${RUN_FULL:-0}" = "1" ]; then
@@ -395,7 +387,6 @@ fi
 echo -e "\n🎉 All Pre-CI/CD Checks Passed!\n=================================="
 echo -e "${GREEN}✅ Ready for CI/CD deployment${NC}"
 echo -e "${GREEN}✅ No credential exposures detected${NC}"
-<<<<<<< HEAD
 echo -e "${GREEN}✅ Comprehensive Authentication Tests integrated${NC}"
 echo -e "${GREEN}✅ API Smoke Tests integrated${NC}"
 echo -e "\n${BLUE}💡 Test Configuration:${NC}"
@@ -411,6 +402,4 @@ echo -e "   TypeScript Errors:"
 echo -e "     - Set FAIL_ON_TS_ERRORS=1 to fail on TypeScript compilation errors"
 echo -e "     - Database type issues may require running type generation"
 echo -e "     - Check app/types/database.ts for missing table definitions"
-=======
->>>>>>> origin/main
 
