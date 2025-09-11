@@ -60,7 +60,7 @@ export class InviteService {
     }
 
     // Generate invitation token
-    const { data: tokenData, error: tokenError } = await supabase.rpc(
+    const { data: tokenData, error: tokenError } = await (supabase as any).rpc(
       "generate_admin_invitation_token",
     );
 
@@ -72,6 +72,7 @@ export class InviteService {
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
     // Create invitation record
+
     const { data: invitation, error: createError } = await (supabase as any)
       .from("admin_invitations")
       .insert({
@@ -159,6 +160,7 @@ export class InviteService {
     }
 
     // Update invitation with new timestamp and increment resend counter
+
     const { data: updatedInvitation, error: updateError } = await (
       supabase as any
     )
@@ -182,11 +184,13 @@ export class InviteService {
     }
 
     const accept = new URL("/admin/accept", base);
+
     accept.searchParams.set("token", (invitation as any).token);
     const acceptUrl = accept.toString();
     const expiresAtFormatted = new Date(
       (invitation as any).expires_at,
     ).toLocaleString();
+
     const supportEmail = "info@yecday.com";
 
     try {
@@ -233,6 +237,7 @@ export class InviteService {
     }
 
     // Update invitation status to revoked
+
     const { error: updateError } = await (supabase as any)
       .from("admin_invitations")
       .update({

@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Test the domain function directly
+
     const { data: result, error: domainError } = await (supabase as any).rpc(
       "fn_user_resubmit",
       {

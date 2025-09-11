@@ -153,7 +153,7 @@ export class TokenService {
           "token_id, token, registration_id, dimension, admin_email, notes",
         )
         .eq("token_id", tokenId)
-        .eq("used_at", null as any)
+        .is("used_at", null)
         .gt("expires_at", new Date().toISOString())
         .limit(1);
 

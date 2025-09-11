@@ -31,6 +31,7 @@ export class PricingCalculator {
     }
 
     // Find the selected package
+
     const selectedPackage = (eventSettings as any).price_packages.find(
       (pkg: PricePackage) => pkg.code === selectedPackageCode,
     );
@@ -40,9 +41,11 @@ export class PricingCalculator {
     }
 
     // Check if current time is before early bird deadline
+
     const earlyBirdDeadline = new Date(
       (eventSettings as any).early_bird_deadline_utc,
     );
+
     const isEarlyBird = currentTimeUtc <= earlyBirdDeadline;
 
     // Calculate price

@@ -213,16 +213,19 @@ export const TRACK_STATUS_TRANSITIONS: Record<string, string> = {
  */
 export const EMAIL_TEMPLATES: Record<RegistrationEventType, string> = {
   "registration.submitted": "tracking",
+
   "admin.request_update": "request_update", // Will be determined by track
   "admin.mark_pass": "system", // No email for mark pass
   "admin.approved": "approval_badge",
   "admin.rejected": "rejection",
   "user.resubmitted": "system", // No email for resubmission
+
   "document.reuploaded": "tracking",
   "status.changed": "system", // Handled dynamically
   "login.submitted": "system", // No email for login
   "login.succeeded": "system", // No email for login
   "registration.batch_upserted": "tracking",
+
   "admin.review_track_updated": "system", // No email for track updates
   "auto_reject.sweep_completed": "rejection", // Auto-rejection email
   "email.retry_requested": "system", // No email template for retry events

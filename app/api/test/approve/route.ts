@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Precondition: Check if all three dimensions are passed
-    const missingDimensions = [];
+    const missingDimensions: string[] = [];
     if ((registration as any).payment_review_status !== "passed") {
       missingDimensions.push("payment");
     }

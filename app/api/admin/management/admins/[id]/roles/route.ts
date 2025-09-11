@@ -175,7 +175,7 @@ async function updateAdminRoles(
     // Update admin user
     const { error: updateError } = await (supabase as any)
       .from("admin_users")
-      .update(updateData)
+      .update(updateData as any)
       .eq("id", adminId);
 
     if (updateError) {

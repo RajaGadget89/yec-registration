@@ -25,6 +25,7 @@ artifacts/
 !.env.example
 !.env.ci.example
 .env*.local
+<<<<<<< HEAD
 .env*.backup
 .env*.bak
 .env*.disabled
@@ -53,11 +54,20 @@ artifacts/
 .cd-env.*
 .e2e-env
 .e2e-env.*
+=======
+.env.ci.example
+.env.ci.local
+.env.local
+.cd-env
+.env.e2e
+.e2e-env
+>>>>>>> origin/main
 # ========================================
 # Authentication & Test State
 # ========================================
 .auth/
 *.auth.json
+<<<<<<< HEAD
 
 # ========================================
 # Security & Sensitive Files
@@ -92,6 +102,8 @@ credentials/
 config/secrets/
 config/credentials/
 config/keys/
+=======
+>>>>>>> origin/main
 
 # ========================================
 # Docker

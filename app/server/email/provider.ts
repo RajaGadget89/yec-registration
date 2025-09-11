@@ -204,6 +204,7 @@ YEC Day Admin Team`,
     try {
       // Try to write to database outbox first
       const supabase = getSupabaseServiceClient();
+
       const { error } = await (supabase as any).from("email_outbox").insert({
         id: messageId,
         to_email: message.to,

@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
           const tokenId = ((data as any).payload as any).token_id as
             | string
             | undefined;
+
           if (tokenId) {
             try {
               const tokenData =

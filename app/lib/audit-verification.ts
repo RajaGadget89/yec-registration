@@ -259,6 +259,7 @@ async function verifyAuditTables(): Promise<{
     }
 
     const tableNames = tables?.map((t) => (t as any).table_name) || [];
+
     const requiredTables = ["access_log", "event_log"];
     const missingTables = requiredTables.filter((t) => !tableNames.includes(t));
 

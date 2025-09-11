@@ -80,6 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate token using the UUID
+
     const { data: tokenResult, error: tokenError } = await (
       supabase as any
     ).rpc("generate_secure_deep_link_token", {

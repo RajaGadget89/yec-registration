@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update email status
+
     const { data, error } = await (supabase as any)
       .from("email_outbox")
       .update(updateData)

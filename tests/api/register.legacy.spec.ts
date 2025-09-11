@@ -1,5 +1,9 @@
 // LEGACY: kept for reference, does not reflect Phase 1 workflow. Excluded from default test script.
 
+<<<<<<< HEAD
+=======
+/// <reference types="vitest" />
+>>>>>>> origin/main
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 // Mock the email service

@@ -6,7 +6,7 @@ export async function GET() {
     const supabase = getSupabaseServiceClient();
 
     // Test the token generation function
-    const { data: tokenData, error: tokenError } = await supabase.rpc(
+    const { data: tokenData, error: tokenError } = await (supabase as any).rpc(
       "generate_admin_invitation_token",
     );
 

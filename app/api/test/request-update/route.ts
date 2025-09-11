@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
     // Add notes to review_checklist if provided
     if (notes) {
       const currentChecklist = (registration as any).review_checklist || {};
+
       const updatedChecklist = {
         ...currentChecklist,
         [dimension]: {
@@ -142,6 +143,7 @@ export async function POST(request: NextRequest) {
       .from("registrations")
       .update(updateData)
       .eq("id", (registration as any).id)
+
       .select();
 
     console.log("Update result:", { result, updateError });
@@ -198,7 +200,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
+
       registrationId: (registration as any).registration_id,
+
       status: updateResult.new_status,
       dimension: dimension,
       notes: notes,

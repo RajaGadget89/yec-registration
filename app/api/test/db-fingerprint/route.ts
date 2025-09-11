@@ -152,6 +152,7 @@ export async function GET(request: NextRequest) {
       if (reasons) {
         reasons.forEach((reg) => {
           const reason = (reg as any).update_reason;
+
           if (reason === "profile") {
             updateReasonDistribution.profile++;
           } else if (reason === "info") {

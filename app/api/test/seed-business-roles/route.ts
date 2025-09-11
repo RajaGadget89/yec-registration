@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
       console.log(
         `[seed-business-roles] business_roles column not available, creating admin user without business_roles`,
       );
+
       const result = await (supabase as any)
         .from("admin_users")
         .upsert({

@@ -43,7 +43,9 @@ export async function POST(request: NextRequest) {
     const migrationSQL = fs.readFileSync(migrationPath, "utf8");
 
     // Apply migration using direct SQL execution
-    const { error } = await supabase.rpc("exec_sql", { sql: migrationSQL });
+    const { error } = await (supabase as any).rpc("exec_sql", {
+      sql: migrationSQL,
+    });
 
     if (error) {
       console.error("Migration error:", error);

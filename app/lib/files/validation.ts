@@ -29,6 +29,7 @@ const VALIDATION_RULES = {
       "image/jpg",
       "image/png",
     ] as const,
+
     maxSizeBytes: 10 * 1024 * 1024, // 10MB
   },
   profile: {

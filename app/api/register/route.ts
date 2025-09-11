@@ -132,6 +132,7 @@ async function handlePOST(req: NextRequest) {
     };
 
     const supabase = getSupabaseServiceClient();
+
     const { data: registration, error } = await (supabase as any)
       .from("registrations")
       .insert([insertPayload])
@@ -239,7 +240,9 @@ async function handlePOST(req: NextRequest) {
       success: true,
       message:
         "Registration submitted successfully and is waiting for admin review",
+
       registration_id: (registration as any).registration_id,
+
       price_applied: priceApplied,
       currency: currency,
       is_early_bird: priceApplied

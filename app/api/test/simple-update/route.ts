@@ -78,7 +78,9 @@ export async function POST(request: NextRequest) {
         status: newStatus,
         updated_at: new Date().toISOString(),
       })
+
       .eq("id", (registration as any).id)
+
       .select();
 
     console.log(`[SIMPLE-UPDATE] Update result:`, { updateData, updateError });
@@ -97,7 +99,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       registrationId: registrationId,
+
       oldStatus: (registration as any).status,
+
       newStatus: newStatus,
       updated: updateData?.[0] || null,
     });

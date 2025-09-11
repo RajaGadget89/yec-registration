@@ -454,7 +454,9 @@ export async function getRegistrationStatistics(): Promise<{
       };
     }
 
-    const { data, error } = await supabase.rpc("get_registration_statistics");
+    const { data, error } = await (supabase as any).rpc(
+      "get_registration_statistics",
+    );
 
     if (error) {
       console.error("Error fetching registration statistics:", error);
