@@ -18,18 +18,11 @@ export async function GET() {
     // Test basic connectivity by checking if we can query the database
     const { error } = await supabase
       .from("admin_users")
-      .select("count")
-      .limit(1);
+      .select("*", { count: "exact", head: true });
 
     if (error) {
       return NextResponse.json(
-        {
-          status: "unhealthy",
-          error: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint,
-        },
+        { health: "error", error: error.message },
         { status: 500 },
       );
     }
@@ -39,28 +32,23 @@ export async function GET() {
 
     if (authError) {
       return NextResponse.json(
-        {
-          status: "partially_healthy",
-          database: "healthy",
-          auth: "unhealthy",
-          authError: authError.message,
-        },
-        { status: 200 },
+        { health: "error", error: `Auth service error: ${authError.message}` },
+        { status: 500 },
       );
     }
 
-    return NextResponse.json({
-      status: "healthy",
-      database: "healthy",
-      auth: "healthy",
-      timestamp: new Date().toISOString(),
-    });
+    return NextResponse.json(
+      {
+        status: "healthy",
+        database: "healthy",
+      },
+      { status: 200 },
+    );
   } catch (error) {
     return NextResponse.json(
       {
-        status: "unhealthy",
+        health: "error",
         error: error instanceof Error ? error.message : "Unknown error",
-        timestamp: new Date().toISOString(),
       },
       { status: 500 },
     );

@@ -32,20 +32,42 @@ CREATE INDEX IF NOT EXISTS idx_admin_users_status ON admin_users(status);
 ALTER TABLE admin_invitations ENABLE ROW LEVEL SECURITY;
 
 -- Super admins can manage all invitations
-CREATE POLICY "Super admins can manage admin invitations" ON admin_invitations
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM admin_users au
-      WHERE au.id = auth.uid()
-      AND au.role = 'super_admin'
-      AND au.is_active = true
-      AND au.status = 'active'
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies p
+    WHERE p.schemaname = 'public'
+      AND p.tablename = 'admin_invitations'
+      AND p.policyname = 'Super admins can manage admin invitations'
+  ) THEN
+    CREATE POLICY "Super admins can manage admin invitations" ON admin_invitations
+      FOR ALL USING (
+        EXISTS (
+          SELECT 1 FROM admin_users au
+          WHERE au.id = auth.uid()
+          AND au.role = 'super_admin'
+          AND au.is_active = true
+          AND au.status = 'active'
+        )
+      );
+  END IF;
+END $$;
 
 -- Service role can manage all invitations (for API operations)
-CREATE POLICY "Service role can manage admin invitations" ON admin_invitations
-  FOR ALL USING (auth.role() = 'service_role');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies p
+    WHERE p.schemaname = 'public'
+      AND p.tablename = 'admin_invitations'
+      AND p.policyname = 'Service role can manage admin invitations'
+  ) THEN
+    CREATE POLICY "Service role can manage admin invitations" ON admin_invitations
+      FOR ALL USING (auth.role() = 'service_role');
+  END IF;
+END $$;
 
 -- 5. Create function to clean up expired invitations
 CREATE OR REPLACE FUNCTION cleanup_expired_admin_invitations()
@@ -206,22 +228,57 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 11. Add comments for documentation
-COMMENT ON TABLE admin_invitations IS 'Admin invitation system for onboarding new administrators';
-COMMENT ON COLUMN admin_invitations.email IS 'Email address of the invited admin (case-insensitive)';
-COMMENT ON COLUMN admin_invitations.token IS 'Cryptographically secure token for invitation acceptance';
-COMMENT ON COLUMN admin_invitations.expires_at IS 'Expiration timestamp (48 hours from creation)';
-COMMENT ON COLUMN admin_invitations.invited_by_admin_id IS 'ID of the admin who sent the invitation';
-COMMENT ON COLUMN admin_invitations.accepted_admin_id IS 'ID of the admin who accepted the invitation (set on acceptance)';
-COMMENT ON COLUMN admin_invitations.status IS 'Current status of the invitation';
-COMMENT ON COLUMN admin_invitations.metadata IS 'Additional metadata for future extensibility';
-
-COMMENT ON FUNCTION generate_admin_invitation_token() IS 'Generates a cryptographically secure token for admin invitations';
-COMMENT ON FUNCTION validate_admin_invitation_token(TEXT) IS 'Validates an invitation token and returns invitation details';
-COMMENT ON FUNCTION accept_admin_invitation(TEXT, UUID) IS 'Accepts an admin invitation and creates/updates admin user';
-COMMENT ON FUNCTION revoke_admin_invitation(UUID, UUID) IS 'Revokes a pending admin invitation';
-COMMENT ON FUNCTION get_admin_invitation_stats() IS 'Returns statistics about admin invitations';
-COMMENT ON FUNCTION cleanup_expired_admin_invitations() IS 'Marks expired invitations as expired (run periodically)';
+-- 11. Add comments for documentation (guarded)
+DO $$
+BEGIN
+  -- Table comment
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_invitations') THEN
+    COMMENT ON TABLE admin_invitations IS 'Admin invitation system for onboarding new administrators';
+  END IF;
+  
+  -- Column comments
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'email') THEN
+    COMMENT ON COLUMN admin_invitations.email IS 'Email address of the invited admin (case-insensitive)';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'token') THEN
+    COMMENT ON COLUMN admin_invitations.token IS 'Cryptographically secure token for invitation acceptance';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'expires_at') THEN
+    COMMENT ON COLUMN admin_invitations.expires_at IS 'Expiration timestamp (48 hours from creation)';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'invited_by_admin_id') THEN
+    COMMENT ON COLUMN admin_invitations.invited_by_admin_id IS 'ID of the admin who sent the invitation';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'accepted_admin_id') THEN
+    COMMENT ON COLUMN admin_invitations.accepted_admin_id IS 'ID of the admin who accepted the invitation (set on acceptance)';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'status') THEN
+    COMMENT ON COLUMN admin_invitations.status IS 'Current status of the invitation';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'metadata') THEN
+    COMMENT ON COLUMN admin_invitations.metadata IS 'Additional metadata for future extensibility';
+  END IF;
+  
+  -- Function comments
+  IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'generate_admin_invitation_token') THEN
+    COMMENT ON FUNCTION generate_admin_invitation_token() IS 'Generates a cryptographically secure token for admin invitations';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'validate_admin_invitation_token') THEN
+    COMMENT ON FUNCTION validate_admin_invitation_token(TEXT) IS 'Validates an invitation token and returns invitation details';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'accept_admin_invitation') THEN
+    COMMENT ON FUNCTION accept_admin_invitation(TEXT, UUID) IS 'Accepts an admin invitation and creates/updates admin user';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'revoke_admin_invitation') THEN
+    COMMENT ON FUNCTION revoke_admin_invitation(UUID, UUID) IS 'Revokes a pending admin invitation';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'get_admin_invitation_stats') THEN
+    COMMENT ON FUNCTION get_admin_invitation_stats() IS 'Returns statistics about admin invitations';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'cleanup_expired_admin_invitations') THEN
+    COMMENT ON FUNCTION cleanup_expired_admin_invitations() IS 'Marks expired invitations as expired (run periodically)';
+  END IF;
+END $$;
 
 -- 12. Create a trigger to automatically update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_admin_invitations_updated_at()
@@ -232,8 +289,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_admin_invitations_updated_at
-  BEFORE UPDATE ON admin_invitations
-  FOR EACH ROW
-  EXECUTE FUNCTION update_admin_invitations_updated_at();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'trigger_admin_invitations_updated_at'
+  ) THEN
+    CREATE TRIGGER trigger_admin_invitations_updated_at
+      BEFORE UPDATE ON admin_invitations
+      FOR EACH ROW
+      EXECUTE FUNCTION update_admin_invitations_updated_at();
+  END IF;
+END $$;
+
+-- MIGRATION-GUARD: noop marker after idempotent transforms
+SELECT 1;
 

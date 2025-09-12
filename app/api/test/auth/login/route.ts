@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     // Try to upsert with business_roles first, fallback to without if column doesn't exist
     let upsertResult, upsertError;
     try {
-      const result = await supabase.from("admin_users").upsert(
+      const result = await (supabase as any).from("admin_users").upsert(
         {
           id: userId,
           email: email.toLowerCase(),
@@ -130,7 +130,8 @@ export async function POST(request: NextRequest) {
       console.log(
         `[test/auth/login] business_roles column not available, creating admin user without business_roles`,
       );
-      const result = await supabase.from("admin_users").upsert(
+
+      const result = await (supabase as any).from("admin_users").upsert(
         {
           id: userId,
           email: email.toLowerCase(),

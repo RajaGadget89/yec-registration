@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     for (const email of emails) {
       try {
         // Insert into email_outbox table
-        const { data, error } = await supabase
+
+        const { data, error } = await (supabase as any)
           .from("email_outbox")
           .insert({
             template: email.template,
@@ -61,6 +62,11 @@ export async function POST(request: NextRequest) {
           });
           continue;
         }
+
+        createdIds.push((data as any).id);
+        console.log(
+          `[SEED] Created email ${(data as any).id} to ${email.to_email}`,
+        );
 
         createdIds.push(data.id);
         console.log(`[SEED] Created email ${data.id} to ${email.to_email}`);

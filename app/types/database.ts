@@ -17,6 +17,66 @@ export interface Database {
         Insert: EventSettingsInsert;
         Update: EventSettingsUpdate;
       };
+      admin_invitations: {
+        Row: AdminInvitation;
+        Insert: AdminInvitationInsert;
+        Update: AdminInvitationUpdate;
+      };
+      email_outbox: {
+        Row: EmailOutbox;
+        Insert: EmailOutboxInsert;
+        Update: EmailOutboxUpdate;
+      };
+      deep_link_tokens: {
+        Row: DeepLinkToken;
+        Insert: DeepLinkTokenInsert;
+        Update: DeepLinkTokenUpdate;
+      };
+      admin_audit_logs: {
+        Row: AdminAuditLog;
+        Insert: AdminAuditLogInsert;
+        Update: AdminAuditLogUpdate;
+      };
+      audit_logs: {
+        Row: AuditLog;
+        Insert: AuditLogInsert;
+        Update: AuditLogUpdate;
+      };
+      audit_events: {
+        Row: AuditEvent;
+        Insert: AuditEventInsert;
+        Update: AuditEventUpdate;
+      };
+      event_log: {
+        Row: EventLog;
+        Insert: EventLogInsert;
+        Update: EventLogUpdate;
+      };
+      access_log: {
+        Row: AccessLog;
+        Insert: AccessLogInsert;
+        Update: AccessLogUpdate;
+      };
+      "information_schema.columns": {
+        Row: InformationSchemaColumn;
+        Insert: never;
+        Update: never;
+      };
+      "information_schema.schemata": {
+        Row: InformationSchemaSchemata;
+        Insert: never;
+        Update: never;
+      };
+      "information_schema.tables": {
+        Row: InformationSchemaTable;
+        Insert: never;
+        Update: never;
+      };
+      "supabase_migrations.schema_migrations": {
+        Row: SchemaMigration;
+        Insert: never;
+        Update: never;
+      };
     };
     Views: {
       [key: string]: unknown;
@@ -372,4 +432,293 @@ export interface AuditEventLogInsert {
   result: string;
   reason?: string | null;
   meta?: any;
+}
+
+// Admin invitation table types
+export interface AdminInvitation {
+  id: string;
+  email: string;
+  token: string;
+  expires_at: string;
+  created_by: string;
+  status: "pending" | "accepted" | "expired" | "revoked";
+  roles: string[];
+  correlation_id: string;
+  resend_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminInvitationInsert {
+  email: string;
+  token: string;
+  expires_at: string;
+  created_by: string;
+  status?: "pending" | "accepted" | "expired" | "revoked";
+  roles: string[];
+  correlation_id: string;
+  resend_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AdminInvitationUpdate {
+  email?: string;
+  token?: string;
+  expires_at?: string;
+  created_by?: string;
+  status?: "pending" | "accepted" | "expired" | "revoked";
+  roles?: string[];
+  correlation_id?: string;
+  resend_count?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Email outbox table types
+export interface EmailOutbox {
+  id: string;
+  to_email: string;
+  subject: string;
+  html_content: string;
+  text_content: string;
+  template: string;
+  payload: any;
+  status: "pending" | "sent" | "failed" | "retrying";
+  attempts: number;
+  max_attempts: number;
+  next_attempt: string | null;
+  sent_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailOutboxInsert {
+  to_email: string;
+  subject: string;
+  html_content: string;
+  text_content: string;
+  template: string;
+  payload: any;
+  status?: "pending" | "sent" | "failed" | "retrying";
+  attempts?: number;
+  max_attempts?: number;
+  next_attempt?: string | null;
+  sent_at?: string | null;
+  last_error?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EmailOutboxUpdate {
+  to_email?: string;
+  subject?: string;
+  html_content?: string;
+  text_content?: string;
+  template?: string;
+  payload?: any;
+  status?: "pending" | "sent" | "failed" | "retrying";
+  attempts?: number;
+  max_attempts?: number;
+  next_attempt?: string | null;
+  sent_at?: string | null;
+  last_error?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Deep link token table types
+export interface DeepLinkToken {
+  token_id: string;
+  token: string;
+  registration_id: string;
+  dimension: "payment" | "profile" | "tcc";
+  admin_email: string;
+  notes: string | null;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DeepLinkTokenInsert {
+  token_id: string;
+  token: string;
+  registration_id: string;
+  dimension: "payment" | "profile" | "tcc";
+  admin_email: string;
+  notes?: string | null;
+  expires_at: string;
+  used_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DeepLinkTokenUpdate {
+  token_id?: string;
+  token?: string;
+  registration_id?: string;
+  dimension?: "payment" | "profile" | "tcc";
+  admin_email?: string;
+  notes?: string | null;
+  expires_at?: string;
+  used_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Admin audit log table types
+export interface AdminAuditLog {
+  id: string;
+  admin_email: string;
+  action: string;
+  registration_id: string | null;
+  before: any;
+  after: any;
+  timestamp: string;
+  metadata: any;
+}
+
+export interface AdminAuditLogInsert {
+  admin_email: string;
+  action: string;
+  registration_id?: string | null;
+  before?: any;
+  after?: any;
+  timestamp?: string;
+  metadata?: any;
+}
+
+export interface AdminAuditLogUpdate {
+  admin_email?: string;
+  action?: string;
+  registration_id?: string | null;
+  before?: any;
+  after?: any;
+  timestamp?: string;
+  metadata?: any;
+}
+
+// Audit log table types
+export interface AuditLog {
+  id: string;
+  event_type: string;
+  event_data: any;
+  created_at: string;
+}
+
+export interface AuditLogInsert {
+  event_type: string;
+  event_data: any;
+  created_at?: string;
+}
+
+export interface AuditLogUpdate {
+  event_type?: string;
+  event_data?: any;
+  created_at?: string;
+}
+
+// Audit event table types
+export interface AuditEvent {
+  id: string;
+  event_type: string;
+  event_data: any;
+  created_at: string;
+}
+
+export interface AuditEventInsert {
+  event_type: string;
+  event_data: any;
+  created_at?: string;
+}
+
+export interface AuditEventUpdate {
+  event_type?: string;
+  event_data?: any;
+  created_at?: string;
+}
+
+// Event log table types
+export interface EventLog {
+  id: string;
+  event_type: string;
+  event_data: any;
+  created_at: string;
+}
+
+export interface EventLogInsert {
+  event_type: string;
+  event_data: any;
+  created_at?: string;
+}
+
+export interface EventLogUpdate {
+  event_type?: string;
+  event_data?: any;
+  created_at?: string;
+}
+
+// Access log table types
+export interface AccessLog {
+  id: string;
+  action: string;
+  method: string;
+  resource: string;
+  result: string;
+  request_id: string;
+  src_ip: string;
+  user_agent: string;
+  latency_ms: number;
+  meta: any;
+}
+
+export interface AccessLogInsert {
+  action: string;
+  method: string;
+  resource: string;
+  result: string;
+  request_id: string;
+  src_ip: string;
+  user_agent: string;
+  latency_ms: number;
+  meta?: any;
+}
+
+export interface AccessLogUpdate {
+  action?: string;
+  method?: string;
+  resource?: string;
+  result?: string;
+  request_id?: string;
+  src_ip?: string;
+  user_agent?: string;
+  latency_ms?: number;
+  meta?: any;
+}
+
+// Information schema types
+export interface InformationSchemaColumn {
+  table_name: string;
+  column_name: string;
+  data_type: string;
+  is_nullable: string;
+  column_default: string | null;
+}
+
+export interface InformationSchemaSchemata {
+  schema_name: string;
+}
+
+export interface InformationSchemaTable {
+  table_name: string;
+  table_schema: string;
+}
+
+// Schema migration types
+export interface SchemaMigration {
+  version: string;
+  statements: string[];
+  name: string;
 }

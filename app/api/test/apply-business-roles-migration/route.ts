@@ -58,7 +58,7 @@ export async function POST(_req: Request) {
     `;
 
     // Execute the migration
-    const { error } = await supabase.rpc("exec_sql", {
+    const { error } = await (supabase as any).rpc("exec_sql", {
       sql: migrationSQL,
     });
 

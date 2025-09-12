@@ -55,28 +55,28 @@ async function handlePOST(request: NextRequest) {
     }
 
     // Check if already approved (idempotent behavior)
-    if (registration.status === "approved") {
+    if ((registration as any).status === "approved") {
       return NextResponse.json({
         ok: true,
-        registrationId: registration.registration_id,
+        registrationId: (registration as any).registration_id,
         global: "approved",
         dimensions: {
-          payment: registration.payment_review_status,
-          profile: registration.profile_review_status,
-          tcc: registration.tcc_review_status,
+          payment: (registration as any).payment_review_status,
+          profile: (registration as any).profile_review_status,
+          tcc: (registration as any).tcc_review_status,
         },
       });
     }
 
     // Precondition: Check if all three dimensions are passed
-    const missingDimensions = [];
-    if (registration.payment_review_status !== "passed") {
+    const missingDimensions: string[] = [];
+    if ((registration as any).payment_review_status !== "passed") {
       missingDimensions.push("payment");
     }
-    if (registration.profile_review_status !== "passed") {
+    if ((registration as any).profile_review_status !== "passed") {
       missingDimensions.push("profile");
     }
-    if (registration.tcc_review_status !== "passed") {
+    if ((registration as any).tcc_review_status !== "passed") {
       missingDimensions.push("tcc");
     }
 
@@ -92,7 +92,9 @@ async function handlePOST(request: NextRequest) {
     }
 
     // All dimensions are passed, proceed with approval
-    const { data: updatedRegistration, error: updateError } = await supabase
+    const { data: updatedRegistration, error: updateError } = await (
+      supabase as any
+    )
       .from("registrations")
       .update({
         status: "approved",
@@ -149,7 +151,7 @@ async function handlePOST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      registrationId: registration.registration_id,
+      registrationId: (registration as any).registration_id,
       global: "approved",
       dimensions: {
         payment: "passed",

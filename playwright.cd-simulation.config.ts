@@ -25,7 +25,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0, // No retries to catch issues early
   workers: 1, // Single worker like CD
-  reporter: [['line'], ['json', { outputFile: 'cd-simulation-report.json' }]],
+  reporter: [['line'], ['json', { outputFile: 'artifacts/test-results/cd-simulation-report.json' }]],
 
   use: {
     baseURL: process.env.APP_BASE_URL || 'http://localhost:8080',

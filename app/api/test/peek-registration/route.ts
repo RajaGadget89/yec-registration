@@ -75,16 +75,16 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      id: registration.id,
-      tracking_code: registration.registration_id,
-      email: registration.email,
-      status: registration.status,
-      update_reason: registration.update_reason,
-      payment_review_status: registration.payment_review_status,
-      profile_review_status: registration.profile_review_status,
-      tcc_review_status: registration.tcc_review_status,
-      review_checklist: registration.review_checklist,
-      created_at: registration.created_at,
+      id: (registration as any).id,
+      tracking_code: (registration as any).registration_id,
+      email: (registration as any).email,
+      status: (registration as any).status,
+      update_reason: (registration as any).update_reason,
+      payment_review_status: (registration as any).payment_review_status,
+      profile_review_status: (registration as any).profile_review_status,
+      tcc_review_status: (registration as any).tcc_review_status,
+      review_checklist: (registration as any).review_checklist,
+      created_at: (registration as any).created_at,
     });
   } catch (error) {
     console.error("Peek registration error:", error);

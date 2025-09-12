@@ -5,7 +5,7 @@ import {
 } from "../../../../../../lib/auth-utils.server";
 import { getSupabaseServiceClient } from "../../../../../../lib/supabase-server";
 import { withAuditLogging } from "../../../../../../lib/audit/withAuditAccess";
-import { isFeatureEnabled } from "../../../../../../lib/features";
+import { isFeatureEnabled, FEATURES } from "../../../../../../lib/features";
 import { BusinessRole } from "../../../../../../types/database";
 
 // Super admin allowlist as specified in requirements
@@ -31,7 +31,7 @@ async function updateAdminRoles(
 ): Promise<NextResponse> {
   try {
     // Check feature flag
-    if (!isFeatureEnabled("adminManagement")) {
+    if (!isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT)) {
       return NextResponse.json(
         { error: "Feature not available" },
         { status: 404 },
@@ -120,7 +120,7 @@ async function updateAdminRoles(
     }
 
     // Check if trying to update self
-    if (admin.email === currentUser.email) {
+    if ((admin as any).email === currentUser.email) {
       return NextResponse.json(
         { error: "Cannot update your own account" },
         { status: 400 },
@@ -145,7 +145,7 @@ async function updateAdminRoles(
         );
       }
 
-      if (superAdmins.length === 1 && superAdmins[0].id === adminId) {
+      if (superAdmins.length === 1 && (superAdmins[0] as any).id === adminId) {
         return NextResponse.json(
           { error: "Cannot demote the last super admin" },
           { status: 400 },
@@ -173,9 +173,9 @@ async function updateAdminRoles(
     }
 
     // Update admin user
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from("admin_users")
-      .update(updateData)
+      .update(updateData as any)
       .eq("id", adminId);
 
     if (updateError) {
@@ -203,15 +203,15 @@ async function updateAdminRoles(
     return NextResponse.json({
       success: true,
       admin: {
-        id: updatedAdmin.id,
-        email: updatedAdmin.email,
-        role: updatedAdmin.role,
-        business_roles: updatedAdmin.business_roles || [],
-        status: updatedAdmin.is_active ? "active" : "suspended",
-        created_at: updatedAdmin.created_at,
-        updated_at: updatedAdmin.updated_at,
-        last_login_at: updatedAdmin.last_login_at,
-        is_active: updatedAdmin.is_active,
+        id: (updatedAdmin as any).id,
+        email: (updatedAdmin as any).email,
+        role: (updatedAdmin as any).role,
+        business_roles: (updatedAdmin as any).business_roles || [],
+        status: (updatedAdmin as any).is_active ? "active" : "suspended",
+        created_at: (updatedAdmin as any).created_at,
+        updated_at: (updatedAdmin as any).updated_at,
+        last_login_at: (updatedAdmin as any).last_login_at,
+        is_active: (updatedAdmin as any).is_active,
       },
     });
   } catch (error) {

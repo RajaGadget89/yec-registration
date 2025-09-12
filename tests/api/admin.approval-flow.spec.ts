@@ -1,4 +1,7 @@
+<<<<<<< HEAD
+=======
 /// <reference types="vitest" />
+>>>>>>> origin/main
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 // Mock the email service
@@ -25,7 +28,11 @@ vi.mock('../../app/lib/timezoneUtils', () => ({
 import { sendApprovedEmail } from '../../app/lib/emailService';
 import { getSupabaseServiceClient } from '../../app/lib/supabase-server';
 import { generateBadge } from '../../app/lib/generateBadge';
+<<<<<<< HEAD
+import { getThailandTimeISOString as _getThailandTimeISOString } from '../../app/lib/timezoneUtils';
+=======
 import { getThailandTimeISOString } from '../../app/lib/timezoneUtils';
+>>>>>>> origin/main
 
 // Utility function to reset all mocks
 const resetMocks = () => {

@@ -67,11 +67,12 @@ export async function POST(request: NextRequest) {
 
     // Check if registration is in the correct update state
     const expectedStatus = `waiting_for_update_${dimension === "profile" ? "info" : dimension}`;
-    if (registration.status !== expectedStatus) {
+
+    if ((registration as any).status !== expectedStatus) {
       return createErrorResponse(
         "INVALID_STATUS",
         "Registration not in correct update state",
-        `Registration status is ${registration.status}, expected ${expectedStatus}`,
+        `Registration status is ${(registration as any).status}, expected ${expectedStatus}`,
         409,
       );
     }
@@ -158,7 +159,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Update review checklist - reset the updated dimension to pending
-    const currentChecklist = registration.review_checklist || {
+
+    const currentChecklist = (registration as any).review_checklist || {
       payment: { status: "pending", notes: "" },
       profile: { status: "pending", notes: "" },
       tcc: { status: "pending", notes: "" },
@@ -173,7 +175,10 @@ export async function POST(request: NextRequest) {
     };
 
     // Update registration
-    const { data: updatedRegistration, error: updateError } = await supabase
+
+    const { data: updatedRegistration, error: updateError } = await (
+      supabase as any
+    )
       .from("registrations")
       .update({
         ...updates,
@@ -238,7 +243,9 @@ export async function POST(request: NextRequest) {
         action: "user.resubmitted",
         resource: "registration",
         resource_id: registrationId,
-        actor_id: registration.email,
+
+        actor_id: (registration as any).email,
+
         actor_role: "user",
         result: "success",
         correlation_id: requestId,

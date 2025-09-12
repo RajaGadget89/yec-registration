@@ -59,21 +59,23 @@ export async function GET() {
 
     if (hasAccessLog) {
       try {
-        const { error: insertErr } = await supabase.from("access_log").insert({
-          action: "schema-test",
-          method: "GET",
-          resource: "/api/diag/audit-schema-test",
-          result: "200",
-          request_id: testRequestId,
-          src_ip: "127.0.0.1",
-          user_agent: "schema-test",
-          latency_ms: 50,
-          meta: {
-            test: true,
-            timezone: "Asia/Bangkok",
-            timestamp: timezoneAwareTimestamp,
-          },
-        });
+        const { error: insertErr } = await (supabase as any)
+          .from("audit.access_log")
+          .insert({
+            action: "schema-test",
+            method: "GET",
+            resource: "/api/diag/audit-schema-test",
+            result: "200",
+            request_id: testRequestId,
+            src_ip: "127.0.0.1",
+            user_agent: "schema-test",
+            latency_ms: 50,
+            meta: {
+              test: true,
+              timezone: "Asia/Bangkok",
+              timestamp: timezoneAwareTimestamp,
+            },
+          });
 
         if (!insertErr) {
           insertSuccess = true;

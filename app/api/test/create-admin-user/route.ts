@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     if (existingUserRecord) {
       // Update existing user to ensure it's active and has super_admin role
-      const { data: updatedUser, error: updateError } = await supabase
+      const { data: updatedUser, error: updateError } = await (supabase as any)
         .from("admin_users")
         .update({
           role: "super_admin",
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
       console.log(`[create-admin-user] Updated existing user: ${email}`);
     } else {
       // Create new user
-      const { data: newUser, error: insertError } = await supabase
+      const { data: newUser, error: insertError } = await (supabase as any)
         .from("admin_users")
         .insert({
           id: userId,

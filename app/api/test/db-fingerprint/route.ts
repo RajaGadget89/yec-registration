@@ -63,9 +63,9 @@ export async function GET(request: NextRequest) {
 
       if (!migrationsError && migrations) {
         migrationsStatus = migrations.map((m) => ({
-          version: m.version,
-          name: m.name,
-          statements_count: m.statements?.length || 0,
+          version: (m as any).version,
+          name: (m as any).name,
+          statements_count: (m as any).statements?.length || 0,
         }));
       }
     } catch {
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
     // Check fn_user_resubmit function (using same approach as check-db-functions)
     try {
-      await supabase.rpc("fn_user_resubmit", {
+      await (supabase as any).rpc("fn_user_resubmit", {
         reg_id: "00000000-0000-0000-0000-000000000000",
         payload: {},
       });
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     // Check validate_and_consume_deep_link_token function (using same approach as check-db-functions)
     try {
-      await supabase.rpc("validate_and_consume_deep_link_token", {
+      await (supabase as any).rpc("validate_and_consume_deep_link_token", {
         token: "test",
         reg_id: "00000000-0000-0000-0000-000000000000",
         user_email: null,
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
 
     // Check generate_secure_deep_link_token function (using same approach as check-db-functions)
     try {
-      await supabase.rpc("generate_secure_deep_link_token", {
+      await (supabase as any).rpc("generate_secure_deep_link_token", {
         reg_id: "00000000-0000-0000-0000-000000000000",
         dimension: "profile",
         admin_email: "test@example.com",
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
 
     // Check trigger_update_registration_status function (using same approach as check-db-functions)
     try {
-      await supabase.rpc("trigger_update_registration_status", {
+      await (supabase as any).rpc("trigger_update_registration_status", {
         reg_id: "00000000-0000-0000-0000-000000000000",
         dimension: "profile",
         status: "pending",
@@ -151,7 +151,8 @@ export async function GET(request: NextRequest) {
 
       if (reasons) {
         reasons.forEach((reg) => {
-          const reason = reg.update_reason;
+          const reason = (reg as any).update_reason;
+
           if (reason === "profile") {
             updateReasonDistribution.profile++;
           } else if (reason === "info") {

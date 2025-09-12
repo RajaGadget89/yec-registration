@@ -336,7 +336,8 @@ export async function dispatchEmailBatch(
         // Update database status to 'sent'
         try {
           const supabase = getServiceRoleClient();
-          await supabase
+
+          await (supabase as any)
             .from("email_outbox")
             .update({
               status: "sent",
@@ -378,7 +379,8 @@ export async function dispatchEmailBatch(
             // Update database status to 'error'
             try {
               const supabase = getServiceRoleClient();
-              await supabase
+
+              await (supabase as any)
                 .from("email_outbox")
                 .update({
                   status: "error",
@@ -412,7 +414,8 @@ export async function dispatchEmailBatch(
       // Update database status to 'error'
       try {
         const supabase = getServiceRoleClient();
-        await supabase
+
+        await (supabase as any)
           .from("email_outbox")
           .update({
             status: "error",
@@ -510,7 +513,8 @@ export async function getOutboxStats() {
       total_pending: pendingCount || 0,
       total_sent: sentCount || 0,
       total_error: errorCount || 0,
-      oldest_pending: oldestPending?.created_at || null,
+
+      oldest_pending: (oldestPending as any)?.created_at || null,
     };
   } catch (error) {
     console.warn("[STATS] Database query failed:", error);
@@ -550,7 +554,8 @@ export async function enqueueEmail(
     const supabase = getServiceRoleClient();
 
     // Use the database function to enqueue the email
-    const { data, error } = await supabase.rpc("fn_enqueue_email", {
+
+    const { data, error } = await (supabase as any).rpc("fn_enqueue_email", {
       p_template: template,
       p_to_email: toEmail,
       p_payload: payload,
@@ -604,7 +609,9 @@ export async function retryFailedEmails(emailIds: string[]): Promise<number> {
     const supabase = getServiceRoleClient();
 
     // Use the database function to retry failed emails
-    const { data, error } = await supabase.rpc("fn_retry_failed_emails");
+    const { data, error } = await (supabase as any).rpc(
+      "fn_retry_failed_emails",
+    );
 
     if (error) {
       console.error("[RETRY] Failed to retry emails:", error);

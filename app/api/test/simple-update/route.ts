@@ -68,17 +68,19 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(
-      `[SIMPLE-UPDATE] Found registration: ${registration.id} with status: ${registration.status}`,
+      `[SIMPLE-UPDATE] Found registration: ${(registration as any).id} with status: ${(registration as any).status}`,
     );
 
     // Update the status
-    const { data: updateData, error: updateError } = await supabase
+    const { data: updateData, error: updateError } = await (supabase as any)
       .from("registrations")
       .update({
         status: newStatus,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", registration.id)
+
+      .eq("id", (registration as any).id)
+
       .select();
 
     console.log(`[SIMPLE-UPDATE] Update result:`, { updateData, updateError });
@@ -97,7 +99,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       registrationId: registrationId,
-      oldStatus: registration.status,
+
+      oldStatus: (registration as any).status,
+
       newStatus: newStatus,
       updated: updateData?.[0] || null,
     });

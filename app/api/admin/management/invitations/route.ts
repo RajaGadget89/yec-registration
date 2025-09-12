@@ -5,11 +5,11 @@ import {
 } from "../../../../lib/auth-utils.server";
 import { getSupabaseServiceClient } from "../../../../lib/supabase-server";
 import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
-import { isFeatureEnabled } from "../../../../lib/features";
+import { isFeatureEnabled, FEATURES } from "../../../../lib/features";
 
 async function listInvitations(request: NextRequest): Promise<NextResponse> {
   // Feature flag (mirror invite route)
-  if (!isFeatureEnabled("adminManagement")) {
+  if (!isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT)) {
     return NextResponse.json(
       { error: "Feature not available" },
       { status: 404 },

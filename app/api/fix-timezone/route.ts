@@ -23,7 +23,10 @@ export async function POST() {
 
     // Execute each command
     for (const command of commands) {
-      const { error } = await supabase.rpc("exec_sql", { sql: command });
+      const { error } = await (supabase as any).rpc("exec_sql", {
+        sql: command,
+      });
+
       if (error) {
         console.error("Error executing SQL command:", error);
         console.error("Command was:", command);

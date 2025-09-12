@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
     const supabase = getSupabaseServiceClient();
 
     // Get outbox statistics
-    const { data: stats, error: statsError } = await supabase.rpc(
+
+    const { data: stats, error: statsError } = await (supabase as any).rpc(
       "fn_get_outbox_stats",
     );
 
@@ -43,10 +44,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get recent pending emails
-    const { data: pendingEmails, error: pendingError } = await supabase.rpc(
-      "fn_get_pending_emails",
-      { limit: 10 },
-    );
+
+    const { data: pendingEmails, error: pendingError } = await (
+      supabase as any
+    ).rpc("fn_get_pending_emails", { limit: 10 });
 
     if (pendingError) {
       return NextResponse.json(

@@ -68,11 +68,12 @@ export async function POST(request: NextRequest) {
       .digest("hex");
 
     // Store the token in the database
-    const { data: tokenRecord, error: tokenError } = await supabase
+
+    const { data: tokenRecord, error: tokenError } = await (supabase as any)
       .from("deep_link_tokens")
       .insert({
         token_hash: tokenHash,
-        registration_id: registration.id,
+        registration_id: (registration as any).id,
         dimension: dimension,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
         created_at: new Date().toISOString(),
@@ -95,10 +96,10 @@ export async function POST(request: NextRequest) {
       ok: true,
       token: testToken,
       tokenRecord: {
-        id: tokenRecord.id,
-        dimension: tokenRecord.dimension,
-        expires_at: tokenRecord.expires_at,
-        created_at: tokenRecord.created_at,
+        id: (tokenRecord as any).id,
+        dimension: (tokenRecord as any).dimension,
+        expires_at: (tokenRecord as any).expires_at,
+        created_at: (tokenRecord as any).created_at,
       },
     });
   } catch (error) {

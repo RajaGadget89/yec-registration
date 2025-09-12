@@ -370,7 +370,7 @@ class ComprehensiveCDSimulator {
       }
     };
 
-    const reportPath = path.join(this.artifactsDir, 'cd-simulation-report.json');
+    const reportPath = path.join(this.artifactsDir, 'artifacts/test-results/cd-simulation-report.json');
     writeFileSync(reportPath, JSON.stringify(report, null, 2));
     
     console.log('📄 CD simulation report saved to:', reportPath);

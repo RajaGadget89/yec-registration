@@ -114,10 +114,18 @@ export function EmailOutboxNavWidget() {
 
   // Load stats and trends on component mount
   useEffect(() => {
+    // On the login page we intentionally skip probing /api/admin/me to avoid expected 401s
+    if (
+      typeof window !== "undefined" &&
+      window.location.pathname === "/admin/login"
+    ) {
+      setAuthState("unauth");
+      return;
+    }
+
     let alive = true;
     (async () => {
       try {
-        // Probe auth once – prevents 401 spam on /admin/login
         const me = await fetch("/api/admin/me", { cache: "no-store" });
         if (!alive) return;
 

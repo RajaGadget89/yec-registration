@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServiceClient();
 
     // Try to update email status without sent_at
-    const { data, error } = await supabase
+
+    const { data, error } = await (supabase as any)
       .from("email_outbox")
       .update({
         status,

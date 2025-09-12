@@ -1,4 +1,7 @@
+<<<<<<< HEAD
+=======
 /// <reference types="vitest" />
+>>>>>>> origin/main
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 // Mock the email service

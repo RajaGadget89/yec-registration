@@ -49,7 +49,9 @@ export async function POST(request: NextRequest) {
       .from("deep_link_tokens")
       .select("*")
       .eq("token_hash", tokenHash)
-      .eq("registration_id", registration.id)
+
+      .eq("registration_id", (registration as any).id)
+
       .single();
 
     if (tokenError) {
@@ -57,7 +59,8 @@ export async function POST(request: NextRequest) {
         token_exists: false,
         error: tokenError.message,
         token_hash: tokenHash,
-        registration_id: registration.id,
+
+        registration_id: (registration as any).id,
       });
     }
 
@@ -65,7 +68,8 @@ export async function POST(request: NextRequest) {
       token_exists: true,
       token_record: tokenRecord,
       token_hash: tokenHash,
-      registration_id: registration.id,
+
+      registration_id: (registration as any).id,
     });
   } catch (error) {
     console.error("Check token error:", error);

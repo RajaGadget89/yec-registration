@@ -63,7 +63,7 @@ async function handlePOST(
       .from("deep_link_tokens")
       .select("*")
       .eq("token_hash", tokenHash)
-      .eq("registration_id", registrationLookup.id)
+      .eq("registration_id", (registrationLookup as any).id)
       .single();
 
     if (tokenError || !tokenRecord) {
@@ -80,14 +80,14 @@ async function handlePOST(
     }
 
     console.log("Token found:", {
-      id: tokenRecord.id,
-      dimension: tokenRecord.dimension,
-      expires_at: tokenRecord.expires_at,
-      used_at: tokenRecord.used_at,
+      id: (tokenRecord as any).id,
+      dimension: (tokenRecord as any).dimension,
+      expires_at: (tokenRecord as any).expires_at,
+      used_at: (tokenRecord as any).used_at,
     });
 
     // Check if token is expired
-    if (new Date(tokenRecord.expires_at) < new Date()) {
+    if (new Date((tokenRecord as any).expires_at) < new Date()) {
       return NextResponse.json(
         {
           ok: false,
@@ -100,7 +100,7 @@ async function handlePOST(
     }
 
     // Check if token is already used
-    if (tokenRecord.used_at) {
+    if ((tokenRecord as any).used_at) {
       return NextResponse.json(
         {
           ok: false,
@@ -113,7 +113,7 @@ async function handlePOST(
     }
 
     // Mark token as used
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from("deep_link_tokens")
       .update({
         used_at: new Date().toISOString(),
@@ -121,7 +121,7 @@ async function handlePOST(
         ip_address: ipAddress,
         user_agent: userAgent,
       })
-      .eq("id", tokenRecord.id);
+      .eq("id", (tokenRecord as any).id);
 
     if (updateError) {
       console.error("Error marking token as used:", updateError);
@@ -137,9 +137,9 @@ async function handlePOST(
 
     const tokenValidation = {
       valid: true,
-      dimension: tokenRecord.dimension,
-      created_at: tokenRecord.created_at,
-      expires_at: tokenRecord.expires_at,
+      dimension: (tokenRecord as any).dimension,
+      created_at: (tokenRecord as any).created_at,
+      expires_at: (tokenRecord as any).expires_at,
       used_at: new Date().toISOString(),
     };
 
@@ -147,7 +147,7 @@ async function handlePOST(
     const { data: registration, error: fetchError } = await supabase
       .from("registrations")
       .select("*")
-      .eq("id", registrationLookup.id)
+      .eq("id", (registrationLookup as any).id)
       .single();
 
     if (fetchError || !registration) {
@@ -164,12 +164,12 @@ async function handlePOST(
 
     // Validate registration is in update state
     if (
-      !registration.update_reason ||
+      !(registration as any).update_reason ||
       ![
         "waiting_for_update_payment",
         "waiting_for_update_info",
         "waiting_for_update_tcc",
-      ].includes(registration.status)
+      ].includes((registration as any).status)
     ) {
       return NextResponse.json(
         {
@@ -184,9 +184,10 @@ async function handlePOST(
     // Validate that the token dimension matches the registration update reason
     // Normalize legacy 'info' values to 'profile' for comparison
     const normalizedUpdateReason =
-      registration.update_reason === "info"
+      (registration as any).update_reason === "info"
         ? "profile"
-        : registration.update_reason;
+        : (registration as any).update_reason;
+
     const expectedDimension =
       normalizedUpdateReason === "payment"
         ? "payment"
@@ -199,16 +200,16 @@ async function handlePOST(
     console.log("Debug resubmit validation:", {
       tokenDimension: tokenValidation.dimension,
       expectedDimension,
-      registrationUpdateReason: registration.update_reason,
+      registrationUpdateReason: (registration as any).update_reason,
       normalizedUpdateReason,
-      registrationStatus: registration.status,
+      registrationStatus: (registration as any).status,
     });
 
     if (tokenValidation.dimension !== expectedDimension) {
       console.error("Token dimension mismatch:", {
         tokenDimension: tokenValidation.dimension,
         expectedDimension,
-        registrationUpdateReason: registration.update_reason,
+        registrationUpdateReason: (registration as any).update_reason,
         normalizedUpdateReason,
       });
       return NextResponse.json(
@@ -304,8 +305,8 @@ async function handlePOST(
     let resubmitError;
 
     try {
-      const { data, error } = await supabase.rpc("fn_user_resubmit", {
-        reg_id: registrationLookup.id,
+      const { data, error } = await (supabase as any).rpc("fn_user_resubmit", {
+        reg_id: (registrationLookup as any).id,
         payload: dimensionUpdates,
       });
       resubmissionResult = data;
@@ -313,14 +314,14 @@ async function handlePOST(
     } catch (error) {
       console.error("Domain function call failed, using fallback:", error);
       // Fallback: direct database update if domain function fails
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from("registrations")
         .update({
           status: "waiting_for_review",
           update_reason: null,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", registrationLookup.id);
+        .eq("id", (registrationLookup as any).id);
 
       if (updateError) {
         console.error("Fallback update also failed:", updateError);
@@ -358,7 +359,7 @@ async function handlePOST(
       ok: true,
       message: "Resubmission processed successfully",
       registration_id: body.registration_id,
-      status: resubmissionResult.status,
+      status: (resubmissionResult as any).status,
       dimension: tokenValidation.dimension,
       newStatus: "pending",
       global: "waiting_for_review",
@@ -404,16 +405,15 @@ async function handleGET(
     const supabase = getSupabaseServiceClient();
 
     // Validate token without consuming it (for GET requests)
-    const { data: tokenValidation, error: tokenError } = await supabase.rpc(
-      "validate_and_consume_deep_link_token",
-      {
-        token: token,
-        reg_id: registrationId,
-        user_email: null,
-        ip_address: null,
-        user_agent: null,
-      },
-    );
+    const { data: tokenValidation, error: tokenError } = await (
+      supabase as any
+    ).rpc("validate_and_consume_deep_link_token", {
+      token: token,
+      reg_id: registrationId,
+      user_email: null,
+      ip_address: null,
+      user_agent: null,
+    });
 
     if (tokenError) {
       console.error("Token validation error:", tokenError);
@@ -423,7 +423,7 @@ async function handleGET(
       );
     }
 
-    if (!tokenValidation || !tokenValidation.valid) {
+    if (!tokenValidation || !(tokenValidation as any).valid) {
       const errorKey =
         tokenValidation?.reason === "expired"
           ? "resubmit.expired"
@@ -462,19 +462,19 @@ async function handleGET(
     return NextResponse.json({
       ok: true,
       registration: {
-        id: registration.id,
-        first_name: registration.first_name,
-        last_name: registration.last_name,
-        email: registration.email,
-        tracking_code: registration.tracking_code,
-        status: registration.status,
-        update_reason: registration.update_reason,
-        dimension: tokenValidation.dimension,
+        id: (registration as any).id,
+        first_name: (registration as any).first_name,
+        last_name: (registration as any).last_name,
+        email: (registration as any).email,
+        tracking_code: (registration as any).tracking_code,
+        status: (registration as any).status,
+        update_reason: (registration as any).update_reason,
+        dimension: (tokenValidation as any).dimension,
       },
       token_info: {
-        dimension: tokenValidation.dimension,
-        expires_at: tokenValidation.expires_at,
-        created_at: tokenValidation.created_at,
+        dimension: (tokenValidation as any).dimension,
+        expires_at: (tokenValidation as any).expires_at,
+        created_at: (tokenValidation as any).created_at,
       },
     });
   } catch (error) {
