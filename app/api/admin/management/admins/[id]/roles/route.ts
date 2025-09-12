@@ -5,7 +5,7 @@ import {
 } from "../../../../../../lib/auth-utils.server";
 import { getSupabaseServiceClient } from "../../../../../../lib/supabase-server";
 import { withAuditLogging } from "../../../../../../lib/audit/withAuditAccess";
-import { isFeatureEnabled } from "../../../../../../lib/features";
+import { isFeatureEnabled, FEATURES } from "../../../../../../lib/features";
 import { BusinessRole } from "../../../../../../types/database";
 
 // Super admin allowlist as specified in requirements
@@ -31,7 +31,7 @@ async function updateAdminRoles(
 ): Promise<NextResponse> {
   try {
     // Check feature flag
-    if (!isFeatureEnabled("adminManagement")) {
+    if (!isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT)) {
       return NextResponse.json(
         { error: "Feature not available" },
         { status: 404 },

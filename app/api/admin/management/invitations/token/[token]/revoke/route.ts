@@ -8,14 +8,14 @@ import {
 import { getSupabaseServiceClient } from "../../../../../../../lib/supabase-server";
 import { EventService } from "../../../../../../../lib/events/eventService";
 import { EventFactory } from "../../../../../../../lib/events/eventFactory";
-import { isFeatureEnabled } from "../../../../../../../lib/features";
+import { isFeatureEnabled, FEATURES } from "../../../../../../../lib/features";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> },
 ) {
   // Check feature flag
-  if (!isFeatureEnabled("adminManagement")) {
+  if (!isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT)) {
     return NextResponse.json(
       { error: "Feature not available" },
       { status: 404 },
