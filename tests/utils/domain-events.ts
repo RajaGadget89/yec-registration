@@ -3,11 +3,13 @@
  * 
  * This helper provides read-only access to domain events through existing
  * diagnostic endpoints. It does not modify any server state.
+ * Enhanced to work with correlation IDs from session adaptors.
  */
 
 export type EventQuery = {
   correlationId: string; // required, use session tracking helper to derive
   eventName?: string;
+  headers?: Record<string, string>; // optional headers for authenticated requests
 };
 
 export type DomainEvent = {
@@ -45,6 +47,8 @@ export async function listEvents(query: EventQuery): Promise<DomainEvent[]> {
       headers: {
         'X-Test-Helpers-Enabled': '1',
         'Content-Type': 'application/json',
+        'X-Correlation-ID': query.correlationId,
+        ...(query.headers || {}),
       },
     });
 
@@ -112,4 +116,19 @@ export async function expectEventSequence(query: { correlationId: string; namesI
   }
   
   return events;
+}
+
+/**
+ * List domain events using correlation ID from session adaptor
+ * @param correlationId Correlation ID from session adaptor
+ * @param eventName Optional event name filter
+ * @param headers Optional headers for authenticated requests
+ * @returns Promise resolving to array of matching domain events
+ */
+export async function listEventsWithCorrelation(
+  correlationId: string, 
+  eventName?: string, 
+  headers?: Record<string, string>
+): Promise<DomainEvent[]> {
+  return listEvents({ correlationId, eventName, headers });
 }

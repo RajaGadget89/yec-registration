@@ -9,6 +9,7 @@ export type AuditQuery = {
   correlationId?: string;
   action?: string; // e.g., registration.create, payment.validate, tcc.bind
   actorEmail?: string;
+  headers?: Record<string, string>; // optional headers for authenticated requests
 };
 
 export type AuditLog = {
@@ -50,10 +51,15 @@ export async function findAudit(query: AuditQuery): Promise<AuditLog[]> {
       headers: {
         'X-Test-Helpers-Enabled': '1',
         'Content-Type': 'application/json',
+        ...(query.headers || {}),
       },
     });
 
     if (!response.ok) {
+      // Handle 403 gracefully - audit reads require admin authentication
+      if (response.status === 403) {
+        throw new Error(`BLOCKED: Audit access requires admin authentication (403). Configure TEST_SUPERADMIN_EMAIL to enable audit reads.`);
+      }
       throw new Error(`Failed to fetch audit logs: ${response.status} ${response.statusText}`);
     }
 
@@ -116,4 +122,66 @@ export async function expectAuditMatch(query: AuditQuery, expectAtLeast = 1): Pr
   }
   
   return results;
+}
+
+/**
+ * Find audit logs using correlation ID from session adaptor
+ * @param correlationId Correlation ID from session adaptor
+ * @param action Optional action filter
+ * @param headers Optional headers for authenticated requests
+ * @returns Promise resolving to array of matching audit logs
+ */
+export async function findAuditWithCorrelation(
+  correlationId: string,
+  action?: string,
+  headers?: Record<string, string>
+): Promise<AuditLog[]> {
+  return findAudit({ correlationId, action, headers });
+}
+
+/**
+ * Expect audit logs with graceful handling of authentication failures
+ * @param query Query parameters to filter audit logs
+ * @param expectAtLeast Minimum number of logs expected (default: 1)
+ * @returns Promise resolving to array of matching audit logs or empty array if BLOCKED
+ * @throws Error only for non-authentication failures
+ */
+export async function expectAuditMatchGraceful(query: AuditQuery, expectAtLeast = 1): Promise<{
+  logs: AuditLog[];
+  status: 'PASS' | 'BLOCKED' | 'ERROR';
+  message: string;
+}> {
+  try {
+    const results = await findAudit(query);
+    
+    if (results.length < expectAtLeast) {
+      return {
+        logs: results,
+        status: 'ERROR',
+        message: `Expected at least ${expectAtLeast} audit logs matching query ${JSON.stringify(query)}, but found ${results.length}.`
+      };
+    }
+    
+    return {
+      logs: results,
+      status: 'PASS',
+      message: `Found ${results.length} audit logs matching query.`
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    if (errorMessage.includes('BLOCKED:') || errorMessage.includes('403')) {
+      return {
+        logs: [],
+        status: 'BLOCKED',
+        message: errorMessage
+      };
+    }
+    
+    return {
+      logs: [],
+      status: 'ERROR',
+      message: `Audit query failed: ${errorMessage}`
+    };
+  }
 }

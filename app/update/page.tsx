@@ -35,6 +35,10 @@ interface UpdateFormData {
   profile_image?: File | null;
   payment_slip?: File | null;
   chamber_card?: File | null;
+  // TCC-specific fields
+  tcc_number?: string;
+  tcc_holder_name?: string;
+  pdpa_consent?: boolean;
 }
 
 interface TokenValidation {
@@ -48,7 +52,7 @@ interface TokenValidation {
 
 function UpdateForm() {
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const token = searchParams.get("token") || searchParams.get("t");
 
   const [tokenValidation, setTokenValidation] =
     useState<TokenValidation | null>(null);
@@ -86,6 +90,10 @@ function UpdateForm() {
             business_type: data.registration.business_type || "",
             business_type_other: data.registration.business_type_other || "",
             yec_province: data.registration.yec_province || "",
+            // TCC fields
+            tcc_number: data.registration.tcc_number || "",
+            tcc_holder_name: data.registration.tcc_holder_name || "",
+            pdpa_consent: false, // Always require re-consent
           });
         }
       } else {
@@ -244,6 +252,19 @@ function UpdateForm() {
             submitData.append(key, value);
           }
         });
+      }
+
+      // Add TCC fields for TCC updates
+      if (tokenValidation?.dimension === "tcc") {
+        if (formData.tcc_number) {
+          submitData.append("tcc_number", formData.tcc_number);
+        }
+        if (formData.tcc_holder_name) {
+          submitData.append("tcc_holder_name", formData.tcc_holder_name);
+        }
+        if (formData.pdpa_consent) {
+          submitData.append("pdpa_consent", "true");
+        }
       }
 
       const response = await fetch("/api/registrations/update", {
@@ -491,6 +512,114 @@ function UpdateForm() {
                 </div>
               )}
 
+              {tokenValidation.dimension === "tcc" && (
+                <div className="space-y-4">
+                  <Alert className="mb-4">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Important:</strong> Only the TCC (Chamber of
+                      Commerce) information below can be updated. All other
+                      fields are read-only and cannot be changed.
+                    </AlertDescription>
+                  </Alert>
+
+                  {/* Read-only fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="first_name">First Name</Label>
+                      <Input
+                        id="first_name"
+                        name="firstName"
+                        value={formData.first_name || ""}
+                        readOnly
+                        disabled
+                        className="bg-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="last_name">Last Name</Label>
+                      <Input
+                        id="last_name"
+                        name="lastName"
+                        value={formData.last_name || ""}
+                        readOnly
+                        disabled
+                        className="bg-gray-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email">Email Address</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email || ""}
+                      readOnly
+                      disabled
+                      className="bg-gray-100"
+                    />
+                  </div>
+
+                  {/* Editable TCC fields */}
+                  <div className="border-t pt-4">
+                    <h4 className="text-lg font-semibold mb-4">
+                      TCC Information (Editable)
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="tcc_number">TCC Number *</Label>
+                        <Input
+                          id="tcc_number"
+                          name="tccNumber"
+                          value={formData.tcc_number || ""}
+                          onChange={handleInputChangeEvent("tcc_number")}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="tcc_holder_name">
+                          TCC Holder Name *
+                        </Label>
+                        <Input
+                          id="tcc_holder_name"
+                          name="tccHolderName"
+                          value={formData.tcc_holder_name || ""}
+                          onChange={handleInputChangeEvent("tcc_holder_name")}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PDPA Consent */}
+                  <div className="border-t pt-4">
+                    <div className="flex items-start space-x-2">
+                      <input
+                        type="checkbox"
+                        id="pdpa_consent"
+                        name="pdpaConsent"
+                        checked={formData.pdpa_consent || false}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "pdpa_consent",
+                            e.target.checked.toString(),
+                          )
+                        }
+                        className="mt-1"
+                        required
+                      />
+                      <Label htmlFor="pdpa_consent" className="text-sm">
+                        I consent to the processing of my personal data in
+                        accordance with the PDPA (Personal Data Protection Act)
+                        *
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* File Upload Section */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">
@@ -585,7 +714,9 @@ function UpdateForm() {
                   data-testid="btn-update-submit"
                   disabled={
                     submitting ||
-                    Object.values(fileErrors).some((error) => error)
+                    Object.values(fileErrors).some((error) => error) ||
+                    (tokenValidation?.dimension === "tcc" &&
+                      !formData.pdpa_consent)
                   }
                   className="bg-blue-600 hover:bg-blue-700"
                 >

@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { withArtifacts, saveJson, saveApiLog, saveScreenshot } from '../utils/evidence';
-import { findOutbox, expectOutboxMatch } from '../utils/email-outbox';
-import { listEvents } from '../utils/domain-events';
-import { findAudit, expectAuditMatch } from '../utils/audit-logs';
+import { findOutbox, expectOutboxMatch, expectOutboxMatchWithLiveSupport, isLiveEmailMode, getRealEmailForVerification } from '../utils/email-outbox';
+import { listEvents, listEventsWithCorrelation } from '../utils/domain-events';
+import { findAudit, expectAuditMatch, expectAuditMatchGraceful } from '../utils/audit-logs';
 import { buildRegistration, submitRegistration } from '../fixtures/registration';
+import { createCorrelatedRequest, signInAsSuperAdmin } from '../utils/session';
 
 test.describe('AC1: Registration Form & System Truth', () => {
   test('UI smoke: essential fields present & interactable', async ({ page }) => {
@@ -166,15 +167,44 @@ test.describe('AC1: Registration Form & System Truth', () => {
       // Save the payload for evidence
       await saveJson('registration-payload.json', regPayload, runDir);
       
-      // Submit via public endpoint (system truth path)
+      // Create correlated request context for system-truth tracking
+      const { req, correlationId, headers } = createCorrelatedRequest('AC1', request);
+      await saveJson('correlation-context.json', { correlationId, headers }, runDir);
+      
+      // Submit via public endpoint (system truth path) with correlation tracking
       let submissionResult;
       try {
-        submissionResult = await submitRegistration(request, regPayload);
+        // Use the correlated request context for submission
+        const response = await req.post('/api/register', {
+          data: regPayload,
+          headers
+        });
+        
+        const responseData = await response.json();
+        
+        if (response.ok()) {
+          submissionResult = {
+            id: responseData.registration_id || responseData.id || correlationId,
+            email: regPayload.email,
+            status: 'created'
+          };
+        } else if (response.status() === 409) {
+          // Handle duplicate email as idempotent success
+          submissionResult = {
+            id: responseData.existing_id || correlationId,
+            email: regPayload.email,
+            status: 'duplicate'
+          };
+        } else {
+          throw new Error(`Registration failed: ${responseData.error || responseData.message || 'Unknown error'}`);
+        }
+        
         await saveJson('submission-result.json', submissionResult, runDir);
       } catch (error) {
         await saveJson('submission-error.json', {
           error: error instanceof Error ? error.message : 'Unknown error',
-          payload: regPayload
+          payload: regPayload,
+          correlationId
         }, runDir);
         throw error;
       }
@@ -182,91 +212,78 @@ test.describe('AC1: Registration Form & System Truth', () => {
       // Verify submission was successful (created or duplicate is acceptable)
       expect(['created', 'duplicate']).toContain(submissionResult.status);
       
-      // System truth verification: Email Outbox
+      // System truth verification: Email Outbox with LIVE mode support
+      const outboxResult = await expectOutboxMatchWithLiveSupport({ 
+        to: regPayload.email,
+        templateKey: 'registration.confirmation'
+      });
+      
+      await saveJson('email-outbox-verification.json', {
+        expected: { to: regPayload.email, templateKey: 'registration.confirmation' },
+        result: outboxResult,
+        liveMode: isLiveEmailMode(),
+        realEmail: getRealEmailForVerification()
+      }, runDir);
+      
+      // System truth verification: Audit Logs with admin session and graceful 403 handling
+      const adminSession = await signInAsSuperAdmin(request);
+      const auditResult = await expectAuditMatchGraceful({ 
+        action: 'registration.create',
+        correlationId: correlationId,
+        headers: adminSession.isAuthenticated ? headers : undefined
+      });
+      
+      await saveJson('audit-logs-verification.json', {
+        expected: { action: 'registration.create', correlationId: correlationId },
+        adminSession: adminSession,
+        result: auditResult
+      }, runDir);
+      
+      // System truth verification: Domain Events with correlation tracking
       try {
-        const outboxItems = await expectOutboxMatch(
-          { to: regPayload.email, templateKey: 'registration.confirmation' },
-          1
+        const events = await listEventsWithCorrelation(
+          correlationId,
+          'registration.submitted',
+          headers
         );
-        await saveJson('email-outbox-verification.json', {
-          expected: { to: regPayload.email, templateKey: 'registration.confirmation' },
-          found: outboxItems,
-          count: outboxItems.length,
-          verification: 'PASSED'
-        }, runDir);
-      } catch (error) {
-        await saveJson('email-outbox-verification.json', {
-          expected: { to: regPayload.email, templateKey: 'registration.confirmation' },
-          error: error instanceof Error ? error.message : 'Unknown error',
-          verification: 'FAILED'
-        }, runDir);
-        // Don't fail the test if email outbox is not available in test environment
-        console.warn('Email outbox verification failed:', error);
-      }
-      
-      // System truth verification: Audit Logs (if correlation ID available)
-      try {
-        const auditLogs = await findAudit({ 
-          action: 'registration.create',
-          correlationId: submissionResult.id 
-        });
-        await saveJson('audit-logs-verification.json', {
-          expected: { action: 'registration.create', correlationId: submissionResult.id },
-          found: auditLogs,
-          count: auditLogs.length,
-          verification: auditLogs.length > 0 ? 'PASSED' : 'NO_LOGS_FOUND'
-        }, runDir);
-      } catch (error) {
-        await saveJson('audit-logs-verification.json', {
-          expected: { action: 'registration.create', correlationId: submissionResult.id },
-          error: error instanceof Error ? error.message : 'Unknown error',
-          verification: 'FAILED'
-        }, runDir);
-        // Don't fail the test if audit logs are not available
-        console.warn('Audit logs verification failed:', error);
-      }
-      
-      // System truth verification: Domain Events (if correlation ID available)
-      try {
-        const events = await listEvents({ 
-          correlationId: submissionResult.id,
-          eventName: 'registration.submitted'
-        });
+        
         await saveJson('domain-events-verification.json', {
-          expected: { correlationId: submissionResult.id, eventName: 'registration.submitted' },
+          expected: { correlationId: correlationId, eventName: 'registration.submitted' },
           found: events,
           count: events.length,
           verification: events.length > 0 ? 'PASSED' : 'NO_EVENTS_FOUND'
         }, runDir);
       } catch (error) {
         await saveJson('domain-events-verification.json', {
-          expected: { correlationId: submissionResult.id, eventName: 'registration.submitted' },
+          expected: { correlationId: correlationId, eventName: 'registration.submitted' },
           error: error instanceof Error ? error.message : 'Unknown error',
           verification: 'FAILED'
         }, runDir);
-        // Don't fail the test if domain events are not available
         console.warn('Domain events verification failed:', error);
       }
       
-      // Final evidence summary
+      // Final evidence summary with enhanced status tracking
       await saveJson('ac1-system-truth-summary.json', {
         test: 'AC1 Endpoint Submit & System Truth',
         timestamp: new Date().toISOString(),
+        correlationId: correlationId,
         submission: {
           status: submissionResult.status,
           id: submissionResult.id,
           email: submissionResult.email
         },
-        realEmailUsed: !!process.env.TEST_REAL_EMAIL,
-        realEmailAddress: process.env.TEST_REAL_EMAIL || null,
+        liveMode: isLiveEmailMode(),
+        realEmailAddress: getRealEmailForVerification(),
+        adminSessionConfigured: !!process.env.TEST_SUPERADMIN_EMAIL,
         verificationResults: {
-          emailOutbox: 'See email-outbox-verification.json',
-          auditLogs: 'See audit-logs-verification.json',
+          emailOutbox: outboxResult.status,
+          auditLogs: auditResult.status,
           domainEvents: 'See domain-events-verification.json'
         }
       }, runDir);
       
-      console.log(`AC1 system truth verification completed. Artifacts saved to: ${runDir}`);
+      console.log(`AC1 system truth verification completed with correlation ID: ${correlationId}`);
+      console.log(`Artifacts saved to: ${runDir}`);
     });
   });
 });

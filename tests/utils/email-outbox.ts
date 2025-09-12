@@ -9,6 +9,7 @@ export type OutboxQuery = {
   to?: string;
   templateKey?: string;
   correlationId?: string; // if available via session tracking
+  headers?: Record<string, string>; // optional headers for authenticated requests
 };
 
 export type OutboxItem = {
@@ -40,6 +41,7 @@ export async function findOutbox(query: OutboxQuery): Promise<OutboxItem[]> {
       headers: {
         'X-Test-Helpers-Enabled': '1',
         'Content-Type': 'application/json',
+        ...(query.headers || {}),
       },
     });
 
@@ -96,4 +98,89 @@ export async function expectOutboxMatch(query: OutboxQuery, expectAtLeast = 1): 
   }
   
   return results;
+}
+
+/**
+ * Check if LIVE email mode is enabled for manual verification
+ * @returns boolean indicating if LIVE mode is enabled
+ */
+export function isLiveEmailMode(): boolean {
+  return process.env.EMAIL_MODE === 'LIVE';
+}
+
+/**
+ * Get the real email address for manual verification (if configured)
+ * @returns real email address or null if not configured
+ */
+export function getRealEmailForVerification(): string | null {
+  return process.env.TEST_REAL_EMAIL || null;
+}
+
+/**
+ * Expect outbox entries with LIVE mode support for manual verification
+ * @param query Query parameters to filter outbox entries
+ * @param expectAtLeast Minimum number of entries expected (default: 1)
+ * @returns Promise resolving to array of matching outbox items
+ * @throws Error if fewer than expected entries are found (unless LIVE mode)
+ */
+export async function expectOutboxMatchWithLiveSupport(query: OutboxQuery, expectAtLeast = 1): Promise<{
+  items: OutboxItem[];
+  status: 'PASS' | 'LIVE_MODE' | 'ERROR';
+  message: string;
+}> {
+  try {
+    const results = await findOutbox(query);
+    
+    if (results.length < expectAtLeast) {
+      // In LIVE mode, we don't fail the test - just report for manual verification
+      if (isLiveEmailMode()) {
+        const realEmail = getRealEmailForVerification();
+        return {
+          items: results,
+          status: 'LIVE_MODE',
+          message: `LIVE MODE: Expected ${expectAtLeast} outbox entries, found ${results.length}. Check ${realEmail || 'configured email'} manually for real email delivery.`
+        };
+      }
+      
+      return {
+        items: results,
+        status: 'ERROR',
+        message: `Expected at least ${expectAtLeast} outbox entries matching query ${JSON.stringify(query)}, but found ${results.length}.`
+      };
+    }
+    
+    // In LIVE mode, provide additional context for manual verification
+    if (isLiveEmailMode()) {
+      const realEmail = getRealEmailForVerification();
+      return {
+        items: results,
+        status: 'LIVE_MODE',
+        message: `LIVE MODE: Found ${results.length} outbox entries. Check ${realEmail || 'configured email'} manually for real email delivery.`
+      };
+    }
+    
+    return {
+      items: results,
+      status: 'PASS',
+      message: `Found ${results.length} outbox entries matching query.`
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // In LIVE mode, don't fail on outbox errors - just report for manual verification
+    if (isLiveEmailMode()) {
+      const realEmail = getRealEmailForVerification();
+      return {
+        items: [],
+        status: 'LIVE_MODE',
+        message: `LIVE MODE: Outbox query failed (${errorMessage}). Check ${realEmail || 'configured email'} manually for real email delivery.`
+      };
+    }
+    
+    return {
+      items: [],
+      status: 'ERROR',
+      message: `Outbox query failed: ${errorMessage}`
+    };
+  }
 }

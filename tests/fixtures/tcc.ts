@@ -45,47 +45,23 @@ export async function submitTcc(
   data: TccPayload
 ): Promise<{ status: 'bound' | 'duplicate' }> {
   try {
-    // First, we need to get a resubmit token for the registration
-    const tokenResponse = await reqJson(req, 'POST', '/api/test/generate-resubmit-token', {
-      email: data.email,
-      dimension: 'tcc'
-    });
-    
-    if (!tokenResponse.ok || !tokenResponse.token) {
-      throw new Error(`Failed to get resubmit token: ${tokenResponse.error}`);
-    }
-    
-    // Submit TCC update using the token
-    const formData = new FormData();
-    formData.append('registration_id', data.registrationId || '');
-    formData.append('updates[tcc][tcc_number]', data.tccNumber);
-    formData.append('updates[tcc][holder_name]', data.holderName);
-    
-    // If we have a test image, upload it
-    if (data.cardImagePath) {
-      try {
-        const fileResponse = await req.fetch('/api/upload-file', {
-          method: 'POST',
-          body: (() => {
-            const form = new FormData();
-            form.append('file', new File(['test tcc card'], 'tcc-card.jpg', { type: 'image/jpeg' }));
-            form.append('folder', 'chamber-cards');
-            return form;
-          })()
-        });
-        
-        if (fileResponse.ok()) {
-          const fileResult = await fileResponse.json();
-          formData.append('updates[tcc][tcc_card_url]', fileResult.url);
+    // Use the test endpoint with proper authentication
+    const response = await req.post('/api/test/test-resubmit', {
+      data: {
+        email: data.email,
+        dimension: 'tcc',
+        updates: {
+          tcc: {
+            tcc_number: data.tccNumber,
+            holder_name: data.holderName,
+            tcc_card_url: 'https://example.com/test-tcc-card.jpg' // Mock URL for testing
+          }
         }
-      } catch (error) {
-        console.warn('File upload failed, continuing without file:', error);
+      },
+      headers: {
+        'X-Test-Helpers-Enabled': '1',
+        'Authorization': `Bearer ${process.env.CRON_SECRET || '9318b95a82c5f8fcd236d8abe79f4ce8'}`
       }
-    }
-    
-    const response = await req.fetch(`/api/user/${tokenResponse.token}/resubmit`, {
-      method: 'POST',
-      body: formData
     });
     
     const result = await response.json();
