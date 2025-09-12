@@ -53,6 +53,7 @@ async function getEmailOutbox(request: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(request.url);
     const template = searchParams.get("template");
     const toEmail = searchParams.get("to_email");
+    const status = searchParams.get("status");
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -102,6 +103,10 @@ async function getEmailOutbox(request: NextRequest): Promise<NextResponse> {
       query = query.eq("to_email", toEmail);
     }
 
+    if (status) {
+      query = query.eq("status", status);
+    }
+
     const { data: emails, error } = await query;
 
     if (error) {
@@ -123,6 +128,10 @@ async function getEmailOutbox(request: NextRequest): Promise<NextResponse> {
 
     if (toEmail) {
       countQuery = countQuery.eq("to_email", toEmail);
+    }
+
+    if (status) {
+      countQuery = countQuery.eq("status", status);
     }
 
     const { count } = await countQuery;
@@ -149,12 +158,24 @@ async function getEmailOutbox(request: NextRequest): Promise<NextResponse> {
       console.error("Error logging success access:", error);
     }
 
+    // Transform API response to match frontend interface
+    const transformedItems = (emails || []).map((email) => ({
+      id: email.id,
+      to: email.to_email, // Map to_email to to
+      subject: email.subject,
+      status: email.status,
+      created_at: email.created_at,
+      updated_at: email.updated_at,
+      error_message: email.error_message,
+    }));
+
     return NextResponse.json({
-      emails: emails || [],
+      ok: true,
+      items: transformedItems,
+      total: count || 0,
       pagination: {
         limit,
         offset,
-        total: count || 0,
         has_more: (count || 0) > offset + limit,
       },
     });

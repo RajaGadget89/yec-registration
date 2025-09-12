@@ -1,9 +1,0 @@
-e2e/
-playwright*.ts
-scripts/
-**/*.spec.*
-**/*.test.*
-tests/
-coverage/
-.next/
-node_modules/

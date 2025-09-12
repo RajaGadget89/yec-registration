@@ -41,51 +41,84 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { registrationId, payload } = body;
+    const {
+      email,
+      dimension: _dimension,
+      updates,
+      registrationId,
+      payload,
+    } = body;
 
-    if (!registrationId) {
+    const supabase = getSupabaseServiceClient();
+
+    // Look up registration by email if registrationId not provided
+    let registration;
+    if (registrationId) {
+      const { data: reg, error: fetchError } = await supabase
+        .from("registrations")
+        .select("id, status, update_reason, review_checklist, registration_id")
+        .eq("registration_id", registrationId)
+        .single();
+
+      if (fetchError || !reg) {
+        return NextResponse.json(
+          { error: "Registration not found", details: fetchError },
+          { status: 404 },
+        );
+      }
+      registration = reg;
+    } else if (email) {
+      const { data: reg, error: fetchError } = await supabase
+        .from("registrations")
+        .select("id, status, update_reason, review_checklist, registration_id")
+        .eq("email", email)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError || !reg) {
+        return NextResponse.json(
+          { error: "Registration not found for email", details: fetchError },
+          { status: 404 },
+        );
+      }
+      registration = reg;
+    } else {
       return NextResponse.json(
-        { error: "registrationId is required" },
+        { error: "Either registrationId or email is required" },
         { status: 400 },
       );
     }
 
-    const supabase = getSupabaseServiceClient();
+    // Prepare payload for domain function
+    const domainPayload = payload || {};
 
-    // First, look up the registration by tracking code to get the UUID
-    const { data: registration, error: fetchError } = await supabase
-      .from("registrations")
-      .select("id, status, update_reason, review_checklist")
-      .eq("registration_id", registrationId)
-      .single();
-
-    if (fetchError || !registration) {
-      return NextResponse.json(
-        { error: "Registration not found", details: fetchError },
-        { status: 404 },
-      );
+    // If updates are provided, merge them into the payload
+    if (updates) {
+      Object.assign(domainPayload, updates);
     }
 
     // Test the domain function directly
-
     const { data: result, error: domainError } = await (supabase as any).rpc(
       "fn_user_resubmit",
       {
         reg_id: (registration as any).id,
-        payload: payload || {},
+        payload: domainPayload,
       },
     );
 
     return NextResponse.json({
+      ok: true,
       registration: {
         id: (registration as any).id,
+        registration_id: (registration as any).registration_id,
         status: (registration as any).status,
         update_reason: (registration as any).update_reason,
         review_checklist: (registration as any).review_checklist,
       },
       domain_result: result,
       domain_error: domainError,
-      payload_sent: payload,
+      payload_sent: domainPayload,
     });
   } catch (error) {
     console.error("Test resubmit error:", error);
