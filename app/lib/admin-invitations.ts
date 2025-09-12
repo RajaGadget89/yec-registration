@@ -44,7 +44,9 @@ export interface InvitationTokenValidation {
 export async function generateInvitationToken(): Promise<string> {
   const supabase = getSupabaseServiceClient();
 
-  const { data, error } = await supabase.rpc("generate_admin_invitation_token");
+  const { data, error } = await (supabase as any).rpc(
+    "generate_admin_invitation_token",
+  );
 
   if (error) {
     throw new Error(`Failed to generate invitation token: ${error.message}`);
@@ -68,7 +70,7 @@ export async function createAdminInvitation(
   const token = await generateInvitationToken();
   const correlationId = randomUUID();
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("admin_invitations")
     .insert({
       email: params.email.toLowerCase(),
@@ -155,7 +157,9 @@ export function getDefaultTTL(): number {
 export async function cleanupExpiredInvitations(): Promise<number> {
   const supabase = getSupabaseServiceClient();
 
-  const { error } = await supabase.rpc("cleanup_expired_admin_invitations");
+  const { error } = await (supabase as any).rpc(
+    "cleanup_expired_admin_invitations",
+  );
 
   if (error) {
     throw new Error(`Failed to cleanup expired invitations: ${error.message}`);

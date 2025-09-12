@@ -8,14 +8,14 @@ import {
 import { getSupabaseServiceClient } from "../../../../../../../lib/supabase-server";
 import { EventService } from "../../../../../../../lib/events/eventService";
 import { EventFactory } from "../../../../../../../lib/events/eventFactory";
-import { isFeatureEnabled } from "../../../../../../../lib/features";
+import { isFeatureEnabled, FEATURES } from "../../../../../../../lib/features";
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> },
 ) {
   // Check feature flag
-  if (!isFeatureEnabled("adminManagement")) {
+  if (!isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT)) {
     return NextResponse.json(
       { error: "Feature not available" },
       { status: 404 },
@@ -69,7 +69,7 @@ export async function POST(
       }
 
       // Check if invitation is already processed
-      if (invitation.status !== "pending") {
+      if ((invitation as any).status !== "pending") {
         return NextResponse.json(
           { error: "Invitation is already processed and cannot be revoked" },
           { status: 409 },
@@ -77,15 +77,14 @@ export async function POST(
       }
 
       // Revoke the invitation using the database function
-      const { data: revokeResult, error: revokeError } = await supabase.rpc(
-        "revoke_admin_invitation",
-        {
-          p_invitation_id: invitation.id,
-          p_revoked_by_admin_id: currentUser.id,
-        },
-      );
+      const { data: revokeResult, error: revokeError } = await (
+        supabase as any
+      ).rpc("revoke_admin_invitation", {
+        p_invitation_id: (invitation as any).id,
+        p_revoked_by_admin_id: currentUser.id,
+      });
 
-      if (revokeError || !revokeResult || !revokeResult[0]?.success) {
+      if (revokeError || !revokeResult || !(revokeResult as any)[0]?.success) {
         console.error("Error revoking invitation:", revokeError);
         return NextResponse.json(
           { error: "Failed to revoke invitation" },
@@ -95,8 +94,8 @@ export async function POST(
 
       // Emit domain event
       const event = EventFactory.createAdminInvitationRevoked(
-        invitation.id,
-        invitation.email,
+        (invitation as any).id,
+        (invitation as any).email,
         currentUser.email,
       );
       await EventService.emit(event);
@@ -105,16 +104,16 @@ export async function POST(
       await logEvent({
         action: "admin.invitation.revoked",
         resource: "admin_invitations",
-        resource_id: invitation.id,
+        resource_id: (invitation as any).id,
         actor_id: currentUser.email,
         actor_role: "admin",
         result: "success",
         correlation_id: req.headers.get("x-request-id") || "unknown",
         meta: {
-          invitation_id: invitation.id,
-          invited_email: invitation.email,
+          invitation_id: (invitation as any).id,
+          invited_email: (invitation as any).email,
           revoked_by: currentUser.email,
-          original_status: invitation.status,
+          original_status: (invitation as any).status,
         },
       });
 
@@ -122,8 +121,8 @@ export async function POST(
         success: true,
         message: "Invitation revoked successfully",
         invitation: {
-          id: invitation.id,
-          email: invitation.email,
+          id: (invitation as any).id,
+          email: (invitation as any).email,
           status: "revoked",
         },
       });

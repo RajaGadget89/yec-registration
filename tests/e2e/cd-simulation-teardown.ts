@@ -34,8 +34,8 @@ async function cdSimulationTeardown() {
     // 4. Clean up any temporary files
     const tempFiles = [
       'migration_diff.txt',
-      'cd-simulation-report.json',
-      'cd-simulation-report.jsonl'
+      'artifacts/test-results/cd-simulation-report.json',
+      'artifacts/test-results/cd-simulation-report.jsonl'
     ];
 
     tempFiles.forEach(file => {

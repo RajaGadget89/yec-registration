@@ -18,7 +18,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === "undefined") return;
+
     setMounted(true);
+
     // Load theme from localStorage on mount
     const savedTheme = localStorage.getItem("theme") as Theme;
     if (savedTheme && ["light", "dark", "system"].includes(savedTheme)) {
@@ -27,7 +31,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    // Only run on client side and after component is mounted
+    if (typeof window === "undefined" || !mounted) return;
 
     // Determine resolved theme based on current theme setting
     const getResolvedTheme = (): "light" | "dark" => {
@@ -44,8 +49,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setResolvedTheme(newResolvedTheme);
 
       // Update document class for CSS custom properties
-      document.documentElement.classList.remove("light", "dark");
-      document.documentElement.classList.add(newResolvedTheme);
+      // Use requestAnimationFrame to ensure this runs after hydration
+      requestAnimationFrame(() => {
+        document.documentElement.classList.remove("light", "dark");
+        document.documentElement.classList.add(newResolvedTheme);
+      });
     };
 
     updateResolvedTheme();
@@ -64,7 +72,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const handleSetTheme = (newTheme: Theme) => {
     setTheme(newTheme);
-    if (mounted) {
+    if (mounted && typeof window !== "undefined") {
       localStorage.setItem("theme", newTheme);
     }
   };

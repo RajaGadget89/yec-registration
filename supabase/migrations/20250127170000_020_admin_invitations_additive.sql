@@ -47,19 +47,52 @@ CREATE INDEX IF NOT EXISTS idx_admin_users_status ON admin_users(status);
 CREATE INDEX IF NOT EXISTS idx_admin_users_role ON admin_users(role);
 CREATE INDEX IF NOT EXISTS idx_admin_users_role_status ON admin_users(role, status);
 
--- 8. Add comments for documentation
-COMMENT ON TABLE admin_invitations IS 'Admin invitation system for onboarding new administrators';
-COMMENT ON COLUMN admin_invitations.email IS 'Email address of the invited admin (case-insensitive)';
-COMMENT ON COLUMN admin_invitations.roles IS 'Array of role slugs assigned to the invitation';
-COMMENT ON COLUMN admin_invitations.token IS 'Cryptographically secure token for invitation acceptance';
-COMMENT ON COLUMN admin_invitations.status IS 'Current status of the invitation (pending, accepted, expired, revoked)';
-COMMENT ON COLUMN admin_invitations.expires_at IS 'Expiration timestamp (48 hours from creation)';
-COMMENT ON COLUMN admin_invitations.created_by IS 'UUID of the admin who created the invitation';
-COMMENT ON COLUMN admin_invitations.accepted_by IS 'UUID of the admin who accepted the invitation';
-COMMENT ON COLUMN admin_invitations.correlation_id IS 'Unique correlation ID for tracking invitation lifecycle';
+-- 8. Add comments for documentation (guarded)
+DO $$
+BEGIN
+  -- Table comment
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'admin_invitations') THEN
+    COMMENT ON TABLE admin_invitations IS 'Admin invitation system for onboarding new administrators';
+  END IF;
+  
+  -- Column comments (only if columns exist)
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'email') THEN
+    COMMENT ON COLUMN admin_invitations.email IS 'Email address of the invited admin (case-insensitive)';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'roles') THEN
+    COMMENT ON COLUMN admin_invitations.roles IS 'Array of role slugs assigned to the invitation';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'token') THEN
+    COMMENT ON COLUMN admin_invitations.token IS 'Cryptographically secure token for invitation acceptance';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'status') THEN
+    COMMENT ON COLUMN admin_invitations.status IS 'Current status of the invitation (pending, accepted, expired, revoked)';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'expires_at') THEN
+    COMMENT ON COLUMN admin_invitations.expires_at IS 'Expiration timestamp (48 hours from creation)';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'created_by') THEN
+    COMMENT ON COLUMN admin_invitations.created_by IS 'UUID of the admin who created the invitation';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'accepted_by') THEN
+    COMMENT ON COLUMN admin_invitations.accepted_by IS 'UUID of the admin who accepted the invitation';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_invitations' AND column_name = 'correlation_id') THEN
+    COMMENT ON COLUMN admin_invitations.correlation_id IS 'Unique correlation ID for tracking invitation lifecycle';
+  END IF;
+END $$;
 
-COMMENT ON COLUMN admin_users.status IS 'Admin user status (active, suspended) for RBAC filtering';
-COMMENT ON INDEX admin_inv_unique_pending IS 'Prevents duplicate pending invitations for the same email address';
+-- Guard remaining comments
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_users' AND column_name = 'status') THEN
+    COMMENT ON COLUMN admin_users.status IS 'Admin user status (active, suspended) for RBAC filtering';
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'admin_inv_unique_pending') THEN
+    COMMENT ON INDEX admin_inv_unique_pending IS 'Prevents duplicate pending invitations for the same email address';
+  END IF;
+END $$;
 
 -- 9. Create function to generate secure invitation tokens (if not exists)
 CREATE OR REPLACE FUNCTION generate_admin_invitation_token()
@@ -82,9 +115,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 11. Add comments for functions
-COMMENT ON FUNCTION generate_admin_invitation_token() IS 'Generates a cryptographically secure token for admin invitations';
-COMMENT ON FUNCTION cleanup_expired_admin_invitations() IS 'Marks expired invitations as expired (run periodically)';
+-- 11. Add comments for functions (guarded)
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'generate_admin_invitation_token') THEN
+    COMMENT ON FUNCTION generate_admin_invitation_token() IS 'Generates a cryptographically secure token for admin invitations';
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name = 'cleanup_expired_admin_invitations') THEN
+    COMMENT ON FUNCTION cleanup_expired_admin_invitations() IS 'Marks expired invitations as expired (run periodically)';
+  END IF;
+END $$;
 
 -- 12. Create RLS policies for admin_invitations (if RLS is enabled)
 DO $$

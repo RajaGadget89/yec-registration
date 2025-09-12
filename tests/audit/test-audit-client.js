@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '.env.local' });
+import 'dotenv/config';
 
 // Set NODE_ENV to test to enable debug logging
 process.env.NODE_ENV = 'test';
@@ -75,7 +75,7 @@ async function testAuditClient() {
 
   // Check if logs were written
   console.log('\n🔍 Checking if logs were written...');
-  const { createClient } = require('@supabase/supabase-js');
+  const { createClient } = await import('@supabase/supabase-js');
   const supabase = createClient(supabaseUrl, serviceRoleKey, {
     db: { schema: 'audit' }
   });

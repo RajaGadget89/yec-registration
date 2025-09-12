@@ -83,7 +83,7 @@ export class AuditLogHandler implements EventHandler<RegistrationEvent> {
       },
     };
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("admin_audit_logs")
       .insert([auditEntry]);
 

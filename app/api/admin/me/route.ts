@@ -212,7 +212,7 @@ export async function GET(req: NextRequest) {
       envBuildId: getEnvBuildId(),
       // Add database user information
       id: dbUser.id,
-      role: dbUser.role,
+      role: (dbUser as any).role,
       created_at: dbUser.created_at,
       last_login_at: dbUser.last_login_at,
       is_active: dbUser.is_active,

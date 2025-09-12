@@ -46,7 +46,7 @@ async function testAdminDashboardAccess(): Promise<{
       meta: { test: true, phase: "phase0" },
     };
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("audit.access_log")
       .insert([testEvent]);
 
@@ -84,7 +84,7 @@ async function testRegistrationCreation(): Promise<{
       meta: { test: true, phase: "phase0" },
     };
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("audit.event_log")
       .insert([testEvent]);
 
@@ -128,7 +128,7 @@ async function testStatusChange(): Promise<{
       },
     };
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("audit.event_log")
       .insert([testEvent]);
 
@@ -171,7 +171,7 @@ async function testFileUpload(): Promise<{
       },
     };
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("audit.event_log")
       .insert([testEvent]);
 
@@ -258,7 +258,8 @@ async function verifyAuditTables(): Promise<{
       };
     }
 
-    const tableNames = tables?.map((t) => t.table_name) || [];
+    const tableNames = tables?.map((t) => (t as any).table_name) || [];
+
     const requiredTables = ["access_log", "event_log"];
     const missingTables = requiredTables.filter((t) => !tableNames.includes(t));
 

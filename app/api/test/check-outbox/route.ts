@@ -36,9 +36,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Try to get table structure
-    const { data: structure, error: structureError } = await supabase.rpc(
-      "fn_get_outbox_stats",
-    );
+    const { data: structure, error: structureError } = await (
+      supabase as any
+    ).rpc("fn_get_outbox_stats");
 
     return NextResponse.json({
       exists: true,

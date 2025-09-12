@@ -45,10 +45,13 @@ export async function discoverFKReferences(
 ): Promise<FKReference[]> {
   try {
     // Query to find FK constraints pointing to admin_users.id
-    const { data, error } = await supabase.rpc("discover_fk_references", {
-      target_table: "admin_users",
-      target_column: "id",
-    });
+    const { data, error } = await (supabase as any).rpc(
+      "discover_fk_references",
+      {
+        target_table: "admin_users",
+        target_column: "id",
+      },
+    );
 
     if (error) {
       console.warn(

@@ -67,20 +67,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Test the domain function directly
-    const { data: result, error: domainError } = await supabase.rpc(
+
+    const { data: result, error: domainError } = await (supabase as any).rpc(
       "fn_user_resubmit",
       {
-        reg_id: registration.id,
+        reg_id: (registration as any).id,
         payload: payload || {},
       },
     );
 
     return NextResponse.json({
       registration: {
-        id: registration.id,
-        status: registration.status,
-        update_reason: registration.update_reason,
-        review_checklist: registration.review_checklist,
+        id: (registration as any).id,
+        status: (registration as any).status,
+        update_reason: (registration as any).update_reason,
+        review_checklist: (registration as any).review_checklist,
       },
       domain_result: result,
       domain_error: domainError,

@@ -80,17 +80,18 @@ export async function POST(
       "waiting_for_update_info",
       "waiting_for_update_tcc",
     ];
-    if (!validStates.includes(registration.status)) {
+
+    if (!validStates.includes((registration as any).status)) {
       return createErrorResponse(
         "INVALID_STATUS",
         "Registration not in valid state for marking pass",
-        `Registration status is ${registration.status}, expected one of: ${validStates.join(", ")}`,
+        `Registration status is ${(registration as any).status}, expected one of: ${validStates.join(", ")}`,
         409,
       );
     }
 
     // Update review checklist
-    const currentChecklist = registration.review_checklist || {
+    const currentChecklist = (registration as any).review_checklist || {
       payment: { status: "pending", notes: "" },
       profile: { status: "pending", notes: "" },
       tcc: { status: "pending", notes: "" },
@@ -111,10 +112,10 @@ export async function POST(
       updatedChecklist.tcc.status === "passed";
 
     // Determine new status
-    let newStatus = registration.status;
+    let newStatus = (registration as any).status;
     if (allPassed) {
       newStatus = "approved";
-    } else if (registration.status.startsWith("waiting_for_update_")) {
+    } else if ((registration as any).status.startsWith("waiting_for_update_")) {
       // If we're in an update state and this dimension is now passed,
       // check if any other dimensions still need updates
       const hasOtherUpdates =
@@ -123,19 +124,20 @@ export async function POST(
         (dimension !== "profile" &&
           updatedChecklist.profile.status === "needs_update") ||
         (dimension !== "tcc" && updatedChecklist.tcc.status === "needs_update");
-
       if (!hasOtherUpdates) {
         newStatus = "waiting_for_review";
       }
     }
 
     // Update registration
-    const { data: updatedRegistration, error: updateError } = await supabase
+    const { data: updatedRegistration, error: updateError } = await (
+      supabase as any
+    )
       .from("registrations")
       .update({
         review_checklist: updatedChecklist,
         status: newStatus,
-        update_reason: allPassed ? null : registration.update_reason,
+        update_reason: allPassed ? null : (registration as any).update_reason,
         updated_at: new Date().toISOString(),
       })
       .eq("id", registrationId)

@@ -1,4 +1,7 @@
+import React from "react";
+
 // Mock render function to avoid build-time issues
+
 import { EmailTemplateProps } from "./registry";
 import { BaseLayout } from "./components/BaseLayoutWrapper";
 import { TrackingTemplate } from "./templates/tracking";
@@ -68,6 +71,18 @@ const emailTemplates = {
     subject: "[YEC Day] คำขอสมัครไม่ผ่าน | Registration Not Approved",
   },
 };
+
+/**
+
+ * Get email template renderer (client-safe)
+ * @param templateName Template name from registry
+ * @returns Template renderer function
+ */
+export function getEmailTemplateRenderer(templateName: string) {
+  return async (_props: any) => {
+    return `<div>Mock template: ${templateName}</div>`;
+  };
+}
 
 /**
  * Mock render function to avoid build-time issues

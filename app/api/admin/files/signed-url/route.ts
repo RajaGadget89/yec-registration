@@ -67,18 +67,18 @@ export const GET = withAdminApiGuard(async (req: NextRequest) => {
   }
 
   console.log(`[SIGNED_URL_API] Registration found:`, {
-    id: data.id,
-    profile_image_url: data.profile_image_url,
-    chamber_card_url: data.chamber_card_url,
-    payment_slip_url: data.payment_slip_url,
-    badge_url: data.badge_url,
+    id: (data as any).id,
+    profile_image_url: (data as any).profile_image_url,
+    chamber_card_url: (data as any).chamber_card_url,
+    payment_slip_url: (data as any).payment_slip_url,
+    badge_url: (data as any).badge_url,
   });
 
   const allowedPaths = [
-    data.profile_image_url,
-    data.chamber_card_url,
-    data.payment_slip_url,
-    data.badge_url,
+    (data as any).profile_image_url,
+    (data as any).chamber_card_url,
+    (data as any).payment_slip_url,
+    (data as any).badge_url,
   ].filter(Boolean) as string[];
 
   console.log(`[SIGNED_URL_API] Allowed paths:`, allowedPaths);

@@ -1,4 +1,7 @@
+<<<<<<< HEAD
+=======
 /// <reference types="vitest" />
+>>>>>>> origin/main
 import { describe, it, expect } from "vitest";
 import { createMocks } from "node-mocks-http";
 

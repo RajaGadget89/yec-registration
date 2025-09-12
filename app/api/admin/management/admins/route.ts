@@ -8,6 +8,7 @@ import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
 import {
   isAdminJobAssignmentEnabled,
   isFeatureEnabled,
+  FEATURES,
 } from "../../../../lib/features";
 
 // Super admin allowlist as specified in requirements
@@ -23,7 +24,7 @@ const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
 async function listAdmins(request: NextRequest): Promise<NextResponse> {
   try {
     // Check feature flag
-    if (!isFeatureEnabled("adminManagement")) {
+    if (!isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT)) {
       return NextResponse.json(
         { error: "Feature not available" },
         { status: 404 },
@@ -134,17 +135,17 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({
       admins: admins.map((admin) => ({
-        id: admin.id,
-        email: admin.email,
-        role: admin.role,
+        id: (admin as any).id,
+        email: (admin as any).email,
+        role: (admin as any).role,
         ...(isAdminJobAssignmentEnabled() && {
-          business_roles: admin.business_roles || [],
+          business_roles: (admin as any).business_roles || [],
         }),
-        status: admin.is_active ? "active" : "suspended",
-        created_at: admin.created_at,
-        updated_at: admin.updated_at,
-        last_login_at: admin.last_login_at,
-        is_active: admin.is_active,
+        status: (admin as any).is_active ? "active" : "suspended",
+        created_at: (admin as any).created_at,
+        updated_at: (admin as any).updated_at,
+        last_login_at: (admin as any).last_login_at,
+        is_active: (admin as any).is_active,
       })),
       pagination: {
         page,

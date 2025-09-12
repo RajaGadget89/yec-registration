@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const supabase = getSupabaseServiceClient();
 
     // Query to get table structure
-    const { data, error } = await supabase.rpc("get_table_columns", {
+    const { data, error } = await (supabase as any).rpc("get_table_columns", {
       table_name: tableName,
     });
 
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       success: true,
       tableName,
       columns: data || [],
-      count: data?.length || 0,
+      count: (data as any)?.length || 0,
     });
   } catch (error) {
     console.error("Unexpected error in check-schema:", error);

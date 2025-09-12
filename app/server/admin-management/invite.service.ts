@@ -54,13 +54,13 @@ export class InviteService {
 
     if (
       existingInvitation &&
-      new Date(existingInvitation.expires_at) > new Date()
+      new Date((existingInvitation as any).expires_at) > new Date()
     ) {
       throw new Error("Invitation already exists for this email");
     }
 
     // Generate invitation token
-    const { data: tokenData, error: tokenError } = await supabase.rpc(
+    const { data: tokenData, error: tokenError } = await (supabase as any).rpc(
       "generate_admin_invitation_token",
     );
 
@@ -72,7 +72,8 @@ export class InviteService {
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
     // Create invitation record
-    const { data: invitation, error: createError } = await supabase
+
+    const { data: invitation, error: createError } = await (supabase as any)
       .from("admin_invitations")
       .insert({
         email: params.email.toLowerCase(),
@@ -118,7 +119,7 @@ export class InviteService {
 
     // Emit domain event
     const event = EventFactory.createAdminInvitationCreated(
-      invitation.id,
+      (invitation as any).id,
       params.email,
       params.createdBy,
     );
@@ -154,16 +155,19 @@ export class InviteService {
     }
 
     // Check if invitation is expired
-    if (new Date(invitation.expires_at) < new Date()) {
+    if (new Date((invitation as any).expires_at) < new Date()) {
       throw new Error("Invitation has expired");
     }
 
     // Update invitation with new timestamp and increment resend counter
-    const { data: updatedInvitation, error: updateError } = await supabase
+
+    const { data: updatedInvitation, error: updateError } = await (
+      supabase as any
+    )
       .from("admin_invitations")
       .update({
         updated_at: new Date().toISOString(),
-        resend_count: (invitation.resend_count || 0) + 1,
+        resend_count: ((invitation as any).resend_count || 0) + 1,
       })
       .eq("id", params.invitationId)
       .select()
@@ -180,14 +184,18 @@ export class InviteService {
     }
 
     const accept = new URL("/admin/accept", base);
-    accept.searchParams.set("token", invitation.token);
+
+    accept.searchParams.set("token", (invitation as any).token);
     const acceptUrl = accept.toString();
-    const expiresAtFormatted = new Date(invitation.expires_at).toLocaleString();
+    const expiresAtFormatted = new Date(
+      (invitation as any).expires_at,
+    ).toLocaleString();
+
     const supportEmail = "info@yecday.com";
 
     try {
       await sendAdminInvitationEmail({
-        to: invitation.email,
+        to: (invitation as any).email,
         acceptUrl,
         expiresAt: expiresAtFormatted,
         supportEmail,
@@ -199,14 +207,14 @@ export class InviteService {
 
     // Emit domain event
     const event = EventFactory.createAdminInvitationResent(
-      invitation.id,
-      invitation.email,
+      (invitation as any).id,
+      (invitation as any).email,
       params.resentBy,
     );
     await EventService.emit(event);
 
     return {
-      resendCount: updatedInvitation.resend_count,
+      resendCount: (updatedInvitation as any).resend_count,
     };
   }
 
@@ -229,7 +237,8 @@ export class InviteService {
     }
 
     // Update invitation status to revoked
-    const { error: updateError } = await supabase
+
+    const { error: updateError } = await (supabase as any)
       .from("admin_invitations")
       .update({
         status: "revoked",
@@ -243,8 +252,8 @@ export class InviteService {
 
     // Emit domain event
     const event = EventFactory.createAdminInvitationCancelled(
-      invitation.id,
-      invitation.email,
+      (invitation as any).id,
+      (invitation as any).email,
       params.cancelledBy,
     );
     await EventService.emit(event);
@@ -268,11 +277,11 @@ export class InviteService {
 
     if (!error && existingInvitation) {
       return {
-        id: existingInvitation.id,
-        email: existingInvitation.email,
+        id: (existingInvitation as any).id,
+        email: (existingInvitation as any).email,
         token: "", // Not returned for idempotency
-        expiresAt: existingInvitation.expires_at,
-        correlationId: existingInvitation.correlation_id,
+        expiresAt: (existingInvitation as any).expires_at,
+        correlationId: (existingInvitation as any).correlation_id,
       };
     }
 

@@ -43,7 +43,7 @@ export async function generateDeepLinkToken(
 ): Promise<DeepLinkTokenResult> {
   const supabase = getSupabaseServiceClient();
 
-  const { data: token, error } = await supabase.rpc(
+  const { data: token, error } = await (supabase as any).rpc(
     "generate_secure_deep_link_token",
     {
       reg_id: registrationId,

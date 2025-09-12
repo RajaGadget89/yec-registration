@@ -80,15 +80,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate token using the UUID
-    const { data: tokenResult, error: tokenError } = await supabase.rpc(
-      "generate_secure_deep_link_token",
-      {
-        reg_id: registration.id,
-        dimension: dimension,
-        admin_email: "test-admin@example.com",
-        ttl_seconds: 86400, // 24 hours
-      },
-    );
+
+    const { data: tokenResult, error: tokenError } = await (
+      supabase as any
+    ).rpc("generate_secure_deep_link_token", {
+      reg_id: (registration as any).id,
+      dimension: dimension,
+      admin_email: "test-admin@example.com",
+      ttl_seconds: 86400, // 24 hours
+    });
 
     if (tokenError) {
       console.error("Error generating token:", tokenError);

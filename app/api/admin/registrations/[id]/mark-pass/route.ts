@@ -89,7 +89,9 @@ async function handlePOST(
     currentChecklist[dimension] = { status: "passed" };
 
     // Update registration with new checklist
-    const { data: updatedRegistration, error: updateError } = await supabase
+    const { data: updatedRegistration, error: updateError } = await (
+      supabase as any
+    )
       .from("registrations")
       .update({
         review_checklist: currentChecklist,
@@ -116,10 +118,9 @@ async function handlePOST(
     let finalStatus = updatedRegistration.status;
     if (allPassed) {
       // Auto-approve
-      const { data: approveResult, error: approveError } = await supabase.rpc(
-        "fn_try_approve",
-        { reg_id: id },
-      );
+      const { data: approveResult, error: approveError } = await (
+        supabase as any
+      ).rpc("fn_try_approve", { reg_id: id });
 
       if (
         !approveError &&
