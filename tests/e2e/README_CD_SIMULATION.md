@@ -130,7 +130,7 @@ The simulation uses the same timeouts as CD:
 ## 📊 Artifacts and Reporting
 
 ### Generated Artifacts
-- **CD simulation report**: `cd-simulation-report.json`
+- **CD simulation report**: `artifacts/test-results/cd-simulation-report.json`
 - **Migration diff**: `migration_diff.txt`
 - **Step logs**: Detailed console output
 - **Screenshots**: On failure (if headed mode)

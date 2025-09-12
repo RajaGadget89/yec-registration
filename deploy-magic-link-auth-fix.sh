@@ -15,8 +15,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SQL_FILE="$SCRIPT_DIR/fix-magic-link-auth-traditional.sql"
-ROLLBACK_FILE="$SCRIPT_DIR/rollback-magic-link-auth.sql"
+SQL_FILE="$SCRIPT_DIR/scripts/sql/fixes/fix-magic-link-auth-traditional.sql"
+ROLLBACK_FILE="$SCRIPT_DIR/scripts/sql/rollbacks/rollback-magic-link-auth.sql"
 TEST_FILE="$SCRIPT_DIR/test-magic-link-auth-comprehensive.js"
 BACKUP_DIR="$SCRIPT_DIR/backups/$(date +%Y%m%d_%H%M%S)"
 
@@ -207,7 +207,7 @@ main() {
     log ""
     log "Backup location: $BACKUP_DIR"
     log "Rollback script: $ROLLBACK_FILE"
-    log "Test results: magic-link-auth-test-results.json"
+    log "Test results: artifacts/test-results/magic-link-auth-test-results.json"
 }
 
 # Handle script arguments

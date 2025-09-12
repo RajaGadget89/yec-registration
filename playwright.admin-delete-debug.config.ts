@@ -26,7 +26,7 @@ export default defineConfig({
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html', { outputFolder: 'playwright-report-admin-delete-debug' }],
-    ['json', { outputFile: 'test-results-admin-delete-debug.json' }],
+    ['json', { outputFile: 'artifacts/test-results/test-results-admin-delete-debug.json' }],
     ['list']
   ],
   
