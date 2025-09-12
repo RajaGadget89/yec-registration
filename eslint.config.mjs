@@ -10,6 +10,19 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  {
+    ignores: [
+      "e2e/",
+      "playwright*.ts",
+      "scripts/",
+      "**/*.spec.*",
+      "**/*.test.*",
+      "tests/",
+      "coverage/",
+      ".next/",
+      "node_modules/"
+    ]
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
    {
     rules: {

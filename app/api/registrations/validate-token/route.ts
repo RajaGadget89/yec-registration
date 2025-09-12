@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 import { createErrorResponse } from "../../../lib/errorResponses";
-import { TokenService } from "../../../lib/tokenService";
+// import { TokenService } from "../../../lib/tokenService"; // unused
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const token = url.searchParams.get("token");
+    const token = url.searchParams.get("token") || url.searchParams.get("t");
 
     if (!token) {
       return createErrorResponse(
@@ -19,22 +19,56 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Validate token using TokenService
-    const tokenValidation = await TokenService.validateTokenById(token);
+    // Validate token by looking it up directly in the database
+    const supabase = getSupabaseServiceClient();
 
-    if (!tokenValidation.success) {
+    const { data: tokenRow, error: tokenError } = await supabase
+      .from("deep_link_tokens")
+      .select("*")
+      .eq("token_id", token)
+      .single();
+
+    if (tokenError || !tokenRow) {
       return createErrorResponse(
         "INVALID_TOKEN",
         "Invalid or expired token",
-        tokenValidation.message || "Token validation failed",
+        "Token not found or expired",
         401,
       );
     }
 
+    // Check if token is expired
+    if (new Date(tokenRow.expires_at) < new Date()) {
+      return createErrorResponse(
+        "INVALID_TOKEN",
+        "Invalid or expired token",
+        "Token has expired",
+        401,
+      );
+    }
+
+    // Check if token is already used
+    if (tokenRow.used_at) {
+      return createErrorResponse(
+        "INVALID_TOKEN",
+        "Invalid or expired token",
+        "Token has already been used",
+        401,
+      );
+    }
+
+    const tokenValidation = {
+      success: true,
+      registration_id: tokenRow.registration_id,
+      dimension: tokenRow.dimension,
+      admin_email: tokenRow.created_by || "api",
+      notes: tokenRow.notes || "",
+      message: "Token is valid",
+    };
+
     const registrationId = tokenValidation.registration_id;
 
     // Get registration details
-    const supabase = getSupabaseServiceClient();
     const { data: registration, error: fetchError } = await supabase
       .from("registrations")
       .select("*")
@@ -70,6 +104,9 @@ export async function GET(request: NextRequest) {
         business_type_other: (registration as any).business_type_other,
         yec_province: (registration as any).yec_province,
         status: (registration as any).status,
+        // TCC fields
+        tcc_number: (registration as any).tcc_number || "",
+        tcc_holder_name: (registration as any).tcc_holder_name || "",
       },
     });
   } catch (error) {

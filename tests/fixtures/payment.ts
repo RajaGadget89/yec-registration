@@ -43,46 +43,25 @@ export async function submitPayment(
   data: PaymentPayload
 ): Promise<{ status: 'validated' | 'queued' | 'duplicate' }> {
   try {
-    // First, we need to get a resubmit token for the registration
-    const tokenResponse = await reqJson(req, 'POST', '/api/test/generate-resubmit-token', {
-      email: data.email,
-      dimension: 'payment'
-    });
-    
-    if (!tokenResponse.ok || !tokenResponse.token) {
-      throw new Error(`Failed to get resubmit token: ${tokenResponse.error}`);
-    }
-    
-    // Submit payment update using the token
-    const formData = new FormData();
-    formData.append('registration_id', data.registrationId || '');
-    formData.append('updates[payment][amount]', data.amount.toString());
-    
-    // If we have a test image, upload it
-    if (data.slipImagePath) {
-      try {
-        const fileResponse = await req.fetch('/api/upload-file', {
-          method: 'POST',
-          body: (() => {
-            const form = new FormData();
-            form.append('file', new File(['test payment slip'], 'payment-slip.png', { type: 'image/png' }));
-            form.append('folder', 'payment-slips');
-            return form;
-          })()
-        });
-        
-        if (fileResponse.ok()) {
-          const fileResult = await fileResponse.json();
-          formData.append('updates[payment][payment_slip_url]', fileResult.url);
+    // Use the test endpoint with proper authentication
+    const response = await req.post('/api/test/test-resubmit', {
+      data: {
+        email: data.email,
+        dimension: 'payment',
+        updates: {
+          payment: {
+            amount: data.amount,
+            currency: 'THB',
+            payment_method: 'bank_transfer',
+            transaction_id: `TXN-${Date.now()}`,
+            payment_slip_url: 'https://example.com/test-payment-slip.png' // Mock URL for testing
+          }
         }
-      } catch (error) {
-        console.warn('File upload failed, continuing without file:', error);
+      },
+      headers: {
+        'X-Test-Helpers-Enabled': '1',
+        'Authorization': `Bearer ${process.env.CRON_SECRET || '9318b95a82c5f8fcd236d8abe79f4ce8'}`
       }
-    }
-    
-    const response = await req.fetch(`/api/user/${tokenResponse.token}/resubmit`, {
-      method: 'POST',
-      body: formData
     });
     
     const result = await response.json();

@@ -20,6 +20,7 @@ export type RegistrationPayload = {
   businessType: string;
   yecProvince: string;
   hotelChoice: string;
+  roomType?: string; // Required when hotelChoice is 'in-quota'
   travelType: string;
   selectedPackage?: string;
 };
@@ -45,9 +46,10 @@ export function buildRegistration(ts?: string): RegistrationPayload {
     nickname: `testuser${timestamp.slice(-6)}`,
     lineId: `testline${timestamp.slice(-6)}`,
     companyName: 'Test Company Ltd.',
-    businessType: 'Technology',
+    businessType: 'technology',
     yecProvince: 'Bangkok',
     hotelChoice: 'in-quota',
+    roomType: 'single', // Required when hotelChoice is 'in-quota'
     travelType: 'private-car',
     selectedPackage: 'standard'
   };
@@ -67,9 +69,10 @@ export async function submitRegistration(
   try {
     const response = await reqJson(req, 'POST', '/api/register', data);
     
-    if (response.ok) {
+    // Check for success response structure
+    if (response.success) {
       return {
-        id: response.registration?.id || response.id || 'unknown',
+        id: response.registration_id || response.id || 'unknown',
         email: data.email,
         status: 'created'
       };
@@ -84,7 +87,7 @@ export async function submitRegistration(
       };
     }
     
-    throw new Error(`Registration failed: ${response.error || 'Unknown error'}`);
+    throw new Error(`Registration failed: ${response.error || response.message || 'Unknown error'}`);
   } catch (error) {
     // If it's a network error that might indicate duplicate, treat as success
     if (error instanceof Error && error.message.includes('409')) {
@@ -147,7 +150,16 @@ async function reqJson(
   }
   
   if (!response.ok()) {
-    throw new Error(`HTTP ${response.status()}: ${json.error || text.slice(0, 200)}`);
+    // Enhanced error reporting
+    const errorDetails = {
+      status: response.status(),
+      statusText: response.statusText(),
+      responseText: text.slice(0, 500),
+      jsonResponse: json,
+      url: url
+    };
+    console.error('API Error Details:', errorDetails);
+    throw new Error(`HTTP ${response.status()}: ${json.error || json.message || text.slice(0, 200)}`);
   }
   
   return json;

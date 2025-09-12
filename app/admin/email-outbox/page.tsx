@@ -67,7 +67,44 @@ export default function EmailOutboxPage() {
   const [retrySuccess, setRetrySuccess] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Separate state for total counts by status
+  const [statusCounts, setStatusCounts] = useState({
+    total: 0,
+    failed: 0,
+    pending: 0,
+    sent: 0,
+  });
+
   const limit = 20; // Reduced for better readability
+
+  // Fetch counts for all statuses
+  const fetchStatusCounts = async () => {
+    try {
+      const [failedRes, pendingRes, sentRes] = await Promise.all([
+        fetch("/api/admin/email-outbox?status=failed&limit=1&offset=0"),
+        fetch("/api/admin/email-outbox?status=pending&limit=1&offset=0"),
+        fetch("/api/admin/email-outbox?status=sent&limit=1&offset=0"),
+      ]);
+
+      const [failedData, pendingData, sentData] = await Promise.all([
+        failedRes.json(),
+        pendingRes.json(),
+        sentRes.json(),
+      ]);
+
+      setStatusCounts({
+        total:
+          (failedData.total || 0) +
+          (pendingData.total || 0) +
+          (sentData.total || 0),
+        failed: failedData.total || 0,
+        pending: pendingData.total || 0,
+        sent: sentData.total || 0,
+      });
+    } catch (error) {
+      console.error("Failed to fetch status counts:", error);
+    }
+  };
 
   const fetchItems = async (status: string, offset: number) => {
     try {
@@ -179,6 +216,11 @@ export default function EmailOutboxPage() {
     fetchItems(currentStatus, 0);
   }, [currentStatus]);
 
+  // Fetch status counts on initial load
+  useEffect(() => {
+    fetchStatusCounts();
+  }, []);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "pending":
@@ -268,7 +310,10 @@ export default function EmailOutboxPage() {
 
           <div className="flex items-center gap-3">
             <Button
-              onClick={() => fetchItems(currentStatus, currentPage * limit)}
+              onClick={() => {
+                fetchItems(currentStatus, currentPage * limit);
+                fetchStatusCounts();
+              }}
               disabled={loading}
               variant="outline"
               className="shadow-sm hover:shadow-md transition-all duration-200"
@@ -326,7 +371,7 @@ export default function EmailOutboxPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                {total}
+                {statusCounts.total}
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 All time emails
@@ -345,7 +390,7 @@ export default function EmailOutboxPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-red-600 dark:text-red-400">
-                {items.filter((item) => item.status === "failed").length}
+                {statusCounts.failed}
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Requires attention
@@ -364,7 +409,7 @@ export default function EmailOutboxPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-                {items.filter((item) => item.status === "pending").length}
+                {statusCounts.pending}
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 In queue
@@ -428,8 +473,7 @@ export default function EmailOutboxPage() {
                 >
                   <div className="flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" />
-                    Failed (
-                    {items.filter((item) => item.status === "failed").length})
+                    Failed ({statusCounts.failed})
                   </div>
                 </button>
                 <button
@@ -442,8 +486,7 @@ export default function EmailOutboxPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    Pending (
-                    {items.filter((item) => item.status === "pending").length})
+                    Pending ({statusCounts.pending})
                   </div>
                 </button>
                 <button
@@ -456,8 +499,7 @@ export default function EmailOutboxPage() {
                 >
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4" />
-                    Sent (
-                    {items.filter((item) => item.status === "sent").length})
+                    Sent ({statusCounts.sent})
                   </div>
                 </button>
               </nav>
