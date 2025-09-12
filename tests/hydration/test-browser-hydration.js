@@ -245,14 +245,14 @@ const testHtml = `<!DOCTYPE html>
 </html>`;
 
 // Write the test HTML file
-fs.writeFileSync('hydration-test.html', testHtml);
+fs.writeFileSync('scripts/testing/hydration-test.html', testHtml);
 
-console.log('✅ Test HTML file created: hydration-test.html');
+console.log('✅ Test HTML file created: scripts/testing/hydration-test.html');
 console.log('');
 console.log('📋 INSTRUCTIONS:');
 console.log('================');
 console.log('');
-console.log('1. Open hydration-test.html in your browser');
+console.log('1. Open scripts/testing/hydration-test.html in your browser');
 console.log('2. Open Developer Tools (F12)');
 console.log('3. Go to Console tab');
 console.log('4. Click each test button in the page');
@@ -284,4 +284,4 @@ console.log('3. Check for client-side JavaScript issues');
 console.log('4. Look for dynamic content in components');
 console.log('5. Verify SSR-safe rendering patterns');
 console.log('');
-console.log('✅ Test file ready! Open hydration-test.html in your browser.');
+console.log('✅ Test file ready! Open scripts/testing/hydration-test.html in your browser.');

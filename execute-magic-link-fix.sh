@@ -45,7 +45,7 @@ echo "💾 Step 2: Creating backup"
 echo "-------------------------"
 
 echo "Creating backup of admin_users table..."
-psql -h localhost -p 54322 -U postgres -d postgres -f backup-admin-users-before-fix.sql
+psql -h localhost -p 54322 -U postgres -d postgres -f scripts/sql/backups/backup-admin-users-before-fix.sql
 
 if [ $? -eq 0 ]; then
     echo "✅ Backup created successfully"
@@ -67,7 +67,7 @@ if [ $? -eq 0 ]; then
 else
     echo "❌ ERROR: Migration failed!"
     echo "🔄 Rolling back..."
-    psql -h localhost -p 54322 -U postgres -d postgres -f rollback-admin-users-fix.sql
+    psql -h localhost -p 54322 -U postgres -d postgres -f scripts/sql/rollbacks/rollback-admin-users-fix.sql
     echo "✅ Rollback completed"
     exit 1
 fi
@@ -94,7 +94,7 @@ echo "📊 EXECUTION SUMMARY"
 echo "==================="
 echo "✅ Backup created: admin_users_backup_20250127"
 echo "✅ Migration applied: fix-admin-users-status-safe.sql"
-echo "✅ Rollback script ready: rollback-admin-users-fix.sql"
+echo "✅ Rollback script ready: scripts/sql/rollbacks/rollback-admin-users-fix.sql"
 echo ""
 echo "🔍 Next steps:"
 echo "1. Test Magic Link authentication in browser"
