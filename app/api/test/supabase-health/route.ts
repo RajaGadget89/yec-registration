@@ -37,13 +37,19 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json({ 
-      status: "healthy", 
-      database: "healthy" 
-    }, { status: 200 });
+    return NextResponse.json(
+      {
+        status: "healthy",
+        database: "healthy",
+      },
+      { status: 200 },
+    );
   } catch (error) {
     return NextResponse.json(
-      { health: "error", error: error instanceof Error ? error.message : "Unknown error" },
+      {
+        health: "error",
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 },
     );
   }

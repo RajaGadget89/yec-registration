@@ -12,7 +12,7 @@ import {
   ADMIN_INVITE_RATE_LIMITS,
 } from "../../../../../../lib/rate-limit";
 import { withAuditLogging } from "../../../../../../lib/audit/withAuditAccess";
-import { isFeatureEnabled } from "../../../../../../lib/features";
+import { isFeatureEnabled, FEATURES } from "../../../../../../lib/features";
 import { sendInvitationEmail } from "../../../../../../server/email/provider";
 
 // Super admin allowlist as specified in requirements
@@ -36,7 +36,7 @@ async function resendInvitation(
 
   try {
     // Check feature flag
-    if (!isFeatureEnabled("adminManagement")) {
+    if (!isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT)) {
       return NextResponse.json(
         { error: "Feature not available" },
         { status: 404 },

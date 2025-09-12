@@ -8,7 +8,7 @@ import { EventFactory } from "../../../../../../lib/events/eventFactory";
 import { EventService } from "../../../../../../lib/events/eventService";
 import { logAccess, logEvent } from "../../../../../../lib/audit/auditClient";
 import { withAuditLogging } from "../../../../../../lib/audit/withAuditAccess";
-import { isFeatureEnabled } from "../../../../../../lib/features";
+import { isFeatureEnabled, FEATURES } from "../../../../../../lib/features";
 
 // Super admin allowlist as specified in requirements
 const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
@@ -30,7 +30,7 @@ async function cancelInvitation(
 
   try {
     // Check feature flag
-    if (!isFeatureEnabled("adminManagement")) {
+    if (!isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT)) {
       return NextResponse.json(
         { error: "Feature not available" },
         { status: 404 },
