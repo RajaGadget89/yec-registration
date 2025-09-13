@@ -36,6 +36,12 @@ const eslintConfig = [
         }
       ]
     }
+  },
+  {
+    files: ["**/emails/templates/**/*.tsx"],
+    rules: {
+      "@next/next/no-img-element": "off" // Allow <img> tags in email templates
+    }
   }
 ];
 
