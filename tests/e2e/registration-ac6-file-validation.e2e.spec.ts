@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('AC6 — File Validation (TH/EN)', () => {
   test('invalid type — TH', async ({ request }) => {
-    const cronSecret = '9318b95a82c5f8fcd236d8abe79f4ce8';
+    const cronSecret = process.env.CRON_SECRET || 'test-secret-not-configured';
     
     const response = await request.post('/api/test/validate-file', {
       headers: {
@@ -28,7 +28,7 @@ test.describe('AC6 — File Validation (TH/EN)', () => {
   });
 
   test('oversize — EN', async ({ request }) => {
-    const cronSecret = '9318b95a82c5f8fcd236d8abe79f4ce8';
+    const cronSecret = process.env.CRON_SECRET || 'test-secret-not-configured';
     
     const response = await request.post('/api/test/validate-file', {
       headers: {
@@ -54,7 +54,7 @@ test.describe('AC6 — File Validation (TH/EN)', () => {
   });
 
   test('valid file — EN', async ({ request }) => {
-    const cronSecret = '9318b95a82c5f8fcd236d8abe79f4ce8';
+    const cronSecret = process.env.CRON_SECRET || 'test-secret-not-configured';
     
     const response = await request.post('/api/test/validate-file', {
       headers: {
@@ -76,7 +76,7 @@ test.describe('AC6 — File Validation (TH/EN)', () => {
   });
 
   test('missing fields — validation error', async ({ request }) => {
-    const cronSecret = '9318b95a82c5f8fcd236d8abe79f4ce8';
+    const cronSecret = process.env.CRON_SECRET || 'test-secret-not-configured';
     
     const response = await request.post('/api/test/validate-file', {
       headers: {
@@ -96,7 +96,7 @@ test.describe('AC6 — File Validation (TH/EN)', () => {
   });
 
   test('invalid dimension — validation error', async ({ request }) => {
-    const cronSecret = '9318b95a82c5f8fcd236d8abe79f4ce8';
+    const cronSecret = process.env.CRON_SECRET || 'test-secret-not-configured';
     
     const response = await request.post('/api/test/validate-file', {
       headers: {
@@ -134,7 +134,7 @@ test.describe('AC6 — File Validation (TH/EN)', () => {
 
   test('upload endpoint validation — invalid type', async ({ request }) => {
     // Test the validation logic directly using the test helper
-    const cronSecret = '9318b95a82c5f8fcd236d8abe79f4ce8';
+    const cronSecret = process.env.CRON_SECRET || 'test-secret-not-configured';
     
     const response = await request.post('/api/test/validate-file', {
       headers: {
@@ -161,7 +161,7 @@ test.describe('AC6 — File Validation (TH/EN)', () => {
 
   test('upload endpoint validation — valid file', async ({ request }) => {
     // Test the validation logic directly using the test helper
-    const cronSecret = '9318b95a82c5f8fcd236d8abe79f4ce8';
+    const cronSecret = process.env.CRON_SECRET || 'test-secret-not-configured';
     
     const response = await request.post('/api/test/validate-file', {
       headers: {

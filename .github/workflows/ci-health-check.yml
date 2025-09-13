@@ -33,8 +33,8 @@ jobs:
       E2E_TESTS: "true"
       E2E_TEST_MODE: "true"
       TEST_HELPERS_ENABLED: "1"
-      # Security - use the actual CRON_SECRET from .e2e-env
-      CRON_SECRET: "9318b95a82c5f8fcd236d8abe79f4ce8"
+      # Security - use the new rotated CRON_SECRET
+      CRON_SECRET: "d2188fe03a5b783bc37ba30556a1bc596c447b1c5bca431056f0381f11f0b20b"
       SUPABASE_ENV: "staging"
       # Email configuration - use actual values from .e2e-env
       EMAIL_MODE: "CAPPED"

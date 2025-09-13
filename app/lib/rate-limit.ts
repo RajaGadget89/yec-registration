@@ -136,8 +136,11 @@ export function checkRateLimit(
   limit: number,
   windowMs: number,
 ): { allowed: boolean; remaining: number; resetTime: number } {
-  // For E2E tests, bypass rate limiting entirely
-  if (process.env.E2E_TESTS === "true") {
+  // For E2E tests, bypass rate limiting entirely (but only in non-production)
+  if (
+    process.env.E2E_TESTS === "true" &&
+    process.env.NODE_ENV !== "production"
+  ) {
     return {
       allowed: true,
       remaining: limit,
@@ -174,11 +177,11 @@ export function resetRateLimiter() {
  */
 export const ADMIN_INVITE_RATE_LIMITS = {
   PER_MINUTE:
-    process.env.E2E_TESTS === "true"
+    process.env.E2E_TESTS === "true" && process.env.NODE_ENV !== "production"
       ? parseInt(process.env.INVITE_RATE_LIMIT_PER_MIN || "1000", 10)
       : parseInt(process.env.INVITE_RATE_LIMIT_PER_MIN || "5", 10),
   PER_DAY:
-    process.env.E2E_TESTS === "true"
+    process.env.E2E_TESTS === "true" && process.env.NODE_ENV !== "production"
       ? parseInt(process.env.INVITE_RATE_LIMIT_PER_DAY || "10000", 10)
       : parseInt(process.env.INVITE_RATE_LIMIT_PER_DAY || "20", 10),
   WINDOW_MS: {

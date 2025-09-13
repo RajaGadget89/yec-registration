@@ -60,7 +60,7 @@ export async function submitTcc(
       },
       headers: {
         'X-Test-Helpers-Enabled': '1',
-        'Authorization': `Bearer ${process.env.CRON_SECRET || '9318b95a82c5f8fcd236d8abe79f4ce8'}`
+        'Authorization': `Bearer ${process.env.CRON_SECRET || 'test-secret-not-configured'}`
       }
     });
     

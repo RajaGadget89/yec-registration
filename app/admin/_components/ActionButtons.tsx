@@ -3,19 +3,15 @@
 import { useState } from "react";
 import {
   Check,
-  RefreshCw,
   Loader2,
-  CreditCard,
-  User,
-  FileText,
   AlertTriangle,
+  X,
 } from "lucide-react";
 import type { Registration } from "../../types/database";
 import { useRBAC } from "../../lib/rbac-client";
 import { useToastHelpers } from "../../components/ui/toast";
 import { t } from "../../lib/i18n";
-import type { Dimension } from "../../lib/rbac";
-import RequestUpdateModal from "./RequestUpdateModal";
+import { isTerminalState, getTerminalStateTooltip } from "../../lib/registration-utils";
 
 interface ActionButtonsProps {
   registration: Registration;
@@ -28,10 +24,8 @@ export default function ActionButtons({
 }: ActionButtonsProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [currentAction, setCurrentAction] = useState<string | null>(null);
-  const [showRequestModal, setShowRequestModal] = useState(false);
-  const [requestDimension, setRequestDimension] = useState<Dimension | null>(
-    null,
-  );
+  // Request modal state moved to DimensionActionButtons component
+  const [showRejectModal, setShowRejectModal] = useState(false);
   const { loading: permissionsLoading, canReview, canApprove } = useRBAC();
   const toast = useToastHelpers();
 
@@ -40,78 +34,7 @@ export default function ActionButtons({
     null,
   );
 
-  const handleDimensionAction = async (
-    action: "request-update" | "mark-pass",
-    dimension: "payment" | "profile" | "tcc",
-    notes?: string,
-  ) => {
-    if (isLoading) return;
-
-    // Apply optimistic update
-    const optimisticUpdate = {
-      ...registration,
-      review_checklist: {
-        ...registration.review_checklist,
-        [dimension]: {
-          ...registration.review_checklist?.[dimension],
-          status: action === "mark-pass" ? "passed" : "needs_update",
-          notes: notes || registration.review_checklist?.[dimension]?.notes,
-        },
-      },
-    };
-    setOptimisticState(optimisticUpdate);
-
-    setIsLoading(true);
-    setCurrentAction(`${action}-${dimension}`);
-
-    try {
-      const endpoint =
-        action === "request-update"
-          ? "/api/admin/request-update"
-          : "/api/admin/mark-pass";
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          registrationId: registration.registration_id,
-          dimension,
-          notes,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to ${action} ${dimension}`);
-      }
-
-      const result = await response.json();
-
-      // Revert optimistic update
-      setOptimisticState(null);
-
-      toast.success(
-        `${action === "request-update" ? "Update requested" : "Marked as passed"} for ${dimension}`,
-      );
-
-      if (onActionComplete) {
-        onActionComplete(
-          registration.registration_id,
-          result.status || registration.status,
-        );
-      }
-    } catch (error) {
-      // Revert optimistic update on error
-      setOptimisticState(null);
-      toast.error(
-        `Failed to ${action} ${dimension}: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    } finally {
-      setIsLoading(false);
-      setCurrentAction(null);
-    }
-  };
+  // Dimension action function moved to DimensionActionButtons component
 
   const handleApprove = async () => {
     if (isLoading) return;
@@ -154,22 +77,46 @@ export default function ActionButtons({
     }
   };
 
-  const handleRequestUpdate = (dimension: Dimension) => {
-    setRequestDimension(dimension);
-    setShowRequestModal(true);
-  };
+  const handleReject = async () => {
+    if (isLoading) return;
 
-  const handleRequestSubmit = (dimension: Dimension, notes: string) => {
-    setShowRequestModal(false);
-    setRequestDimension(null);
-    handleDimensionAction("request-update", dimension, notes);
-  };
+    setIsLoading(true);
+    setCurrentAction("reject");
+    setShowRejectModal(false);
 
-  const handleMarkPass = (dimension: Dimension) => {
-    if (confirm(`Mark ${dimension} as passed?`)) {
-      handleDimensionAction("mark-pass", dimension);
+    try {
+      const response = await fetch(`/api/admin/registrations/${registration.id}/reject`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to reject registration");
+      }
+
+      const result = await response.json();
+
+      toast.success("Registration rejected successfully");
+
+      if (onActionComplete) {
+        onActionComplete(
+          registration.registration_id,
+          result.status || "rejected",
+        );
+      }
+    } catch (error) {
+      toast.error(
+        `Failed to reject registration: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setIsLoading(false);
+      setCurrentAction(null);
     }
   };
+
+  // Dimension action handlers moved to DimensionActionButtons component
 
   // Use optimistic state if available, otherwise use original
   const displayRegistration = optimisticState || registration;
@@ -180,76 +127,35 @@ export default function ActionButtons({
     return checklist[dimension]?.status || "pending";
   };
 
-  const isActionDisabled = (action: string, dimension?: string) => {
+  const isActionDisabled = (action: string) => {
     if (isLoading || permissionsLoading) return true;
 
-    if (dimension) {
-      const status = getDimensionStatus(
-        dimension as "payment" | "profile" | "tcc",
-      );
-
-      // Check RBAC permissions first
-      const canReviewDimension = canReview(dimension as Dimension);
-
-      if (!canReviewDimension) return true;
-
-      switch (action) {
-        case "request-update":
-          // Request Update: enabled if canReview(d) AND registration.status !== approved AND checklist[d] !== needs_update
-          return (
-            status === "needs_update" ||
-            displayRegistration.status === "approved"
-          );
-        case "mark-pass":
-          // Mark PASS: enabled if canReview(d) AND checklist[d] ∈ {pending,needs_update}
-          return status === "passed" || status === "rejected";
-        default:
-          return false;
-      }
-    } else {
-      // Approve action: enabled if canApprove() AND all dimensions are passed
+    // Check terminal state for main actions - if registration is rejected or approved, disable actions
+    if (isTerminalState(displayRegistration)) {
+      return true;
+    }
+    
+    // Approve action: enabled if canApprove() AND all dimensions are passed
+    if (action === "approve") {
       return !canApprove() || displayRegistration.status === "approved";
     }
+    // Reject action: enabled if canApprove() AND registration is not already rejected
+    if (action === "reject") {
+      return !canApprove() || displayRegistration.status === "rejected";
+    }
+    return false;
   };
 
-  const getActionTooltip = (
-    action: string,
-    dimension?: string,
-  ): string | undefined => {
+  const getActionTooltip = (action: string): string | undefined => {
     if (isLoading || permissionsLoading) return "Loading...";
 
-    if (dimension) {
-      const status = getDimensionStatus(
-        dimension as "payment" | "profile" | "tcc",
-      );
-
-      // Check RBAC permissions first
-      const canReviewDimension = canReview(dimension as Dimension);
-
-      if (!canReviewDimension) {
-        return `No permission to review ${dimension}`;
-      }
-
-      switch (action) {
-        case "request-update":
-          if (status === "needs_update") {
-            return `${dimension} already needs update`;
-          }
-          if (displayRegistration.status === "approved") {
-            return "Registration is already approved";
-          }
-          break;
-        case "mark-pass":
-          if (status === "passed") {
-            return `${dimension} is already passed`;
-          }
-          if (status === "rejected") {
-            return `${dimension} is rejected`;
-          }
-          break;
-      }
-    } else {
-      // Approve action
+    // Check terminal state for main actions - show terminal state tooltip
+    if (isTerminalState(displayRegistration)) {
+      return getTerminalStateTooltip(displayRegistration);
+    }
+    
+    // Approve action
+    if (action === "approve") {
       if (!canApprove()) {
         return "Only super admin can approve registrations";
       }
@@ -260,6 +166,15 @@ export default function ActionButtons({
         return "All dimensions must be passed first";
       }
     }
+    // Reject action
+    if (action === "reject") {
+      if (!canApprove()) {
+        return "Only super admin can reject registrations";
+      }
+      if (displayRegistration.status === "rejected") {
+        return "Registration is already rejected";
+      }
+    }
 
     return undefined;
   };
@@ -267,6 +182,9 @@ export default function ActionButtons({
   const canApproveAll = () => {
     if (!canApprove()) return false;
     if (displayRegistration.status === "approved") return false;
+    
+    // Check terminal state - if registration is rejected or approved, disable approve action
+    if (isTerminalState(displayRegistration)) return false;
 
     const checklist = displayRegistration.review_checklist;
     if (!checklist) return false;
@@ -278,7 +196,8 @@ export default function ActionButtons({
     );
   };
 
-  const getDimensionButton = (dimension: "payment" | "profile" | "tcc") => {
+  // Dimension actions moved to DimensionActionButtons component
+  const _getDimensionButton = (dimension: "payment" | "profile" | "tcc") => {
     const status = getDimensionStatus(dimension);
     const isCurrentAction =
       currentAction === `request-update-${dimension}` ||
@@ -381,15 +300,8 @@ export default function ActionButtons({
   return (
     <>
       <div className="flex flex-col gap-3">
-        {/* Dimension-specific actions */}
-        <div className="grid grid-cols-3 gap-2">
-          {getDimensionButton("payment")}
-          {getDimensionButton("profile")}
-          {getDimensionButton("tcc")}
-        </div>
-
-        {/* Global Approve Action */}
-        <div className="flex flex-wrap items-center gap-1 pt-2 border-t">
+        {/* Global Approve/Reject Actions */}
+        <div className="flex flex-wrap items-center gap-1">
           <button
             data-testid="btn-approve"
             onClick={(e) => {
@@ -419,6 +331,33 @@ export default function ActionButtons({
             )}
           </button>
 
+          <button
+            data-testid="btn-reject"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowRejectModal(true);
+            }}
+            disabled={isActionDisabled("reject") || isLoading}
+            title={getActionTooltip("reject")}
+            className={`inline-flex items-center space-x-1 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 backdrop-blur-sm border ${
+              isActionDisabled("reject") || isLoading
+                ? "opacity-50 cursor-not-allowed bg-gray-300 text-gray-500 border-gray-300"
+                : "bg-red-500 hover:bg-red-600 text-white border-red-500"
+            } hover:scale-105`}
+          >
+            {currentAction === "reject" && isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="whitespace-nowrap">Rejecting...</span>
+              </>
+            ) : (
+              <>
+                <X className="w-4 h-4" />
+                <span className="whitespace-nowrap">Reject</span>
+              </>
+            )}
+          </button>
+
           {!canApproveAll() && canApprove() && (
             <div className="flex items-center gap-1 text-xs text-gray-500">
               <AlertTriangle className="w-3 h-3" />
@@ -428,17 +367,44 @@ export default function ActionButtons({
         </div>
       </div>
 
-      {/* Request Update Modal */}
-      <RequestUpdateModal
-        isOpen={showRequestModal}
-        onClose={() => {
-          setShowRequestModal(false);
-          setRequestDimension(null);
-        }}
-        onSubmit={handleRequestSubmit}
-        dimension={requestDimension!}
-        loading={isLoading && currentAction?.startsWith("request-update")}
-      />
+      {/* Request Update Modal moved to DimensionActionButtons component */}
+
+      {/* Reject Confirmation Modal */}
+      {showRejectModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowRejectModal(false)}
+        >
+          <div
+            role="dialog"
+            data-testid="registration-reject-dialog"
+            className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Reject Registration
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Are you sure you want to reject this registration? This action will be recorded.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowRejectModal(false)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={isLoading}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+              >
+                {isLoading && currentAction === "reject" ? "Rejecting..." : "Confirm Reject"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
