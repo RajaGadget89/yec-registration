@@ -3,12 +3,19 @@ import { NextRequest } from "next/server";
 /**
  * Standardized guard for test-only endpoints
  * Ensures endpoints are only accessible when TEST_HELPERS_ENABLED is set and CRON_SECRET is provided
+ *
+ * SECURITY: This guard is disabled in production builds for security
  */
 export function guardTestEndpoint(req: NextRequest): {
   allowed: boolean;
   status: number;
   message: string;
 } {
+  // SECURITY: Disable test endpoints in production
+  if (process.env.NODE_ENV === "production") {
+    return { allowed: false, status: 404, message: "Not Found" };
+  }
+
   // Check if test helpers are enabled
   if (process.env.TEST_HELPERS_ENABLED !== "1") {
     return { allowed: false, status: 404, message: "Not Found" };

@@ -40,6 +40,39 @@ export default function FileCard({
   );
   const isPdf = useMemo(() => (path ? /\.pdf$/i.test(path) : false), [path]);
 
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!url) return;
+
+    try {
+      // Fetch the file from the signed URL
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch file");
+
+      // Get the blob data
+      const blob = await response.blob();
+
+      // Create a temporary URL for the blob
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      // Create a temporary anchor element and trigger download
+      const tempAnchor = document.createElement("a");
+      tempAnchor.href = blobUrl;
+      tempAnchor.download = path || "download"; // Use the original filename
+      document.body.appendChild(tempAnchor);
+      tempAnchor.click();
+
+      // Clean up
+      document.body.removeChild(tempAnchor);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast.error("Download failed. Please try again.");
+    }
+  };
+
   useEffect(() => {
     if (!path) {
       setUrl(null);
@@ -61,28 +94,50 @@ export default function FileCard({
     setLoading(true);
     setError(null);
 
-    fetch(
-      `/api/admin/files/signed-url?registrationId=${registrationId}&path=${encodeURIComponent(path)}`,
-    )
+    const cid = `filecard-${Date.now()}`;
+    const payload = { registrationId, path, expires: 900 };
+
+    fetch("/api/admin/files/signed-url", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "content-type": "application/json",
+        "x-correlation-id": cid,
+      },
+      cache: "no-store",
+      body: JSON.stringify(payload),
+    })
       .then(async (r) => {
         if (!r.ok) {
-          const errorText = await r.text();
-          throw new Error(`HTTP ${r.status}: ${errorText}`);
+          // Graceful: show placeholder, log machine code; avoid overlay crash
+          let code = "UNKNOWN";
+          try {
+            const j = await r.json();
+            code = j?.code ?? code;
+          } catch {}
+          console.warn("[FileCard] presign failed", r.status, code);
+          setUrl(null); // render placeholder "No file uploaded"
+          return null;
         }
         const json = await r.json();
         return json.url as string;
       })
       .then((u) => {
         if (cancelled) return;
-        cacheRef.current[cacheKey] = { url: u, ts: Date.now() };
-        setUrl(u);
-        setError(null);
+        if (u) {
+          cacheRef.current[cacheKey] = { url: u, ts: Date.now() };
+          setUrl(u);
+          setError(null);
+        } else {
+          setUrl(null);
+          setError(null);
+        }
       })
       .catch((err) => {
         if (cancelled) return;
         console.error("[FileCard] Error:", err);
-        setError(err.message || "Failed to load file");
-        toast.error(t("preview_error"));
+        setUrl(null); // Graceful fallback to placeholder
+        setError(null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -181,15 +236,13 @@ export default function FileCard({
               >
                 <ExternalLink className="h-4 w-4" />
               </a>
-              <a
-                href={url}
-                download
+              <button
+                onClick={handleDownload}
                 className="p-2 bg-white/90 dark:bg-gray-800/90 rounded-lg text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors"
                 title="Download file"
-                onClick={(e) => e.stopPropagation()}
               >
                 <Download className="h-4 w-4" />
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -214,15 +267,13 @@ export default function FileCard({
               >
                 <Eye className="h-4 w-4" />
               </a>
-              <a
-                href={url}
-                download
+              <button
+                onClick={handleDownload}
                 className="p-2 bg-white/90 dark:bg-gray-800/90 rounded-lg text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors"
                 title="Download PDF"
-                onClick={(e) => e.stopPropagation()}
               >
                 <Download className="h-4 w-4" />
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -247,15 +298,13 @@ export default function FileCard({
               >
                 <ExternalLink className="h-4 w-4" />
               </a>
-              <a
-                href={url}
-                download
+              <button
+                onClick={handleDownload}
                 className="p-2 bg-white/90 dark:bg-gray-800/90 rounded-lg text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400 transition-colors"
                 title="Download file"
-                onClick={(e) => e.stopPropagation()}
               >
                 <Download className="h-4 w-4" />
-              </a>
+              </button>
             </div>
           </div>
         </div>

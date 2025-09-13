@@ -77,8 +77,8 @@ function AuthCallbackContent() {
             return;
           }
 
-          // Set server cookies first
-          const serverResponse = await fetch("/api/auth/session", {
+          // Set server cookies first - use the proper callback route that sets admin-email cookie
+          const serverResponse = await fetch("/api/auth/callback", {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({

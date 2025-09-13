@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   X,
   Calendar,
@@ -21,13 +21,14 @@ import {
   FileText,
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
-import ActionButtons from "./ActionButtons";
+import StatusBadges from "./StatusBadges";
 import DimensionActionButtons from "./DimensionActionButtons";
 import FileCard from "./FileCard";
 import LightboxModal from "./LightboxModal";
 import type { Registration } from "../../types/database";
 import { formatDate } from "../../lib/datetime";
 import { useUserPermissions } from "../../lib/rbac-client";
+import { isTerminalState } from "../../lib/registration-utils";
 
 interface DetailsDrawerProps {
   registration: Registration | null;
@@ -47,6 +48,9 @@ export default function DetailsDrawer({
   const [activeTab, setActiveTab] = useState<TabType>("review");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxSignedUrls, setLightboxSignedUrls] = useState<
+    Record<string, string>
+  >({});
   const { permissions } = useUserPermissions();
 
   // Prepare images for lightbox
@@ -91,6 +95,59 @@ export default function DetailsDrawer({
 
     return images;
   }, [registration]);
+
+  // Fetch signed URLs for lightbox images
+  useEffect(() => {
+    if (!registration || lightboxImages.length === 0) return;
+
+    const fetchSignedUrls = async () => {
+      const newSignedUrls: Record<string, string> = {};
+
+      for (const image of lightboxImages) {
+        if (image.url && !lightboxSignedUrls[image.url]) {
+          try {
+            const response = await fetch("/api/admin/files/signed-url", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: {
+                "content-type": "application/json",
+              },
+              body: JSON.stringify({
+                registrationId: registration.id,
+                path: image.url,
+                expires: 900,
+              }),
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              newSignedUrls[image.url] = data.url;
+            }
+          } catch (error) {
+            console.warn(
+              "[DetailsDrawer] Failed to fetch signed URL for:",
+              image.url,
+              error,
+            );
+          }
+        }
+      }
+
+      if (Object.keys(newSignedUrls).length > 0) {
+        setLightboxSignedUrls((prev) => ({ ...prev, ...newSignedUrls }));
+      }
+    };
+
+    fetchSignedUrls();
+  }, [registration, lightboxImages, lightboxSignedUrls]);
+
+  // Create lightbox images with signed URLs
+  const lightboxImagesWithSignedUrls = useMemo(() => {
+    return lightboxImages.map((image) => ({
+      ...image,
+      url: lightboxSignedUrls[image.url] || image.url,
+    }));
+  }, [lightboxImages, lightboxSignedUrls]);
 
   if (!registration) return null;
 
@@ -231,13 +288,15 @@ export default function DetailsDrawer({
                       <StatusBadge
                         status={getStatusBadgeStatus(registration.status)}
                       />
+                      {isTerminalState(registration) && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+                          Read-only
+                        </span>
+                      )}
                     </div>
 
-                    {/* Global Approve Action */}
-                    <ActionButtons
-                      registration={registration}
-                      onActionComplete={onActionComplete}
-                    />
+                    {/* Status Badges */}
+                    <StatusBadges registration={registration} />
                   </div>
 
                   {registration.update_reason && (
@@ -676,7 +735,7 @@ export default function DetailsDrawer({
       <LightboxModal
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
-        images={lightboxImages}
+        images={lightboxImagesWithSignedUrls}
         currentIndex={lightboxIndex}
         onIndexChange={setLightboxIndex}
       />
