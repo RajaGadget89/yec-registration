@@ -193,7 +193,6 @@ export default function AdminDashboard({
           onSort={handleSort}
           currentSort={{ column: sortColumn, direction: sortDirection }}
           onRowClick={handleRowClick}
-          onActionComplete={handleActionComplete}
         />
       </div>
 

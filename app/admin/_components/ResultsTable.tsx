@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import ChecklistChips from "./ChecklistChips";
-import ActionButtons from "./ActionButtons";
 import type { Registration } from "../../types/database";
 import { formatDate } from "../../lib/datetime";
 
@@ -22,7 +21,6 @@ interface ResultsTableProps {
   onSort: (column: string, direction: "asc" | "desc") => void;
   currentSort: { column: string; direction: "asc" | "desc" };
   onRowClick: (registration: Registration) => void;
-  onActionComplete?: (registrationId: string, newStatus: string) => void;
 }
 
 export default function ResultsTable({
@@ -34,7 +32,6 @@ export default function ResultsTable({
   onSort,
   currentSort,
   onRowClick,
-  onActionComplete,
 }: ResultsTableProps) {
   const totalPages = Math.ceil(totalCount / pageSize);
   const startIndex = totalCount > 0 ? (currentPage - 1) * pageSize + 1 : 0;
@@ -178,7 +175,7 @@ export default function ResultsTable({
               </th>
               <th className="px-4 py-4 text-left w-[20%]">
                 <span className="font-semibold text-gray-700 dark:text-gray-300">
-                  Actions
+                  Status
                 </span>
               </th>
             </tr>
@@ -227,11 +224,6 @@ export default function ResultsTable({
                             | "approved"
                             | "rejected"
                         }
-                      />
-                      {/* Review Checklist */}
-                      <ChecklistChips
-                        reviewChecklist={registration.review_checklist}
-                        className="mt-2"
                       />
                     </div>
                   </td>
@@ -297,9 +289,10 @@ export default function ResultsTable({
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    <ActionButtons
-                      registration={registration}
-                      onActionComplete={onActionComplete}
+                    {/* Review Checklist Status Badges */}
+                    <ChecklistChips
+                      reviewChecklist={registration.review_checklist}
+                      className=""
                     />
                   </td>
                 </tr>

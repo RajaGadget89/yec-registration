@@ -6,11 +6,45 @@ import {
   EmailTemplateProps,
 } from "./registry";
 import { TokenService } from "../tokenService";
+import { logEvent } from "../audit/auditClient";
+import { getRequestId } from "../audit/requestContext";
 
 /**
  * Email dispatcher for processing outbox emails
  * Handles batch processing of queued emails with error handling and retry logic
  */
+
+/**
+ * Validate email content before enqueueing
+ * Ensures non-null content to prevent empty emails
+ */
+function validateEmailContent(
+  template: string,
+  toEmail: string,
+  payload: EmailTemplateProps,
+  _idempotencyKey?: string,
+): { valid: boolean; reason?: string } {
+  // Check if payload is null or undefined
+  if (payload == null) {
+    return { valid: false, reason: "payload_null" };
+  }
+
+  // Check if payload is an empty object
+  if (typeof payload === "object" && Object.keys(payload).length === 0) {
+    return { valid: false, reason: "payload_empty" };
+  }
+
+  // Check if critical fields are missing
+  if (!template || typeof template !== "string" || template.trim() === "") {
+    return { valid: false, reason: "template_null_or_empty" };
+  }
+
+  if (!toEmail || typeof toEmail !== "string" || toEmail.trim() === "") {
+    return { valid: false, reason: "to_email_null_or_empty" };
+  }
+
+  return { valid: true };
+}
 
 export interface EmailOutboxItem {
   id: string;
@@ -551,10 +585,45 @@ export async function enqueueEmail(
   idempotencyKey?: string,
 ): Promise<string> {
   try {
+    // HARDENING: Validate email content before enqueueing
+    const validation = validateEmailContent(
+      template,
+      toEmail,
+      payload,
+      idempotencyKey,
+    );
+    if (!validation.valid) {
+      const correlationId = getRequestId();
+      const errorMessage = `Outbox content validation failed: ${validation.reason}`;
+
+      // Log validation failure
+      try {
+        await logEvent({
+          action: "email.outbox_validation_failed",
+          resource: "email_outbox",
+          actor_id: "system",
+          actor_role: "system",
+          result: "rejected",
+          reason: validation.reason || "unknown",
+          correlation_id: correlationId,
+          meta: {
+            template,
+            to_email: toEmail,
+            idempotency_key: idempotencyKey,
+            route: "email.enqueue",
+          },
+        });
+      } catch (logError) {
+        console.error("Error logging outbox validation failure:", logError);
+      }
+
+      console.error(`[ENQUEUE] ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
+
     const supabase = getServiceRoleClient();
 
     // Use the database function to enqueue the email
-
     const { data, error } = await (supabase as any).rpc("fn_enqueue_email", {
       p_template: template,
       p_to_email: toEmail,

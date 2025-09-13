@@ -35,7 +35,7 @@ test.describe('CI Health Check - System Validation', () => {
   test('should have working email configuration', async ({ request }) => {
     const response = await request.get(`${baseURL}/api/admin/email-status`, {
       headers: {
-        'Authorization': `Bearer 9318b95a82c5f8fcd236d8abe79f4ce8`
+        'Authorization': `Bearer ${process.env.CRON_SECRET || 'test-secret-not-configured'}`
       }
     });
     expect(response.status()).toBe(200);
@@ -64,7 +64,7 @@ test.describe('CI Health Check - System Validation', () => {
     // Test the email status endpoint which gives us environment info
     const response = await request.get(`${baseURL}/api/admin/email-status`, {
       headers: {
-        'Authorization': `Bearer 9318b95a82c5f8fcd236d8abe79f4ce8`
+        'Authorization': `Bearer ${process.env.CRON_SECRET || 'test-secret-not-configured'}`
       }
     });
     

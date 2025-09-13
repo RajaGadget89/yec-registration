@@ -114,7 +114,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ role: newRole }),
+        body: JSON.stringify({ roles: [newRole] }),
       });
 
       if (response.ok) {
