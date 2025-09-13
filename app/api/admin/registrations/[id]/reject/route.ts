@@ -8,8 +8,8 @@ export async function POST(
   { params }: { params: { id: string } },
 ) {
   const correlationId = `reject-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const isDebug = process.env.DEBUG_REJECT === '1';
-  
+  const isDebug = process.env.DEBUG_REJECT === "1";
+
   try {
     // Check admin authentication - allow admin or super_admin roles
     const hasAdminRole = await hasRoleFromRequest(request, "admin");
@@ -37,13 +37,13 @@ export async function POST(
         details: fetchError?.message || "Registration not found",
         hint: "Check if registration ID exists and is accessible",
         message: "Registration not found",
-        correlation_id: correlationId
+        correlation_id: correlationId,
       };
-      
+
       if (isDebug) {
         console.error("Reject diagnostics:", errorDetails);
       }
-      
+
       return NextResponse.json(
         { ok: false, error: "Registration not found" },
         { status: 404 },
@@ -64,17 +64,24 @@ export async function POST(
         details: updateError.message,
         hint: "Check database permissions and column constraints",
         message: "Failed to update registration status",
-        correlation_id: correlationId
+        correlation_id: correlationId,
       };
-      
+
       if (isDebug) {
         console.error("Reject diagnostics:", errorDetails);
         return NextResponse.json(
-          { ok: false, error: { code: errorDetails.code, message: errorDetails.message, hint: errorDetails.hint } },
+          {
+            ok: false,
+            error: {
+              code: errorDetails.code,
+              message: errorDetails.message,
+              hint: errorDetails.hint,
+            },
+          },
           { status: 500 },
         );
       }
-      
+
       console.error("Error updating registration status:", updateError);
       return NextResponse.json(
         { ok: false, error: "Failed to update registration status" },
@@ -86,25 +93,27 @@ export async function POST(
     stage = "emit_events";
     try {
       // Get admin email from request headers (set by auth middleware)
-      const adminEmail = request.headers.get("x-admin-email") || 
-                        request.cookies.get("admin-email")?.value;
-      
+      const adminEmail =
+        request.headers.get("x-admin-email") ||
+        request.cookies.get("admin-email")?.value;
+
       if (!adminEmail) {
         throw new Error("Admin email is required for audit trail");
       }
-      
+
       await EventService.emitAdminRejected(registration, adminEmail);
       console.log("Admin rejected event emitted successfully");
     } catch (eventError) {
       const errorDetails = {
         stage,
         code: "EVENT_EMISSION_FAILED",
-        details: eventError instanceof Error ? eventError.message : String(eventError),
+        details:
+          eventError instanceof Error ? eventError.message : String(eventError),
         hint: "Event emission failed but status was updated - check event service configuration",
         message: "Failed to emit rejection event",
-        correlation_id: correlationId
+        correlation_id: correlationId,
       };
-      
+
       if (isDebug) {
         console.error("Reject diagnostics:", errorDetails);
         // Continue execution - don't fail the request for event emission issues
@@ -124,12 +133,13 @@ export async function POST(
       const errorDetails = {
         stage,
         code: "EMAIL_ENQUEUE_FAILED",
-        details: emailError instanceof Error ? emailError.message : String(emailError),
+        details:
+          emailError instanceof Error ? emailError.message : String(emailError),
         hint: "Email enqueueing failed but status was updated - check email service configuration",
         message: "Failed to enqueue rejection email",
-        correlation_id: correlationId
+        correlation_id: correlationId,
       };
-      
+
       if (isDebug) {
         console.error("Reject diagnostics:", errorDetails);
         // Continue execution - don't fail the request for email issues
@@ -151,17 +161,24 @@ export async function POST(
       details: error instanceof Error ? error.message : String(error),
       hint: "Unexpected error occurred during rejection process",
       message: "Internal server error",
-      correlation_id: correlationId
+      correlation_id: correlationId,
     };
-    
+
     if (isDebug) {
       console.error("Reject diagnostics:", errorDetails);
       return NextResponse.json(
-        { ok: false, error: { code: errorDetails.code, message: errorDetails.message, hint: errorDetails.hint } },
+        {
+          ok: false,
+          error: {
+            code: errorDetails.code,
+            message: errorDetails.message,
+            hint: errorDetails.hint,
+          },
+        },
         { status: 500 },
       );
     }
-    
+
     console.error("Unexpected error in reject action:", error);
     return NextResponse.json(
       { ok: false, error: "Internal server error" },

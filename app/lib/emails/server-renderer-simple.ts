@@ -79,12 +79,16 @@ function createEmailTemplate(
           <p style="color: #0c4a6e; font-size: 14px; margin: 0;"><strong>ราคา | Price:</strong> ฿${priceApplied}</p>
         </div>
         
-        ${notes ? `
+        ${
+          notes
+            ? `
         <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 16px 0;">
           <h4 style="color: #92400e; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">หมายเหตุจากทีมงาน | Team Notes:</h4>
           <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.5;">${notes}</p>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
         
         <p>กรุณาคลิกปุ่มด้านล่างเพื่ออัปเดตสลิปโอนเงินของคุณ | 
         Please click the button below to update your payment slip.</p>
@@ -108,12 +112,16 @@ function createEmailTemplate(
         และต้องการให้คุณอัปเดตข้อมูลส่วนบุคคล | Thank you for registering for YEC Day! 
         We have reviewed your registration and need you to update your profile information.</p>
         
-        ${notes ? `
+        ${
+          notes
+            ? `
         <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 16px 0;">
           <h4 style="color: #92400e; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">หมายเหตุจากทีมงาน | Team Notes:</h4>
           <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.5;">${notes}</p>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
         
         <p>กรุณาคลิกปุ่มด้านล่างเพื่ออัปเดตข้อมูลส่วนบุคคลของคุณ | 
         Please click the button below to update your profile information.</p>
@@ -137,12 +145,16 @@ function createEmailTemplate(
         และต้องการให้คุณอัปเดตรูปบัตร TCC | Thank you for registering for YEC Day! 
         We have reviewed your registration and need you to update your TCC card.</p>
         
-        ${notes ? `
+        ${
+          notes
+            ? `
         <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 16px 0;">
           <h4 style="color: #92400e; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">หมายเหตุจากทีมงาน | Team Notes:</h4>
           <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.5;">${notes}</p>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
         
         <p>กรุณาคลิกปุ่มด้านล่างเพื่ออัปเดตรูปบัตร TCC ของคุณ | 
         Please click the button below to update your TCC card.</p>
@@ -160,7 +172,8 @@ function createEmailTemplate(
       break;
 
     case "approval-badge":
-      title = "🎉 อนุมัติเรียบร้อย — เจอกันในงาน! | Approved — See You at the Seminar!";
+      title =
+        "🎉 อนุมัติเรียบร้อย — เจอกันในงาน! | Approved — See You at the Seminar!";
       content = `
         <div style="background-color: #dcfce7; border: 1px solid #16a34a; border-radius: 8px; padding: 20px; margin: 16px 0; text-align: center;">
           <h3 style="color: #15803d; font-size: 20px; font-weight: 600; margin: 0 0 12px 0;">🎊 ยินดีด้วย! | Congratulations! 🎊</h3>
@@ -172,13 +185,17 @@ function createEmailTemplate(
         Thank you for registering for YEC Day! We have reviewed your registration 
         and are pleased to inform you that you have been approved to attend the event.</p>
         
-        ${badgeUrl ? `
+        ${
+          badgeUrl
+            ? `
         <div style="text-align: center; margin: 24px 0;">
           <h4 style="color: #1f2937; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">บัตรเข้าร่วมงานของคุณ | Your Event Badge:</h4>
           <img src="${badgeUrl}" alt="YEC Day Event Badge" style="max-width: 300px; height: auto; border: 2px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);" />
           <p style="font-size: 14px; color: #6b7280; margin: 12px 0 0 0;">กรุณาพิมพ์หรือบันทึกบัตรนี้เพื่อนำมาแสดงในวันงาน | Please print or save this badge to present at the event.</p>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
         
         <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 16px 0;">
           <h4 style="color: #92400e; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">📅 ข้อมูลสำคัญ | Important Information:</h4>
@@ -209,7 +226,7 @@ function createEmailTemplate(
         },
       };
       const reason = reasonMessages[rejectedReason || "other"];
-      
+
       content = `
         <div style="background-color: #fef2f2; border: 1px solid #ef4444; border-radius: 8px; padding: 20px; margin: 16px 0; text-align: center;">
           <h3 style="color: #dc2626; font-size: 20px; font-weight: 600; margin: 0 0 12px 0;">ขออภัย | We Apologize</h3>
@@ -409,16 +426,22 @@ function createEmailTemplate(
 
             ${ctaButton}
 
-            ${showTrackingCode ? `
+            ${
+              showTrackingCode
+                ? `
             <!-- Tracking Code Section -->
             <div class="tracking-code">
               <h3 class="tracking-title">รหัสติดตามการสมัคร | Registration Tracking Code</h3>
               <div class="tracking-number">${trackingCode}</div>
               <p class="tracking-note">เก็บรหัสนี้ไว้เพื่อติดตามสถานะการสมัครของคุณ | Keep this code to track your registration status</p>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
 
-            ${showNextSteps ? `
+            ${
+              showNextSteps
+                ? `
             <!-- Next Steps Section -->
             <div class="next-steps">
               <h3 class="next-steps-title">ขั้นตอนต่อไป | Next Steps</h3>
@@ -428,7 +451,9 @@ function createEmailTemplate(
                 <li>หากต้องการข้อมูลเพิ่มเติม เราจะติดต่อคุณ | If additional information is needed, we will contact you</li>
               </ul>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
 
           <!-- Footer -->

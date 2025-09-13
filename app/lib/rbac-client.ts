@@ -66,16 +66,25 @@ export function useRBAC() {
           const roles = new Set(rbacData.roles);
 
           setData(rbacData);
-          
+
           // Calculate granular permissions
           const isSuperAdmin = roles.has("super_admin");
-          
+
           // Map business roles to RBAC permissions
           const businessRoles = new Set(rbacData.business_roles || []);
-          const canReviewPayment = roles.has("admin_payment") || businessRoles.has("payment_slip") || isSuperAdmin;
-          const canReviewProfile = roles.has("admin_profile") || businessRoles.has("user_profile") || isSuperAdmin;
-          const canReviewTcc = roles.has("admin_tcc") || businessRoles.has("tcc_card") || isSuperAdmin;
-          
+          const canReviewPayment =
+            roles.has("admin_payment") ||
+            businessRoles.has("payment_slip") ||
+            isSuperAdmin;
+          const canReviewProfile =
+            roles.has("admin_profile") ||
+            businessRoles.has("user_profile") ||
+            isSuperAdmin;
+          const canReviewTcc =
+            roles.has("admin_tcc") ||
+            businessRoles.has("tcc_card") ||
+            isSuperAdmin;
+
           setPermissions({
             roles,
             canReviewPayment,

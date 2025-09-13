@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { renderEmailTemplate, getEmailTemplateSubject } from "../../../lib/emails/server-renderer-simple";
+import {
+  renderEmailTemplate,
+  getEmailTemplateSubject,
+} from "../../../lib/emails/server-renderer-simple";
 import { sendEmail } from "../../../lib/emails/provider";
 
 // Sample registration data for testing
-const sampleRegistrationData = {
+const _sampleRegistrationData = {
   id: "test-registration-123",
   registration_id: "YEC-1757789675228-d7cb1dxrb",
   first_name: "นาย",
@@ -39,14 +42,16 @@ const emailTestData = {
     ctaUrl: "https://yecday.com/update/payment?token=test-token-123",
     priceApplied: "2500",
     packageName: "Early Bird Package",
-    notes: "กรุณาอัปเดตสลิปโอนเงินให้ชัดเจนขึ้น | Please update your payment slip with clearer image",
+    notes:
+      "กรุณาอัปเดตสลิปโอนเงินให้ชัดเจนขึ้น | Please update your payment slip with clearer image",
     supportEmail: "info@yecday.com",
   },
   "update-info": {
     applicantName: "นาย ทดสอบ",
     trackingCode: "YEC-1757789675228-d7cb1dxrb",
     ctaUrl: "https://yecday.com/update/profile?token=test-token-123",
-    notes: "กรุณาอัปเดตข้อมูลบริษัทและเบอร์โทรศัพท์ | Please update your company information and phone number",
+    notes:
+      "กรุณาอัปเดตข้อมูลบริษัทและเบอร์โทรศัพท์ | Please update your company information and phone number",
     supportEmail: "info@yecday.com",
   },
   "update-tcc": {
@@ -73,26 +78,30 @@ const emailTestData = {
 export async function POST(request: NextRequest) {
   try {
     const { templateType, testAll = false } = await request.json();
-    
+
     const results = [];
 
     // If testAll is true, send all templates
-    const templatesToTest = testAll 
-      ? Object.keys(emailTestData) 
+    const templatesToTest = testAll
+      ? Object.keys(emailTestData)
       : [templateType || "tracking"];
 
     for (const templateName of templatesToTest) {
       try {
         console.log(`[EMAIL_TEST] Rendering template: ${templateName}`);
-        
+
         // Get template data
-        const templateData = emailTestData[templateName as keyof typeof emailTestData];
+        const templateData =
+          emailTestData[templateName as keyof typeof emailTestData];
         if (!templateData) {
           throw new Error(`Template data not found for: ${templateName}`);
         }
 
         // Render the email template
-        const htmlContent = await renderEmailTemplate(templateName, templateData);
+        const htmlContent = await renderEmailTemplate(
+          templateName,
+          templateData,
+        );
         const subject = getEmailTemplateSubject(templateName);
 
         // Send the email
@@ -113,11 +122,13 @@ export async function POST(request: NextRequest) {
 
         // Add a small delay between emails to avoid rate limiting
         if (templatesToTest.length > 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
-
       } catch (error) {
-        console.error(`[EMAIL_TEST] Error with template ${templateName}:`, error);
+        console.error(
+          `[EMAIL_TEST] Error with template ${templateName}:`,
+          error,
+        );
         results.push({
           template: templateName,
           success: false,
@@ -128,19 +139,18 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Email test completed. ${results.filter(r => r.success).length}/${results.length} emails sent successfully.`,
+      message: `Email test completed. ${results.filter((r) => r.success).length}/${results.length} emails sent successfully.`,
       results,
       testEmail: "sharepoints911@gmail.com",
     });
-
   } catch (error) {
     console.error("[EMAIL_TEST] Error:", error);
     return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : String(error) 
+      {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -151,9 +161,10 @@ export async function GET() {
     usage: {
       method: "POST",
       body: {
-        templateType: "tracking | update-payment | update-info | update-tcc | approval-badge | rejection",
-        testAll: "boolean (optional) - if true, sends all templates"
-      }
+        templateType:
+          "tracking | update-payment | update-info | update-tcc | approval-badge | rejection",
+        testAll: "boolean (optional) - if true, sends all templates",
+      },
     },
     availableTemplates: Object.keys(emailTestData),
     testEmail: "sharepoints911@gmail.com",

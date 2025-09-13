@@ -35,14 +35,15 @@ export default function EmailTemplateTestPage() {
 
       const result = await response.json();
       setResults(result.results || [result]);
-
     } catch (error) {
       console.error("Error:", error);
-      setResults([{
-        template: "error",
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }]);
+      setResults([
+        {
+          template: "error",
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -62,7 +63,7 @@ export default function EmailTemplateTestPage() {
               <h2 className="text-xl font-semibold text-blue-900 mb-4">
                 Test Configuration
               </h2>
-              
+
               <div className="space-y-4">
                 <div>
                   <label className="flex items-center space-x-3">
@@ -116,7 +117,11 @@ export default function EmailTemplateTestPage() {
                 disabled={loading}
                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-8 rounded-lg transition-colors"
               >
-                {loading ? "Sending..." : testAll ? "Send All Test Emails" : "Send Test Email"}
+                {loading
+                  ? "Sending..."
+                  : testAll
+                    ? "Send All Test Emails"
+                    : "Send Test Email"}
               </button>
             </div>
 
@@ -126,7 +131,7 @@ export default function EmailTemplateTestPage() {
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">
                   Test Results
                 </h2>
-                
+
                 <div className="space-y-3">
                   {results.map((result, index) => (
                     <div
@@ -166,10 +171,12 @@ export default function EmailTemplateTestPage() {
                     📧 Check Your Email!
                   </h3>
                   <p className="text-blue-800">
-                    Test emails have been sent to <strong>sharepoints911@gmail.com</strong>
+                    Test emails have been sent to{" "}
+                    <strong>sharepoints911@gmail.com</strong>
                   </p>
                   <p className="text-blue-700 text-sm mt-1">
-                    Please check your inbox (and spam folder) to see how the templates look.
+                    Please check your inbox (and spam folder) to see how the
+                    templates look.
                   </p>
                 </div>
               </div>
@@ -181,10 +188,19 @@ export default function EmailTemplateTestPage() {
                 📋 Instructions
               </h2>
               <ul className="space-y-2 text-yellow-800">
-                <li>• Select a single template to test or test all templates at once</li>
-                <li>• Click the send button to send test emails to sharepoints911@gmail.com</li>
+                <li>
+                  • Select a single template to test or test all templates at
+                  once
+                </li>
+                <li>
+                  • Click the send button to send test emails to
+                  sharepoints911@gmail.com
+                </li>
                 <li>• Check your email inbox to see how each template looks</li>
-                <li>• All templates use the new master design with YEC branding and logo</li>
+                <li>
+                  • All templates use the new master design with YEC branding
+                  and logo
+                </li>
                 <li>• Templates include realistic sample data for testing</li>
               </ul>
             </div>
