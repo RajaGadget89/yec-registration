@@ -10,11 +10,25 @@ export interface UserPermissions {
   canReviewTcc: boolean;
   canApprove: boolean;
   isSuperAdmin: boolean;
+  // Granular permissions for dimension actions
+  can: {
+    request: {
+      payment: boolean;
+      profile: boolean;
+      tcc: boolean;
+    };
+    pass: {
+      payment: boolean;
+      profile: boolean;
+      tcc: boolean;
+    };
+  };
 }
 
 export interface RBACData {
   email: string;
   roles: Role[];
+  business_roles: string[];
   envBuildId: string;
 }
 
@@ -26,6 +40,18 @@ export function useRBAC() {
     canReviewTcc: false,
     canApprove: false,
     isSuperAdmin: false,
+    can: {
+      request: {
+        payment: false,
+        profile: false,
+        tcc: false,
+      },
+      pass: {
+        payment: false,
+        profile: false,
+        tcc: false,
+      },
+    },
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,15 +66,44 @@ export function useRBAC() {
           const roles = new Set(rbacData.roles);
 
           setData(rbacData);
+
+          // Calculate granular permissions
+          const isSuperAdmin = roles.has("super_admin");
+
+          // Map business roles to RBAC permissions
+          const businessRoles = new Set(rbacData.business_roles || []);
+          const canReviewPayment =
+            roles.has("admin_payment") ||
+            businessRoles.has("payment_slip") ||
+            isSuperAdmin;
+          const canReviewProfile =
+            roles.has("admin_profile") ||
+            businessRoles.has("user_profile") ||
+            isSuperAdmin;
+          const canReviewTcc =
+            roles.has("admin_tcc") ||
+            businessRoles.has("tcc_card") ||
+            isSuperAdmin;
+
           setPermissions({
             roles,
-            canReviewPayment:
-              roles.has("admin_payment") || roles.has("super_admin"),
-            canReviewProfile:
-              roles.has("admin_profile") || roles.has("super_admin"),
-            canReviewTcc: roles.has("admin_tcc") || roles.has("super_admin"),
-            canApprove: roles.has("super_admin"),
-            isSuperAdmin: roles.has("super_admin"),
+            canReviewPayment,
+            canReviewProfile,
+            canReviewTcc,
+            canApprove: isSuperAdmin,
+            isSuperAdmin,
+            can: {
+              request: {
+                payment: canReviewPayment,
+                profile: canReviewProfile,
+                tcc: canReviewTcc,
+              },
+              pass: {
+                payment: canReviewPayment,
+                profile: canReviewProfile,
+                tcc: canReviewTcc,
+              },
+            },
           });
         } else {
           setError("Failed to fetch RBAC data");

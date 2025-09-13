@@ -1,429 +1,148 @@
 import React from "react";
-import { emailTheme } from "../theme";
 import { EmailTemplateProps } from "../registry";
-import { getEmailFromAddress } from "../../config";
+import { MasterEmailTemplate } from "./MasterEmailTemplate";
 
 export const ApprovalBadgeTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = "ผู้สมัคร",
   trackingCode,
   badgeUrl,
-  supportEmail: _supportEmail,
+  supportEmail,
   brandTokens,
 }) => {
-  // Use centralized email address if not provided
-  const supportEmail = _supportEmail || getEmailFromAddress();
-  const { colors, spacing, button } = emailTheme;
-
-  // Use brand colors if provided, otherwise use default theme
-  const primaryColor = brandTokens?.primaryColor || colors.primary;
-  const secondaryColor = brandTokens?.secondaryColor || colors.accent;
-
   return (
-    <div style={{ fontFamily: "Arial, Helvetica, sans-serif" }}>
-      {/* Thai Content */}
-      <div style={{ marginBottom: spacing.xl }}>
-        <h2
-          style={{
-            color: colors.success,
-            fontSize: "24px",
-            marginBottom: spacing.md,
-            textAlign: "center" as const,
-          }}
-        >
-          🎉 อนุมัติเรียบร้อยแล้ว!
-        </h2>
-
-        <p
-          style={{
-            fontSize: "16px",
-            lineHeight: "1.6",
-            marginBottom: spacing.md,
-          }}
-        >
-          สวัสดี {applicantName} ที่รัก
-        </p>
-
-        <p
-          style={{
-            fontSize: "16px",
-            lineHeight: "1.6",
-            marginBottom: spacing.lg,
-          }}
-        >
-          ยินดีด้วย! การสมัครเข้าร่วมงาน YEC Day ของคุณได้รับการอนุมัติแล้ว
-          บัตรประจำตัวของคุณพร้อมใช้งาน
-        </p>
-
-        <div
-          style={{
-            backgroundColor: colors.success + "20",
-            border: `1px solid ${colors.success}`,
-            borderRadius: "8px",
-            padding: spacing.lg,
-            marginBottom: spacing.lg,
-          }}
-        >
-          <h3
-            style={{
-              color: colors.success,
-              fontSize: "18px",
-              marginBottom: spacing.sm,
-            }}
-          >
-            สถานะการสมัคร
-          </h3>
-          <p
-            style={{
-              fontSize: "16px",
-              lineHeight: "1.6",
-              marginBottom: spacing.md,
-            }}
-          >
-            ✅ การสมัครได้รับการอนุมัติแล้ว
-          </p>
-          <p
-            style={{
-              fontSize: "14px",
-              color: colors.gray[600],
-              margin: 0,
-            }}
-          >
-            คุณสามารถเข้าร่วมงาน YEC Day ได้แล้ว
-          </p>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: colors.gray[50],
-            border: `2px solid ${secondaryColor}`,
-            borderRadius: "8px",
-            padding: spacing.lg,
-            marginBottom: spacing.lg,
-            textAlign: "center" as const,
-          }}
-        >
-          <h3
-            style={{
-              color: primaryColor,
-              fontSize: "18px",
-              marginBottom: spacing.sm,
-            }}
-          >
-            รหัสติดตามการสมัคร
-          </h3>
+    <MasterEmailTemplate
+      title="🎉 อนุมัติเรียบร้อย — เจอกันในงาน! | Approved — See You at the Seminar!"
+      content={
+        <div>
           <div
             style={{
-              fontSize: "24px",
-              fontWeight: "bold",
-              color: secondaryColor,
-              fontFamily: "monospace",
-              letterSpacing: "2px",
+              backgroundColor: "#dcfce7",
+              border: "1px solid #16a34a",
+              borderRadius: "8px",
+              padding: "20px",
+              margin: "16px 0",
+              textAlign: "center" as const,
             }}
           >
-            {trackingCode}
-          </div>
-        </div>
-
-        {badgeUrl && (
-          <div
-            style={{ textAlign: "center" as const, marginBottom: spacing.lg }}
-          >
-            <div
+            <h3
               style={{
-                backgroundColor: colors.gray[50],
-                border: `2px solid ${secondaryColor}`,
-                borderRadius: "8px",
-                padding: spacing.lg,
-                marginBottom: spacing.md,
+                color: "#15803d",
+                fontSize: "20px",
+                fontWeight: "600",
+                margin: "0 0 12px 0",
               }}
             >
-              <h3
+              🎊 ยินดีด้วย! | Congratulations! 🎊
+            </h3>
+            <p
+              style={{
+                color: "#15803d",
+                fontSize: "16px",
+                margin: 0,
+                lineHeight: "1.5",
+              }}
+            >
+              การสมัครของคุณได้รับการอนุมัติแล้ว! | Your registration has been
+              approved!
+            </p>
+          </div>
+
+          <p>
+            ขอบคุณที่สมัครเข้าร่วมงาน YEC Day!
+            เราได้ตรวจสอบข้อมูลการสมัครของคุณแล้ว
+            และยินดีที่จะแจ้งให้ทราบว่าคุณได้รับการอนุมัติให้เข้าร่วมงานแล้ว |
+            Thank you for registering for YEC Day! We have reviewed your
+            registration and are pleased to inform you that you have been
+            approved to attend the event.
+          </p>
+
+          {badgeUrl && (
+            <div
+              style={{
+                textAlign: "center" as const,
+                margin: "24px 0",
+              }}
+            >
+              <h4
                 style={{
-                  color: primaryColor,
+                  color: "#1f2937",
                   fontSize: "18px",
-                  marginBottom: spacing.sm,
+                  fontWeight: "600",
+                  margin: "0 0 16px 0",
                 }}
               >
-                บัตรประจำตัว YEC Day ของคุณ
-              </h3>
+                บัตรเข้าร่วมงานของคุณ | Your Event Badge:
+              </h4>
+              <img
+                src={badgeUrl}
+                alt="YEC Day Event Badge"
+                style={{
+                  maxWidth: "300px",
+                  height: "auto",
+                  border: "2px solid #e5e7eb",
+                  borderRadius: "8px",
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                }}
+              />
               <p
                 style={{
                   fontSize: "14px",
-                  color: colors.gray[600],
-                  marginBottom: spacing.md,
+                  color: "#6b7280",
+                  margin: "12px 0 0 0",
                 }}
               >
-                บัตรประจำตัวของคุณพร้อมใช้งานแล้ว
+                กรุณาพิมพ์หรือบันทึกบัตรนี้เพื่อนำมาแสดงในวันงาน | Please print
+                or save this badge to present at the event.
               </p>
-              <a
-                href={badgeUrl}
-                style={{
-                  ...button.primary,
-                  fontSize: "16px",
-                  padding: "12px 24px",
-                }}
-              >
-                ดาวน์โหลดบัตรประจำตัว
-              </a>
             </div>
-          </div>
-        )}
+          )}
 
-        <div
-          style={{
-            backgroundColor: colors.highlight + "20",
-            border: `1px solid ${colors.highlight}`,
-            borderRadius: "8px",
-            padding: spacing.lg,
-            marginBottom: spacing.lg,
-          }}
-        >
-          <h3
-            style={{
-              color: colors.highlight,
-              fontSize: "18px",
-              marginBottom: spacing.sm,
-            }}
-          >
-            ข้อมูลเพิ่มเติม
-          </h3>
-          <ul
-            style={{
-              margin: 0,
-              paddingLeft: spacing.lg,
-              fontSize: "14px",
-              lineHeight: "1.5",
-            }}
-          >
-            <li>เก็บบัตรประจำตัวไว้เพื่อเข้าร่วมงาน</li>
-            <li>ตรวจสอบรายละเอียดงานในอีเมลถัดไป</li>
-            <li>หากมีคำถาม ติดต่อเราได้ที่ {supportEmail}</li>
-          </ul>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: colors.gray[100],
-            padding: spacing.lg,
-            borderRadius: "8px",
-            fontSize: "14px",
-            color: colors.gray[700],
-          }}
-        >
-          <p style={{ margin: 0 }}>
-            <strong>หากมีคำถาม:</strong> ติดต่อเราได้ที่ {supportEmail}
-          </p>
-          <p style={{ margin: "8px 0 0 0", fontSize: "12px" }}>
-            ข้อมูลส่วนบุคคลของคุณจะถูกเก็บรักษาไว้ตามนโยบายการคุ้มครองข้อมูลส่วนบุคคล
-            (PDPA)
-          </p>
-        </div>
-      </div>
-
-      {/* English Content */}
-      <div
-        style={{
-          borderTop: `2px solid ${colors.gray[200]}`,
-          paddingTop: spacing.lg,
-        }}
-      >
-        <h2
-          style={{
-            color: colors.success,
-            fontSize: "24px",
-            marginBottom: spacing.md,
-            textAlign: "center" as const,
-          }}
-        >
-          🎉 Approved!
-        </h2>
-
-        <p
-          style={{
-            fontSize: "16px",
-            lineHeight: "1.6",
-            marginBottom: spacing.md,
-          }}
-        >
-          Dear {applicantName},
-        </p>
-
-        <p
-          style={{
-            fontSize: "16px",
-            lineHeight: "1.6",
-            marginBottom: spacing.lg,
-          }}
-        >
-          Congratulations! Your YEC Day registration has been approved. Your
-          badge is ready for use.
-        </p>
-
-        <div
-          style={{
-            backgroundColor: colors.success + "20",
-            border: `1px solid ${colors.success}`,
-            borderRadius: "8px",
-            padding: spacing.lg,
-            marginBottom: spacing.lg,
-          }}
-        >
-          <h3
-            style={{
-              color: colors.success,
-              fontSize: "18px",
-              marginBottom: spacing.sm,
-            }}
-          >
-            Registration Status
-          </h3>
-          <p
-            style={{
-              fontSize: "16px",
-              lineHeight: "1.6",
-              marginBottom: spacing.md,
-            }}
-          >
-            ✅ Registration approved
-          </p>
-          <p
-            style={{
-              fontSize: "14px",
-              color: colors.gray[600],
-              margin: 0,
-            }}
-          >
-            You can now attend YEC Day
-          </p>
-        </div>
-
-        <div
-          style={{
-            backgroundColor: colors.gray[50],
-            border: `2px solid ${secondaryColor}`,
-            borderRadius: "8px",
-            padding: spacing.lg,
-            marginBottom: spacing.lg,
-            textAlign: "center" as const,
-          }}
-        >
-          <h3
-            style={{
-              color: primaryColor,
-              fontSize: "18px",
-              marginBottom: spacing.sm,
-            }}
-          >
-            Registration Tracking Code
-          </h3>
           <div
             style={{
-              fontSize: "24px",
-              fontWeight: "bold",
-              color: secondaryColor,
-              fontFamily: "monospace",
-              letterSpacing: "2px",
+              backgroundColor: "#fef3c7",
+              border: "1px solid #f59e0b",
+              borderRadius: "8px",
+              padding: "16px",
+              margin: "16px 0",
             }}
           >
-            {trackingCode}
-          </div>
-        </div>
-
-        {badgeUrl && (
-          <div
-            style={{ textAlign: "center" as const, marginBottom: spacing.lg }}
-          >
-            <div
+            <h4
               style={{
-                backgroundColor: colors.gray[50],
-                border: `2px solid ${secondaryColor}`,
-                borderRadius: "8px",
-                padding: spacing.lg,
-                marginBottom: spacing.md,
+                color: "#92400e",
+                fontSize: "16px",
+                fontWeight: "600",
+                margin: "0 0 8px 0",
               }}
             >
-              <h3
-                style={{
-                  color: primaryColor,
-                  fontSize: "18px",
-                  marginBottom: spacing.sm,
-                }}
-              >
-                Your YEC Day Badge
-              </h3>
-              <p
-                style={{
-                  fontSize: "14px",
-                  color: colors.gray[600],
-                  marginBottom: spacing.md,
-                }}
-              >
-                Your badge is ready for download
-              </p>
-              <a
-                href={badgeUrl}
-                style={{
-                  ...button.primary,
-                  fontSize: "16px",
-                  padding: "12px 24px",
-                }}
-              >
-                Download Badge
-              </a>
-            </div>
+              📅 ข้อมูลสำคัญ | Important Information:
+            </h4>
+            <ul
+              style={{
+                color: "#92400e",
+                fontSize: "14px",
+                margin: 0,
+                paddingLeft: "20px",
+                lineHeight: "1.6",
+              }}
+            >
+              <li>
+                กรุณามาในวันงานตามเวลาที่กำหนด | Please arrive at the event on
+                time
+              </li>
+              <li>นำบัตรประจำตัวประชาชนมาด้วย | Bring your ID card</li>
+              <li>
+                หากมีคำถามติดต่อทีมงานได้ตลอดเวลา | Contact our team if you have
+                any questions
+              </li>
+            </ul>
           </div>
-        )}
-
-        <div
-          style={{
-            backgroundColor: colors.highlight + "20",
-            border: `1px solid ${colors.highlight}`,
-            borderRadius: "8px",
-            padding: spacing.lg,
-            marginBottom: spacing.lg,
-          }}
-        >
-          <h3
-            style={{
-              color: colors.highlight,
-              fontSize: "18px",
-              marginBottom: spacing.sm,
-            }}
-          >
-            Additional Information
-          </h3>
-          <ul
-            style={{
-              margin: 0,
-              paddingLeft: spacing.lg,
-              fontSize: "14px",
-              lineHeight: "1.5",
-            }}
-          >
-            <li>Keep your badge for event entry</li>
-            <li>Check your email for event details</li>
-            <li>Contact us at {supportEmail} if you have questions</li>
-          </ul>
         </div>
-
-        <div
-          style={{
-            backgroundColor: colors.gray[100],
-            padding: spacing.lg,
-            borderRadius: "8px",
-            fontSize: "14px",
-            color: colors.gray[700],
-          }}
-        >
-          <p style={{ margin: 0 }}>
-            <strong>Questions?</strong> Contact us at {supportEmail}
-          </p>
-          <p style={{ margin: "8px 0 0 0", fontSize: "12px" }}>
-            Your personal information will be protected according to our
-            Personal Data Protection Policy (PDPA)
-          </p>
-        </div>
-      </div>
-    </div>
+      }
+      showTrackingCode={true}
+      applicantName={applicantName}
+      trackingCode={trackingCode}
+      supportEmail={supportEmail}
+      brandTokens={brandTokens}
+    />
   );
 };

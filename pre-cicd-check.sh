@@ -302,7 +302,7 @@ echo "Running CI health check validation..."
 export E2E_TESTS=true
 export E2E_TEST_MODE=true
 export TEST_HELPERS_ENABLED=1
-export CRON_SECRET=9318b95a82c5f8fcd236d8abe79f4ce8
+export CRON_SECRET=d2188fe03a5b783bc37ba30556a1bc596c447b1c5bca431056f0381f11f0b20b
 export SUPABASE_ENV=staging
 export EMAIL_MODE=CAPPED
 export DISPATCH_DRY_RUN=false

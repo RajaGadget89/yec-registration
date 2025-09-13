@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { maybeServiceClient } from "../../../../../lib/supabase/server";
-import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
-import { isAdmin } from "../../../../../lib/admin-guard";
-import { canReviewDimension, hasBusinessRole } from "../../../../../lib/rbac";
+import { getSupabaseServiceClient } from "../../../../../lib/supabase-server";
+import { hasBusinessRole } from "../../../../../lib/rbac";
 import { EventService } from "../../../../../lib/events/eventService";
 import { withAuditLogging } from "../../../../../lib/audit/withAuditAccess";
 
@@ -11,11 +9,43 @@ async function handlePOST(
   { params }: { params: { id: string } },
 ) {
   try {
-    // Check admin authentication
-    const user = await getCurrentUserFromRequest(request);
-    if (!user || !isAdmin(user.email)) {
+    // Get admin email from cookies (same approach as /api/admin/me)
+    const adminEmail = request.cookies.get("admin-email")?.value;
+    console.log(`[MARK_PASS_API] Admin email from cookies: ${adminEmail}`);
+    if (!adminEmail) {
+      console.log(`[MARK_PASS_API] No admin email found in cookies`);
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    // Get database user information to check admin status
+    const supabase = getSupabaseServiceClient();
+    console.log(
+      `[MARK_PASS_API] Looking up admin user: ${adminEmail.toLowerCase()}`,
+    );
+    const { data: adminUser, error: userError } = await supabase
+      .from("admin_users")
+      .select("*")
+      .eq("email", adminEmail.toLowerCase())
+      .eq("is_active", true)
+      .single();
+
+    console.log(
+      `[MARK_PASS_API] Database lookup result: ${adminUser ? "found" : "not found"}, error: ${userError?.message}`,
+    );
+    if (userError || !adminUser) {
+      console.log(
+        `[MARK_PASS_API] Admin user not found or error: ${userError?.message}`,
+      );
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
+
+    const user = {
+      id: adminUser.id,
+      email: adminUser.email,
+      role: adminUser.role,
+      business_roles: adminUser.business_roles || [],
+      is_active: adminUser.is_active,
+    };
 
     const { id } = params;
     const body = await request.json();
@@ -30,11 +60,6 @@ async function handlePOST(
         },
         { status: 400 },
       );
-    }
-
-    // Check RBAC permissions for the specific dimension
-    if (!canReviewDimension(user.email, dimension)) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
     // Check business role permissions for the specific dimension
@@ -60,8 +85,7 @@ async function handlePOST(
       );
     }
 
-    // Get appropriate Supabase client (service client if E2E bypass enabled)
-    const supabase = await maybeServiceClient(request);
+    // Use existing supabase client (already created above)
 
     // Load current registration
     const { data: registration, error: fetchError } = await supabase

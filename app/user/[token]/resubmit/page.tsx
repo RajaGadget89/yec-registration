@@ -56,7 +56,7 @@ export default function UserResubmissionPage() {
 
       // Mock registration data - in production this would come from the API
       const mockRegistration: Registration = {
-        id: 1,
+        id: "1",
         registration_id: "REG123456",
         title: "Mr.",
         first_name: "John",

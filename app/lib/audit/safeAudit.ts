@@ -9,8 +9,9 @@ type EventParams = Parameters<typeof rawLogEvent>[0];
 function isSoftMode(): boolean {
   const mode = process.env.AUDIT_MODE || "strict";
   if (mode === "soft") return true;
-  // Allow E2E switch to force soft behavior without changing prod defaults
-  if (process.env.E2E_TESTS === "true") return true;
+  // Allow E2E switch to force soft behavior without changing prod defaults (but only in non-production)
+  if (process.env.E2E_TESTS === "true" && process.env.NODE_ENV !== "production")
+    return true;
   return false;
 }
 

@@ -9,6 +9,11 @@ import {
 } from "../../../../../../../lib/audit/auditClient";
 import { getAppUrl } from "../../../../../../../lib/env";
 import { getCurrentUserFromRequest } from "../../../../../../../lib/auth-utils.server";
+import {
+  getInviteTokenTTLMs,
+  isTokenExpired,
+  getTokenExpiryTime as _getTokenExpiryTime,
+} from "../../../../../../../lib/config/token-config";
 
 // Validation schema for accept request
 const acceptSchema = z.object({
@@ -226,11 +231,32 @@ export async function POST(
       );
     }
 
-    // Check if invitation is expired
+    // Check if invitation is expired (database expires_at)
     if (
       (invitationData as any).expires_at &&
       new Date((invitationData as any).expires_at) < new Date()
     ) {
+      // Log token expiry event
+      try {
+        await logEvent({
+          action: "admin.invitation.token_expired",
+          resource: "admin_invitations",
+          resource_id: (invitationData as any).id,
+          actor_id: (invitationData as any).email,
+          actor_role: "user",
+          result: "rejected",
+          reason: "token_expired",
+          correlation_id: correlationId,
+          meta: {
+            token_id: token.substring(0, 8) + "...",
+            expires_at: (invitationData as any).expires_at,
+            route: "admin.invitation.accept",
+          },
+        });
+      } catch (error) {
+        console.error("Error logging token expiry:", error);
+      }
+
       return NextResponse.json(
         {
           error: "Invitation has expired",
@@ -240,9 +266,73 @@ export async function POST(
       );
     }
 
-    // UAT-04: Handle different invitation statuses appropriately
+    // HARDENING: Check TTL-based expiry (additional layer)
     const invitation = invitationData as any;
+    if (isTokenExpired(invitation.created_at)) {
+      // Log TTL expiry event
+      try {
+        await logEvent({
+          action: "admin.invitation.token_ttl_expired",
+          resource: "admin_invitations",
+          resource_id: invitation.id,
+          actor_id: invitation.email,
+          actor_role: "user",
+          result: "rejected",
+          reason: "token_ttl_expired",
+          correlation_id: correlationId,
+          meta: {
+            token_id: token.substring(0, 8) + "...",
+            created_at: invitation.created_at,
+            ttl_hours: getInviteTokenTTLMs() / (60 * 60 * 1000),
+            route: "admin.invitation.accept",
+          },
+        });
+      } catch (error) {
+        console.error("Error logging TTL expiry:", error);
+      }
 
+      return NextResponse.json(
+        {
+          error: "Invitation token has expired",
+          code: "TOKEN_TTL_EXPIRED",
+        },
+        { status: 410 },
+      );
+    }
+
+    // HARDENING: Check if token has already been consumed (single-use enforcement)
+    if ((invitation as any).status === "accepted") {
+      // Log token consumption attempt
+      try {
+        await logEvent({
+          action: "admin.invitation.token_consumed",
+          resource: "admin_invitations",
+          resource_id: invitation.id,
+          actor_id: invitation.email,
+          actor_role: "user",
+          result: "rejected",
+          reason: "token_consumed",
+          correlation_id: correlationId,
+          meta: {
+            token_id: token.substring(0, 8) + "...",
+            status: invitation.status,
+            route: "admin.invitation.accept",
+          },
+        });
+      } catch (error) {
+        console.error("Error logging token consumption:", error);
+      }
+
+      return NextResponse.json(
+        {
+          error: "Invitation token has already been used",
+          code: "TOKEN_CONSUMED",
+        },
+        { status: 410 },
+      );
+    }
+
+    // UAT-04: Handle different invitation statuses appropriately
     if (
       (invitation as any).status === "pending" ||
       (invitation as any).status === "sent"

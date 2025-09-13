@@ -124,7 +124,7 @@ type FormData =
 
 // Registration table types
 export interface Registration {
-  id: number;
+  id: string;
   registration_id: string;
   title: string;
   first_name: string;
