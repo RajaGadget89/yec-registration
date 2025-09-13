@@ -16,49 +16,61 @@ export const UpdateInfoTemplate: React.FC<EmailTemplateProps> = ({
       content={
         <div>
           <p>
-            ขอบคุณที่สมัครเข้าร่วมงาน YEC Day! เราได้ตรวจสอบข้อมูลการสมัครของคุณแล้ว
-            และต้องการให้คุณอัปเดตข้อมูลส่วนบุคคล | Thank you for registering for YEC Day! 
-            We have reviewed your registration and need you to update your profile information.
+            ขอบคุณที่สมัครเข้าร่วมงาน YEC Day!
+            เราได้ตรวจสอบข้อมูลการสมัครของคุณแล้ว
+            และต้องการให้คุณอัปเดตข้อมูลส่วนบุคคล | Thank you for registering
+            for YEC Day! We have reviewed your registration and need you to
+            update your profile information.
           </p>
-          
+
           {notes && (
-            <div style={{
-              backgroundColor: "#fef3c7",
-              border: "1px solid #f59e0b",
-              borderRadius: "8px",
-              padding: "16px",
-              margin: "16px 0",
-            }}>
-              <h4 style={{
-                color: "#92400e",
-                fontSize: "16px",
-                fontWeight: "600",
-                margin: "0 0 8px 0",
-              }}>
+            <div
+              style={{
+                backgroundColor: "#fef3c7",
+                border: "1px solid #f59e0b",
+                borderRadius: "8px",
+                padding: "16px",
+                margin: "16px 0",
+              }}
+            >
+              <h4
+                style={{
+                  color: "#92400e",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  margin: "0 0 8px 0",
+                }}
+              >
                 หมายเหตุจากทีมงาน | Team Notes:
               </h4>
-              <p style={{
-                color: "#92400e",
-                fontSize: "14px",
-                margin: 0,
-                lineHeight: "1.5",
-              }}>
+              <p
+                style={{
+                  color: "#92400e",
+                  fontSize: "14px",
+                  margin: 0,
+                  lineHeight: "1.5",
+                }}
+              >
                 {notes}
               </p>
             </div>
           )}
-          
+
           <p>
-            กรุณาคลิกปุ่มด้านล่างเพื่ออัปเดตข้อมูลส่วนบุคคลของคุณ | 
-            Please click the button below to update your profile information.
+            กรุณาคลิกปุ่มด้านล่างเพื่ออัปเดตข้อมูลส่วนบุคคลของคุณ | Please click
+            the button below to update your profile information.
           </p>
         </div>
       }
-      ctaButton={ctaUrl ? {
-        text: "อัปเดตข้อมูลส่วนบุคคล | Update Profile Information",
-        url: ctaUrl,
-        color: "primary"
-      } : undefined}
+      ctaButton={
+        ctaUrl
+          ? {
+              text: "อัปเดตข้อมูลส่วนบุคคล | Update Profile Information",
+              url: ctaUrl,
+              color: "primary",
+            }
+          : undefined
+      }
       showTrackingCode={true}
       applicantName={applicantName}
       trackingCode={trackingCode}

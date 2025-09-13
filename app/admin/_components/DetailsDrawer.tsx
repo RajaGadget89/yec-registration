@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import StatusBadge from "./StatusBadge";
 import StatusBadges from "./StatusBadges";
-import ActionButtons from "./ActionButtons";
 import DimensionActionButtons from "./DimensionActionButtons";
 import FileCard from "./FileCard";
 import LightboxModal from "./LightboxModal";
@@ -49,7 +48,9 @@ export default function DetailsDrawer({
   const [activeTab, setActiveTab] = useState<TabType>("review");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  const [lightboxSignedUrls, setLightboxSignedUrls] = useState<Record<string, string>>({});
+  const [lightboxSignedUrls, setLightboxSignedUrls] = useState<
+    Record<string, string>
+  >({});
   const { permissions } = useUserPermissions();
 
   // Prepare images for lightbox
@@ -101,20 +102,20 @@ export default function DetailsDrawer({
 
     const fetchSignedUrls = async () => {
       const newSignedUrls: Record<string, string> = {};
-      
+
       for (const image of lightboxImages) {
         if (image.url && !lightboxSignedUrls[image.url]) {
           try {
-            const response = await fetch('/api/admin/files/signed-url', {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 
-                'content-type': 'application/json'
+            const response = await fetch("/api/admin/files/signed-url", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: {
+                "content-type": "application/json",
               },
               body: JSON.stringify({
                 registrationId: registration.id,
                 path: image.url,
-                expires: 900
+                expires: 900,
               }),
             });
 
@@ -123,13 +124,17 @@ export default function DetailsDrawer({
               newSignedUrls[image.url] = data.url;
             }
           } catch (error) {
-            console.warn('[DetailsDrawer] Failed to fetch signed URL for:', image.url, error);
+            console.warn(
+              "[DetailsDrawer] Failed to fetch signed URL for:",
+              image.url,
+              error,
+            );
           }
         }
       }
 
       if (Object.keys(newSignedUrls).length > 0) {
-        setLightboxSignedUrls(prev => ({ ...prev, ...newSignedUrls }));
+        setLightboxSignedUrls((prev) => ({ ...prev, ...newSignedUrls }));
       }
     };
 
@@ -138,9 +143,9 @@ export default function DetailsDrawer({
 
   // Create lightbox images with signed URLs
   const lightboxImagesWithSignedUrls = useMemo(() => {
-    return lightboxImages.map(image => ({
+    return lightboxImages.map((image) => ({
       ...image,
-      url: lightboxSignedUrls[image.url] || image.url
+      url: lightboxSignedUrls[image.url] || image.url,
     }));
   }, [lightboxImages, lightboxSignedUrls]);
 

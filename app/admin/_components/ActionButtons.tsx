@@ -1,17 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Check,
-  Loader2,
-  AlertTriangle,
-  X,
-} from "lucide-react";
+import { Check, Loader2, AlertTriangle, X } from "lucide-react";
 import type { Registration } from "../../types/database";
 import { useRBAC } from "../../lib/rbac-client";
 import { useToastHelpers } from "../../components/ui/toast";
 import { t } from "../../lib/i18n";
-import { isTerminalState, getTerminalStateTooltip } from "../../lib/registration-utils";
+import {
+  isTerminalState,
+  getTerminalStateTooltip,
+} from "../../lib/registration-utils";
 
 interface ActionButtonsProps {
   registration: Registration;
@@ -26,11 +24,15 @@ export default function ActionButtons({
   const [currentAction, setCurrentAction] = useState<string | null>(null);
   // Request modal state moved to DimensionActionButtons component
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const { loading: permissionsLoading, canReview, canApprove } = useRBAC();
+  const {
+    loading: permissionsLoading,
+    canReview: _canReview,
+    canApprove,
+  } = useRBAC();
   const toast = useToastHelpers();
 
   // Optimistic state for rollback
-  const [optimisticState, setOptimisticState] = useState<Registration | null>(
+  const [optimisticState, _setOptimisticState] = useState<Registration | null>(
     null,
   );
 
@@ -85,12 +87,15 @@ export default function ActionButtons({
     setShowRejectModal(false);
 
     try {
-      const response = await fetch(`/api/admin/registrations/${registration.id}/reject`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/admin/registrations/${registration.id}/reject`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
 
       if (!response.ok) {
         throw new Error("Failed to reject registration");
@@ -121,7 +126,7 @@ export default function ActionButtons({
   // Use optimistic state if available, otherwise use original
   const displayRegistration = optimisticState || registration;
 
-  const getDimensionStatus = (dimension: "payment" | "profile" | "tcc") => {
+  const _getDimensionStatus = (dimension: "payment" | "profile" | "tcc") => {
     const checklist = displayRegistration.review_checklist;
     if (!checklist) return "pending";
     return checklist[dimension]?.status || "pending";
@@ -134,7 +139,7 @@ export default function ActionButtons({
     if (isTerminalState(displayRegistration)) {
       return true;
     }
-    
+
     // Approve action: enabled if canApprove() AND all dimensions are passed
     if (action === "approve") {
       return !canApprove() || displayRegistration.status === "approved";
@@ -153,7 +158,7 @@ export default function ActionButtons({
     if (isTerminalState(displayRegistration)) {
       return getTerminalStateTooltip(displayRegistration);
     }
-    
+
     // Approve action
     if (action === "approve") {
       if (!canApprove()) {
@@ -182,7 +187,7 @@ export default function ActionButtons({
   const canApproveAll = () => {
     if (!canApprove()) return false;
     if (displayRegistration.status === "approved") return false;
-    
+
     // Check terminal state - if registration is rejected or approved, disable approve action
     if (isTerminalState(displayRegistration)) return false;
 
@@ -197,105 +202,6 @@ export default function ActionButtons({
   };
 
   // Dimension actions moved to DimensionActionButtons component
-  const _getDimensionButton = (dimension: "payment" | "profile" | "tcc") => {
-    const status = getDimensionStatus(dimension);
-    const isCurrentAction =
-      currentAction === `request-update-${dimension}` ||
-      currentAction === `mark-pass-${dimension}`;
-
-    const dimensionConfig = {
-      payment: { icon: CreditCard, label: "Payment", color: "blue" },
-      profile: { icon: User, label: "Profile", color: "green" },
-      tcc: { icon: FileText, label: "TCC", color: "purple" },
-    };
-
-    const config = dimensionConfig[dimension];
-
-    return (
-      <div key={dimension} className="flex flex-col gap-1">
-        <div className="text-xs font-medium text-gray-600">{config.label}</div>
-        <div className="flex gap-1">
-          {/* Request Update Button */}
-          <button
-            data-testid={`btn-request-${dimension}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleRequestUpdate(dimension);
-            }}
-            disabled={isActionDisabled("request-update", dimension)}
-            title={getActionTooltip("request-update", dimension)}
-            className={`inline-flex items-center space-x-1 px-2 py-1 text-xs font-medium rounded-lg transition-all duration-300 backdrop-blur-sm border ${
-              isActionDisabled("request-update", dimension)
-                ? "opacity-50 cursor-not-allowed bg-gray-300 text-gray-500 border-gray-300"
-                : "bg-yellow-500 hover:bg-yellow-600 text-white border-yellow-500"
-            } hover:scale-105`}
-          >
-            {isCurrentAction &&
-            currentAction === `request-update-${dimension}` ? (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span className="whitespace-nowrap">Requesting...</span>
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-3 h-3" />
-                <span className="whitespace-nowrap">{t("request_update")}</span>
-              </>
-            )}
-          </button>
-
-          {/* Mark Pass Button */}
-          <button
-            data-testid={`btn-pass-${dimension}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleMarkPass(dimension);
-            }}
-            disabled={isActionDisabled("mark-pass", dimension)}
-            title={getActionTooltip("mark-pass", dimension)}
-            className={`inline-flex items-center space-x-1 px-2 py-1 text-xs font-medium rounded-lg transition-all duration-300 backdrop-blur-sm border ${
-              isActionDisabled("mark-pass", dimension)
-                ? "opacity-50 cursor-not-allowed bg-gray-300 text-gray-500 border-gray-300"
-                : "bg-green-500 hover:bg-green-600 text-white border-green-500"
-            } hover:scale-105`}
-          >
-            {isCurrentAction && currentAction === `mark-pass-${dimension}` ? (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span className="whitespace-nowrap">Marking...</span>
-              </>
-            ) : (
-              <>
-                <Check className="w-3 h-3" />
-                <span className="whitespace-nowrap">{t("mark_pass")}</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Status Badge */}
-        <div
-          className={`text-xs px-2 py-1 rounded-full text-center cursor-help ${
-            status === "passed"
-              ? "bg-green-100 text-green-800"
-              : status === "needs_update"
-                ? "bg-yellow-100 text-yellow-800"
-                : status === "rejected"
-                  ? "bg-red-100 text-red-800"
-                  : "bg-gray-100 text-gray-800"
-          }`}
-          title={
-            (status === "needs_update" || status === "passed") &&
-            displayRegistration.review_checklist?.[dimension]?.notes
-              ? displayRegistration.review_checklist[dimension].notes
-              : undefined
-          }
-        >
-          {status.replace("_", " ")}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -385,7 +291,8 @@ export default function ActionButtons({
               Reject Registration
             </h3>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Are you sure you want to reject this registration? This action will be recorded.
+              Are you sure you want to reject this registration? This action
+              will be recorded.
             </p>
             <div className="flex justify-end space-x-3">
               <button
@@ -399,7 +306,9 @@ export default function ActionButtons({
                 disabled={isLoading}
                 className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
-                {isLoading && currentAction === "reject" ? "Rejecting..." : "Confirm Reject"}
+                {isLoading && currentAction === "reject"
+                  ? "Rejecting..."
+                  : "Confirm Reject"}
               </button>
             </div>
           </div>

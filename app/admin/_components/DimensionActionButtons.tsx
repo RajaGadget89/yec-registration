@@ -13,7 +13,11 @@ import type { Registration } from "../../types/database";
 import { useRBAC } from "../../lib/rbac-client";
 import { useToastHelpers } from "../../components/ui/toast";
 import { t } from "../../lib/i18n";
-import { isTerminalState, getTerminalStateTooltip, shouldDisableDimensionActions } from "../../lib/registration-utils";
+import {
+  isTerminalState,
+  getTerminalStateTooltip,
+  shouldDisableDimensionActions as _shouldDisableDimensionActions,
+} from "../../lib/registration-utils";
 
 import RequestUpdateModal from "./RequestUpdateModal";
 
@@ -31,7 +35,11 @@ export default function DimensionActionButtons({
   const [isLoading, setIsLoading] = useState(false);
   const [currentAction, setCurrentAction] = useState<string | null>(null);
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const { loading: permissionsLoading, canReview, permissions } = useRBAC();
+  const {
+    loading: permissionsLoading,
+    canReview: _canReview,
+    permissions,
+  } = useRBAC();
   const toast = useToastHelpers();
 
   // Optimistic state for rollback
@@ -140,9 +148,10 @@ export default function DimensionActionButtons({
     const status = getDimensionStatus();
 
     // Check granular RBAC permissions first
-    const canPerformAction = action === "request-update" 
-      ? permissions.can.request[dimension]
-      : permissions.can.pass[dimension];
+    const canPerformAction =
+      action === "request-update"
+        ? permissions.can.request[dimension]
+        : permissions.can.pass[dimension];
 
     if (!canPerformAction) return true;
 
@@ -155,8 +164,8 @@ export default function DimensionActionButtons({
       case "request-update":
         // Request Update: enabled if canReview(d) AND registration.status !== approved AND checklist[d] !== needs_update AND checklist[d] !== passed
         return (
-          status === "needs_update" || 
-          status === "passed" || 
+          status === "needs_update" ||
+          status === "passed" ||
           displayRegistration.status === "approved"
         );
       case "mark-pass":
@@ -173,9 +182,10 @@ export default function DimensionActionButtons({
     const status = getDimensionStatus();
 
     // Check granular RBAC permissions first
-    const canPerformAction = action === "request-update" 
-      ? permissions.can.request[dimension]
-      : permissions.can.pass[dimension];
+    const canPerformAction =
+      action === "request-update"
+        ? permissions.can.request[dimension]
+        : permissions.can.pass[dimension];
 
     if (!canPerformAction) {
       return `No permission to ${action.replace("-", " ")} ${dimension}`;

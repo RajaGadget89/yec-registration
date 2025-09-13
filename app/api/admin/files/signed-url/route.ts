@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  withAdminApiGuard,
-  validateAdminAccess,
+  withAdminApiGuard as _withAdminApiGuard,
+  validateAdminAccess as _validateAdminAccess,
 } from "@/app/lib/admin-guard-server";
 import { generateSignedUrl } from "@/app/lib/uploadFileToSupabase";
 import { getServiceRoleClient } from "@/app/lib/supabase-server";
@@ -13,12 +13,12 @@ export const runtime = "nodejs";
 async function handler(req: NextRequest) {
   const correlationId = req.headers.get("x-correlation-id");
   const isPost = req.method === "POST";
-  
+
   // Parse input from GET params or POST body
   const url = new URL(req.url);
   const q = Object.fromEntries(url.searchParams.entries());
-  const body = isPost ? (await req.json().catch(() => ({}))) : {};
-  
+  const body = isPost ? await req.json().catch(() => ({})) : {};
+
   const registrationId = body.registrationId ?? q.registrationId;
   const path = body.path ?? q.path;
   const expires = Number(body.expires ?? q.expires ?? 900);
@@ -42,7 +42,10 @@ async function handler(req: NextRequest) {
   if (!adminEmail) {
     console.log(`[SIGNED_URL_API] No admin email found in cookies`);
     return NextResponse.json(
-      { error: "Unauthorized. Admin access required.", code: "ADMIN_ACCESS_REQUIRED" },
+      {
+        error: "Unauthorized. Admin access required.",
+        code: "ADMIN_ACCESS_REQUIRED",
+      },
       { status: 401 },
     );
   }
@@ -51,17 +54,25 @@ async function handler(req: NextRequest) {
   const supabase = getServiceRoleClient();
   let dbUser = null;
   try {
-    console.log(`[SIGNED_URL_API] Querying database for email: ${adminEmail.toLowerCase()}`);
+    console.log(
+      `[SIGNED_URL_API] Querying database for email: ${adminEmail.toLowerCase()}`,
+    );
     const { data: adminUser, error } = await supabase
       .from("admin_users")
       .select("*")
       .eq("email", adminEmail.toLowerCase())
       .single();
 
-    console.log(`[SIGNED_URL_API] Database query result:`, { adminUser, error });
+    console.log(`[SIGNED_URL_API] Database query result:`, {
+      adminUser,
+      error,
+    });
     if (!error && adminUser) {
       dbUser = adminUser;
-      console.log(`[SIGNED_URL_API] Found database user:`, { role: adminUser.role, is_active: adminUser.is_active });
+      console.log(`[SIGNED_URL_API] Found database user:`, {
+        role: adminUser.role,
+        is_active: adminUser.is_active,
+      });
     }
   } catch (error) {
     console.log("[SIGNED_URL_API] Could not fetch database user info:", error);
@@ -70,13 +81,23 @@ async function handler(req: NextRequest) {
   // Authorize based on database record: allow both admin and super_admin roles
   if (!dbUser) {
     // Fall back to RBAC system when database is unavailable
-    console.log(`[SIGNED_URL_API] Database user not found, checking RBAC system`);
+    console.log(
+      `[SIGNED_URL_API] Database user not found, checking RBAC system`,
+    );
     const roles = getRolesForEmail(adminEmail);
-    console.log(`[SIGNED_URL_API] RBAC roles for ${adminEmail}:`, Array.from(roles));
+    console.log(
+      `[SIGNED_URL_API] RBAC roles for ${adminEmail}:`,
+      Array.from(roles),
+    );
     if (roles.size === 0) {
-      console.log(`[SIGNED_URL_API] Admin access denied: Email not in admin allowlist`);
+      console.log(
+        `[SIGNED_URL_API] Admin access denied: Email not in admin allowlist`,
+      );
       return NextResponse.json(
-        { error: "Unauthorized. Admin access required.", code: "ADMIN_ACCESS_REQUIRED" },
+        {
+          error: "Unauthorized. Admin access required.",
+          code: "ADMIN_ACCESS_REQUIRED",
+        },
         { status: 401 },
       );
     }
@@ -89,7 +110,9 @@ async function handler(req: NextRequest) {
       status: "active",
       business_roles: [],
     };
-    console.log(`[SIGNED_URL_API] Created RBAC fallback user:`, { role: dbUser.role });
+    console.log(`[SIGNED_URL_API] Created RBAC fallback user:`, {
+      role: dbUser.role,
+    });
   }
 
   const role = dbUser.role; // 'admin' | 'super_admin'
@@ -98,7 +121,10 @@ async function handler(req: NextRequest) {
   if (!active) {
     console.log(`[SIGNED_URL_API] Admin access denied: Account suspended`);
     return NextResponse.json(
-      { error: "Forbidden: Admin account is not active", code: "ADMIN_INACTIVE" },
+      {
+        error: "Forbidden: Admin account is not active",
+        code: "ADMIN_INACTIVE",
+      },
       { status: 403 },
     );
   }
@@ -106,12 +132,17 @@ async function handler(req: NextRequest) {
   if (role !== "admin" && role !== "super_admin") {
     console.log(`[SIGNED_URL_API] Admin access denied: Invalid role ${role}`);
     return NextResponse.json(
-      { error: "Unauthorized. Admin access required.", code: "ADMIN_ACCESS_REQUIRED" },
+      {
+        error: "Unauthorized. Admin access required.",
+        code: "ADMIN_ACCESS_REQUIRED",
+      },
       { status: 401 },
     );
   }
 
-  console.log(`[SIGNED_URL_API] Admin access granted: ${adminEmail} (role: ${role})`);
+  console.log(
+    `[SIGNED_URL_API] Admin access granted: ${adminEmail} (role: ${role})`,
+  );
 
   // Validate the requested path belongs to this registration
   console.log(`[SIGNED_URL_API] Looking up registration ${registrationId}`);
@@ -181,20 +212,29 @@ async function handler(req: NextRequest) {
 
     // Use the requested expires time (default 900 seconds = 15 minutes)
     const signed = await generateSignedUrl(path, expires);
-    console.log(`[SIGNED_URL_API] Successfully generated signed URL (expires: ${expires}s)`);
+    console.log(
+      `[SIGNED_URL_API] Successfully generated signed URL (expires: ${expires}s)`,
+    );
     return NextResponse.json({ url: signed });
   } catch (error) {
     console.error("[SIGNED_URL_API] Failed to generate signed URL:", error);
     // Check if it's a "not found" error
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("not found") || errorMessage.includes("does not exist")) {
+    if (
+      errorMessage.includes("not found") ||
+      errorMessage.includes("does not exist")
+    ) {
       return NextResponse.json(
         { error: "File not found", code: "NOT_FOUND", hint: errorMessage },
         { status: 404 },
       );
     }
     return NextResponse.json(
-      { error: "Presign failed", code: "STORAGE_PRESIGN_FAILED", hint: errorMessage },
+      {
+        error: "Presign failed",
+        code: "STORAGE_PRESIGN_FAILED",
+        hint: errorMessage,
+      },
       { status: 500 },
     );
   }

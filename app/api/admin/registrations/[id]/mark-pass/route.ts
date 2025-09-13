@@ -19,7 +19,9 @@ async function handlePOST(
 
     // Get database user information to check admin status
     const supabase = getSupabaseServiceClient();
-    console.log(`[MARK_PASS_API] Looking up admin user: ${adminEmail.toLowerCase()}`);
+    console.log(
+      `[MARK_PASS_API] Looking up admin user: ${adminEmail.toLowerCase()}`,
+    );
     const { data: adminUser, error: userError } = await supabase
       .from("admin_users")
       .select("*")
@@ -27,9 +29,13 @@ async function handlePOST(
       .eq("is_active", true)
       .single();
 
-    console.log(`[MARK_PASS_API] Database lookup result: ${adminUser ? 'found' : 'not found'}, error: ${userError?.message}`);
+    console.log(
+      `[MARK_PASS_API] Database lookup result: ${adminUser ? "found" : "not found"}, error: ${userError?.message}`,
+    );
     if (userError || !adminUser) {
-      console.log(`[MARK_PASS_API] Admin user not found or error: ${userError?.message}`);
+      console.log(
+        `[MARK_PASS_API] Admin user not found or error: ${userError?.message}`,
+      );
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 

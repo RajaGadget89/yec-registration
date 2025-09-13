@@ -168,7 +168,7 @@ function validateAdminAccessSync(adminEmail: string): {
   const legacyAdmins = new Set(
     process.env.ADMIN_EMAILS?.split(",")
       .map((e) => e.trim().toLowerCase())
-      .filter(Boolean) || []
+      .filter(Boolean) || [],
   );
   if (legacyAdmins.has(adminEmail.toLowerCase())) {
     return { valid: true, adminEmail };

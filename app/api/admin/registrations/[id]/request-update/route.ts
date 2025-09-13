@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { hasBusinessRole } from "../../../../../lib/rbac";
-import { withAuditLogging } from "../../../../../lib/audit/withAuditAccess";
+import { hasBusinessRole as _hasBusinessRole } from "../../../../../lib/rbac";
+import { withAuditLogging as _withAuditLogging } from "../../../../../lib/audit/withAuditAccess";
 import { getSupabaseServiceClient } from "../../../../../lib/supabase-server";
 
 async function handlePOST(
@@ -74,8 +74,8 @@ async function handlePOST(
       );
     }
 
-        // Use the same client as the working db-debug endpoint
-        const supabaseClient = getSupabaseServiceClient();
+    // Use the same client as the working db-debug endpoint
+    const supabaseClient = getSupabaseServiceClient();
 
     // Load current registration
     console.log(`[REQUEST_UPDATE_API] Looking up registration with ID: ${id}`);
@@ -85,10 +85,10 @@ async function handlePOST(
       .eq("id", id)
       .single();
 
-    console.log(`[REQUEST_UPDATE_API] Registration lookup result:`, { 
-      found: !!registration, 
+    console.log(`[REQUEST_UPDATE_API] Registration lookup result:`, {
+      found: !!registration,
       error: fetchError?.message,
-      registrationId: registration?.registration_id 
+      registrationId: registration?.registration_id,
     });
 
     if (fetchError || !registration) {
@@ -107,32 +107,36 @@ async function handlePOST(
     };
 
     // Update the specific dimension
-    currentChecklist[dimension] = { 
+    currentChecklist[dimension] = {
       status: "needs_update",
-      notes: notes || null
+      notes: notes || null,
     };
 
     // Update registration with new checklist (let database trigger handle status update)
-    console.log(`[REQUEST_UPDATE_API] Updating registration with review_checklist:`, {
-      review_checklist: currentChecklist,
-      id: id
-    });
-    
-    const { data: updatedRegistration, error: updateError } = await supabaseClient
-      .from("registrations")
-      .update({
+    console.log(
+      `[REQUEST_UPDATE_API] Updating registration with review_checklist:`,
+      {
         review_checklist: currentChecklist,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .select()
-      .single();
+        id: id,
+      },
+    );
 
-    console.log(`[REQUEST_UPDATE_API] Update result:`, { 
-      success: !!updatedRegistration, 
+    const { data: updatedRegistration, error: updateError } =
+      await supabaseClient
+        .from("registrations")
+        .update({
+          review_checklist: currentChecklist,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+    console.log(`[REQUEST_UPDATE_API] Update result:`, {
+      success: !!updatedRegistration,
       error: updateError?.message,
       updatedId: updatedRegistration?.id,
-      newStatus: updatedRegistration?.status
+      newStatus: updatedRegistration?.status,
     });
 
     if (updateError) {
@@ -146,14 +150,18 @@ async function handlePOST(
     console.log(`[REQUEST_UPDATE_API] Database update successful!`);
 
     // Success - return the updated registration
-    console.log(`[REQUEST_UPDATE_API] SUCCESS! Database update completed successfully`);
+    console.log(
+      `[REQUEST_UPDATE_API] SUCCESS! Database update completed successfully`,
+    );
 
     // Send email notification using enhanced email service
     try {
-      const { EventDrivenEmailService } = await import("../../../../../lib/emails/enhancedEmailService");
+      const { EventDrivenEmailService } = await import(
+        "../../../../../lib/emails/enhancedEmailService"
+      );
       const eventDrivenEmailService = EventDrivenEmailService.getInstance();
       const brandTokens = eventDrivenEmailService.getBrandTokens();
-      
+
       const emailResult = await eventDrivenEmailService.processEvent(
         "review.request_update",
         updatedRegistration, // Use the updated registration data
@@ -222,7 +230,10 @@ async function handlePOST(
     });
   } catch (error) {
     console.error("Unexpected error in request update action:", error);
-    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+    console.error(
+      "Error stack:",
+      error instanceof Error ? error.stack : "No stack trace",
+    );
     return NextResponse.json(
       { ok: false, error: "Internal server error" },
       { status: 500 },

@@ -43,33 +43,33 @@ export default function FileCard({
   const handleDownload = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!url) return;
-    
+
     try {
       // Fetch the file from the signed URL
       const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch file');
-      
+      if (!response.ok) throw new Error("Failed to fetch file");
+
       // Get the blob data
       const blob = await response.blob();
-      
+
       // Create a temporary URL for the blob
       const blobUrl = window.URL.createObjectURL(blob);
-      
+
       // Create a temporary anchor element and trigger download
-      const tempAnchor = document.createElement('a');
+      const tempAnchor = document.createElement("a");
       tempAnchor.href = blobUrl;
-      tempAnchor.download = path || 'download'; // Use the original filename
+      tempAnchor.download = path || "download"; // Use the original filename
       document.body.appendChild(tempAnchor);
       tempAnchor.click();
-      
+
       // Clean up
       document.body.removeChild(tempAnchor);
       window.URL.revokeObjectURL(blobUrl);
     } catch (error) {
-      console.error('Download failed:', error);
-      toast.error('Download failed. Please try again.');
+      console.error("Download failed:", error);
+      toast.error("Download failed. Please try again.");
     }
   };
 
@@ -97,25 +97,25 @@ export default function FileCard({
     const cid = `filecard-${Date.now()}`;
     const payload = { registrationId, path, expires: 900 };
 
-    fetch('/api/admin/files/signed-url', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 
-        'content-type': 'application/json', 
-        'x-correlation-id': cid 
+    fetch("/api/admin/files/signed-url", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "content-type": "application/json",
+        "x-correlation-id": cid,
       },
-      cache: 'no-store',
+      cache: "no-store",
       body: JSON.stringify(payload),
     })
       .then(async (r) => {
         if (!r.ok) {
           // Graceful: show placeholder, log machine code; avoid overlay crash
-          let code = 'UNKNOWN';
-          try { 
-            const j = await r.json(); 
-            code = j?.code ?? code; 
+          let code = "UNKNOWN";
+          try {
+            const j = await r.json();
+            code = j?.code ?? code;
           } catch {}
-          console.warn('[FileCard] presign failed', r.status, code);
+          console.warn("[FileCard] presign failed", r.status, code);
           setUrl(null); // render placeholder "No file uploaded"
           return null;
         }

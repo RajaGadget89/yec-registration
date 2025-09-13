@@ -6,23 +6,27 @@ import type { Registration } from "../types/database";
  */
 export function isTerminalState(registration: Registration | null): boolean {
   if (!registration) return false;
-  return registration.status === 'rejected' || registration.status === 'approved';
+  return (
+    registration.status === "rejected" || registration.status === "approved"
+  );
 }
 
 /**
  * Get the appropriate tooltip message for terminal state actions
  */
-export function getTerminalStateTooltip(registration: Registration | null): string {
+export function getTerminalStateTooltip(
+  registration: Registration | null,
+): string {
   if (!registration) return "Registration not found";
-  
-  if (registration.status === 'rejected') {
+
+  if (registration.status === "rejected") {
     return "Locked: registration is rejected (terminal state)";
   }
-  
-  if (registration.status === 'approved') {
+
+  if (registration.status === "approved") {
     return "Locked: registration is approved (terminal state)";
   }
-  
+
   return "";
 }
 
@@ -32,7 +36,7 @@ export function getTerminalStateTooltip(registration: Registration | null): stri
  */
 export function shouldDisableDimensionActions(
   registration: Registration | null,
-  canReviewDimension: boolean
+  canReviewDimension: boolean,
 ): boolean {
   if (!registration || !canReviewDimension) return true;
   return isTerminalState(registration);
@@ -44,7 +48,7 @@ export function shouldDisableDimensionActions(
  */
 export function shouldDisableMainActions(
   registration: Registration | null,
-  canApprove: boolean
+  canApprove: boolean,
 ): boolean {
   if (!registration || !canApprove) return true;
   return isTerminalState(registration);
