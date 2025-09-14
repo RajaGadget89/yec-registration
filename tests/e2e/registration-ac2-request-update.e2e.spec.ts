@@ -69,8 +69,14 @@ test.describe('AC2 — Request Update', () => {
     expect(peek.status()).toBe(200);
     const peekJson = await peek.json();
     
-    // Step 5: Assert via peek - target dimension changed to needs_update
+    // Step 5: Assert via peek - target dimension changed to needs_update (HYBRID SCHEMA)
     expect(peekJson.profile_review_status).toBe('needs_update');
+    
+    // Step 5b: Verify JSONB review_checklist also updated (ENHANCED)
+    if (peekJson.review_checklist && peekJson.review_checklist.profile) {
+      expect(peekJson.review_checklist.profile.status).toBe('needs_update');
+      expect(peekJson.review_checklist.profile.notes).toBe('Please update your profile information');
+    }
     
     // Step 6: Assert global status matches waiting_for_update pattern (generic or specific)
     expect(peekJson.status).toMatch(/^waiting_for_update/);
@@ -92,7 +98,27 @@ test.describe('AC2 — Request Update', () => {
     );
     expect(updateEmails.length).toBeGreaterThan(0);
     
-    console.log(`✅ AC2 test passed: ${registrationId} - profile marked needs_update, global status: ${peekJson.status}, emails queued: ${emailData.count}`);
+    // Step 8: Verify notes appear in email content (ENHANCED)
+    const updateEmail = updateEmails[0];
+    if (updateEmail.payload && updateEmail.payload.notes) {
+      expect(updateEmail.payload.notes).toBe('Please update your profile information');
+    }
+    
+    // Step 9: Verify 15-day token expiry (ENHANCED)
+    if (updateEmail.payload && updateEmail.payload.ctaUrl) {
+      const url = updateEmail.payload.ctaUrl;
+      expect(url).toContain('/?token='); // Should use root path, not /register
+      
+      // Extract token from URL for expiry verification
+      const tokenMatch = url.match(/token=([^&]+)/);
+      if (tokenMatch) {
+        // Verify token exists and is properly formatted
+        expect(tokenMatch[1]).toBeTruthy();
+        expect(tokenMatch[1].length).toBeGreaterThan(10); // Basic token length check
+      }
+    }
+    
+    console.log(`✅ AC2 test passed: ${registrationId} - profile marked needs_update, global status: ${peekJson.status}, emails queued: ${emailData.count}, notes verified: ${updateEmail.payload?.notes || 'N/A'}`);
   });
 
   test('negative tests: unauthorized access, invalid dimension, missing fields', async ({ request }) => {

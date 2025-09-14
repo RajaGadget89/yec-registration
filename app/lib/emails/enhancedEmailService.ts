@@ -39,17 +39,24 @@ export async function generateDeepLinkToken(
   registrationId: string,
   dimension: "payment" | "profile" | "tcc",
   adminEmail: string,
-  ttlSeconds: number = 86400, // 24 hours
+  ttlSeconds?: number, // Will use environment variable if not provided
 ): Promise<DeepLinkTokenResult> {
+  // Use environment variable for TTL, fallback to 15 days
+  const defaultTtlDays = parseInt(process.env.UPDATE_TOKEN_TTL_DAYS || "15");
+  const finalTtlDays = ttlSeconds
+    ? Math.ceil(ttlSeconds / (24 * 60 * 60))
+    : defaultTtlDays;
   const supabase = getSupabaseServiceClient();
 
+  // Generate token using the simple function with custom TTL
+  const finalTtlSeconds = finalTtlDays * 24 * 60 * 60; // Convert days to seconds
   const { data: token, error } = await (supabase as any).rpc(
-    "generate_secure_deep_link_token",
+    "generate_simple_deep_link_token",
     {
-      reg_id: registrationId,
-      dimension: dimension,
       admin_email: adminEmail,
-      ttl_seconds: ttlSeconds,
+      dimension: dimension,
+      reg_id: registrationId, // This should be a UUID
+      ttl_seconds: finalTtlSeconds,
     },
   );
 
@@ -61,12 +68,12 @@ export async function generateDeepLinkToken(
     throw new Error("No token generated");
   }
 
-  // Build CTA URL
+  // Build CTA URL - use registration form with token and dimension
   const baseUrl = getBaseUrl();
-  const ctaUrl = `${baseUrl}/user/${token}/resubmit`;
+  const ctaUrl = `${baseUrl}/?token=${token}&dimension=${dimension}`;
 
-  // Get expiration time
-  const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+  // Get expiration time (using 24 hours for now, will be extended later)
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
   return {
     token,

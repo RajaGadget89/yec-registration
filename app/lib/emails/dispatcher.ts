@@ -297,8 +297,9 @@ export async function dispatchEmailBatch(
             email.payload.token_id,
           );
           if (tokenData) {
-            // Create deep-link URL with actual token
-            const deepLinkUrl = `${process.env.NEXT_PUBLIC_APP_URL}/update?token=${tokenData.token}`;
+            // Create deep-link URL with actual token and dimension
+            const dimension = email.payload.dimension || "profile"; // Default to profile if not specified
+            const deepLinkUrl = `${process.env.NEXT_PUBLIC_APP_URL}/?token=${tokenData.token}&dimension=${dimension}`;
             resolvedPayload = {
               ...email.payload,
               ctaUrl: deepLinkUrl, // Use ctaUrl for backward compatibility

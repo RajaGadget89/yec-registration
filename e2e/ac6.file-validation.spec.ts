@@ -108,6 +108,67 @@ test.describe('AC6: File Validation Flow', () => {
     await testFileValidationErrors(page);
   });
 
+  test('should verify hybrid schema consistency after file update', async ({ page, programmaticLogin }) => {
+    // Login as super admin
+    await programmaticLogin('raja.gadgets89@gmail.com');
+    
+    const base = process.env.E2E_BASE_URL || 'http://localhost:8080';
+    
+    // Get cookies for API calls
+    const cookies = await page.context().cookies();
+    const cookieHeader = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+    
+    // Get target registration via API
+    const response = await page.request.get(`${base}/api/test/registrations/one`, {
+      headers: { 
+        'X-E2E-RLS-BYPASS': '1',
+        'Cookie': cookieHeader
+      }
+    });
+    expect(response.status()).toBe(200);
+    const registration = await response.json();
+    
+    const testNotes = 'HYBRID_SCHEMA_TEST_NOTES';
+    
+    // Request profile update via API
+    const requestResponse = await page.request.post(`${base}/api/admin/registrations/${registration.id}/request-update`, {
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-E2E-RLS-BYPASS': '1',
+        'Cookie': cookieHeader
+      },
+      data: { dimension: 'profile', notes: testNotes }
+    });
+    expect([200, 201]).toContain(requestResponse.status());
+    
+    // Wait for database update
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Verify hybrid schema consistency via peek endpoint
+    const peekResponse = await page.request.get(`${base}/api/test/peek-registration?tracking_code=${encodeURIComponent(registration.registration_id)}`, {
+      headers: { 
+        'X-E2E-RLS-BYPASS': '1',
+        'Cookie': cookieHeader
+      }
+    });
+    expect(peekResponse.status()).toBe(200);
+    const peekData = await peekResponse.json();
+    
+    // Verify individual status field updated
+    expect(peekData.profile_review_status).toBe('needs_update');
+    
+    // Verify JSONB review_checklist also updated (HYBRID SCHEMA)
+    if (peekData.review_checklist && peekData.review_checklist.profile) {
+      expect(peekData.review_checklist.profile.status).toBe('needs_update');
+      expect(peekData.review_checklist.profile.notes).toBe(testNotes);
+    }
+    
+    // Verify global status updated
+    expect(peekData.status).toMatch(/^waiting_for_update/);
+    
+    console.log(`✅ AC6 Hybrid Schema test passed: Individual field: ${peekData.profile_review_status}, JSONB status: ${peekData.review_checklist?.profile?.status || 'N/A'}, Global status: ${peekData.status}`);
+  });
+
   test('should accept valid files and submit successfully', async ({ page, programmaticLogin }) => {
     // Login as super admin
     await programmaticLogin('raja.gadgets89@gmail.com');
@@ -269,6 +330,6 @@ async function waitForUpdateEmail(page: any, to: string, dimension: string) {
     };
   }
   
-  expect(json.deepLink).toContain('/update?token=');
+  expect(json.deepLink).toContain('/?token='); // ENHANCED: Should use root path, not /update
   return json;
 }
