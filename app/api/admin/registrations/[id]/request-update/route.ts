@@ -126,6 +126,7 @@ async function handlePOST(
         .from("registrations")
         .update({
           review_checklist: currentChecklist,
+          update_reason: notes || dimension, // Set update_reason to notes if available, otherwise fallback to dimension
           updated_at: new Date().toISOString(),
         })
         .eq("id", id)

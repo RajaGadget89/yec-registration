@@ -5,21 +5,10 @@
  * It creates beautiful email templates without React DOM dependencies.
  */
 
-// Simple email template types
-export interface SimpleEmailTemplateProps {
-  applicantName?: string;
-  trackingCode: string;
-  ctaUrl?: string;
-  deadlineLocal?: string;
-  priceApplied?: string;
-  packageName?: string;
-  rejectedReason?: "deadline_missed" | "ineligible_rule_match" | "other";
-  badgeUrl?: string;
-  supportEmail?: string;
-  dimension?: "payment" | "profile" | "tcc";
-  notes?: string;
-  token_id?: string;
-}
+import { EmailTemplateProps } from "./registry";
+
+// Use the main EmailTemplateProps interface to avoid type conversion issues
+export type SimpleEmailTemplateProps = EmailTemplateProps;
 
 // Get base URL for logo
 const getBaseUrl = () => {
