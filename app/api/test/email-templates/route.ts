@@ -77,7 +77,7 @@ const emailTestData = {
 
 export async function POST(request: NextRequest) {
   try {
-    const { templateType, testAll = false } = await request.json();
+    const { templateType, testAll = false, customProps } = await request.json();
 
     const results = [];
 
@@ -90,12 +90,16 @@ export async function POST(request: NextRequest) {
       try {
         console.log(`[EMAIL_TEST] Rendering template: ${templateName}`);
 
-        // Get template data
+        // Use custom props if provided, otherwise use default template data
         const templateData =
+          customProps ||
           emailTestData[templateName as keyof typeof emailTestData];
+
         if (!templateData) {
           throw new Error(`Template data not found for: ${templateName}`);
         }
+
+        console.log(`[EMAIL_TEST] Using template data:`, templateData);
 
         // Render the email template
         const htmlContent = await renderEmailTemplate(
@@ -115,6 +119,7 @@ export async function POST(request: NextRequest) {
           template: templateName,
           success: emailResult,
           subject: `[TEST] ${subject}`,
+          html: htmlContent,
           error: emailResult ? null : "Failed to send email",
         });
 

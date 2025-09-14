@@ -6,7 +6,7 @@ import { withArtifacts, saveJson } from "../utils/evidence";
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=";
 
 test("AC7: TCC fix via Deep‑Link — UI only (prefill+lock+submit)", async ({ page }) => {
-  const url = process.env.TEST_TCC_FIX_URL!; // must be full /update?token=<UUID>
+  const url = process.env.TEST_TCC_FIX_URL!; // must be full /?token=<UUID> (ENHANCED: root path)
   await withArtifacts("AC7", async ({ runDir }) => {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     await page.screenshot({ path: path.join(runDir, "deep-link-form-prefilled.png"), fullPage: true });
