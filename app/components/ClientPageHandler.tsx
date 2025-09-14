@@ -8,6 +8,23 @@ export default function ClientPageHandler() {
     const urlParams = new URLSearchParams(window.location.search);
     const scrollTarget = urlParams.get("scroll");
     const isEditMode = urlParams.get("edit") === "true";
+    const token = urlParams.get("token");
+    const dimension = urlParams.get("dimension");
+
+    // Check if this is a token-based update request
+    if (token && dimension) {
+      // This is a token-based update, scroll to form section
+      console.log("Detected token-based update request, scrolling to form");
+      setTimeout(() => {
+        const formSection = document.getElementById("form");
+        if (formSection) {
+          const headerHeight = 80; // Approximate header height
+          const targetPosition = formSection.offsetTop - headerHeight;
+          window.scrollTo({ top: targetPosition, behavior: "smooth" });
+        }
+      }, 100);
+      return;
+    }
 
     // Check if this is a form submission (has form data in URL)
     const hasFormData =

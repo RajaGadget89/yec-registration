@@ -143,11 +143,24 @@ test.describe('AC7: TCC Fix Request via Email Deep-Link', () => {
         await saveJson('fix-request-error.json', fixRequestResult, runDir);
       }
       
-      // Step 4: Verify email outbox for TCC fix request
+      // Step 4: Verify email outbox for TCC fix request (ENHANCED)
       const outboxResult = await expectOutboxMatchWithLiveSupport({ 
         to: regPayload.email,
         templateKey: 'tcc_fix_request'
       });
+      
+      // Verify notes appear in email content (ENHANCED)
+      if (outboxResult.found && outboxResult.email) {
+        const emailContent = outboxResult.email.payload || {};
+        if (emailContent.notes) {
+          expect(emailContent.notes).toContain('TCC card image unclear or invalid');
+        }
+        
+        // Verify deep-link uses root path (ENHANCED)
+        if (emailContent.ctaUrl) {
+          expect(emailContent.ctaUrl).toContain('/?token='); // Should use root path, not /update
+        }
+      }
       
       await saveJson('email-outbox-verification.json', {
         expected: { to: regPayload.email, templateKey: 'tcc_fix_request' },

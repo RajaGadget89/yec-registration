@@ -37,6 +37,7 @@ interface FormFieldProps {
   onChange: (value: any) => void;
   formData: { [key: string]: any };
   onExtraFieldChange?: (fieldId: string, value: any) => void;
+  disabled?: boolean;
 }
 
 // Searchable Dropdown Component for Provinces
@@ -46,12 +47,14 @@ function SearchableProvinceDropdown({
   onChange,
   setIsFocused,
   getBorderColor,
+  disabled = false,
 }: {
   field: FormFieldType;
   value: any;
   onChange: (value: any) => void;
   setIsFocused: (focused: boolean) => void;
   getBorderColor: () => string;
+  disabled?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -216,6 +219,7 @@ function SearchableProvinceDropdown({
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                disabled={disabled}
                 placeholder="ค้นหาจังหวัด..."
                 className="w-full pl-10 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 onKeyDown={handleKeyDown}
@@ -283,6 +287,7 @@ export default function FormField({
   onChange,
   formData,
   onExtraFieldChange,
+  disabled = false,
 }: FormFieldProps) {
   // Dev-only probe to capture SSR/CSR differences
   if (process.env.NODE_ENV === "development") {
@@ -694,6 +699,7 @@ export default function FormField({
                   name={normalizedField.id}
                   type="file"
                   className="hidden"
+                  disabled={disabled}
                   accept="image/jpeg,image/jpg,image/png"
                   onChange={handleFileChange}
                 />
@@ -873,6 +879,7 @@ export default function FormField({
               onChange={handlePhoneChange}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
+              disabled={disabled}
               placeholder={normalizedField.placeholder || "0812345678"}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
             />
@@ -930,6 +937,7 @@ export default function FormField({
               onChange={handleInputChange}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
+              disabled={disabled}
               placeholder={normalizedField.placeholder}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${getBorderColor()}`}
             />
@@ -946,6 +954,7 @@ export default function FormField({
               onChange={onChange}
               setIsFocused={setIsFocused}
               getBorderColor={getBorderColor}
+              disabled={disabled}
             />
           </ClientOnly>
         );
@@ -961,6 +970,7 @@ export default function FormField({
               value={normalizeValue(value)}
               onChange={handleInputChange}
               onFocus={() => setIsFocused(true)}
+              disabled={disabled}
               onBlur={() => setIsFocused(false)}
               placeholder={normalizedField.placeholder}
               maxLength={normalizedField.validation?.maxLength}
@@ -1009,6 +1019,7 @@ export default function FormField({
                   id={normalizedField.extraField.id}
                   name={normalizedField.extraField.id}
                   autoComplete="tel"
+                  disabled={disabled}
                   value={
                     formData[normalizedField.extraField.id]
                       ? formatThaiPhoneNumber(
@@ -1078,6 +1089,7 @@ export default function FormField({
                   autoComplete={getAutoCompleteValue(
                     normalizedField.extraField.id,
                   )}
+                  disabled={disabled}
                   value={normalizeValue(
                     formData[normalizedField.extraField.id],
                   )}

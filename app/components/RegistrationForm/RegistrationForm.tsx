@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   formSchema,
   initialFormData,
@@ -21,11 +21,164 @@ export default function RegistrationForm() {
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
   const [fileProcessingProgress, setFileProcessingProgress] = useState(0);
 
+  // New state for token-based updates
+  const [isTokenUpdate, setIsTokenUpdate] = useState(false);
+  const [updateToken, setUpdateToken] = useState<string | null>(null);
+  const [updateDimension, setUpdateDimension] = useState<
+    "payment" | "profile" | "tcc" | null
+  >(null);
+  const [isValidatingToken, setIsValidatingToken] = useState(false);
+  const [tokenValidationError, setTokenValidationError] = useState<
+    string | null
+  >(null);
+
+  // Function to validate token and load registration data
+  const validateTokenAndLoadData = async (
+    token: string,
+    _dimension: "payment" | "profile" | "tcc",
+  ) => {
+    setIsValidatingToken(true);
+    setTokenValidationError(null);
+
+    try {
+      const response = await fetch(
+        `/api/public/validate-update-token?token=${encodeURIComponent(token)}`,
+      );
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Token validation failed");
+      }
+
+      // Load registration data into form
+      const registration = result.registration;
+      const mergedData = { ...initialFormData };
+
+      // CRITICAL: Set the registration ID for API calls
+      mergedData.registrationId = registration.id;
+
+      // Map registration data to form fields
+      if (registration.first_name)
+        mergedData.firstName = registration.first_name;
+      if (registration.last_name) mergedData.lastName = registration.last_name;
+      if (registration.nickname) mergedData.nickname = registration.nickname;
+      if (registration.phone) mergedData.phone = registration.phone;
+      if (registration.line_id) mergedData.lineId = registration.line_id;
+      if (registration.email) mergedData.email = registration.email;
+      if (registration.company_name)
+        mergedData.companyName = registration.company_name;
+      if (registration.business_type)
+        mergedData.businessType = registration.business_type;
+      if (registration.business_type_other)
+        mergedData.businessTypeOther = registration.business_type_other;
+      if (registration.yec_province)
+        mergedData.yecProvince = registration.yec_province;
+      if (registration.hotel_choice)
+        mergedData.hotelChoice = registration.hotel_choice;
+      if (registration.room_type) mergedData.roomType = registration.room_type;
+      if (registration.roommate_info)
+        mergedData.roommateInfo = registration.roommate_info;
+      if (registration.roommate_phone)
+        mergedData.roommatePhone = registration.roommate_phone;
+      if (registration.external_hotel_name)
+        mergedData.externalHotelName = registration.external_hotel_name;
+      if (registration.travel_type)
+        mergedData.travelType = registration.travel_type;
+
+      // Handle file fields - preserve existing URLs
+      if (registration.profile_image_url)
+        mergedData.profileImage = registration.profile_image_url;
+      if (registration.chamber_card_url)
+        mergedData.chamberCard = registration.chamber_card_url;
+      if (registration.payment_slip_url)
+        mergedData.paymentSlip = registration.payment_slip_url;
+
+      setFormData(mergedData);
+      setIsEditing(true);
+
+      // Clean up URL parameters
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete("token");
+      newUrl.searchParams.delete("dimension");
+      window.history.replaceState({}, "", newUrl.toString());
+    } catch (error) {
+      console.error("Token validation error:", error);
+      setTokenValidationError(
+        error instanceof Error ? error.message : "Token validation failed",
+      );
+    } finally {
+      setIsValidatingToken(false);
+    }
+  };
+
+  // Function to determine if a field should be enabled based on dimension
+  const isFieldEnabled = useCallback(
+    (fieldId: string): boolean => {
+      if (!isTokenUpdate || !updateDimension) {
+        return true; // Enable all fields for normal registration
+      }
+
+      // Define field groups by dimension
+      const dimensionFields = {
+        payment: ["paymentSlip"],
+        profile: [
+          "firstName",
+          "lastName",
+          "nickname",
+          "phone",
+          "lineId",
+          "email",
+          "companyName",
+          "businessType",
+          "businessTypeOther",
+          "yecProvince",
+          "hotelChoice",
+          "roomType",
+          "roommateInfo",
+          "roommatePhone",
+          "externalHotelName",
+          "travelType",
+          "profileImage",
+        ],
+        tcc: ["chamberCard", "tccNumber", "tccHolderName"],
+      };
+
+      return dimensionFields[updateDimension]?.includes(fieldId) || false;
+    },
+    [isTokenUpdate, updateDimension],
+  );
+
+  // Function to calculate progress based on enabled fields in token update mode
+  const calculateTokenUpdateProgress = (
+    formData: FormDataType,
+    _dimension: "payment" | "profile" | "tcc",
+  ): number => {
+    const enabledFields = formSchema.filter((field) =>
+      isFieldEnabled(field.id),
+    );
+    return calculateFormProgress(formData, enabledFields);
+  };
+
   // Load existing form data only in edit mode
   useEffect(() => {
-    // Check if we're in edit mode via URL parameter
+    // Check URL parameters for different modes
     const urlParams = new URLSearchParams(window.location.search);
     const isEditMode = urlParams.get("edit") === "true";
+    const token = urlParams.get("token");
+    const dimension = urlParams.get("dimension") as
+      | "payment"
+      | "profile"
+      | "tcc"
+      | null;
+
+    // Check if this is a token-based update
+    if (token && dimension) {
+      setIsTokenUpdate(true);
+      setUpdateToken(token);
+      setUpdateDimension(dimension);
+      validateTokenAndLoadData(token, dimension);
+      return;
+    }
 
     // Clean up any stale localStorage data on fresh page loads
     if (!isEditMode) {
@@ -103,9 +256,22 @@ export default function RegistrationForm() {
 
   // Validate form on data change
   useEffect(() => {
-    const { errors: validationErrors } = validateForm(formData, formSchema);
-    setErrors(validationErrors);
-  }, [formData]);
+    if (isTokenUpdate && updateDimension) {
+      // In token update mode, only validate enabled fields
+      const enabledFields = formSchema.filter((field) =>
+        isFieldEnabled(field.id),
+      );
+      const { errors: validationErrors } = validateForm(
+        formData,
+        enabledFields,
+      );
+      setErrors(validationErrors);
+    } else {
+      // In normal mode, validate all fields
+      const { errors: validationErrors } = validateForm(formData, formSchema);
+      setErrors(validationErrors);
+    }
+  }, [formData, isTokenUpdate, updateDimension, isFieldEnabled]);
 
   const handleFieldChange = (fieldId: string, value: any) => {
     setFormData((prev) => {
@@ -144,12 +310,145 @@ export default function RegistrationForm() {
     }));
   };
 
+  // Function to handle token-based updates
+  const handleTokenUpdate = async () => {
+    try {
+      // Handle file uploads first if needed
+      const uploadFields = ["profileImage", "chamberCard", "paymentSlip"];
+      const filesToProcess = uploadFields.filter(
+        (fieldId) =>
+          typeof window !== "undefined" && formData[fieldId] instanceof File,
+      );
+
+      const uploadedFiles: { [key: string]: string } = {};
+
+      if (filesToProcess.length > 0) {
+        // Upload files to Supabase first
+        let processedFiles = 0;
+        const totalFiles = filesToProcess.length;
+        setFileProcessingProgress(0);
+
+        const uploadPromises = filesToProcess.map(async (fieldId) => {
+          const file = formData[fieldId] as File;
+
+          try {
+            // Determine folder based on field type
+            let folder = "documents";
+            if (fieldId === "profileImage") {
+              folder = "profile-images";
+            } else if (fieldId === "chamberCard") {
+              folder = "chamber-cards";
+            } else if (fieldId === "paymentSlip") {
+              folder = "payment-slips";
+            }
+
+            // Upload file to Supabase via API route
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("folder", folder);
+
+            const uploadResponse = await fetch("/api/upload-file", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!uploadResponse.ok) {
+              const errorData = await uploadResponse.json();
+              const errorMessage = errorData.error || "Failed to upload file";
+              throw new Error(`${errorMessage}`);
+            }
+
+            const uploadResult = await uploadResponse.json();
+            const fileUrl = uploadResult.fileUrl;
+            uploadedFiles[fieldId] = fileUrl;
+
+            processedFiles++;
+            setFileProcessingProgress((processedFiles / totalFiles) * 100);
+
+            console.log(`File ${fieldId} uploaded successfully:`, fileUrl);
+          } catch (error) {
+            console.error(`Error uploading file ${fieldId}:`, error);
+            throw new Error(
+              `Failed to upload ${fieldId}: ${error instanceof Error ? error.message : "Unknown error"}`,
+            );
+          }
+        });
+
+        // Wait for all uploads to complete
+        await Promise.all(uploadPromises);
+      }
+
+      // Prepare form data for API submission
+      const submissionData = {
+        ...formData,
+        // Replace File objects with URLs
+        profileImage:
+          uploadedFiles.profileImage ||
+          (typeof formData.profileImage === "string"
+            ? formData.profileImage
+            : null),
+        chamberCard:
+          uploadedFiles.chamberCard ||
+          (typeof formData.chamberCard === "string"
+            ? formData.chamberCard
+            : null),
+        paymentSlip:
+          uploadedFiles.paymentSlip ||
+          (typeof formData.paymentSlip === "string"
+            ? formData.paymentSlip
+            : null),
+      };
+
+      // Submit update via API
+      const response = await fetch(
+        `/api/public/update-registration/${formData.registrationId || "unknown"}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            token: updateToken,
+            dimension: updateDimension,
+            formData: submissionData,
+          }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Update failed");
+      }
+
+      // Show success message and redirect
+      alert(
+        `Successfully updated ${updateDimension} information. Your changes are now pending review.`,
+      );
+      window.location.href = "/success";
+    } catch (error) {
+      console.error("Token update error:", error);
+      alert(
+        `Update failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setIsSubmitting(false);
+      setIsProcessingFiles(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // In token update mode, only validate enabled fields
+    const fieldsToValidate =
+      isTokenUpdate && updateDimension
+        ? formSchema.filter((field) => isFieldEnabled(field.id))
+        : formSchema;
+
     const { isValid, errors: validationErrors } = validateForm(
       formData,
-      formSchema,
+      fieldsToValidate,
     );
 
     if (!isValid) {
@@ -161,6 +460,11 @@ export default function RegistrationForm() {
     setIsProcessingFiles(true);
 
     try {
+      // Handle token-based updates differently
+      if (isTokenUpdate && updateToken && updateDimension) {
+        await handleTokenUpdate();
+        return;
+      }
       // Handle File objects for upload fields
       const uploadFields = ["profileImage", "chamberCard", "paymentSlip"];
       const filesToProcess = uploadFields.filter(
@@ -314,10 +618,14 @@ export default function RegistrationForm() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-blue-900 mb-4">
-            ลงทะเบียน YEC Day
+            {isTokenUpdate
+              ? `อัปเดตข้อมูล ${updateDimension}`
+              : "ลงทะเบียน YEC Day"}
           </h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            กรุณากรอกข้อมูลให้ครบถ้วนเพื่อลงทะเบียนเข้าร่วมงาน YEC Day
+            {isTokenUpdate
+              ? `กรุณาอัปเดตข้อมูลในส่วน ${updateDimension} ตามที่ทีมงานร้องขอ`
+              : "กรุณากรอกข้อมูลให้ครบถ้วนเพื่อลงทะเบียนเข้าร่วมงาน YEC Day"}
           </p>
         </div>
 
@@ -325,6 +633,75 @@ export default function RegistrationForm() {
           onSubmit={handleSubmit}
           className="bg-white rounded-lg shadow-lg p-8"
         >
+          {/* Token validation loading */}
+          {isValidatingToken && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-600"></div>
+                <p className="text-sm text-yellow-800">
+                  กำลังตรวจสอบลิงก์อัปเดต...
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Token validation error */}
+          {tokenValidationError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <svg
+                  className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div>
+                  <h3 className="text-sm font-medium text-red-800 mb-1">
+                    ไม่สามารถเข้าถึงลิงก์อัปเดตได้
+                  </h3>
+                  <p className="text-sm text-red-700">{tokenValidationError}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Token update mode notification */}
+          {isTokenUpdate && !isValidatingToken && !tokenValidationError && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start space-x-3">
+                <svg
+                  className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <div>
+                  <h3 className="text-sm font-medium text-green-800 mb-1">
+                    โหมดอัปเดตข้อมูล
+                  </h3>
+                  <p className="text-sm text-green-700">
+                    คุณสามารถแก้ไขเฉพาะข้อมูลในส่วน {updateDimension} เท่านั้น
+                    ข้อมูลอื่นๆ จะไม่เปลี่ยนแปลง
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Edit mode notification */}
           {isEditing && (
             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -366,6 +743,12 @@ export default function RegistrationForm() {
                 return null;
               }
 
+              // Check if field should be enabled based on dimension
+              const isEnabled = isFieldEnabled(field.id);
+              if (!isEnabled) {
+                return null; // Hide disabled fields completely
+              }
+
               return (
                 <div
                   key={field.id}
@@ -377,6 +760,7 @@ export default function RegistrationForm() {
                     onChange={(value) => handleFieldChange(field.id, value)}
                     formData={formData}
                     onExtraFieldChange={handleExtraFieldChange}
+                    disabled={!isEnabled}
                   />
 
                   {/* Render roommate phone field separately for better layout */}
@@ -448,7 +832,9 @@ export default function RegistrationForm() {
                         d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
                       />
                     </svg>
-                    <span>ส่งข้อมูลการลงทะเบียน</span>
+                    <span>
+                      {isTokenUpdate ? "อัปเดตข้อมูล" : "ส่งข้อมูลการลงทะเบียน"}
+                    </span>
                   </>
                 )}
               </div>
@@ -504,13 +890,22 @@ export default function RegistrationForm() {
           <div className="mt-8">
             <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
               <span>ความคืบหน้า</span>
-              <span>{calculateFormProgress(formData, formSchema)}%</span>
+              <span>
+                {isTokenUpdate && updateDimension
+                  ? calculateTokenUpdateProgress(formData, updateDimension)
+                  : calculateFormProgress(formData, formSchema)}
+                %
+              </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div
                 className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                 style={{
-                  width: `${calculateFormProgress(formData, formSchema)}%`,
+                  width: `${
+                    isTokenUpdate && updateDimension
+                      ? calculateTokenUpdateProgress(formData, updateDimension)
+                      : calculateFormProgress(formData, formSchema)
+                  }%`,
                 }}
               ></div>
             </div>
