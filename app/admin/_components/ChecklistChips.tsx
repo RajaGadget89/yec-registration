@@ -40,9 +40,9 @@ export default function ChecklistChips({
         };
       case "needs_update":
         return {
-          bgColor: "bg-orange-100 dark:bg-orange-900/30",
-          textColor: "text-orange-700 dark:text-orange-300",
-          borderColor: "border-orange-300 dark:border-orange-600",
+          bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
+          textColor: "text-yellow-700 dark:text-yellow-300",
+          borderColor: "border-yellow-300 dark:border-yellow-600",
           icon: "⚠️",
         };
       case "passed":
@@ -111,13 +111,13 @@ export default function ChecklistChips({
         <div key={dimension} className="relative">
           <div
             data-testid={`chip-${dimension}`}
-            className={`inline-flex items-center space-x-1 px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 cursor-help bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 ${className}`}
+            className={`inline-flex items-center space-x-1 px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 cursor-help max-w-full sm:max-w-[220px] bg-gray-100/80 dark:bg-gray-700/60 backdrop-blur-sm text-gray-700 dark:text-gray-300 border-gray-300/60 dark:border-gray-600/60 ${className}`}
             onMouseEnter={() => setShowTooltip(dimension)}
             onMouseLeave={() => setShowTooltip(null)}
           >
             <Icon className="h-3 w-3" />
             <Minus className="h-3 w-3" />
-            <span className="whitespace-nowrap">{dimensionConfig.label}</span>
+            <span className="whitespace-normal break-all leading-tight">{dimensionConfig.label}</span>
           </div>
 
           {/* Tooltip for fallback state */}
@@ -144,13 +144,13 @@ export default function ChecklistChips({
       <div key={dimension} className="relative">
         <div
           data-testid={`chip-${dimension}`}
-          className={`inline-flex items-center space-x-1 px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 cursor-help ${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} ${className}`}
+          className={`inline-flex items-center space-x-1 px-2 py-1 text-xs font-medium rounded-full border transition-all duration-200 cursor-help max-w-full sm:max-w-[220px] backdrop-blur-sm ${statusConfig.bgColor} ${statusConfig.textColor} ${statusConfig.borderColor} ${className}`}
           onMouseEnter={() => setShowTooltip(dimension)}
           onMouseLeave={() => setShowTooltip(null)}
         >
           <Icon className="h-3 w-3" />
           <span className="text-xs">{statusConfig.icon}</span>
-          <span className="whitespace-nowrap">{dimensionConfig.label}</span>
+          <span className="whitespace-normal break-all leading-tight">{dimensionConfig.label}</span>
         </div>
 
         {/* Tooltip */}
@@ -175,7 +175,7 @@ export default function ChecklistChips({
   };
 
   return (
-    <div className="flex space-x-2">
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-2">
       {renderChip("payment")}
       {renderChip("profile")}
       {renderChip("tcc")}

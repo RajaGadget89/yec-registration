@@ -325,7 +325,6 @@ export const formSchema: FormField[] = [
     options: [
       { value: "single", label: "พักเดี่ยว" },
       { value: "double", label: "พักคู่" },
-      { value: "suite", label: "ห้องสวีท" },
       { value: "no-accommodation", label: "ไม่ต้องการที่พัก" },
     ],
     extraField: {
@@ -377,7 +376,7 @@ export const formSchema: FormField[] = [
     required: true,
     options: [
       { value: "private-car", label: "รถยนต์ส่วนตัว" },
-      { value: "van", label: "รถตู้" },
+      { value: "van", label: "ต้องการใช้รถตู้รับส่ง" },
     ],
   },
 ];
