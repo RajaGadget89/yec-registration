@@ -44,7 +44,8 @@ export default function HeroSection() {
   }, []);
 
   const handleScroll = () => {
-    const target = document.getElementById("event-schedule");
+    // Scroll directly to the registration form section
+    const target = document.getElementById("form");
     if (target) {
       const header = document.querySelector("header");
       const headerHeight = header ? header.offsetHeight : 96;
