@@ -12,6 +12,10 @@ export default function StatusBadge({
   status,
   className = "",
 }: StatusBadgeProps) {
+  // New helper to render a stack of two badges when needed
+  if (Array.isArray(status)) {
+    // Type guard in case future refactors pass arrays; keep backward compat now
+  }
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "pending":
@@ -23,7 +27,7 @@ export default function StatusBadge({
         };
       case "waiting_for_review":
         return {
-          label: "Waiting for Review",
+          label: "Waiting for Admin Team Review",
           className:
             "bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 dark:from-blue-900/50 dark:to-blue-800/50 dark:text-blue-200 border border-blue-300/50 dark:border-blue-600/50",
           icon: "👁️",

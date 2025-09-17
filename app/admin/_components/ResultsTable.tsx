@@ -113,7 +113,7 @@ export default function ResultsTable({
       {/* Table */}
       <div className="relative z-10">
         <table className="w-full table-fixed">
-          <thead className="bg-gradient-to-r from-gray-50/60 to-gray-100/60 dark:from-gray-800/60 dark:to-gray-700/60 backdrop-blur-sm">
+          <thead className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md shadow-[inset_0_-1px_0_rgba(0,0,0,0.06)] dark:shadow-[inset_0_-1px_0_rgba(255,255,255,0.08)]">
             <tr>
               <th className="px-4 py-4 text-left w-[15%]">
                 <button
@@ -206,7 +206,9 @@ export default function ResultsTable({
                   data-testid="reg-row"
                   data-id={registration.registration_id}
                   data-email={registration.email}
-                  className="group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-blue-100/50 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20 transition-all duration-300 backdrop-blur-sm"
+                  className={`group transition-all duration-300 backdrop-blur-sm 
+                    ${index % 2 === 0 ? "bg-white/75 dark:bg-gray-800/40" : "bg-gray-50/60 dark:bg-gray-800/55"}
+                    hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-blue-100/50 dark:hover:from-blue-900/20 dark:hover:to-blue-800/20`}
                   style={{ animationDelay: `${700 + index * 50}ms` }}
                 >
                   <td
@@ -215,23 +217,51 @@ export default function ResultsTable({
                     onClick={() => onRowClick?.(registration)}
                   >
                     <div className="space-y-2">
-                      {/* Global Status Badge */}
-                      <StatusBadge
-                        status={(() => {
-                          const rc = registration.review_checklist as any;
-                          const needsUpdate =
-                            rc &&
-                            (rc.payment?.status === "needs_update" ||
-                              rc.profile?.status === "needs_update" ||
-                              rc.tcc?.status === "needs_update");
-                          if (needsUpdate) return "waiting_for_update";
-                          return registration.status as
-                            | "pending"
-                            | "waiting_for_review"
-                            | "approved"
-                            | "rejected";
-                        })()}
-                      />
+                      {/* Global Status Stack derived from checklist */}
+                      {(() => {
+                        const rc = registration.review_checklist as any;
+                        const payment = rc?.payment?.status;
+                        const profile = rc?.profile?.status;
+                        const tcc = rc?.tcc?.status;
+                        const statuses = [payment, profile, tcc].filter(
+                          Boolean,
+                        );
+                        const needsUpdate = statuses.some(
+                          (s) => s === "needs_update",
+                        );
+                        const pendingReview = statuses.some(
+                          (s) => s === "pending",
+                        );
+
+                        const stack: Array<
+                          | "waiting_for_update"
+                          | "waiting_for_review"
+                          | "approved"
+                          | "rejected"
+                          | "pending"
+                        > = [];
+                        if (needsUpdate) stack.push("waiting_for_update");
+                        if (pendingReview) stack.push("waiting_for_review");
+
+                        if (stack.length === 0) {
+                          // Fall back to registration.status when no mixed waiting states
+                          stack.push(
+                            (registration.status as
+                              | "pending"
+                              | "waiting_for_review"
+                              | "approved"
+                              | "rejected") || "pending",
+                          );
+                        }
+
+                        return (
+                          <div className="flex flex-col gap-1">
+                            {stack.map((s, i) => (
+                              <StatusBadge key={i} status={s} />
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </td>
                   <td

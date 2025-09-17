@@ -35,7 +35,7 @@ test.describe('AC3 — Deep-link Resubmit', () => {
     return body?.registration_id || body?.registrationId || body?.trackingCode || body?.tracking_code;
   }
 
-  test('invalid token returns localized error; valid token resubmits and returns waiting_for_review', async ({ request }) => {
+  test('invalid token returns localized error; valid token resubmits and returns waiting_for_review (UI disables Mark PASS while needs_update)', async ({ request, page }) => {
     const registrationId = await createRegistration(request);
 
     // Move to needs_update via request-update
@@ -44,6 +44,16 @@ test.describe('AC3 — Deep-link Resubmit', () => {
       data: { registrationId, dimension: 'profile', notes: 'Fix profile' },
     });
     expect(ru.status()).toBe(200);
+
+    // UI: ensure Mark PASS is disabled while status is needs_update
+    await page.context().addCookies([
+      { name: 'admin-email', value: 'alice@company.com', domain: 'localhost', path: '/' },
+    ]);
+    await page.goto('/admin');
+    const row = page.locator(`[data-testid="reg-row"][data-id="${registrationId}"]`);
+    await row.click();
+    await expect(page.locator('[data-testid="profile-request-update"]')).toBeEnabled();
+    await expect(page.locator('[data-testid="profile-mark-pass"]')).toBeDisabled();
 
     // Test invalid token with English
     const badEn = await request.post(`/api/user/invalidtoken/resubmit`, {
@@ -98,6 +108,12 @@ test.describe('AC3 — Deep-link Resubmit', () => {
     expect(peek.status()).toBe(200);
     const peekJson = await peek.json();
     expect(String(peekJson.status)).toContain('waiting_for_review');
+
+    // UI: after resubmission, Mark PASS should be enabled again for that dimension
+    await page.reload();
+    const row2 = page.locator(`[data-testid="reg-row"][data-id="${registrationId}"]`);
+    await row2.click();
+    await expect(page.locator('[data-testid="profile-mark-pass"]')).toBeEnabled();
   });
 });
 
