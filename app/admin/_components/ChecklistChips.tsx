@@ -117,7 +117,9 @@ export default function ChecklistChips({
           >
             <Icon className="h-3 w-3" />
             <Minus className="h-3 w-3" />
-            <span className="whitespace-normal break-all leading-tight">{dimensionConfig.label}</span>
+            <span className="whitespace-normal break-all leading-tight">
+              {dimensionConfig.label}
+            </span>
           </div>
 
           {/* Tooltip for fallback state */}
@@ -150,7 +152,9 @@ export default function ChecklistChips({
         >
           <Icon className="h-3 w-3" />
           <span className="text-xs">{statusConfig.icon}</span>
-          <span className="whitespace-normal break-all leading-tight">{dimensionConfig.label}</span>
+          <span className="whitespace-normal break-all leading-tight">
+            {dimensionConfig.label}
+          </span>
         </div>
 
         {/* Tooltip */}

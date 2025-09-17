@@ -219,19 +219,17 @@ export default function ResultsTable({
                       <StatusBadge
                         status={(() => {
                           const rc = registration.review_checklist as any;
-                          const needsUpdate = rc && (
-                            rc.payment?.status === "needs_update" ||
-                            rc.profile?.status === "needs_update" ||
-                            rc.tcc?.status === "needs_update"
-                          );
+                          const needsUpdate =
+                            rc &&
+                            (rc.payment?.status === "needs_update" ||
+                              rc.profile?.status === "needs_update" ||
+                              rc.tcc?.status === "needs_update");
                           if (needsUpdate) return "waiting_for_update";
-                          return (
-                            registration.status as
-                              | "pending"
-                              | "waiting_for_review"
-                              | "approved"
-                              | "rejected"
-                          );
+                          return registration.status as
+                            | "pending"
+                            | "waiting_for_review"
+                            | "approved"
+                            | "rejected";
                         })()}
                       />
                     </div>

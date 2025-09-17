@@ -12,7 +12,11 @@ export type SimpleEmailTemplateProps = EmailTemplateProps;
 
 // Get base URL for logo
 const getBaseUrl = () => {
-  return process.env.NEXT_PUBLIC_BASE_URL || "https://yecday.com";
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    "https://yecday.com"
+  );
 };
 
 // Create beautiful HTML email template
