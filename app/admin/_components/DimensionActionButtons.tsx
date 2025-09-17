@@ -169,8 +169,13 @@ export default function DimensionActionButtons({
           displayRegistration.status === "approved"
         );
       case "mark-pass":
-        // Mark PASS: enabled if canReview(d) AND checklist[d] ∈ {pending,needs_update}
-        return status === "passed" || status === "rejected";
+        // Mark PASS: enabled only when checklist[d] is pending.
+        // If an update was requested (needs_update), admin must wait for user resubmission.
+        return (
+          status === "passed" ||
+          status === "rejected" ||
+          status === "needs_update"
+        );
       default:
         return false;
     }
@@ -214,6 +219,9 @@ export default function DimensionActionButtons({
         }
         if (status === "rejected") {
           return `${dimension} is rejected`;
+        }
+        if (status === "needs_update") {
+          return `Waiting for user update before you can mark PASS`;
         }
         break;
     }
