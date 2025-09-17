@@ -311,6 +311,7 @@ export const formSchema: FormField[] = [
         label: "เลือกโรงแรมที่ผู้จัดงานจัดไว้ให้ (ในสิทธิ์)",
       },
       { value: "out-of-quota", label: "เลือกโรงแรมเอง (นอกสิทธิ์)" },
+      { value: "no-accommodation", label: "ไม่ต้องการที่พัก" },
     ],
   },
   {
@@ -325,7 +326,7 @@ export const formSchema: FormField[] = [
     options: [
       { value: "single", label: "พักเดี่ยว" },
       { value: "double", label: "พักคู่" },
-      { value: "no-accommodation", label: "ไม่ต้องการที่พัก" },
+      { value: "twin", label: "พักคู่เตียงแยก" },
     ],
     extraField: {
       id: "roommateInfo",

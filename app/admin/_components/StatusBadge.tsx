@@ -66,7 +66,9 @@ export default function StatusBadge({
       className={`inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-300/40 transition-all duration-300 min-w-0 max-w-full sm:max-w-[220px] ${config.className} ${className}`}
     >
       <span className="text-xs">{config.icon}</span>
-      <span className="whitespace-normal break-all leading-tight">{config.label}</span>
+      <span className="whitespace-normal break-all leading-tight">
+        {config.label}
+      </span>
     </span>
   );
 }
