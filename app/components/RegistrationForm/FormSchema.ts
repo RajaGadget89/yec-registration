@@ -311,6 +311,7 @@ export const formSchema: FormField[] = [
         label: "เลือกโรงแรมที่ผู้จัดงานจัดไว้ให้ (ในสิทธิ์)",
       },
       { value: "out-of-quota", label: "เลือกโรงแรมเอง (นอกสิทธิ์)" },
+      { value: "no-accommodation", label: "ไม่ต้องการที่พัก" },
     ],
   },
   {
@@ -325,8 +326,7 @@ export const formSchema: FormField[] = [
     options: [
       { value: "single", label: "พักเดี่ยว" },
       { value: "double", label: "พักคู่" },
-      { value: "suite", label: "ห้องสวีท" },
-      { value: "no-accommodation", label: "ไม่ต้องการที่พัก" },
+      { value: "twin", label: "พักคู่เตียงแยก" },
     ],
     extraField: {
       id: "roommateInfo",
@@ -377,7 +377,7 @@ export const formSchema: FormField[] = [
     required: true,
     options: [
       { value: "private-car", label: "รถยนต์ส่วนตัว" },
-      { value: "van", label: "รถตู้" },
+      { value: "van", label: "ต้องการใช้รถตู้รับส่ง" },
     ],
   },
 ];

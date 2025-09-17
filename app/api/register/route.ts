@@ -15,6 +15,7 @@ import {
   createUnexpectedErrorResponse,
 } from "../../lib/errorResponses";
 import { withAuditLogging } from "../../lib/audit/withAuditAccess";
+import { getProvinceCode } from "../../lib/provinceCodes";
 
 // Ensure Node.js runtime for service role key access
 export const runtime = "nodejs";
@@ -133,9 +134,29 @@ async function handlePOST(req: NextRequest) {
 
     const supabase = getSupabaseServiceClient();
 
+    // Generate human-friendly tracking code using DB function
+    let trackingCode: string | null = null;
+    try {
+      const provinceCode = getProvinceCode(mappedData.yec_province);
+      const { data: genCode, error: genErr } = await (supabase as any).rpc(
+        "generate_tracking_code",
+        { p_province_code: provinceCode },
+      );
+      if (genErr) throw genErr;
+      trackingCode = genCode as string;
+    } catch (genError) {
+      console.error("Failed to generate tracking code:", genError);
+      return createErrorResponse(
+        "TRACKING_CODE_FAILED",
+        "Failed to generate tracking code",
+        genError instanceof Error ? genError.message : String(genError),
+        500,
+      );
+    }
+
     const { data: registration, error } = await (supabase as any)
       .from("registrations")
-      .insert([insertPayload])
+      .insert([{ ...insertPayload, registration_id: trackingCode }])
       .select()
       .single();
 

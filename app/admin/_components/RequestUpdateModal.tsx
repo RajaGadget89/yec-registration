@@ -8,7 +8,7 @@ import type { Dimension } from "@/app/lib/rbac";
 interface RequestUpdateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (dimension: Dimension, notes: string) => void;
+  onSubmit: (notes: string) => void;
   dimension: Dimension;
   loading?: boolean;
 }
@@ -27,7 +27,7 @@ export default function RequestUpdateModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!notes.trim()) return;
-    onSubmit(dimension, notes.trim());
+    onSubmit(notes.trim());
   };
 
   const dimensionLabels = {

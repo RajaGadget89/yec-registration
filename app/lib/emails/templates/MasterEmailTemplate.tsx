@@ -38,7 +38,10 @@ export const MasterEmailTemplate: React.FC<MasterEmailTemplateProps> = ({
   const highlightColor = colors.highlight;
 
   // Get base URL for logo
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://yecday.com";
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    "https://yecday.yecsongkhla.org";
   const logoUrl = `${baseUrl}/assets/logo-full.png`;
 
   // Button color mapping

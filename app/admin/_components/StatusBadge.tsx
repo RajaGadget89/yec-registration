@@ -1,5 +1,10 @@
 interface StatusBadgeProps {
-  status: "pending" | "waiting_for_review" | "approved" | "rejected";
+  status:
+    | "pending"
+    | "waiting_for_review"
+    | "approved"
+    | "rejected"
+    | "waiting_for_update";
   className?: string;
 }
 
@@ -7,6 +12,10 @@ export default function StatusBadge({
   status,
   className = "",
 }: StatusBadgeProps) {
+  // New helper to render a stack of two badges when needed
+  if (Array.isArray(status)) {
+    // Type guard in case future refactors pass arrays; keep backward compat now
+  }
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "pending":
@@ -18,10 +27,17 @@ export default function StatusBadge({
         };
       case "waiting_for_review":
         return {
-          label: "Waiting for Review",
+          label: "Waiting for Admin Team Review",
           className:
             "bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 dark:from-blue-900/50 dark:to-blue-800/50 dark:text-blue-200 border border-blue-300/50 dark:border-blue-600/50",
           icon: "👁️",
+        };
+      case "waiting_for_update":
+        return {
+          label: "Waiting Issue User Update",
+          className:
+            "bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 dark:from-yellow-900/40 dark:to-yellow-800/40 dark:text-yellow-200 border border-yellow-300/60 dark:border-yellow-600/50",
+          icon: "⚠️",
         };
       case "approved":
         return {
@@ -51,10 +67,12 @@ export default function StatusBadge({
 
   return (
     <span
-      className={`inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md transition-all duration-300 hover:scale-105 ${config.className} ${className}`}
+      className={`inline-flex items-center space-x-1 px-2 py-1 rounded-lg text-xs font-semibold shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-300/40 transition-all duration-300 min-w-0 max-w-full sm:max-w-[220px] ${config.className} ${className}`}
     >
       <span className="text-xs">{config.icon}</span>
-      <span className="whitespace-nowrap">{config.label}</span>
+      <span className="whitespace-normal break-all leading-tight">
+        {config.label}
+      </span>
     </span>
   );
 }

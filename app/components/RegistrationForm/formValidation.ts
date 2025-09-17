@@ -682,9 +682,11 @@ export const validateRegistrationData = (data: any) => {
   // Hotel choice validation
   if (
     data.hotelChoice &&
-    !["in-quota", "out-of-quota"].includes(data.hotelChoice)
+    !["in-quota", "out-of-quota", "no-accommodation"].includes(data.hotelChoice)
   ) {
-    errors.push('Hotel choice must be either "in-quota" or "out-of-quota"');
+    errors.push(
+      'Hotel choice must be either "in-quota", "out-of-quota" or "no-accommodation"',
+    );
   }
 
   // Travel type validation
@@ -705,11 +707,9 @@ export const validateRegistrationData = (data: any) => {
   if (
     data.hotelChoice === "in-quota" &&
     data.roomType &&
-    !["single", "double", "suite", "no-accommodation"].includes(data.roomType)
+    !["single", "double", "twin"].includes(data.roomType)
   ) {
-    errors.push(
-      'Room type must be either "single", "double", "suite", or "no-accommodation"',
-    );
+    errors.push('Room type must be either "single", "double", or "twin"');
   }
 
   // Roommate validation for double rooms (only when in-quota)
@@ -730,7 +730,10 @@ export const mapFrontendToDatabase = (frontendData: any) => {
   const cleanedData = { ...frontendData };
 
   // If out-of-quota, clear room-related fields
-  if (frontendData.hotelChoice === "out-of-quota") {
+  if (
+    frontendData.hotelChoice === "out-of-quota" ||
+    frontendData.hotelChoice === "no-accommodation"
+  ) {
     cleanedData.roomType = null;
     cleanedData.roommateInfo = null;
     cleanedData.roommatePhone = null;
@@ -754,6 +757,15 @@ export const mapFrontendToDatabase = (frontendData: any) => {
     }
   }
 
+  // If no accommodation, auto-fill a safe external hotel label to satisfy DB constraint logic paths
+  if (frontendData.hotelChoice === "no-accommodation") {
+    cleanedData.external_hotel_name =
+      frontendData.external_hotel_name &&
+      frontendData.external_hotel_name.trim() !== ""
+        ? frontendData.external_hotel_name
+        : "ไม่ต้องการที่พัก";
+  }
+
   // If room type is not double, clear roommate fields
   if (frontendData.roomType !== "double") {
     cleanedData.roommateInfo = null;
@@ -763,9 +775,8 @@ export const mapFrontendToDatabase = (frontendData: any) => {
   console.log("Cleaned form data:", cleanedData);
 
   return {
-    registration_id:
-      cleanedData.registration_id ||
-      `YEC-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    // registration_id will be generated server-side using DB function generate_tracking_code
+    registration_id: cleanedData.registration_id || undefined,
     title: cleanedData.title,
     first_name: cleanedData.firstName,
     last_name: cleanedData.lastName,
@@ -777,7 +788,10 @@ export const mapFrontendToDatabase = (frontendData: any) => {
     business_type: cleanedData.businessType,
     business_type_other: cleanedData.businessTypeOther || null,
     yec_province: cleanedData.yecProvince,
-    hotel_choice: cleanedData.hotelChoice,
+    hotel_choice:
+      cleanedData.hotelChoice === "no-accommodation"
+        ? "out-of-quota"
+        : cleanedData.hotelChoice,
     room_type: cleanedData.roomType || null,
     roommate_info: cleanedData.roommateInfo || null,
     roommate_phone: cleanedData.roommatePhone || null,

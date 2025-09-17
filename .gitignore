@@ -21,89 +21,14 @@ artifacts/
 # Environment Variables & Secrets
 # ========================================
 .env
-.env*
-!.env.example
-!.env.ci.example
-.env*.local
-<<<<<<< HEAD
-.env*.backup
-.env*.bak
-.env*.disabled
-.env*.old
-.env*.tmp
-.env*.secret
-.env*.prod
-.env*.staging
-.env*.dev
-.env*.test
-.env*.e2e
-.env*.ci
-.env*.local.bak
-.env*.local.backup
-.env*.local.disabled
-.env*.local.old
-.env*.local.tmp
-.env*.local.secret
-.env*.local.prod
-.env*.local.staging
-.env*.local.dev
-.env*.local.test
-.env*.local.e2e
-.env*.local.ci
-.cd-env
-.cd-env.*
-.e2e-env
-.e2e-env.*
-=======
 .env.ci.example
 .env.ci.local
 .env.local
-.cd-env
-.env.e2e
-.e2e-env
->>>>>>> origin/main
 # ========================================
 # Authentication & Test State
 # ========================================
 .auth/
 *.auth.json
-<<<<<<< HEAD
-
-# ========================================
-# Security & Sensitive Files
-# ========================================
-*.key
-*.pem
-*.p12
-*.pfx
-*.crt
-*.cer
-*.der
-*.p8
-*.p12
-*.pfx
-*.jks
-*.keystore
-*.truststore
-secrets/
-credentials/
-*.secret
-*.password
-*.token
-*.api_key
-*.access_key
-*.secret_key
-*.private_key
-*.public_key
-*.rsa
-*.dsa
-*.ecdsa
-*.ed25519
-config/secrets/
-config/credentials/
-config/keys/
-=======
->>>>>>> origin/main
 
 # ========================================
 # Docker
@@ -135,6 +60,7 @@ test-artifacts/
 playwright/
 /test-*.js
 /test-*.sh
+app/api/test/
 
 # ========================================
 # TypeScript
