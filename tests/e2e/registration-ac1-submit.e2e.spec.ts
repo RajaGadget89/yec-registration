@@ -44,7 +44,8 @@ test.describe('AC1 — Submit → waiting_for_review', () => {
 
     // Verify tracking code is returned
     const trackingCode = body.registration_id;
-    expect(trackingCode).toMatch(/^YEC-\d+-[a-z0-9]+$/);
+    // New format: <province>-<YYYYMMDD>-<zero-padded sequence>
+    expect(trackingCode).toMatch(/^[a-z]+-\d{8}-\d{5}$/);
 
     // Verify registration status via peek endpoint (if available)
     // Note: Since we don't have a peek endpoint, we'll verify via the response

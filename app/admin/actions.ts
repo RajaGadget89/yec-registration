@@ -196,8 +196,18 @@ export async function getRegistrations(
         statusCountsData?.filter((r: any) => r.status === "pending").length ||
         0,
       waiting_for_review:
-        statusCountsData?.filter((r: any) => r.status === "waiting_for_review")
-          .length || 0,
+        statusCountsData?.filter((r: any) => {
+          // Count users with waiting_for_review status
+          if (r.status === "waiting_for_review") return true;
+
+          // Count users with pending status (new users)
+          if (r.status === "pending") return true;
+
+          // Count users with waiting_for_update_* status (like "Mr.ooooo")
+          if (r.status?.startsWith("waiting_for_update_")) return true;
+
+          return false;
+        }).length || 0,
       approved:
         statusCountsData?.filter((r: any) => r.status === "approved").length ||
         0,

@@ -78,6 +78,7 @@ export class EmailNotificationHandler
               | "ineligible_rule_match"
               | "other",
             event.id || undefined,
+            (event.payload as any).reject_note,
           );
           break;
 
@@ -298,6 +299,7 @@ export class EmailNotificationHandler
     adminEmail: string,
     rejectedReason: "deadline_missed" | "ineligible_rule_match" | "other",
     eventId?: string,
+    rejectNote?: string,
   ): Promise<string | null> {
     const applicantName =
       `${registration.first_name} ${registration.last_name}`.trim();
@@ -306,6 +308,7 @@ export class EmailNotificationHandler
       applicantName,
       trackingCode: registration.registration_id,
       rejectedReason,
+      notes: rejectNote,
       supportEmail: getEmailFromAddress(),
       brandTokens: {
         logoUrl: process.env.EMAIL_LOGO_URL,

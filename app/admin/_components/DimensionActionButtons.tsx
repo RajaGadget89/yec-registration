@@ -327,6 +327,15 @@ export default function DimensionActionButtons({
         >
           {getDimensionStatus().replace("_", " ")}
         </div>
+        {/* Show recent admin note under the badge when needs_update */}
+        {getDimensionStatus() === "needs_update" &&
+          displayRegistration.review_checklist?.[dimension]?.notes && (
+            <div className="mt-1 text-[11px] leading-snug text-yellow-800 dark:text-yellow-200 whitespace-pre-wrap break-words">
+              {String(
+                displayRegistration.review_checklist[dimension].notes || "",
+              )}
+            </div>
+          )}
       </div>
 
       {/* Request Update Modal */}

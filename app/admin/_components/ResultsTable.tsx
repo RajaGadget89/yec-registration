@@ -240,18 +240,26 @@ export default function ResultsTable({
                           | "rejected"
                           | "pending"
                         > = [];
-                        if (needsUpdate) stack.push("waiting_for_update");
-                        if (pendingReview) stack.push("waiting_for_review");
+                        // Rule 1 and 4: terminal states take precedence and display exclusively
+                        if (registration.status === "rejected") {
+                          stack.push("rejected");
+                        } else if (registration.status === "approved") {
+                          stack.push("approved");
+                        } else {
+                          // Rule 2 & 3: show waiting chips as-is
+                          if (needsUpdate) stack.push("waiting_for_update");
+                          if (pendingReview) stack.push("waiting_for_review");
 
-                        if (stack.length === 0) {
-                          // Fall back to registration.status when no mixed waiting states
-                          stack.push(
-                            (registration.status as
-                              | "pending"
-                              | "waiting_for_review"
-                              | "approved"
-                              | "rejected") || "pending",
-                          );
+                          if (stack.length === 0) {
+                            // Fall back to persisted status when there are no waiting badges
+                            stack.push(
+                              (registration.status as
+                                | "pending"
+                                | "waiting_for_review"
+                                | "approved"
+                                | "rejected") || "pending",
+                            );
+                          }
                         }
 
                         return (

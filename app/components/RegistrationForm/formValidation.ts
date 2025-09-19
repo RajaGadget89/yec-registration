@@ -707,9 +707,9 @@ export const validateRegistrationData = (data: any) => {
   if (
     data.hotelChoice === "in-quota" &&
     data.roomType &&
-    !["single", "double", "twin"].includes(data.roomType)
+    !["single", "double"].includes(data.roomType)
   ) {
-    errors.push('Room type must be either "single", "double", or "twin"');
+    errors.push('Room type must be either "single" or "double"');
   }
 
   // Roommate validation for double rooms (only when in-quota)

@@ -88,6 +88,14 @@ documents/
 tmp/
 scripts/
 
+# ========================================
+# Internal Configurations (SECURITY)
+# ========================================
+tests/internal/
+tests/development/
+tests/auth/
+scripts/internal/
+
 # =======================================
 # Backup
 backups/

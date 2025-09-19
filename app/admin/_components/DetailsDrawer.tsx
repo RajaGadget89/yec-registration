@@ -23,6 +23,7 @@ import {
 import StatusBadge from "./StatusBadge";
 import StatusBadges from "./StatusBadges";
 import DimensionActionButtons from "./DimensionActionButtons";
+import ActionButtons from "./ActionButtons";
 import FileCard from "./FileCard";
 import LightboxModal from "./LightboxModal";
 import type { Registration } from "../../types/database";
@@ -288,6 +289,7 @@ export default function DetailsDrawer({
                       <StatusBadge
                         status={getStatusBadgeStatus(registration.status)}
                       />
+                      {/* Removed top-line rejected reason chip per UX */}
                       {isTerminalState(registration) && (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
                           Read-only
@@ -299,14 +301,32 @@ export default function DetailsDrawer({
                     <StatusBadges registration={registration} />
                   </div>
 
-                  {registration.update_reason && (
-                    <div className="flex items-center gap-2 p-2 bg-yellow-50/80 dark:bg-yellow-900/20 rounded-lg border border-yellow-200/60 dark:border-yellow-800/60 mt-3">
-                      <AlertTriangle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
-                      <span className="text-xs text-yellow-800 dark:text-yellow-200">
-                        Update Required:{" "}
-                        {registration.update_reason.replace("_", " ")}
+                  {/* Global Approve / Reject (Super Admin only via RBAC inside component) */}
+                  <div className="mt-2">
+                    <ActionButtons
+                      registration={registration}
+                      onActionComplete={onActionComplete}
+                    />
+                  </div>
+
+                  {registration.status === "rejected" &&
+                  registration.rejected_reason ? (
+                    <div className="flex items-center gap-2 p-2 bg-red-50/80 dark:bg-red-900/20 rounded-lg border border-red-200/60 dark:border-red-800/60 mt-3">
+                      <AlertTriangle className="h-3 w-3 text-red-600 dark:text-red-400" />
+                      <span className="text-xs text-red-800 dark:text-red-200">
+                        {registration.rejected_reason}
                       </span>
                     </div>
+                  ) : (
+                    registration.update_reason && (
+                      <div className="flex items-center gap-2 p-2 bg-yellow-50/80 dark:bg-yellow-900/20 rounded-lg border border-yellow-200/60 dark:border-yellow-800/60 mt-3">
+                        <AlertTriangle className="h-3 w-3 text-yellow-600 dark:text-yellow-400" />
+                        <span className="text-xs text-yellow-800 dark:text-yellow-200">
+                          Update Required:{" "}
+                          {registration.update_reason.replace("_", " ")}
+                        </span>
+                      </div>
+                    )
                   )}
                 </div>
 

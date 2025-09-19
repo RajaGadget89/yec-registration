@@ -79,12 +79,14 @@ export class EventService {
   static async emitAdminRejected(
     registration: any,
     adminEmail: string,
-    reason?: string,
+    reason?: "deadline_missed" | "ineligible_rule_match" | "other",
+    rejectNote?: string,
   ): Promise<EventHandlerResult[]> {
     const event = EventFactory.createAdminRejected(
       registration,
       adminEmail,
       reason,
+      rejectNote,
     );
     return await this.emitEvent(event);
   }

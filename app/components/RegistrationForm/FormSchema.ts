@@ -326,7 +326,6 @@ export const formSchema: FormField[] = [
     options: [
       { value: "single", label: "พักเดี่ยว" },
       { value: "double", label: "พักคู่" },
-      { value: "twin", label: "พักคู่เตียงแยก" },
     ],
     extraField: {
       id: "roommateInfo",

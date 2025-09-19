@@ -158,7 +158,6 @@ export default function AdminDashboard({
       <div className="relative z-10">
         <SummaryCards
           totalRegistrations={statusCounts.total}
-          pendingCount={statusCounts.pending}
           waitingForReviewCount={statusCounts.waiting_for_review}
           approvedCount={statusCounts.approved}
           rejectedCount={statusCounts.rejected}

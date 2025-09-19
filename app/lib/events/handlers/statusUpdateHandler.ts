@@ -48,25 +48,45 @@ export class StatusUpdateHandler implements EventHandler<RegistrationEvent> {
           break;
 
         case "admin.rejected":
-          // Update to rejected status
+          // Update to rejected status without overwriting an existing rejected_reason
 
-          const { error: rejectError } = await (supabase as any)
+          // 1) Ensure status is rejected
+          const { error: rejectStatusError } = await (supabase as any)
             .from("registrations")
             .update({
               status: "rejected",
-              rejected_reason: event.payload.reason || "Admin rejection",
               updated_at: now,
             })
             .eq("id", event.payload.registration.id);
 
-          if (rejectError) {
+          if (rejectStatusError) {
             throw new Error(
-              `Failed to update registration status to rejected: ${rejectError.message}`,
+              `Failed to set status to rejected: ${rejectStatusError.message}`,
+            );
+          }
+
+          // 2) Only set rejected_reason if it is currently NULL
+          const candidateReason =
+            (event as any)?.payload?.note?.trim?.() ||
+            event.payload.reason ||
+            "Admin rejection";
+          const { error: rejectReasonError } = await (supabase as any)
+            .from("registrations")
+            .update({
+              rejected_reason: candidateReason,
+              updated_at: now,
+            })
+            .eq("id", event.payload.registration.id)
+            .is("rejected_reason", null);
+
+          if (rejectReasonError) {
+            throw new Error(
+              `Failed to set rejected_reason: ${rejectReasonError.message}`,
             );
           }
 
           console.log(
-            `Updated registration ${event.payload.registration.registration_id} status to rejected`,
+            `Updated registration ${event.payload.registration.registration_id} status to rejected; preserved existing rejected_reason if present`,
           );
           break;
 
