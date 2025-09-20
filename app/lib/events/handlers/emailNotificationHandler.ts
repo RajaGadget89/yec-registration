@@ -78,7 +78,7 @@ export class EmailNotificationHandler
               | "ineligible_rule_match"
               | "other",
             event.id || undefined,
-            (event.payload as any).reject_note,
+            event.payload.notes,
           );
           break;
 

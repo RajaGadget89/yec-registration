@@ -67,7 +67,7 @@ export class StatusUpdateHandler implements EventHandler<RegistrationEvent> {
 
           // 2) Only set rejected_reason if it is currently NULL
           const candidateReason =
-            (event as any)?.payload?.note?.trim?.() ||
+            event.payload.notes?.trim?.() ||
             event.payload.reason ||
             "Admin rejection";
           const { error: rejectReasonError } = await (supabase as any)

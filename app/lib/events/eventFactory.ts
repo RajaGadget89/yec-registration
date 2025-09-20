@@ -113,7 +113,7 @@ export class EventFactory {
         registration,
         admin_email: adminEmail,
         reason,
-        reject_note: rejectNote,
+        notes: rejectNote,
       },
       timestamp: new Date().toISOString(),
       correlation_id: registration.registration_id,

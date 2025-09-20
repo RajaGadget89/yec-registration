@@ -59,6 +59,16 @@ export async function POST(
       );
     }
 
+    // Type assertion: we've validated registration exists and is not an error
+    const validRegistration = registration as unknown as {
+      id: string;
+      registration_id: string;
+      status: string;
+      email: string;
+      first_name: string;
+      last_name: string;
+    };
+
     // Parse optional reason and reject note from body
     let reason: string | undefined = undefined;
     let rejectNote: string | undefined = undefined;
@@ -162,7 +172,7 @@ export async function POST(
           : "other";
 
       await EventService.emitAdminRejected(
-        registration,
+        validRegistration,
         adminEmail,
         normalizedReason,
         rejectNote, // use the custom admin note
@@ -244,7 +254,7 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      id: registration.id,
+      id: validRegistration.id,
       status: "rejected",
     });
   } catch (error) {
