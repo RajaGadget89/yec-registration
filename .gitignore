@@ -88,6 +88,14 @@ documents/
 tmp/
 scripts/
 
+# ========================================
+# Internal Configurations (SECURITY)
+# ========================================
+tests/internal/
+tests/development/
+tests/auth/
+scripts/internal/
+
 # =======================================
 # Backup
 backups/
@@ -106,3 +114,6 @@ restore.sh
 # Supabase Migration Environment
 .env.supabase
 .migration-workflow-state
+/playwright*.config.ts
+!/playwright.config.ts
+!/playwright.ci-health.config.ts

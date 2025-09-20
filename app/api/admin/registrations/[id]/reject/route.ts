@@ -26,7 +26,16 @@ export async function POST(
     let stage = "fetch_row";
     const { data: registration, error: fetchError } = await supabase
       .from("registrations")
-      .select("id, registration_id, status")
+      .select(
+        [
+          "id",
+          "registration_id",
+          "status",
+          "email",
+          "first_name",
+          "last_name",
+        ].join(", "),
+      )
       .eq("id", id)
       .single();
 
@@ -50,11 +59,63 @@ export async function POST(
       );
     }
 
+    // Type assertion: we've validated registration exists and is not an error
+    const validRegistration = registration as unknown as {
+      id: string;
+      registration_id: string;
+      status: string;
+      email: string;
+      first_name: string;
+      last_name: string;
+    };
+
+    // Parse optional reason and reject note from body
+    let reason: string | undefined = undefined;
+    let rejectNote: string | undefined = undefined;
+    try {
+      const body = await request.json().catch(() => ({}) as any);
+      if (
+        body &&
+        typeof body.reason === "string" &&
+        body.reason.trim().length > 0
+      ) {
+        reason = body.reason.trim();
+      }
+      if (
+        body &&
+        typeof body.rejectNote === "string" &&
+        body.rejectNote.trim().length > 0
+      ) {
+        rejectNote = body.rejectNote.trim();
+      }
+    } catch {}
+
     // Stage 2: update_row
     stage = "update_row";
+
+    // Normalize reason to enum values
+    let normalizedReason:
+      | "deadline_missed"
+      | "ineligible_rule_match"
+      | "other" = "other";
+    if (reason === "deadline_missed" || reason === "ineligible_rule_match") {
+      normalizedReason = reason;
+    }
+    // Persist the most informative reason possible to DB
+    // Prefer custom admin note, then raw reason string, then normalized fallback
+    const persistedReason =
+      rejectNote && rejectNote.trim()
+        ? rejectNote.trim()
+        : reason && reason.trim()
+          ? reason.trim()
+          : normalizedReason;
+
     const { error: updateError } = await supabase
       .from("registrations")
-      .update({ status: "rejected" })
+      .update({
+        status: "rejected",
+        rejected_reason: persistedReason,
+      })
       .eq("id", id);
 
     if (updateError) {
@@ -101,7 +162,21 @@ export async function POST(
         throw new Error("Admin email is required for audit trail");
       }
 
-      await EventService.emitAdminRejected(registration, adminEmail);
+      // Coerce reason into known enum for template, keep free-text in rejectNote
+      const normalizedReason:
+        | "deadline_missed"
+        | "ineligible_rule_match"
+        | "other" =
+        reason === "deadline_missed" || reason === "ineligible_rule_match"
+          ? (reason as any)
+          : "other";
+
+      await EventService.emitAdminRejected(
+        validRegistration,
+        adminEmail,
+        normalizedReason,
+        rejectNote, // use the custom admin note
+      );
       console.log("Admin rejected event emitted successfully");
     } catch (eventError) {
       const errorDetails = {
@@ -129,6 +204,34 @@ export async function POST(
       // Email enqueueing would happen here if needed
       // For now, we'll skip this stage as it's handled by the event system
       console.log("Email enqueueing handled by event system");
+
+      // In development or preview, dispatch emails immediately since cron job doesn't run in these environments
+      if (
+        process.env.NODE_ENV === "development" ||
+        process.env.VERCEL_ENV === "preview"
+      ) {
+        try {
+          const { dispatchEmailBatch } = await import(
+            "../../../../../lib/emails/dispatcher"
+          );
+          const dispatchResult = await dispatchEmailBatch(10, false); // Dispatch up to 10 emails
+
+          if (dispatchResult.sent > 0) {
+            console.log(
+              `Rejection email dispatched immediately (${dispatchResult.sent} sent)`,
+            );
+          } else if (dispatchResult.errors > 0) {
+            console.warn(
+              `Rejection email dispatch failed (${dispatchResult.errors} errors)`,
+            );
+          }
+        } catch (dispatchError) {
+          console.warn(
+            "Failed to dispatch rejection emails immediately:",
+            dispatchError,
+          );
+        }
+      }
     } catch (emailError) {
       const errorDetails = {
         stage,
@@ -151,7 +254,7 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      id: registration.id,
+      id: validRegistration.id,
       status: "rejected",
     });
   } catch (error) {

@@ -8,7 +8,7 @@ import { generateAndUploadBadge } from "../../lib/generateBadge";
 import { getThailandTimeISOString } from "../../lib/timezoneUtils";
 import { EventService } from "../../lib/events/eventService";
 import { PricingCalculator } from "../../lib/pricingCalculator";
-import { EventFactory } from "../../lib/events/types";
+import { EventFactory } from "../../lib/events/eventFactory";
 import { precheckRegistration } from "../../lib/precheck";
 import {
   createErrorResponse,

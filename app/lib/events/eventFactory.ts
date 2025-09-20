@@ -103,7 +103,8 @@ export class EventFactory {
   static createAdminRejected(
     registration: Registration,
     adminEmail: string,
-    reason?: string,
+    reason?: "deadline_missed" | "ineligible_rule_match" | "other",
+    rejectNote?: string,
   ): RegistrationEvent {
     return {
       id: randomUUID(),
@@ -112,6 +113,7 @@ export class EventFactory {
         registration,
         admin_email: adminEmail,
         reason,
+        notes: rejectNote,
       },
       timestamp: new Date().toISOString(),
       correlation_id: registration.registration_id,

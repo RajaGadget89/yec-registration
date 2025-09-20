@@ -1,8 +1,7 @@
-import { Users, Clock, Eye, CheckCircle, XCircle } from "lucide-react";
+import { Users, Eye, CheckCircle, XCircle } from "lucide-react";
 
 interface SummaryCardsProps {
   totalRegistrations: number;
-  pendingCount: number;
   waitingForReviewCount: number;
   approvedCount: number;
   rejectedCount: number;
@@ -11,7 +10,6 @@ interface SummaryCardsProps {
 
 export default function SummaryCards({
   totalRegistrations,
-  pendingCount,
   waitingForReviewCount,
   approvedCount,
   rejectedCount,
@@ -27,15 +25,7 @@ export default function SummaryCards({
       borderGradient: "from-blue-400/50 to-blue-500/50",
       delay: "0ms",
     },
-    {
-      title: "Pending",
-      count: pendingCount,
-      icon: Clock,
-      gradient: "from-gray-500 to-gray-600",
-      bgGradient: "from-gray-500/20 to-gray-600/20",
-      borderGradient: "from-gray-400/50 to-gray-500/50",
-      delay: "100ms",
-    },
+    // Removed Pending card per new UX; keep spacing of other cards
     {
       title: "Waiting for Review",
       count: waitingForReviewCount,
@@ -43,7 +33,7 @@ export default function SummaryCards({
       gradient: "from-yellow-500 to-yellow-600",
       bgGradient: "from-yellow-500/20 to-yellow-600/20",
       borderGradient: "from-yellow-400/50 to-yellow-500/50",
-      delay: "200ms",
+      delay: "100ms",
     },
     {
       title: "Approved",
@@ -52,7 +42,7 @@ export default function SummaryCards({
       gradient: "from-green-500 to-green-600",
       bgGradient: "from-green-500/20 to-green-600/20",
       borderGradient: "from-green-400/50 to-green-500/50",
-      delay: "300ms",
+      delay: "200ms",
     },
     {
       title: "Rejected",
@@ -61,12 +51,12 @@ export default function SummaryCards({
       gradient: "from-red-500 to-red-600",
       bgGradient: "from-red-500/20 to-red-600/20",
       borderGradient: "from-red-400/50 to-red-500/50",
-      delay: "400ms",
+      delay: "300ms",
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
@@ -119,28 +109,6 @@ export default function SummaryCards({
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-br ${card.gradient} opacity-20 group-hover:opacity-40 group-hover:scale-150 transition-all duration-500"></div>
                 </div>
               </div>
-
-              {/* Progress indicator */}
-              {card.title === "Total Registrations" &&
-                totalRegistrations > 0 && (
-                  <div className="mt-4">
-                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
-                      <span>Registration Progress</span>
-                      <span className="font-medium">
-                        {Math.round((approvedCount / totalRegistrations) * 100)}
-                        %
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200/50 dark:bg-gray-700/50 rounded-full h-2 overflow-hidden backdrop-blur-sm">
-                      <div
-                        className={`h-full bg-gradient-to-r ${card.gradient} rounded-full transition-all duration-1000 ease-out`}
-                        style={{
-                          width: `${(approvedCount / totalRegistrations) * 100}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
             </div>
 
             {/* Enhanced shimmer effect on hover */}

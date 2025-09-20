@@ -5,28 +5,13 @@ import { MasterEmailTemplate } from "./MasterEmailTemplate";
 export const RejectionTemplate: React.FC<EmailTemplateProps> = ({
   applicantName = "ผู้สมัคร",
   trackingCode,
+  // rejectedReason is kept for future template variants
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   rejectedReason,
+  notes,
   supportEmail,
   brandTokens,
 }) => {
-  // Reason messages in Thai and English
-  const reasonMessages = {
-    deadline_missed: {
-      thai: "เนื่องจากเกินกำหนดเวลาการสมัครที่กำหนดไว้",
-      english: "due to missing the registration deadline",
-    },
-    ineligible_rule_match: {
-      thai: "เนื่องจากไม่ตรงตามเงื่อนไขการเข้าร่วมงาน",
-      english: "due to not meeting the eligibility requirements",
-    },
-    other: {
-      thai: "เนื่องจากเหตุผลอื่นๆ",
-      english: "due to other reasons",
-    },
-  };
-
-  const reason = reasonMessages[rejectedReason || "other"];
-
   return (
     <MasterEmailTemplate
       title="คำขอสมัครไม่ผ่าน | Registration Not Approved"
@@ -74,36 +59,38 @@ export const RejectionTemplate: React.FC<EmailTemplateProps> = ({
             registration was not approved.
           </p>
 
-          <div
-            style={{
-              backgroundColor: "#fef3c7",
-              border: "1px solid #f59e0b",
-              borderRadius: "8px",
-              padding: "16px",
-              margin: "16px 0",
-            }}
-          >
-            <h4
+          {notes ? (
+            <div
               style={{
-                color: "#92400e",
-                fontSize: "16px",
-                fontWeight: "600",
-                margin: "0 0 8px 0",
+                backgroundColor: "#fff7ed",
+                border: "1px solid #fb923c",
+                borderRadius: "8px",
+                padding: "16px",
+                margin: "16px 0",
               }}
             >
-              เหตุผล | Reason:
-            </h4>
-            <p
-              style={{
-                color: "#92400e",
-                fontSize: "14px",
-                margin: 0,
-                lineHeight: "1.5",
-              }}
-            >
-              {reason.thai} | {reason.english}
-            </p>
-          </div>
+              <h4
+                style={{
+                  color: "#9a3412",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  margin: "0 0 8px 0",
+                }}
+              >
+                หมายเหตุจากทีมงาน | Team Notes
+              </h4>
+              <p
+                style={{
+                  color: "#9a3412",
+                  fontSize: "14px",
+                  margin: 0,
+                  lineHeight: "1.5",
+                }}
+              >
+                {notes}
+              </p>
+            </div>
+          ) : null}
 
           <div
             style={{

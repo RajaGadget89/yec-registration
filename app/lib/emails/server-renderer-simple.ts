@@ -31,6 +31,9 @@ function createEmailTemplate(
     notes,
     priceApplied = "0",
     packageName = "Standard Package",
+    // rejectedReason is intentionally unused in certain templates
+    // but kept for type completeness
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     rejectedReason,
     badgeUrl,
     supportEmail = "info@yecday.com",
@@ -204,21 +207,6 @@ function createEmailTemplate(
 
     case "rejection":
       title = "คำขอสมัครไม่ผ่าน | Registration Not Approved";
-      const reasonMessages = {
-        deadline_missed: {
-          thai: "เนื่องจากเกินกำหนดเวลาการสมัครที่กำหนดไว้",
-          english: "due to missing the registration deadline",
-        },
-        ineligible_rule_match: {
-          thai: "เนื่องจากไม่ตรงตามเงื่อนไขการเข้าร่วมงาน",
-          english: "due to not meeting the eligibility requirements",
-        },
-        other: {
-          thai: "เนื่องจากเหตุผลอื่นๆ",
-          english: "due to other reasons",
-        },
-      };
-      const reason = reasonMessages[rejectedReason || "other"];
 
       content = `
         <div style="background-color: #fef2f2; border: 1px solid #ef4444; border-radius: 8px; padding: 20px; margin: 16px 0; text-align: center;">
@@ -231,10 +219,17 @@ function createEmailTemplate(
         Thank you for your interest in YEC Day! We have reviewed your registration 
         and unfortunately, we must inform you that your registration was not approved.</p>
         
-        <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 16px 0;">
-          <h4 style="color: #92400e; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">เหตุผล | Reason:</h4>
-          <p style="color: #92400e; font-size: 14px; margin: 0; line-height: 1.5;">${reason.thai} | ${reason.english}</p>
+        
+        ${
+          notes
+            ? `
+        <div style="background-color: #fff7ed; border: 1px solid #fb923c; border-radius: 8px; padding: 16px; margin: 16px 0;">
+          <h4 style="color: #9a3412; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">หมายเหตุจากทีมงาน | Team Notes</h4>
+          <p style="color: #9a3412; font-size: 14px; margin: 0; line-height: 1.5;">${notes}</p>
         </div>
+        `
+            : ""
+        }
         
         <div style="background-color: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 16px; margin: 16px 0;">
           <h4 style="color: #0c4a6e; font-size: 16px; font-weight: 600; margin: 0 0 8px 0;">ข้อมูลเพิ่มเติม | Additional Information:</h4>

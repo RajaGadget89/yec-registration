@@ -40,7 +40,6 @@ export default function Filters({ provinces }: FiltersProps) {
   );
 
   const statusOptions = [
-    { value: "pending", label: "Pending", color: "bg-gray-500" },
     {
       value: "waiting_for_review",
       label: "Waiting for Review",
