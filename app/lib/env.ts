@@ -68,12 +68,12 @@ export function getCookieOptions(): {
         const url = new URL(appUrl);
         const hostname = url.hostname;
         // Extract root domain (e.g., "yecsongkhla.org" from "yecday.yecsongkhla.org")
-        const parts = hostname.split('.');
+        const parts = hostname.split(".");
         if (parts.length >= 2) {
-          options.domain = `.${parts.slice(-2).join('.')}`;
+          options.domain = `.${parts.slice(-2).join(".")}`;
         }
       } catch (_e) {
-        console.warn('Failed to parse NEXT_PUBLIC_APP_URL for cookie domain');
+        console.warn("Failed to parse NEXT_PUBLIC_APP_URL for cookie domain");
       }
     }
   }
