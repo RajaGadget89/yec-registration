@@ -62,7 +62,20 @@ export function getCookieOptions(): {
 
   // Set domain for production cookies
   if (process.env.NODE_ENV === "production") {
-    options.domain = ".rajagadget.live";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (appUrl) {
+      try {
+        const url = new URL(appUrl);
+        const hostname = url.hostname;
+        // Extract root domain (e.g., "yecsongkhla.org" from "yecday.yecsongkhla.org")
+        const parts = hostname.split('.');
+        if (parts.length >= 2) {
+          options.domain = `.${parts.slice(-2).join('.')}`;
+        }
+      } catch (_e) {
+        console.warn('Failed to parse NEXT_PUBLIC_APP_URL for cookie domain');
+      }
+    }
   }
 
   return options;
