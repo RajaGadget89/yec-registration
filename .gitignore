@@ -114,3 +114,6 @@ restore.sh
 # Supabase Migration Environment
 .env.supabase
 .migration-workflow-state
+/playwright*.config.ts
+!/playwright.config.ts
+!/playwright.ci-health.config.ts
