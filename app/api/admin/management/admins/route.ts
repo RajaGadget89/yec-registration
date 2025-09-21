@@ -11,8 +11,7 @@ import {
   FEATURES,
 } from "../../../../lib/features";
 
-// Super admin allowlist as specified in requirements
-const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
+// Note: Super admin authorization is handled by RBAC system and hasRoleFromRequest()
 
 /**
  * GET /api/admin/management/admins
@@ -45,13 +44,7 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Check if user is in super admin allowlist
-    if (!SUPER_ADMIN_ALLOWLIST.includes(currentUser.email.toLowerCase())) {
-      return NextResponse.json(
-        { error: "Access denied. Not in super admin allowlist." },
-        { status: 403 },
-      );
-    }
+    // Super admin authorization is handled by RBAC system above
 
     // Parse query parameters
     const url = new URL(request.url);

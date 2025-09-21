@@ -182,6 +182,13 @@ export interface Registration {
   price_applied: number | null;
   currency: string;
   selected_package_code: string | null;
+  // Package Pricing System: New pricing fields
+  price_breakdown: {
+    basePrice: number;
+    roomSurcharge: number;
+    total: number;
+  } | null;
+  is_early_bird: boolean;
   ip_address: string | null;
   user_agent: string | null;
   form_data: FormData;
@@ -232,6 +239,13 @@ export interface RegistrationInsert {
   price_applied?: number | null;
   currency?: string;
   selected_package_code?: string | null;
+  // Package Pricing System: New pricing fields
+  price_breakdown?: {
+    basePrice: number;
+    roomSurcharge: number;
+    total: number;
+  } | null;
+  is_early_bird?: boolean;
   ip_address?: string | null;
   user_agent?: string | null;
   form_data?: FormData;
@@ -343,6 +357,20 @@ export interface EventSettings {
   price_packages: PricePackage[];
   eligibility_rules: EligibilityRules | null;
   timezone: string;
+  // Package Pricing System: New pricing configuration
+  pricing_config: {
+    early_bird_deadline: string;
+    prices: {
+      early_bird_out_of_quota: number;
+      early_bird_in_quota_double: number;
+      early_bird_in_quota_single: number;
+      normal_out_of_quota: number;
+      normal_in_quota_double: number;
+      normal_in_quota_single: number;
+    };
+    allow_in_quota_after_early_bird: boolean;
+    in_quota_surcharge_after_early_bird: number;
+  } | null;
   created_at: string;
   updated_at: string;
 }

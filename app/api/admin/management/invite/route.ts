@@ -27,8 +27,7 @@ const inviteSchema = z.object({
 
 type InviteRequest = z.infer<typeof inviteSchema>;
 
-// Super admin allowlist as specified in requirements
-const SUPER_ADMIN_ALLOWLIST = ["raja.gadgets89@gmail.com"];
+// Note: Super admin authorization is handled by RBAC system and hasRoleFromRequest()
 
 /**
  * POST /api/admin/management/invite
@@ -79,21 +78,11 @@ async function inviteAdmin(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Check if user is in super admin allowlist
+    // Super admin authorization is handled by RBAC system above
     console.log(
-      "[INVITE_ROUTE] Checking allowlist for user:",
+      "[INVITE_ROUTE] Super admin authorization confirmed for:",
       currentUser.email,
-      "allowlist:",
-      SUPER_ADMIN_ALLOWLIST,
     );
-    if (!SUPER_ADMIN_ALLOWLIST.includes(currentUser.email.toLowerCase())) {
-      console.log("[INVITE_ROUTE] User not in allowlist:", currentUser.email);
-      return NextResponse.json(
-        { error: "Access denied. Not in super admin allowlist." },
-        { status: 403 },
-      );
-    }
-    console.log("[INVITE_ROUTE] User is in allowlist:", currentUser.email);
 
     // Rate limiting (skip for E2E tests)
     if (process.env.E2E_TESTS !== "true") {

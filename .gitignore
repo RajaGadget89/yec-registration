@@ -61,6 +61,8 @@ playwright/
 /test-*.js
 /test-*.sh
 app/api/test/
+tests/
+migrations/
 
 # ========================================
 # TypeScript

@@ -95,6 +95,12 @@ export default function UserResubmissionPage() {
         price_applied: 2000,
         currency: "THB",
         selected_package_code: "standard",
+        price_breakdown: {
+          basePrice: 2000,
+          roomSurcharge: 0,
+          total: 2000,
+        },
+        is_early_bird: true,
         ip_address: null,
         user_agent: null,
         form_data: {},

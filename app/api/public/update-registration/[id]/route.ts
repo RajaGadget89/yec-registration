@@ -168,6 +168,68 @@ export async function POST(
           // For now, we'll assume the file URL is provided
           updateData.payment_slip_url = formData.paymentSlip;
         }
+
+        // Handle hotel choice fields for payment dimension (moved from profile)
+        if (formData.hotelChoice)
+          updateData.hotel_choice = formData.hotelChoice;
+        if (formData.roomType) updateData.room_type = formData.roomType;
+        if (formData.roommateInfo)
+          updateData.roommate_info = formData.roommateInfo;
+        if (formData.roommatePhone)
+          updateData.roommate_phone = formData.roommatePhone;
+        if (formData.externalHotelName)
+          updateData.external_hotel_name = formData.externalHotelName;
+
+        // Recalculate pricing if hotel choice changed
+        if (formData.hotelChoice || formData.roomType) {
+          try {
+            const { DynamicPricingCalculator } = await import(
+              "../../../../lib/dynamicPricingCalculator"
+            );
+            const hotelChoice =
+              formData.hotelChoice || currentRegistration.hotel_choice;
+            const roomType = formData.roomType || currentRegistration.room_type;
+
+            if (hotelChoice) {
+              // ✅ PRESERVE ORIGINAL REGISTRATION TIME for early bird pricing
+              const originalRegistrationTime = new Date(
+                currentRegistration.created_at,
+              );
+
+              const pricingResult =
+                await DynamicPricingCalculator.calculatePriceWithOriginalTime(
+                  hotelChoice,
+                  roomType,
+                  originalRegistrationTime,
+                );
+
+              updateData.price_applied = pricingResult.price;
+              updateData.currency = pricingResult.currency;
+              updateData.selected_package_code = pricingResult.packageCode;
+              updateData.price_breakdown = pricingResult.breakdown;
+              updateData.is_early_bird = pricingResult.isEarlyBird;
+
+              console.log(
+                "[PUBLIC_UPDATE_API] Pricing recalculated preserving original registration time:",
+                {
+                  hotelChoice,
+                  roomType,
+                  originalRegistrationTime:
+                    originalRegistrationTime.toISOString(),
+                  price: pricingResult.price,
+                  packageCode: pricingResult.packageCode,
+                  isEarlyBird: pricingResult.isEarlyBird,
+                },
+              );
+            }
+          } catch (pricingError) {
+            console.error(
+              "[PUBLIC_UPDATE_API] Pricing recalculation failed:",
+              pricingError,
+            );
+            // Don't fail the update if pricing calculation fails
+          }
+        }
         break;
 
       case "profile":
@@ -186,15 +248,6 @@ export async function POST(
           updateData.business_type_other = formData.businessTypeOther;
         if (formData.yecProvince)
           updateData.yec_province = formData.yecProvince;
-        if (formData.hotelChoice)
-          updateData.hotel_choice = formData.hotelChoice;
-        if (formData.roomType) updateData.room_type = formData.roomType;
-        if (formData.roommateInfo)
-          updateData.roommate_info = formData.roommateInfo;
-        if (formData.roommatePhone)
-          updateData.roommate_phone = formData.roommatePhone;
-        if (formData.externalHotelName)
-          updateData.external_hotel_name = formData.externalHotelName;
         if (formData.travelType) updateData.travel_type = formData.travelType;
         if (formData.profileImage)
           updateData.profile_image_url = formData.profileImage;

@@ -26,6 +26,7 @@ import DimensionActionButtons from "./DimensionActionButtons";
 import ActionButtons from "./ActionButtons";
 import FileCard from "./FileCard";
 import LightboxModal from "./LightboxModal";
+import PackageInfoCard from "./PackageInfoCard";
 import type { Registration } from "../../types/database";
 import { formatDate } from "../../lib/datetime";
 import { useUserPermissions } from "../../lib/rbac-client";
@@ -382,6 +383,11 @@ export default function DetailsDrawer({
                         dimension="payment"
                         onActionComplete={onActionComplete}
                       />
+
+                      {/* Package Information Card - Underneath Actions */}
+                      <div className="mt-4">
+                        <PackageInfoCard registration={registration} />
+                      </div>
                     </div>
                   </div>
                 </div>
