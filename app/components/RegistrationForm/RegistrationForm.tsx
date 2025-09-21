@@ -12,6 +12,8 @@ import {
   calculateFormProgress,
 } from "./formValidation";
 import FormField from "./FormField";
+import PriceDisplayCard from "./PriceDisplayCard";
+import { useDynamicFormSchema } from "./useDynamicFormSchema";
 
 export default function RegistrationForm() {
   const [formData, setFormData] = useState<FormDataType>(initialFormData);
@@ -20,6 +22,44 @@ export default function RegistrationForm() {
   const [isEditing, setIsEditing] = useState(false);
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
   const [fileProcessingProgress, setFileProcessingProgress] = useState(0);
+
+  // Dynamic form schema based on available pricing options
+  const {
+    dynamicFormSchema,
+    isLoading: isSchemaLoading,
+    error: schemaError,
+    availableOptions,
+  } = useDynamicFormSchema();
+
+  // Clear form data when available options change (e.g., in-quota becomes unavailable)
+  useEffect(() => {
+    if (availableOptions && formData.hotelChoice) {
+      // If current hotel choice is no longer available, clear it
+      if (!availableOptions.hotelChoices.includes(formData.hotelChoice)) {
+        setFormData((prev) => ({
+          ...prev,
+          hotelChoice: "",
+          roomType: "",
+          roommateInfo: "",
+          roommatePhone: "",
+          external_hotel_name: "",
+        }));
+      }
+
+      // If current room type is no longer available, clear it
+      if (
+        formData.roomType &&
+        !availableOptions.roomTypes.includes(formData.roomType)
+      ) {
+        setFormData((prev) => ({
+          ...prev,
+          roomType: "",
+          roommateInfo: "",
+          roommatePhone: "",
+        }));
+      }
+    }
+  }, [availableOptions, formData.hotelChoice, formData.roomType]);
 
   // New state for token-based updates
   const [isTokenUpdate, setIsTokenUpdate] = useState(false);
@@ -31,6 +71,78 @@ export default function RegistrationForm() {
   const [tokenValidationError, setTokenValidationError] = useState<
     string | null
   >(null);
+  const [originalRegistrationTime, setOriginalRegistrationTime] =
+    useState<Date | null>(null);
+
+  // Price calculation state
+  const [priceCalculation, setPriceCalculation] = useState<{
+    price: number;
+    currency: string;
+    isEarlyBird: boolean;
+    packageCode: string;
+    breakdown: {
+      basePrice: number;
+      roomSurcharge: number;
+      total: number;
+    };
+  } | null>(null);
+
+  // Function to calculate price based on current form data
+  const calculatePrice = useCallback(async () => {
+    const hotelChoice = formData.hotelChoice;
+    const roomType = formData.roomType;
+
+    // Only calculate if we have valid selections
+    if (!hotelChoice || (hotelChoice === "in-quota" && !roomType)) {
+      setPriceCalculation(null);
+      return;
+    }
+
+    try {
+      // Build URL parameters properly - only include roomType if it has a value
+      const params = new URLSearchParams();
+      params.append("hotelChoice", hotelChoice);
+      if (roomType) {
+        params.append("roomType", roomType);
+      }
+
+      // ✅ CRITICAL FIX: Include original registration time for token-based updates
+      if (isTokenUpdate && originalRegistrationTime) {
+        params.append(
+          "originalRegistrationTime",
+          originalRegistrationTime.toISOString(),
+        );
+        console.log(
+          "[REGISTRATION_FORM] Using original registration time for pricing:",
+          originalRegistrationTime.toISOString(),
+        );
+      }
+
+      const response = await fetch(
+        `/api/pricing/calculate?${params.toString()}`,
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to calculate price");
+      }
+
+      const result = await response.json();
+      setPriceCalculation(result);
+    } catch (error) {
+      console.error("Price calculation error:", error);
+      setPriceCalculation(null);
+    }
+  }, [
+    formData.hotelChoice,
+    formData.roomType,
+    isTokenUpdate,
+    originalRegistrationTime,
+  ]);
+
+  // Calculate price when hotel choice or room type changes
+  useEffect(() => {
+    calculatePrice();
+  }, [calculatePrice]);
 
   // Function to validate token and load registration data
   const validateTokenAndLoadData = async (
@@ -56,6 +168,15 @@ export default function RegistrationForm() {
 
       // CRITICAL: Set the registration ID for API calls
       mergedData.registrationId = registration.id;
+
+      // ✅ CRITICAL FIX: Store original registration time for pricing preservation
+      if (registration.created_at) {
+        setOriginalRegistrationTime(new Date(registration.created_at));
+        console.log(
+          "[REGISTRATION_FORM] Stored original registration time:",
+          registration.created_at,
+        );
+      }
 
       // Map registration data to form fields
       if (registration.first_name)
@@ -85,13 +206,39 @@ export default function RegistrationForm() {
       if (registration.travel_type)
         mergedData.travelType = registration.travel_type;
 
-      // Handle file fields - preserve existing URLs
-      if (registration.profile_image_url)
+      // Handle file fields - preserve existing URLs from database
+      if (registration.profile_image_url) {
         mergedData.profileImage = registration.profile_image_url;
-      if (registration.chamber_card_url)
+        console.log(
+          "Token update: Loaded profile image URL:",
+          registration.profile_image_url,
+        );
+      }
+      if (registration.chamber_card_url) {
         mergedData.chamberCard = registration.chamber_card_url;
-      if (registration.payment_slip_url)
+        console.log(
+          "Token update: Loaded chamber card URL:",
+          registration.chamber_card_url,
+        );
+      }
+      if (registration.payment_slip_url) {
         mergedData.paymentSlip = registration.payment_slip_url;
+        console.log(
+          "Token update: Loaded payment slip URL:",
+          registration.payment_slip_url,
+        );
+      }
+
+      // Log any missing image URLs for debugging
+      if (!registration.profile_image_url) {
+        console.log("Token update: No profile image URL found in database");
+      }
+      if (!registration.chamber_card_url) {
+        console.log("Token update: No chamber card URL found in database");
+      }
+      if (!registration.payment_slip_url) {
+        console.log("Token update: No payment slip URL found in database");
+      }
 
       setFormData(mergedData);
       setIsEditing(true);
@@ -120,7 +267,15 @@ export default function RegistrationForm() {
 
       // Define field groups by dimension
       const dimensionFields = {
-        payment: ["paymentSlip"],
+        payment: [
+          "paymentSlip",
+          // Hotel choice fields moved to payment dimension for pricing consistency
+          "hotelChoice",
+          "roomType",
+          "roommateInfo",
+          "roommatePhone",
+          "externalHotelName",
+        ],
         profile: [
           "firstName",
           "lastName",
@@ -132,11 +287,6 @@ export default function RegistrationForm() {
           "businessType",
           "businessTypeOther",
           "yecProvince",
-          "hotelChoice",
-          "roomType",
-          "roommateInfo",
-          "roommatePhone",
-          "externalHotelName",
           "travelType",
           "profileImage",
         ],
@@ -200,12 +350,26 @@ export default function RegistrationForm() {
               if (mergedData[fieldId]) {
                 if (
                   typeof mergedData[fieldId] === "string" &&
-                  mergedData[fieldId].startsWith("http")
+                  (mergedData[fieldId].startsWith("http") ||
+                    (mergedData[fieldId].includes("/") &&
+                      (mergedData[fieldId].includes("profile-images") ||
+                        mergedData[fieldId].includes("chamber-cards") ||
+                        mergedData[fieldId].includes("payment-slips"))))
                 ) {
-                  // New format: URL from Supabase - keep as is
+                  // New format: URL from Supabase or file path - keep as is
                   // The FormField component will handle displaying the image
                   console.log(
-                    `Edit mode: Preserving Supabase URL for ${fieldId}:`,
+                    `Edit mode: Preserving image path/URL for ${fieldId}:`,
+                    mergedData[fieldId],
+                  );
+                } else if (
+                  typeof mergedData[fieldId] === "object" &&
+                  "dataUrl" in mergedData[fieldId]
+                ) {
+                  // Base64 format: file metadata with dataUrl - keep for display purposes
+                  // The FormField component will handle showing the image
+                  console.log(
+                    `Edit mode: Preserving base64 data for ${fieldId}:`,
                     mergedData[fieldId],
                   );
                 } else if (
@@ -219,13 +383,16 @@ export default function RegistrationForm() {
                     mergedData[fieldId],
                   );
                 } else {
-                  // Clear invalid data
-                  console.log(
+                  // Log and clear invalid data
+                  console.warn(
                     `Edit mode: Clearing invalid data for ${fieldId}:`,
+                    typeof mergedData[fieldId],
                     mergedData[fieldId],
                   );
                   mergedData[fieldId] = null;
                 }
+              } else {
+                console.log(`Edit mode: No data for ${fieldId}`);
               }
             });
 
@@ -733,8 +900,38 @@ export default function RegistrationForm() {
             </div>
           )}
 
+          {/* Dynamic Schema Loading and Error States */}
+          {isSchemaLoading && (
+            <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  กำลังโหลดตัวเลือกโรงแรม...
+                </p>
+              </div>
+            </div>
+          )}
+
+          {schemaError && (
+            <div className="mb-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <div className="text-yellow-600 dark:text-yellow-400 mt-0.5">
+                  ⚠️
+                </div>
+                <div className="text-sm">
+                  <p className="text-yellow-800 dark:text-yellow-200 font-medium">
+                    ไม่สามารถโหลดตัวเลือกโรงแรมได้
+                  </p>
+                  <p className="text-yellow-700 dark:text-yellow-300">
+                    กำลังแสดงตัวเลือกทั้งหมด กรุณาลองใหม่อีกครั้ง
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {formSchema.map((field) => {
+            {dynamicFormSchema.map((field) => {
               // Check if field should be shown based on dependencies
               if (
                 field.dependsOn &&
@@ -789,6 +986,19 @@ export default function RegistrationForm() {
               );
             })}
           </div>
+
+          {/* Price Display Card - Show after hotel selection fields */}
+          {priceCalculation && (
+            <div className="mt-8">
+              <PriceDisplayCard
+                hotelChoice={formData.hotelChoice}
+                roomType={formData.roomType}
+                isEarlyBird={priceCalculation.isEarlyBird}
+                breakdown={priceCalculation.breakdown}
+                currency={priceCalculation.currency}
+              />
+            </div>
+          )}
 
           {/* Submit Button - Enhanced */}
           <div className="mt-8 text-center">

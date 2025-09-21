@@ -7,7 +7,7 @@ import {
 import { generateAndUploadBadge } from "../../lib/generateBadge";
 import { getThailandTimeISOString } from "../../lib/timezoneUtils";
 import { EventService } from "../../lib/events/eventService";
-import { PricingCalculator } from "../../lib/pricingCalculator";
+import { DynamicPricingCalculator } from "../../lib/dynamicPricingCalculator";
 import { EventFactory } from "../../lib/events/eventFactory";
 import { precheckRegistration } from "../../lib/precheck";
 import {
@@ -57,28 +57,41 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    // Calculate pricing
+    // Calculate pricing using new dynamic pricing system
     let priceApplied: number | null = null;
     let currency: string = "THB";
     let selectedPackageCode: string | null = null;
+    let priceBreakdown: any = null;
+    let isEarlyBird: boolean | null = null;
 
-    if (body.selectedPackage) {
-      try {
-        const pricingResult = await PricingCalculator.calculatePrice(
-          body.selectedPackage,
-        );
-        priceApplied = pricingResult.price;
-        currency = pricingResult.currency;
-        selectedPackageCode = body.selectedPackage;
-      } catch (error) {
-        console.error("Pricing calculation failed:", error);
-        return createErrorResponse(
-          "PRICING_CALCULATION_FAILED",
-          "Failed to calculate registration price. Please try again.",
-          error instanceof Error ? error.message : "Unknown pricing error",
-          400,
-        );
-      }
+    try {
+      const pricingResult = await DynamicPricingCalculator.calculatePrice(
+        body.hotelChoice,
+        body.roomType,
+        new Date(),
+      );
+
+      priceApplied = pricingResult.price;
+      currency = pricingResult.currency;
+      selectedPackageCode = pricingResult.packageCode;
+      priceBreakdown = pricingResult.breakdown;
+      isEarlyBird = pricingResult.isEarlyBird;
+
+      console.log("[REGISTER_ROUTE] Pricing calculated:", {
+        price: priceApplied,
+        currency,
+        packageCode: selectedPackageCode,
+        isEarlyBird,
+        breakdown: priceBreakdown,
+      });
+    } catch (error) {
+      console.error("Pricing calculation failed:", error);
+      return createErrorResponse(
+        "PRICING_CALCULATION_FAILED",
+        "Failed to calculate registration price. Please try again.",
+        error instanceof Error ? error.message : "Unknown pricing error",
+        400,
+      );
     }
 
     // Map frontend data to database format
@@ -125,6 +138,9 @@ async function handlePOST(req: NextRequest) {
       price_applied: priceApplied,
       currency: currency,
       selected_package_code: selectedPackageCode,
+      // New pricing system fields
+      price_breakdown: priceBreakdown,
+      is_early_bird: isEarlyBird,
       ip_address: req.headers.get("x-forwarded-for") || null,
       user_agent: req.headers.get("user-agent") || null,
       form_data: body,
@@ -266,9 +282,9 @@ async function handlePOST(req: NextRequest) {
 
       price_applied: priceApplied,
       currency: currency,
-      is_early_bird: priceApplied
-        ? await PricingCalculator.isEarlyBirdAvailable()
-        : null,
+      is_early_bird: isEarlyBird,
+      price_breakdown: priceBreakdown,
+      selected_package_code: selectedPackageCode,
     };
 
     // Add email dispatch status in non-prod or preview environments

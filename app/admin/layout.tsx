@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, Home, Shield, Users } from "lucide-react";
+import { BarChart3, Home, Shield, Users, DollarSign } from "lucide-react";
 import Footer from "../components/Footer";
 import AdminUserInfoClient from "./_components/AdminUserInfoClient";
 import { EmailOutboxNavWidget } from "./_components/EmailOutboxNavWidget";
@@ -123,6 +123,22 @@ export default async function AdminLayout({
                     <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
                   </>
                 )}
+
+              {/* Pricing Management - Super Admin Only */}
+              {isSuperAdmin && (
+                <>
+                  <Link
+                    href="/admin/pricing-management"
+                    className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
+                  >
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 shadow-sm group-hover:shadow-md group-hover:from-yec-primary/10 group-hover:to-yec-accent/10 transition-all duration-300">
+                      <DollarSign className="h-4 w-4" />
+                    </div>
+                    <span className="font-semibold">Pricing Management</span>
+                  </Link>
+                  <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+                </>
+              )}
 
               {/* Email Outbox Widget */}
               <div className="relative">

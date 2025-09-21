@@ -314,6 +314,7 @@ export default function FormField({
   const [isFocused, setIsFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isLoadingSignedUrl, setIsLoadingSignedUrl] = useState(false);
   const [displayValue, setDisplayValue] = useState<string>("");
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -330,23 +331,89 @@ export default function FormField({
         // Handle new File objects
         const url = URL.createObjectURL(value);
         setPreviewUrl(url);
+        console.log(`FormField: Created object URL for File: ${value.name}`);
         return () => URL.revokeObjectURL(url);
       } else if (value && typeof value === "object" && "dataUrl" in value) {
         // Handle base64 data URL from localStorage (old format)
         setPreviewUrl(value.dataUrl);
+        console.log(
+          `FormField: Using base64 dataUrl for ${normalizedField.id}`,
+        );
         return () => setPreviewUrl(null);
       } else if (typeof value === "string" && value.startsWith("http")) {
-        // Handle Supabase URLs (new format)
+        // Handle full HTTP URLs
         setPreviewUrl(value);
+        console.log(
+          `FormField: Using HTTP URL for ${normalizedField.id}:`,
+          value,
+        );
         return () => setPreviewUrl(null);
+      } else if (
+        typeof value === "string" &&
+        value.includes("/") &&
+        (value.includes("profile-images") ||
+          value.includes("chamber-cards") ||
+          value.includes("payment-slips"))
+      ) {
+        // Handle file paths - convert to signed URL
+        setIsLoadingSignedUrl(true);
+        console.log(
+          `FormField: Converting file path to signed URL for ${normalizedField.id}:`,
+          value,
+        );
+
+        fetch("/api/get-signed-url", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ filePath: value }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.success && data.signedUrl) {
+              setPreviewUrl(data.signedUrl);
+              console.log(
+                `FormField: Got signed URL for ${normalizedField.id}:`,
+                data.signedUrl,
+              );
+            } else {
+              console.error(
+                `FormField: Failed to get signed URL for ${normalizedField.id}:`,
+                data.error,
+              );
+              setPreviewUrl(null);
+            }
+          })
+          .catch((error) => {
+            console.error(
+              `FormField: Error getting signed URL for ${normalizedField.id}:`,
+              error,
+            );
+            setPreviewUrl(null);
+          })
+          .finally(() => {
+            setIsLoadingSignedUrl(false);
+          });
+
+        return () => setPreviewUrl(null);
+      } else if (value) {
+        // Log unexpected value format for debugging
+        console.warn(
+          `FormField: Unexpected value format for ${normalizedField.id}:`,
+          typeof value,
+          value,
+        );
+        setPreviewUrl(null);
       } else {
+        // No value - clear preview
         setPreviewUrl(null);
       }
     } else {
       setPreviewUrl(null);
     }
     return undefined;
-  }, [normalizedField.type, value]);
+  }, [normalizedField.type, value, normalizedField.id]);
 
   // Handle phone number formatting - SSR-safe
   useEffect(() => {
@@ -705,16 +772,22 @@ export default function FormField({
                 />
               </label>
             </div>
-            {previewUrl && (
+            {(previewUrl || isLoadingSignedUrl) && (
               <div className="relative">
                 <div className="w-full h-48 bg-gray-50 rounded-lg border border-gray-200 shadow-sm overflow-hidden flex items-center justify-center">
-                  <Image
-                    src={previewUrl}
-                    alt="Preview"
-                    width={200}
-                    height={200}
-                    className="w-full h-full object-contain"
-                  />
+                  {isLoadingSignedUrl ? (
+                    <div className="flex items-center justify-center w-full h-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+                    </div>
+                  ) : previewUrl ? (
+                    <Image
+                      src={previewUrl}
+                      alt="Preview"
+                      width={200}
+                      height={200}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : null}
                 </div>
                 <button
                   type="button"

@@ -320,50 +320,101 @@ export async function withSuperAdminApiGuard<T extends any[]>(
           );
         }
 
-        // Check if user has super_admin role in database
-        const { getSupabaseServiceClient } = await import("./supabase-server");
-        const supabase = getSupabaseServiceClient();
+        // Check if user has super_admin role in database (with environment fallback)
+        try {
+          const { getSupabaseServiceClient } = await import(
+            "./supabase-server"
+          );
+          const supabase = getSupabaseServiceClient();
 
-        const { data: adminUser, error } = await supabase
-          .from("admin_users")
-          .select("role, is_active")
-          .eq("email", adminEmail || "")
-          .single();
+          const { data: adminUser, error } = await supabase
+            .from("admin_users")
+            .select("role, is_active")
+            .eq("email", adminEmail || "")
+            .single();
 
-        if (error || !adminUser) {
+          if (error || !adminUser) {
+            console.log(
+              "[SUPER_ADMIN_GUARD] Database check failed, falling back to environment-based admin check",
+            );
+
+            // Fallback to environment-based super admin check
+            const { getRolesForEmail } = await import("./rbac");
+            const roles = getRolesForEmail(adminEmail);
+
+            if (!roles.has("super_admin")) {
+              console.log(
+                "[SUPER_ADMIN_GUARD] Access denied - not super_admin in environment",
+              );
+              return NextResponse.json(
+                {
+                  error: "Forbidden: Super admin access required",
+                  code: "SUPER_ADMIN_REQUIRED",
+                },
+                { status: 403 },
+              );
+            }
+
+            console.log(
+              "[SUPER_ADMIN_GUARD] Environment-based super admin access granted",
+            );
+          } else {
+            // Database check succeeded
+            if ((adminUser as any).role !== "super_admin") {
+              console.log(
+                "[SUPER_ADMIN_GUARD] Access denied - not super_admin role in database",
+              );
+              return NextResponse.json(
+                {
+                  error: "Forbidden: Super admin access required",
+                  code: "SUPER_ADMIN_REQUIRED",
+                },
+                { status: 403 },
+              );
+            }
+
+            if (!(adminUser as any).is_active) {
+              console.log(
+                "[SUPER_ADMIN_GUARD] Access denied - user not active in database",
+              );
+              return NextResponse.json(
+                {
+                  error: "Forbidden: Admin account is not active",
+                  code: "ADMIN_INACTIVE",
+                },
+                { status: 403 },
+              );
+            }
+
+            console.log(
+              "[SUPER_ADMIN_GUARD] Database-based super admin access granted",
+            );
+          }
+        } catch (dbError) {
           console.log(
-            "[SUPER_ADMIN_GUARD] Access denied - user not found in database",
+            "[SUPER_ADMIN_GUARD] Database error, falling back to environment-based admin check:",
+            dbError,
           );
-          return NextResponse.json(
-            {
-              error: "Unauthorized. Admin access required.",
-              code: "ADMIN_ACCESS_REQUIRED",
-            },
-            { status: 401 },
-          );
-        }
 
-        if ((adminUser as any).role !== "super_admin") {
+          // Fallback to environment-based super admin check
+          const { getRolesForEmail } = await import("./rbac");
+          const roles = getRolesForEmail(adminEmail);
+
+          if (!roles.has("super_admin")) {
+            console.log(
+              "[SUPER_ADMIN_GUARD] Access denied - not super_admin in environment fallback",
+            );
+            return NextResponse.json(
+              {
+                error: "Forbidden: Super admin access required",
+                code: "SUPER_ADMIN_REQUIRED",
+              },
+              { status: 403 },
+            );
+          }
+
           console.log(
-            "[SUPER_ADMIN_GUARD] Access denied - not super_admin role",
-          );
-          return NextResponse.json(
-            {
-              error: "Forbidden: Super admin access required",
-              code: "SUPER_ADMIN_REQUIRED",
-            },
-            { status: 403 },
-          );
-        }
-
-        if (!(adminUser as any).is_active) {
-          console.log("[SUPER_ADMIN_GUARD] Access denied - user not active");
-          return NextResponse.json(
-            {
-              error: "Forbidden: Admin account is not active",
-              code: "ADMIN_INACTIVE",
-            },
-            { status: 403 },
+            "[SUPER_ADMIN_GUARD] Environment-based super admin access granted (fallback)",
           );
         }
 

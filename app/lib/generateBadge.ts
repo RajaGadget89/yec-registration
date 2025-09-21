@@ -32,7 +32,7 @@ export async function generateAndUploadBadge(
       { value: "chanthaburi", label: "จันทบุรี" },
       { value: "chiang-mai", label: "เชียงใหม่" },
       { value: "chiang-rai", label: "เชียงราย" },
-      { value: "chon-buri", label: "ชลบุรี" },
+      // { value: "chon-buri", label: "ชลบุรี" }, // Temporarily disabled
       { value: "chumphon", label: "ชุมพร" },
       { value: "trang", label: "ตรัง" },
       { value: "trat", label: "ตราด" },
@@ -73,7 +73,7 @@ export async function generateAndUploadBadge(
       { value: "maha-sarakham", label: "มหาสารคาม" },
       { value: "mukdahan", label: "มุกดาหาร" },
       { value: "yasothon", label: "ยโสธร" },
-      { value: "yala", label: "ยะลา" },
+      // { value: "yala", label: "ยะลา" }, // Temporarily disabled
       { value: "sa-kaeo", label: "สระแก้ว" },
       { value: "sakon-nakhon", label: "สกลนคร" },
       { value: "samut-prakan", label: "สมุทรปราการ" },
@@ -93,7 +93,7 @@ export async function generateAndUploadBadge(
       { value: "uthai-thani", label: "อุทัยธานี" },
       { value: "uttaradit", label: "อุตรดิตถ์" },
       { value: "buri-ram", label: "บุรีรัมย์" },
-      { value: "ang-thong", label: "อ่างทอง" },
+      // { value: "ang-thong", label: "อ่างทอง" }, // Temporarily disabled
       { value: "amnat-charoen", label: "อำนาจเจริญ" },
     ].find((province) => province.value === mappedData.yec_province);
 

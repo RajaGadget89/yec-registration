@@ -42,16 +42,6 @@ export interface FormField {
 
 export const formSchema: FormField[] = [
   {
-    id: "paymentSlip",
-    type: "upload",
-    label: "Payment Slip",
-    required: true,
-    validation: {
-      fileTypes: ["image/jpeg", "image/jpg", "image/png"],
-      maxFileSize: 10,
-    },
-  },
-  {
     id: "yecProvince",
     type: "province",
     label: "จังหวัดสมาชิก YEC",
@@ -69,7 +59,7 @@ export const formSchema: FormField[] = [
       { value: "chanthaburi", label: "จันทบุรี" },
       { value: "chiang-mai", label: "เชียงใหม่" },
       { value: "chiang-rai", label: "เชียงราย" },
-      { value: "chon-buri", label: "ชลบุรี" },
+      // { value: "chon-buri", label: "ชลบุรี" }, // Temporarily disabled
       { value: "chumphon", label: "ชุมพร" },
       { value: "trang", label: "ตรัง" },
       { value: "trat", label: "ตราด" },
@@ -110,7 +100,7 @@ export const formSchema: FormField[] = [
       { value: "maha-sarakham", label: "มหาสารคาม" },
       { value: "mukdahan", label: "มุกดาหาร" },
       { value: "yasothon", label: "ยโสธร" },
-      { value: "yala", label: "ยะลา" },
+      // { value: "yala", label: "ยะลา" }, // Temporarily disabled
       { value: "sa-kaeo", label: "สระแก้ว" },
       { value: "sakon-nakhon", label: "สกลนคร" },
       { value: "samut-prakan", label: "สมุทรปราการ" },
@@ -130,7 +120,7 @@ export const formSchema: FormField[] = [
       { value: "uthai-thani", label: "อุทัยธานี" },
       { value: "uttaradit", label: "อุตรดิตถ์" },
       { value: "buri-ram", label: "บุรีรัมย์" },
-      { value: "ang-thong", label: "อ่างทอง" },
+      // { value: "ang-thong", label: "อ่างทอง" }, // Temporarily disabled
       { value: "amnat-charoen", label: "อำนาจเจริญ" },
     ],
   },
@@ -308,9 +298,9 @@ export const formSchema: FormField[] = [
     options: [
       {
         value: "in-quota",
-        label: "เลือกโรงแรมที่ผู้จัดงานจัดไว้ให้ (ในสิทธิ์)",
+        label: "เลือกโรงแรมที่ผู้จัดงานจัดไว้ให้",
       },
-      { value: "out-of-quota", label: "เลือกโรงแรมเอง (นอกสิทธิ์)" },
+      { value: "out-of-quota", label: "เลือกโรงแรมเอง" },
       { value: "no-accommodation", label: "ไม่ต้องการที่พัก" },
     ],
   },
@@ -324,7 +314,7 @@ export const formSchema: FormField[] = [
       value: "in-quota",
     },
     options: [
-      { value: "single", label: "พักเดี่ยว" },
+      { value: "single", label: "พักเดี่ยว (+700 บาท)" },
       { value: "double", label: "พักคู่" },
     ],
     extraField: {
@@ -379,6 +369,16 @@ export const formSchema: FormField[] = [
       { value: "van", label: "ต้องการใช้รถตู้รับส่ง" },
     ],
   },
+  {
+    id: "paymentSlip",
+    type: "upload",
+    label: "Payment Slip",
+    required: true,
+    validation: {
+      fileTypes: ["image/jpeg", "image/jpg", "image/png"],
+      maxFileSize: 10,
+    },
+  },
 ];
 
 export interface FormData {
@@ -386,7 +386,6 @@ export interface FormData {
 }
 
 export const initialFormData: FormData = {
-  paymentSlip: null,
   yecProvince: "",
   chamberCard: null,
   title: "",
@@ -406,4 +405,5 @@ export const initialFormData: FormData = {
   roommatePhone: "",
   external_hotel_name: "",
   travelType: "",
+  paymentSlip: null,
 };

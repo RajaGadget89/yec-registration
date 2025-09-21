@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import TopMenuBar from "../components/TopMenuBar";
@@ -8,6 +8,7 @@ import Footer from "../components/Footer";
 import Modal from "../components/Modal";
 import FadeInStagger from "../components/animations/FadeInStagger";
 import SlideUp from "../components/animations/SlideUp";
+import PriceDisplayCard from "../components/RegistrationForm/PriceDisplayCard";
 import {
   FormData,
   formSchema,
@@ -122,6 +123,105 @@ export default function PreviewPage() {
     }>;
   } | null>(null);
 
+  // Price calculation state
+  const [priceCalculation, setPriceCalculation] = useState<{
+    price: number;
+    currency: string;
+    isEarlyBird: boolean;
+    packageCode: string;
+    breakdown: {
+      basePrice: number;
+      roomSurcharge: number;
+      total: number;
+    };
+  } | null>(null);
+
+  // Original registration time for edit mode
+  const [originalRegistrationTime, setOriginalRegistrationTime] =
+    useState<Date | null>(null);
+
+  // Function to fetch original registration time for edit mode
+  const fetchOriginalRegistrationTime = async (registrationId: string) => {
+    try {
+      console.log(
+        "[PREVIEW_PAGE] Fetching original registration time for ID:",
+        registrationId,
+      );
+      const response = await fetch(`/api/registrations/${registrationId}`);
+
+      if (response.ok) {
+        const registration = await response.json();
+        if (registration.created_at) {
+          setOriginalRegistrationTime(new Date(registration.created_at));
+          console.log(
+            "[PREVIEW_PAGE] Stored original registration time:",
+            registration.created_at,
+          );
+        }
+      } else {
+        console.warn(
+          "[PREVIEW_PAGE] Failed to fetch registration data:",
+          response.status,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "[PREVIEW_PAGE] Error fetching original registration time:",
+        error,
+      );
+    }
+  };
+
+  // Function to calculate price based on current form data
+  const calculatePrice = useCallback(
+    async (data: FormData) => {
+      const hotelChoice = data.hotelChoice;
+      const roomType = data.roomType;
+
+      // Only calculate if we have valid selections
+      if (!hotelChoice || (hotelChoice === "in-quota" && !roomType)) {
+        setPriceCalculation(null);
+        return;
+      }
+
+      try {
+        // Build URL parameters properly - only include roomType if it has a value
+        const params = new URLSearchParams();
+        params.append("hotelChoice", hotelChoice);
+        if (roomType) {
+          params.append("roomType", roomType);
+        }
+
+        // ✅ CRITICAL FIX: Include original registration time for edit mode
+        if (originalRegistrationTime) {
+          params.append(
+            "originalRegistrationTime",
+            originalRegistrationTime.toISOString(),
+          );
+          console.log(
+            "[PREVIEW_PAGE] Using original registration time for pricing:",
+            originalRegistrationTime.toISOString(),
+          );
+        }
+
+        const response = await fetch(
+          `/api/pricing/calculate?${params.toString()}`,
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to calculate price");
+        }
+
+        const result = await response.json();
+        setPriceCalculation(result);
+      } catch (error) {
+        console.error("Price calculation error:", error);
+        setPriceCalculation(null);
+      }
+    },
+    [originalRegistrationTime],
+  );
+
   // Load form data from localStorage or cookie on component mount
   useEffect(() => {
     console.log("Preview page mounted - Loading form data"); // Debug log
@@ -179,11 +279,23 @@ export default function PreviewPage() {
       console.log("Room type:", validatedData.roomType); // Debug room type
       console.log("External hotel name:", validatedData.external_hotel_name); // Debug external hotel
       setFormData(validatedData);
+
+      // ✅ CRITICAL FIX: Fetch original registration time if we have a registration ID (edit mode)
+      if (validatedData.registrationId) {
+        fetchOriginalRegistrationTime(validatedData.registrationId);
+      }
     } catch (err) {
       console.error("Error parsing stored form data:", err);
       router.push("/");
     }
   }, [router]);
+
+  // Calculate price when form data or original registration time changes
+  useEffect(() => {
+    if (formData) {
+      calculatePrice(formData);
+    }
+  }, [formData, calculatePrice]);
 
   // Get field label from schema
   const getFieldLabel = (fieldId: string): string => {
@@ -287,13 +399,42 @@ export default function PreviewPage() {
         const fileFields = ["profileImage", "chamberCard", "paymentSlip"];
 
         fileFields.forEach((fieldId) => {
-          if (
-            editData[fieldId] &&
-            typeof editData[fieldId] === "object" &&
-            "dataUrl" in editData[fieldId]
-          ) {
-            // Keep the dataUrl for image display in edit mode
-            // The FormField component will handle showing the image
+          if (editData[fieldId]) {
+            if (
+              typeof editData[fieldId] === "object" &&
+              "dataUrl" in editData[fieldId]
+            ) {
+              // Keep the dataUrl for image display in edit mode (base64 format)
+              // The FormField component will handle showing the image
+              console.log(`Edit mode: Preserving base64 data for ${fieldId}`);
+            } else if (
+              typeof editData[fieldId] === "string" &&
+              (editData[fieldId].startsWith("http") ||
+                (editData[fieldId].includes("/") &&
+                  (editData[fieldId].includes("profile-images") ||
+                    editData[fieldId].includes("chamber-cards") ||
+                    editData[fieldId].includes("payment-slips"))))
+            ) {
+              // Keep Supabase URLs or file paths for image display in edit mode
+              // The FormField component will handle showing the image
+              console.log(
+                `Edit mode: Preserving image path/URL for ${fieldId}:`,
+                editData[fieldId],
+              );
+            } else if (editData[fieldId] instanceof File) {
+              // Keep File objects for image display in edit mode
+              console.log(
+                `Edit mode: Preserving File object for ${fieldId}:`,
+                editData[fieldId].name,
+              );
+            } else {
+              // Log unexpected data format for debugging
+              console.warn(
+                `Edit mode: Unexpected data format for ${fieldId}:`,
+                typeof editData[fieldId],
+                editData[fieldId],
+              );
+            }
           }
         });
 
@@ -1118,6 +1259,19 @@ export default function PreviewPage() {
                       )}
                     </div>
                   </div>
+
+                  {/* Price Display Card */}
+                  {priceCalculation && (
+                    <div className="mt-6">
+                      <PriceDisplayCard
+                        hotelChoice={getFieldValue("hotelChoice")}
+                        roomType={getFieldValue("roomType")}
+                        isEarlyBird={priceCalculation.isEarlyBird}
+                        breakdown={priceCalculation.breakdown}
+                        currency={priceCalculation.currency}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 

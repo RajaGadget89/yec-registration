@@ -113,13 +113,14 @@ export async function uploadFileToSupabase(
       }
 
       console.log(`File uploaded successfully (public): ${urlData.publicUrl}`);
+      console.log(`File path: ${data.path}, Folder: ${folder}`);
       return urlData.publicUrl;
     } else {
       // For private buckets, return the file path - signed URLs will be generated on-demand
-      console.log(
-        `File uploaded successfully (private bucket): ${folder}/${data.path}`,
-      );
-      return `${folder}/${data.path}`;
+      const filePath = `${folder}/${data.path}`;
+      console.log(`File uploaded successfully (private bucket): ${filePath}`);
+      console.log(`File path: ${data.path}, Folder: ${folder}`);
+      return filePath;
     }
   } catch (error) {
     console.error("Error in uploadFileToSupabase:", error);

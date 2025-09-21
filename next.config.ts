@@ -13,7 +13,7 @@ if (!supabaseDomain) {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
-    domains: supabaseDomain ? [supabaseDomain] : [],
+    domains: supabaseDomain ? [supabaseDomain, 'example.com'] : ['example.com'],
   },
   async headers() {
     return [
