@@ -83,7 +83,10 @@ export default function HeroSection() {
       {/* CTA Button */}
       <div
         className="absolute inset-0 flex items-center justify-center z-35 px-4"
-        style={{ transform: "translateY(40%)", pointerEvents: "none" }}
+        style={{
+          transform: `translateY(${isMobile ? "20%" : "30%"})`,
+          pointerEvents: "none",
+        }}
       >
         <button
           onClick={handleScroll}

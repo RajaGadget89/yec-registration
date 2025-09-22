@@ -1,4 +1,15 @@
+"use client";
 import Image from "next/image";
+
+function scrollToSection(targetId: string) {
+  if (typeof window === "undefined") return;
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  const header = document.querySelector("header");
+  const headerHeight = header ? (header as HTMLElement).offsetHeight : 96;
+  const top = el.offsetTop - headerHeight;
+  window.scrollTo({ top, behavior: "smooth" });
+}
 
 export default function Footer() {
   return (
@@ -18,14 +29,16 @@ export default function Footer() {
                 priority
               />
             </div>
-            <h3 className="text-2xl font-bold mb-4">YEC Day</h3>
+            <h3 className="text-2xl font-bold mb-4">YEC Day 2025</h3>
             <p className="text-gray-300 mb-6">
               Empowering young entrepreneurs through networking, learning, and
               growth opportunities. Join us for an unforgettable experience.
             </p>
             <div className="flex space-x-4">
               <a
-                href="#"
+                href="https://www.facebook.com/YECsongkhla"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-gray-300 hover:text-yec-accent transition-colors"
               >
                 <span className="sr-only">Facebook</span>
@@ -42,7 +55,9 @@ export default function Footer() {
                 </svg>
               </a>
               <a
-                href="#"
+                href="https://www.instagram.com/yec_songkhla?igsh=MTlmdWR3NG90N3BnZQ=="
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-gray-300 hover:text-yec-accent transition-colors"
               >
                 <span className="sr-only">Instagram</span>
@@ -59,7 +74,9 @@ export default function Footer() {
                 </svg>
               </a>
               <a
-                href="#"
+                href="https://www.songkhlachamber.org/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-gray-300 hover:text-yec-accent transition-colors"
               >
                 <span className="sr-only">Twitter</span>
@@ -80,19 +97,23 @@ export default function Footer() {
             <ul className="space-y-2">
               <li>
                 <a
-                  href="#"
+                  href="https://www.facebook.com/YECsongkhla"
                   className="text-gray-300 hover:text-yec-accent transition-colors"
                 >
                   About Us
                 </a>
               </li>
               <li>
-                <a
-                  href="#"
-                  className="text-gray-300 hover:text-yec-accent transition-colors"
+                <button
+                  onClick={() => scrollToSection("event-schedule")}
+                  className="text-left text-gray-300 hover:text-yec-accent transition-colors inline-flex items-center gap-1 group"
                 >
                   Event Schedule
-                </a>
+                  <span
+                    className="w-0 group-hover:w-8 h-px bg-current transition-all duration-500 ml-1"
+                    aria-hidden="true"
+                  ></span>
+                </button>
               </li>
               <li>
                 <a
@@ -103,12 +124,16 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a
-                  href="#"
-                  className="text-gray-300 hover:text-yec-accent transition-colors"
+                <button
+                  onClick={() => scrollToSection("form")}
+                  className="text-left text-gray-300 hover:text-yec-accent transition-colors inline-flex items-center gap-1 group"
                 >
                   Registration
-                </a>
+                  <span
+                    className="w-0 group-hover:w-8 h-px bg-current transition-all duration-500 ml-1"
+                    aria-hidden="true"
+                  ></span>
+                </button>
               </li>
             </ul>
           </div>
@@ -117,15 +142,23 @@ export default function Footer() {
           <div>
             <h4 className="text-lg font-semibold mb-4">Contact</h4>
             <ul className="space-y-2 text-gray-300">
-              <li>Email: info@yecday.com</li>
-              <li>Phone: +1 (555) 123-4567</li>
-              <li>Address: 123 Business Ave, City, State</li>
+              <li>
+                <b>Email:</b> yecsongkhla.official@gmail.com
+              </li>
+              <li>
+                <b>Phone:</b> 074 246 388
+              </li>
+              <li>
+                <b>Address:</b> 29 ถนนโชติวิทยะกุล 4 ตำบล หาดใหญ่ อำเภอ หาดใหญ่
+                จังหวัด สงขลา 90110
+              </li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">
-          <p>&copy; 2024 YEC Day. All rights reserved.</p>
+          <p>2025 YEC Day. All rights reserved.</p>
+          <p>&copy; Power By: Mr. Pisut Khungkamano</p>
         </div>
       </div>
     </footer>
