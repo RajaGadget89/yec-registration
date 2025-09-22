@@ -21,6 +21,22 @@ test.describe('AC4: Mark Pass Flow', () => {
     expect(response.status()).toBe(200);
     const registration = await response.json();
     
+    // Capture pricing snapshot before mark-pass operations
+    const beforeRes = await page.request.get(`${base}/api/admin/registrations/${registration.id}`, {
+      headers: {
+        'X-E2E-RLS-BYPASS': '1',
+        'Cookie': cookieHeader
+      }
+    });
+    expect(beforeRes.status()).toBe(200);
+    const before = await beforeRes.json();
+    const beforePricing = {
+      price_applied: before?.price_applied,
+      currency: before?.currency,
+      is_early_bird: before?.is_early_bird,
+      selected_package_code: before?.selected_package_code,
+    };
+
     // Mark payment as passed via API
     const paymentResponse = await page.request.post(`${base}/api/admin/registrations/${registration.id}/mark-pass`, {
       headers: { 
@@ -70,6 +86,20 @@ test.describe('AC4: Mark Pass Flow', () => {
     const results = [paymentResult, profileResult, tccResult];
     const hasAutoApproval = results.some(result => result.all_passed === true);
     expect(hasAutoApproval).toBe(true);
+
+    // Verify pricing remained unchanged after mark-pass transitions
+    const afterRes = await page.request.get(`${base}/api/admin/registrations/${registration.id}`, {
+      headers: {
+        'X-E2E-RLS-BYPASS': '1',
+        'Cookie': cookieHeader
+      }
+    });
+    expect(afterRes.status()).toBe(200);
+    const after = await afterRes.json();
+    expect(after.price_applied).toBe(beforePricing.price_applied);
+    expect(after.currency).toBe(beforePricing.currency);
+    expect(after.is_early_bird).toBe(beforePricing.is_early_bird);
+    expect(after.selected_package_code).toBe(beforePricing.selected_package_code);
   });
 
   test('payment admin can mark payment as passed via API', async ({ page, programmaticLogin }) => {

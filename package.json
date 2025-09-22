@@ -98,6 +98,7 @@
     "ci-health:help": "echo 'CI Health Check Commands:' && echo '  npm run test:ci-health          - Run basic health check' && echo '  npm run test:ci-health:fast      - Run fast health check (15s timeout)' && echo '  npm run test:ci-health:local     - Run with local environment' && echo '  npm run test:ci-health:staging   - Run with staging environment' && echo '  npm run test:ci-health:debug     - Run in debug mode' && echo '  npm run test:ci-health:ui        - Run with UI' && echo '  npm run test:ci-health:list      - List all tests'"
   },
   "dependencies": {
+    "@google-cloud/vision": "^5.3.3",
     "@react-email/render": "^1.2.0",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.6.1",

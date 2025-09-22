@@ -66,7 +66,7 @@ test.describe('AC3 - Deep-link Update', () => {
     }
     
     const deepLink = emailResult.deepLink;
-    expect(deepLink).toContain('/?token='); // ENHANCED: Should use root path, not /update
+    expect(deepLink).toContain('/?token='); // Root path deep-link
     
     // Step 5: Visit the valid deep-link
     await page.goto(deepLink);
@@ -392,6 +392,6 @@ async function waitForUpdateEmail(page: any, to: string, dimension: 'profile'|'p
     };
   }
   
-  expect(json.deepLink).toContain('/?token='); // ENHANCED: Should use root path, not /update
+  expect(json.deepLink).toContain('/?token='); // Root path deep-link
   return json;
 }

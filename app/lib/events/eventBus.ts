@@ -4,6 +4,7 @@ import { EmailNotificationHandler } from "./handlers/emailNotificationHandler";
 import { TelegramNotificationHandler } from "./handlers/telegramNotificationHandler";
 import { AuditLogHandler } from "./handlers/auditLogHandler";
 import { AuditDomainHandler } from "./handlers/auditDomainHandler";
+import { PaymentSlipHandler } from "./handlers/paymentSlipHandler";
 import { AUTH_TRACE, AUTH_NO_EVENTS, getCallerInfo } from "./trace";
 
 /**
@@ -27,11 +28,16 @@ export class EventBus {
     const telegramHandler = new TelegramNotificationHandler();
     const auditHandler = new AuditLogHandler();
     const auditDomainHandler = new AuditDomainHandler();
+    const paymentSlipHandler = new PaymentSlipHandler();
 
     // Register handlers for all event types
     const eventTypes: RegistrationEvent["type"][] = [
       "registration.submitted",
       "registration.batch_upserted",
+      "payment.slip_analyze_requested",
+      "payment.slip_analyzed",
+      "payment.amount_match",
+      "payment.amount_mismatch",
       "admin.request_update",
       "admin.approved",
       "admin.rejected",
@@ -47,6 +53,8 @@ export class EventBus {
       this.registerHandler(eventType, telegramHandler);
       this.registerHandler(eventType, auditHandler);
       this.registerHandler(eventType, auditDomainHandler);
+      // Payment slip handler only cares about payment.* events and will no-op otherwise
+      this.registerHandler(eventType, paymentSlipHandler);
     });
   }
 

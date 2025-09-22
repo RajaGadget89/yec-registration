@@ -211,6 +211,12 @@ export default function FileCard({
 
   return (
     <div
+      data-payment-slip-path={
+        label === "Payment Slip" ? (path ?? undefined) : undefined
+      }
+      data-registration-id={
+        label === "Payment Slip" ? registrationId : undefined
+      }
       className={`relative group cursor-pointer overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm hover:shadow-lg transition-all duration-300 ${className}`}
       onClick={onClick}
     >

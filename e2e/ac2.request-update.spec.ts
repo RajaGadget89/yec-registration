@@ -399,7 +399,7 @@ test.describe('AC2 - Admin Request Update', () => {
       
       // Handle timeout gracefully - email processing might be slow in test environment
       if (emailResult.found) {
-        expect(emailResult.deepLink).toContain('/update?token=');
+        expect(emailResult.deepLink).toContain('/?token=');
       } else {
         console.log('Email not found - this is expected in some test environments');
         // Skip the email verification if it times out
@@ -452,6 +452,6 @@ async function waitForUpdateEmail(page: any, to: string, dimension: 'profile'|'p
   expect(res.status()).toBe(200);
   const json = await res.json();
   expect(json.found).toBeTruthy();
-  expect(json.deepLink).toContain('/update?token=');
+  expect(json.deepLink).toContain('/?token=');
   return json;
 }

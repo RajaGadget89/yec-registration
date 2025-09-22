@@ -330,6 +330,6 @@ async function waitForUpdateEmail(page: any, to: string, dimension: string) {
     };
   }
   
-  expect(json.deepLink).toContain('/?token='); // ENHANCED: Should use root path, not /update
+  expect(json.deepLink).toContain('/?token='); // Root path deep-link
   return json;
 }
