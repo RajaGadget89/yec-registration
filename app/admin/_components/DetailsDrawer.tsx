@@ -370,6 +370,19 @@ export default function DetailsDrawer({
                             className="h-44 w-44 rounded-lg shadow-sm"
                           />
                         </div>
+
+                        {/* Travel Type - moved from profile to payment dimension */}
+                        <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <Globe className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                          <div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              Travel Type
+                            </p>
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
+                              {registration.travel_type.replace("-", " ")}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -598,18 +611,6 @@ export default function DetailsDrawer({
                                 </p>
                                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                                   {registration.yec_province}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                              <Globe className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                              <div>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  Travel Type
-                                </p>
-                                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">
-                                  {registration.travel_type.replace("-", " ")}
                                 </p>
                               </div>
                             </div>

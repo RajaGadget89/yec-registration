@@ -63,6 +63,7 @@ playwright/
 app/api/test/
 tests/
 migrations/
+e2e/
 
 # ========================================
 # TypeScript
