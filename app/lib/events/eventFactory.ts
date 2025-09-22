@@ -5,6 +5,11 @@ import {
   AutoRejectSweepEvent,
   EmailRetryEvent,
   AdminEvent,
+  PaymentSlipUploadedPayload,
+  PaymentSlipAnalyzeRequestedPayload,
+  PaymentSlipAnalyzedPayload,
+  PaymentAmountComparePayload,
+  DomainEvent,
 } from "./types";
 import { Registration } from "../../types/database";
 
@@ -50,6 +55,78 @@ export class EventFactory {
       },
       timestamp: new Date().toISOString(),
       correlation_id: `batch_${Date.now()}`,
+    };
+  }
+
+  /**
+   * Payment slip: uploaded (file available for analysis)
+   */
+  static createPaymentSlipUploaded(
+    payload: PaymentSlipUploadedPayload,
+  ): DomainEvent<PaymentSlipUploadedPayload> {
+    return {
+      id: randomUUID(),
+      type: "payment.slip_uploaded",
+      payload,
+      timestamp: new Date().toISOString(),
+      correlation_id: payload.application_id,
+    };
+  }
+
+  /**
+   * Payment slip: analysis requested
+   */
+  static createPaymentSlipAnalyzeRequested(
+    payload: PaymentSlipAnalyzeRequestedPayload,
+  ): DomainEvent<PaymentSlipAnalyzeRequestedPayload> {
+    return {
+      id: randomUUID(),
+      type: "payment.slip_analyze_requested",
+      payload,
+      timestamp: new Date().toISOString(),
+      correlation_id: payload.application_id,
+    };
+  }
+
+  /**
+   * Payment slip: analyzed with detected amount
+   */
+  static createPaymentSlipAnalyzed(
+    payload: PaymentSlipAnalyzedPayload,
+  ): DomainEvent<PaymentSlipAnalyzedPayload> {
+    return {
+      id: randomUUID(),
+      type: "payment.slip_analyzed",
+      payload,
+      timestamp: new Date().toISOString(),
+      correlation_id: payload.application_id,
+    };
+  }
+
+  /**
+   * Payment amount comparison results
+   */
+  static createPaymentAmountMatch(
+    payload: PaymentAmountComparePayload,
+  ): DomainEvent<PaymentAmountComparePayload> {
+    return {
+      id: randomUUID(),
+      type: "payment.amount_match",
+      payload,
+      timestamp: new Date().toISOString(),
+      correlation_id: payload.application_id,
+    };
+  }
+
+  static createPaymentAmountMismatch(
+    payload: PaymentAmountComparePayload,
+  ): DomainEvent<PaymentAmountComparePayload> {
+    return {
+      id: randomUUID(),
+      type: "payment.amount_mismatch",
+      payload,
+      timestamp: new Date().toISOString(),
+      correlation_id: payload.application_id,
     };
   }
 

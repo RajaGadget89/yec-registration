@@ -6,6 +6,12 @@ import { Registration } from "../../types/database";
 export type RegistrationEventType =
   | "registration.submitted"
   | "registration.batch_upserted"
+  // Payment slip intelligence events (scaffold for OCR-based audit)
+  | "payment.slip_uploaded"
+  | "payment.slip_analyze_requested"
+  | "payment.slip_analyzed"
+  | "payment.amount_match"
+  | "payment.amount_mismatch"
   | "admin.request_update"
   | "admin.mark_pass"
   | "admin.approved"
@@ -55,6 +61,40 @@ export interface RegistrationEventPayload {
   selected_package?: string;
   updates?: Record<string, any>;
   token_id?: string; // Token ID for secure deep-link resolution
+}
+
+/**
+ * Payment slip analysis payloads
+ */
+export interface PaymentSlipUploadedPayload {
+  application_id: string;
+  file_path: string; // private storage path
+  file_hash?: string;
+}
+
+export interface PaymentSlipAnalyzeRequestedPayload {
+  application_id: string;
+  file_path: string;
+  file_hash?: string;
+  request_id?: string;
+}
+
+export interface PaymentSlipAnalyzedPayload {
+  application_id: string;
+  file_path: string;
+  amount_detected: number | null;
+  currency?: string; // default THB
+  confidence: number; // 0..1
+  candidates?: Array<{ amount: number; confidence: number; label?: string }>;
+  analyzer_version?: string;
+}
+
+export interface PaymentAmountComparePayload {
+  application_id: string;
+  expected_amount: number;
+  detected_amount: number;
+  delta: number; // detected - expected
+  confidence: number;
 }
 
 /**
@@ -170,6 +210,12 @@ export interface EventHandlerResult {
 export const STATUS_TRANSITIONS: Record<RegistrationEventType, string> = {
   "registration.submitted": "waiting_for_review",
   "registration.batch_upserted": "waiting_for_review",
+  // Payment intelligence events do not change registration status
+  "payment.slip_uploaded": "system",
+  "payment.slip_analyze_requested": "system",
+  "payment.slip_analyzed": "system",
+  "payment.amount_match": "system",
+  "payment.amount_mismatch": "system",
   "admin.request_update": "system", // Handled dynamically based on track
   "admin.mark_pass": "system", // Handled by trigger function
   "admin.approved": "approved",
@@ -213,6 +259,12 @@ export const TRACK_STATUS_TRANSITIONS: Record<string, string> = {
  */
 export const EMAIL_TEMPLATES: Record<RegistrationEventType, string> = {
   "registration.submitted": "tracking",
+  // No emails for payment slip intelligence in v1
+  "payment.slip_uploaded": "system",
+  "payment.slip_analyze_requested": "system",
+  "payment.slip_analyzed": "system",
+  "payment.amount_match": "system",
+  "payment.amount_mismatch": "system",
 
   "admin.request_update": "request_update", // Will be determined by track
   "admin.mark_pass": "system", // No email for mark pass

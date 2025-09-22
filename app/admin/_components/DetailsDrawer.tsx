@@ -27,6 +27,7 @@ import ActionButtons from "./ActionButtons";
 import FileCard from "./FileCard";
 import LightboxModal from "./LightboxModal";
 import PackageInfoCard from "./PackageInfoCard";
+import PaymentIntelligencePanel from "./PaymentIntelligencePanel";
 import type { Registration } from "../../types/database";
 import { formatDate } from "../../lib/datetime";
 import { useUserPermissions } from "../../lib/rbac-client";
@@ -224,34 +225,40 @@ export default function DetailsDrawer({
         data-testid="drawer-root"
         className={`fixed top-0 right-0 h-full w-[980px] max-w-[98vw] bg-white dark:bg-gray-900 shadow-2xl z-50 transform transition-all duration-500 ease-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
-        }`}
+        } border-l-2 border-blue-200 dark:border-blue-900/40`}
       >
         {/* Header */}
-        <div className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6">
+        <div className="h-20 bg-gradient-to-r from-[#2246d2] via-[#3457e6] to-[#4f80ff] text-white dark:text-white border-b-0 flex items-center justify-between px-6 shadow-md">
           <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-blue-100/80 dark:bg-blue-900/30 rounded-lg">
-              <User className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <div className="p-2 bg-white/15 rounded-xl shadow-sm">
+              <User className="h-5 w-5 text-white" />
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h2 className="text-2xl font-extrabold tracking-tight">
                 Registration Details
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {registration.registration_id}
-              </p>
+              <span
+                className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-white shadow-sm ring-1 ring-white/20 backdrop-blur-sm text-sm font-semibold"
+                title="Registration reference"
+              >
+                <span className="opacity-90">Ref</span>
+                <span className="font-mono tracking-wider">
+                  {registration.registration_id}
+                </span>
+              </span>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="h-6 w-6" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="bg-gradient-to-b from-[#f4f7ff] to-white dark:from-gray-900 dark:to-gray-900 border-b-2 border-blue-200/60 dark:border-blue-900/40">
           <div className="flex space-x-1 px-6 py-3">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -260,10 +267,10 @@ export default function DetailsDrawer({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as TabType)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                  className={`flex items-center space-x-2 px-5 py-2 rounded-full font-semibold transition-all shadow-sm ${
                     isActive
-                      ? "bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-white/50 dark:hover:bg-gray-700/50"
+                      ? "bg-white text-[#2246d2] ring-1 ring-blue-200"
+                      : "text-gray-600 dark:text-gray-300 hover:text-[#2246d2] hover:bg-white/60"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -280,7 +287,7 @@ export default function DetailsDrawer({
             {activeTab === "review" && (
               <>
                 {/* Overall Status Header */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 mb-3">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border-2 border-blue-200/80 dark:border-blue-900/50 mb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
@@ -332,8 +339,8 @@ export default function DetailsDrawer({
                 </div>
 
                 {/* Payment Section */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 mb-3">
-                  <div className="grid grid-cols-[1fr_280px] gap-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border-2 border-blue-200/80 dark:border-blue-900/50 mb-3">
+                  <div className="grid grid-cols-[1fr_320px] gap-6">
                     {/* Left Column - Content */}
                     <div>
                       <div className="flex items-center gap-2 mb-3">
@@ -386,8 +393,8 @@ export default function DetailsDrawer({
                       </div>
                     </div>
 
-                    {/* Right Column - Actions */}
-                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                    {/* Right Column - Actions + Intelligence */}
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 space-y-4">
                       <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                         Actions
                       </h4>
@@ -401,12 +408,27 @@ export default function DetailsDrawer({
                       <div className="mt-4">
                         <PackageInfoCard registration={registration} />
                       </div>
+
+                      {/* Intelligence Audit Panel */}
+                      <div className="mt-2">
+                        <PaymentIntelligencePanel
+                          applicationId={String(registration.registration_id)}
+                          expectedAmount={Number(
+                            typeof (registration as any).price_applied ===
+                              "string"
+                              ? parseFloat((registration as any).price_applied)
+                              : (registration as any).price_applied || 0,
+                          )}
+                          slipPath={registration.payment_slip_url}
+                          analysis={null}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* TCC Section */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 mb-3">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border-2 border-blue-200/80 dark:border-blue-900/50 mb-3">
                   <div className="grid grid-cols-[1fr_280px] gap-6">
                     {/* Left Column - Content */}
                     <div>
@@ -636,7 +658,7 @@ export default function DetailsDrawer({
                 {/* Badge Section (if approved) */}
                 {registration.status === "approved" &&
                   registration.badge_url && (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border-2 border-blue-200/80 dark:border-blue-900/50">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="p-1 bg-yellow-100/80 dark:bg-yellow-900/30 rounded-lg">
                           <Award className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
@@ -661,7 +683,7 @@ export default function DetailsDrawer({
             )}
 
             {activeTab === "audit" && (
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm border-2 border-blue-200/80 dark:border-blue-900/50">
                 <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 mb-4">
                   <Calendar className="h-4 w-4 text-indigo-500" />
                   Audit Information

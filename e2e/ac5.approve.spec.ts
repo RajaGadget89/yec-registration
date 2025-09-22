@@ -41,6 +41,22 @@ test.describe('AC5: Approve Flow', () => {
       expect(markPassResult.dimension).toBe(dimension);
     }
     
+    // Capture pricing snapshot before approval
+    const beforeRes = await page.request.get(`${base}/api/admin/registrations/${registration.id}`, {
+      headers: {
+        'X-E2E-RLS-BYPASS': '1',
+        'Cookie': cookieHeader
+      }
+    });
+    expect(beforeRes.status()).toBe(200);
+    const before = await beforeRes.json();
+    const beforePricing = {
+      price_applied: before?.price_applied,
+      currency: before?.currency,
+      is_early_bird: before?.is_early_bird,
+      selected_package_code: before?.selected_package_code,
+    };
+
     // Now approve the registration via API
     const approveResponse = await page.request.post(`${base}/api/admin/registrations/${registration.id}/approve`, {
       headers: { 
@@ -60,6 +76,20 @@ test.describe('AC5: Approve Flow', () => {
     
     const approveResult = await approveResponse.json();
     expect(approveResult.ok).toBe(true);
+
+    // Verify pricing unchanged after approval
+    const afterRes = await page.request.get(`${base}/api/admin/registrations/${registration.id}`, {
+      headers: {
+        'X-E2E-RLS-BYPASS': '1',
+        'Cookie': cookieHeader
+      }
+    });
+    expect(afterRes.status()).toBe(200);
+    const after = await afterRes.json();
+    expect(after.price_applied).toBe(beforePricing.price_applied);
+    expect(after.currency).toBe(beforePricing.currency);
+    expect(after.is_early_bird).toBe(beforePricing.is_early_bird);
+    expect(after.selected_package_code).toBe(beforePricing.selected_package_code);
     expect(approveResult.message).toContain('approved');
   });
 
