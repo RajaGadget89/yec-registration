@@ -180,8 +180,16 @@ export class PricingManagementService {
       const earlyBirdRegistrations =
         registrations?.filter((r) => r.is_early_bird).length || 0;
 
+      // Coerce DB numeric/decimal (may arrive as string) to number before summing
       const totalRevenue =
-        registrations?.reduce((sum, r) => sum + (r.price_applied || 0), 0) || 0;
+        registrations?.reduce((sum, r) => {
+          const value = r.price_applied as unknown as number | string | null;
+          const numeric =
+            typeof value === "string" ? parseFloat(value) : value || 0;
+          return (
+            sum + (Number.isFinite(numeric as number) ? (numeric as number) : 0)
+          );
+        }, 0) || 0;
       const averagePrice =
         totalRegistrations > 0 ? totalRevenue / totalRegistrations : 0;
 

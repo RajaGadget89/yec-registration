@@ -13,6 +13,7 @@ import {
 } from "./formValidation";
 import FormField from "./FormField";
 import PriceDisplayCard from "./PriceDisplayCard";
+import RequestUpdatePricingDisplay from "../RequestUpdatePricingDisplay";
 import { useDynamicFormSchema } from "./useDynamicFormSchema";
 
 export default function RegistrationForm() {
@@ -92,6 +93,13 @@ export default function RegistrationForm() {
     const hotelChoice = formData.hotelChoice;
     const roomType = formData.roomType;
 
+    // ✅ DEBUG: Log the current form data being used for pricing
+    console.log("[REGISTRATION_FORM] calculatePrice called with:", {
+      hotelChoice,
+      roomType,
+      fullFormData: formData,
+    });
+
     // Only calculate if we have valid selections
     if (!hotelChoice || (hotelChoice === "in-quota" && !roomType)) {
       setPriceCalculation(null);
@@ -99,14 +107,65 @@ export default function RegistrationForm() {
     }
 
     try {
-      // Build URL parameters properly - only include roomType if it has a value
+      // ✅ NEW: Use Request Update pricing calculator for token-based updates
+      if (isTokenUpdate && formData.registrationId) {
+        console.log(
+          "[REGISTRATION_FORM] Using Request Update pricing calculator for token-based update",
+        );
+
+        // Ensure roomType is null when not applicable (not in-quota)
+        const normalizedRoomType = hotelChoice === "in-quota" ? roomType : null;
+
+        console.log(
+          "[REGISTRATION_FORM] Sending pricing calculation request:",
+          {
+            registrationId: formData.registrationId,
+            hotelChoice,
+            roomType: normalizedRoomType,
+            originalRoomType: roomType,
+          },
+        );
+
+        const response = await fetch("/api/pricing/calculate-update", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            registrationId: formData.registrationId,
+            hotelChoice,
+            roomType: normalizedRoomType,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error(
+            "[REGISTRATION_FORM] Request Update pricing calculation failed:",
+            errorData,
+          );
+          throw new Error(
+            errorData.error || "Failed to calculate update price",
+          );
+        }
+
+        const result = await response.json();
+        console.log(
+          "[REGISTRATION_FORM] Request Update pricing calculated successfully:",
+          result,
+        );
+        setPriceCalculation(result);
+        return;
+      }
+
+      // Original pricing calculation for new registrations
       const params = new URLSearchParams();
       params.append("hotelChoice", hotelChoice);
-      if (roomType) {
+      if (roomType && hotelChoice === "in-quota") {
         params.append("roomType", roomType);
       }
 
-      // ✅ CRITICAL FIX: Include original registration time for token-based updates
+      // Include original registration time for legacy token-based updates
       if (isTokenUpdate && originalRegistrationTime) {
         params.append(
           "originalRegistrationTime",
@@ -132,12 +191,7 @@ export default function RegistrationForm() {
       console.error("Price calculation error:", error);
       setPriceCalculation(null);
     }
-  }, [
-    formData.hotelChoice,
-    formData.roomType,
-    isTokenUpdate,
-    originalRegistrationTime,
-  ]);
+  }, [formData, isTokenUpdate, originalRegistrationTime]);
 
   // Calculate price when hotel choice or room type changes
   useEffect(() => {
@@ -275,6 +329,8 @@ export default function RegistrationForm() {
           "roommateInfo",
           "roommatePhone",
           "externalHotelName",
+          // Travel type is relevant for payment dimension as well
+          "travelType",
         ],
         profile: [
           "firstName",
@@ -441,6 +497,13 @@ export default function RegistrationForm() {
   }, [formData, isTokenUpdate, updateDimension, isFieldEnabled]);
 
   const handleFieldChange = (fieldId: string, value: any) => {
+    // ✅ DEBUG: Log field changes
+    console.log("[REGISTRATION_FORM] Field change:", {
+      fieldId,
+      value,
+      currentFormData: formData,
+    });
+
     setFormData((prev) => {
       const newData = {
         ...prev,
@@ -564,7 +627,30 @@ export default function RegistrationForm() {
           (typeof formData.paymentSlip === "string"
             ? formData.paymentSlip
             : null),
+        // ✅ CRITICAL FIX: Include calculated pricing data for Early Bird preservation
+        price: priceCalculation?.price || null,
+        currency: priceCalculation?.currency || null,
+        isEarlyBird: priceCalculation?.isEarlyBird || null,
+        packageCode: priceCalculation?.packageCode || null,
+        priceBreakdown: priceCalculation?.breakdown || null,
       };
+
+      // ✅ DEBUG: Log the exact data being submitted
+      console.log("[REGISTRATION_FORM] Submitting form data:", {
+        registrationId: formData.registrationId,
+        dimension: updateDimension,
+        hotelChoice: formData.hotelChoice,
+        roomType: formData.roomType,
+        travelType: formData.travelType,
+        // ✅ CRITICAL: Log pricing data being submitted
+        pricingData: {
+          price: submissionData.price,
+          currency: submissionData.currency,
+          isEarlyBird: submissionData.isEarlyBird,
+          packageCode: submissionData.packageCode,
+        },
+        fullSubmissionData: submissionData,
+      });
 
       // Submit update via API
       const response = await fetch(
@@ -990,13 +1076,21 @@ export default function RegistrationForm() {
           {/* Price Display Card - Show after hotel selection fields */}
           {priceCalculation && (
             <div className="mt-8">
-              <PriceDisplayCard
-                hotelChoice={formData.hotelChoice}
-                roomType={formData.roomType}
-                isEarlyBird={priceCalculation.isEarlyBird}
-                breakdown={priceCalculation.breakdown}
-                currency={priceCalculation.currency}
-              />
+              {/* Use Request Update pricing display for token-based updates */}
+              {isTokenUpdate ? (
+                <RequestUpdatePricingDisplay
+                  priceCalculation={priceCalculation}
+                  isLoading={false}
+                />
+              ) : (
+                <PriceDisplayCard
+                  hotelChoice={formData.hotelChoice}
+                  roomType={formData.roomType}
+                  isEarlyBird={priceCalculation.isEarlyBird}
+                  breakdown={priceCalculation.breakdown}
+                  currency={priceCalculation.currency}
+                />
+              )}
             </div>
           )}
 

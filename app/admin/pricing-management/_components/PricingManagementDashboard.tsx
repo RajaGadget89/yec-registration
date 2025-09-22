@@ -360,8 +360,13 @@ export default function PricingManagementDashboard() {
                       parseInt(e.target.value) || 0,
                     )
                   }
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yec-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-500"
+                  disabled
                 />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Currently not used in price calculation. Disabled to avoid
+                  confusion. We will enable it in a later enhancement.
+                </p>
               </div>
             </div>
 
