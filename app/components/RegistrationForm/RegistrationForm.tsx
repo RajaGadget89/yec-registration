@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
   formSchema,
   initialFormData,
@@ -23,6 +24,8 @@ export default function RegistrationForm() {
   const [isEditing, setIsEditing] = useState(false);
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
   const [fileProcessingProgress, setFileProcessingProgress] = useState(0);
+  const [qrPreviewOpen, setQrPreviewOpen] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Dynamic form schema based on available pricing options
   const {
@@ -1016,62 +1019,71 @@ export default function RegistrationForm() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {dynamicFormSchema.map((field) => {
-              // Check if field should be shown based on dependencies
-              if (
-                field.dependsOn &&
-                formData[field.dependsOn.field] !== field.dependsOn.value
-              ) {
-                return null;
-              }
+          {/* Render all fields except paymentSlip first */}
+          {(() => {
+            const otherFields = dynamicFormSchema.filter(
+              (f) => f.id !== "paymentSlip",
+            );
+            return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {otherFields.map((field) => {
+                  // Check if field should be shown based on dependencies
+                  if (
+                    field.dependsOn &&
+                    formData[field.dependsOn.field] !== field.dependsOn.value
+                  ) {
+                    return null;
+                  }
 
-              // Check if field should be enabled based on dimension
-              const isEnabled = isFieldEnabled(field.id);
-              if (!isEnabled) {
-                return null; // Hide disabled fields completely
-              }
+                  // Check if field should be enabled based on dimension
+                  const isEnabled = isFieldEnabled(field.id);
+                  if (!isEnabled) {
+                    return null; // Hide disabled fields completely
+                  }
 
-              return (
-                <div
-                  key={field.id}
-                  className={field.type === "upload" ? "md:col-span-2" : ""}
-                >
-                  <FormField
-                    field={field}
-                    value={formData[field.id]}
-                    onChange={(value) => handleFieldChange(field.id, value)}
-                    formData={formData}
-                    onExtraFieldChange={handleExtraFieldChange}
-                    disabled={!isEnabled}
-                  />
+                  return (
+                    <div
+                      key={field.id}
+                      className={field.type === "upload" ? "md:col-span-2" : ""}
+                    >
+                      <FormField
+                        field={field}
+                        value={formData[field.id]}
+                        onChange={(value) => handleFieldChange(field.id, value)}
+                        formData={formData}
+                        onExtraFieldChange={handleExtraFieldChange}
+                        disabled={!isEnabled}
+                      />
 
-                  {/* Render roommate phone field separately for better layout */}
-                  {field.id === "roomType" &&
-                    shouldShowExtraField(field, formData) &&
-                    field.roommatePhoneField && (
-                      <div className="mt-4 pl-4 border-l-2 border-blue-200">
-                        <FormField
-                          field={{
-                            ...field.roommatePhoneField,
-                            required: field.roommatePhoneField.required ?? true,
-                          }}
-                          value={formData[field.roommatePhoneField.id]}
-                          onChange={(value) =>
-                            handleExtraFieldChange(
-                              field.roommatePhoneField!.id,
-                              value,
-                            )
-                          }
-                          formData={formData}
-                          onExtraFieldChange={handleExtraFieldChange}
-                        />
-                      </div>
-                    )}
-                </div>
-              );
-            })}
-          </div>
+                      {/* Render roommate phone field separately for better layout */}
+                      {field.id === "roomType" &&
+                        shouldShowExtraField(field, formData) &&
+                        field.roommatePhoneField && (
+                          <div className="mt-4 pl-4 border-l-2 border-blue-200">
+                            <FormField
+                              field={{
+                                ...field.roommatePhoneField,
+                                required:
+                                  field.roommatePhoneField.required ?? true,
+                              }}
+                              value={formData[field.roommatePhoneField.id]}
+                              onChange={(value) =>
+                                handleExtraFieldChange(
+                                  field.roommatePhoneField!.id,
+                                  value,
+                                )
+                              }
+                              formData={formData}
+                              onExtraFieldChange={handleExtraFieldChange}
+                            />
+                          </div>
+                        )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {/* Price Display Card - Show after hotel selection fields */}
           {priceCalculation && (
@@ -1093,6 +1105,137 @@ export default function RegistrationForm() {
               )}
             </div>
           )}
+
+          {/* Payment account details (between pricing and payment slip upload) */}
+          {formData.hotelChoice && (
+            <div className="mt-8">
+              <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-200 rounded-2xl p-5 shadow-md">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-blue-700 text-sm font-bold">
+                      ฿
+                    </span>
+                    <h3 className="text-base md:text-lg font-bold tracking-tight text-blue-900">
+                      รายละเอียดการชำระเงิน
+                    </h3>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_240px] gap-5 items-center">
+                  {/* Left: details with copy actions */}
+                  <div className="space-y-3 text-[15px] md:text-base text-gray-800 leading-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-gray-500">ธนาคาร</div>
+                        <div className="font-semibold">กสิกรไทย</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-gray-500">เลขที่บัญชี</div>
+                        <div className="font-mono tracking-wide text-lg md:text-xl">
+                          213-3-51978-8
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(
+                              "213-3-51978-8",
+                            );
+                            setCopiedKey("acct");
+                            setTimeout(() => setCopiedKey(null), 1200);
+                          } catch {}
+                        }}
+                        className="px-3 py-1.5 text-xs md:text-sm rounded-md bg-blue-600/10 text-blue-700 border border-blue-200 hover:bg-blue-600/15"
+                      >
+                        {copiedKey === "acct" ? "คัดลอกแล้ว" : "คัดลอก"}
+                      </button>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">ชื่อบัญชี</div>
+                      <div className="text-[14px] md:text-[15px] leading-6">
+                        น.ส. ปภัสราภรณ์ ตันธนวงศ์ และ น.ส. สุจินดา ปัญญาคุ้มวงศ์
+                        และ น.ส. ธรรวศร ฐานมั่นคงธนิต
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: compact QR thumbnail */}
+                  <div className="flex flex-col items-center gap-2">
+                    <Image
+                      src="/assets/PAYMENT_ACCOUNT.jpg"
+                      alt="สแกน QR เพื่อชำระเงิน"
+                      width={320}
+                      height={200}
+                      sizes="(max-width: 768px) 240px, 320px"
+                      className="max-h-44 md:max-h-48 w-auto object-contain rounded-lg border border-gray-200 shadow"
+                      priority={false}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setQrPreviewOpen(true)}
+                      className="text-xs md:text-sm text-blue-700 hover:underline"
+                    >
+                      ดูภาพใหญ่
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* QR Preview Modal */}
+          {qrPreviewOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div
+                className="absolute inset-0 bg-black/60"
+                onClick={() => setQrPreviewOpen(false)}
+              />
+              <div className="relative bg-white rounded-xl p-3 shadow-2xl max-w-[90vw]">
+                <button
+                  type="button"
+                  onClick={() => setQrPreviewOpen(false)}
+                  className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-white shadow border border-gray-200 text-gray-600"
+                >
+                  ×
+                </button>
+                <Image
+                  src="/assets/PAYMENT_ACCOUNT.jpg"
+                  alt="ข้อมูลบัญชีสำหรับชำระเงิน"
+                  width={1200}
+                  height={1600}
+                  sizes="90vw"
+                  className="max-h-[80vh] w-auto object-contain rounded-md"
+                  priority
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Deferred payment slip upload field rendered after account details */}
+          {(() => {
+            const paymentSlipField = dynamicFormSchema.find(
+              (f) => f.id === "paymentSlip",
+            );
+            if (!paymentSlipField) return null;
+            const isEnabled = isFieldEnabled(paymentSlipField.id);
+            if (!isEnabled) return null;
+            return (
+              <div className="mt-8 md:col-span-2">
+                <FormField
+                  field={paymentSlipField}
+                  value={formData[paymentSlipField.id]}
+                  onChange={(value) =>
+                    handleFieldChange(paymentSlipField.id, value)
+                  }
+                  formData={formData}
+                  onExtraFieldChange={handleExtraFieldChange}
+                  disabled={!isEnabled}
+                />
+              </div>
+            );
+          })()}
 
           {/* Submit Button - Enhanced */}
           <div className="mt-8 text-center">
