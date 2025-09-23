@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Download, Activity } from "lucide-react";
 import SummaryCards from "./SummaryCards";
 import Filters, { FilterState } from "./Filters";
@@ -29,6 +29,7 @@ export default function AdminDashboard({
   initialProvinces,
 }: AdminDashboardProps) {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Use state to store the data, but update it when props change
   const [registrations, setRegistrations] = useState(initialRegistrations);
@@ -73,9 +74,9 @@ export default function AdminDashboard({
         }
       });
       const newUrl = params.toString() ? `?${params.toString()}` : "/admin";
-      window.history.pushState({}, "", newUrl);
+      router.push(newUrl, { scroll: false });
     },
-    [searchParams],
+    [searchParams, router],
   );
 
   const handlePageChange = useCallback(

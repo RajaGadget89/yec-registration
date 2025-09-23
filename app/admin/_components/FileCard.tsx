@@ -226,7 +226,7 @@ export default function FileCard({
             src={url}
             alt={label}
             fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className={`${label === "Badge" || label === "Payment Slip" ? "object-contain" : "object-cover"} transition-transform duration-300 group-hover:scale-105`}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             onError={(e) => {
               // Replace with a placeholder div on error

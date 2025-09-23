@@ -130,6 +130,11 @@ export async function POST(
     }
 
     // Update registration
+    // Also sync scalar review statuses from checklist to prevent drift
+    const { deriveScalarStatuses } = await import(
+      "../../../../../lib/reviewStatusMapper"
+    );
+    const scalarStatuses = deriveScalarStatuses(updatedChecklist as any);
     const { data: updatedRegistration, error: updateError } = await (
       supabase as any
     )
@@ -139,6 +144,10 @@ export async function POST(
         status: newStatus,
         update_reason: allPassed ? null : (registration as any).update_reason,
         updated_at: new Date().toISOString(),
+        // scalar sync (approved/pending/rejected)
+        payment_review_status: scalarStatuses.payment_review_status,
+        profile_review_status: scalarStatuses.profile_review_status,
+        tcc_review_status: scalarStatuses.tcc_review_status,
       })
       .eq("id", registrationId)
       .select()

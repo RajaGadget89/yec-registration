@@ -1,4 +1,5 @@
 import { getServiceRoleClient } from "../supabase-server";
+import { generateBadge } from "../generateBadge";
 import { getEmailTransport } from "./transport";
 import {
   renderEmailTemplate,
@@ -325,6 +326,59 @@ export async function dispatchEmailBatch(
             ...email.payload,
             token_id: undefined,
           };
+        }
+      }
+
+      // Generate dynamic assets for specific templates before rendering
+      if (email.template === "approval-badge") {
+        try {
+          let badgeUrl = (resolvedPayload as any).badgeUrl as
+            | string
+            | undefined;
+          if (!badgeUrl || badgeUrl.trim() === "") {
+            const supabase = getServiceRoleClient();
+            // Look up registration by tracking code
+            const tracking = (resolvedPayload as any)?.trackingCode as
+              | string
+              | undefined;
+            if (tracking) {
+              const { data: reg } = await supabase
+                .from("registrations")
+                .select("id, first_name, last_name, badge_url")
+                .eq("registration_id", tracking)
+                .single();
+              if (reg) {
+                badgeUrl = (reg as any).badge_url || null;
+                if (!badgeUrl) {
+                  try {
+                    badgeUrl = await generateBadge({
+                      id: String((reg as any).id),
+                      firstName: (reg as any).first_name,
+                      lastName: (reg as any).last_name,
+                    });
+                    // Persist badge_url for future sends
+                    await (supabase as any)
+                      .from("registrations")
+                      .update({ badge_url: badgeUrl })
+                      .eq("id", (reg as any).id);
+                  } catch (genErr) {
+                    console.warn(
+                      "[DISPATCH] Failed to generate badge URL:",
+                      genErr,
+                    );
+                  }
+                }
+                if (badgeUrl) {
+                  resolvedPayload = { ...resolvedPayload, badgeUrl } as any;
+                }
+              }
+            }
+          }
+        } catch (preErr) {
+          console.warn(
+            "[DISPATCH] Pre-render step for approval-badge failed:",
+            preErr,
+          );
         }
       }
 

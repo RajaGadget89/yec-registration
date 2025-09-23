@@ -1,13 +1,77 @@
 import { generateYECBadge } from "./badgeGenerator";
 import { uploadBadgeToSupabase } from "./uploadBadgeToSupabase";
+import { createClient } from "@supabase/supabase-js";
 
 export async function generateBadge(reg: {
   id: string;
   firstName: string;
   lastName: string;
 }) {
-  // In prod, plug real logic; for now return deterministic URL.
-  return `https://storage.example/badges/${reg.id}.png`;
+  console.log("🔧 Admin Badge Generation - Using Real Implementation");
+
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+
+    // Get the full registration data from database
+    const { data: registration, error } = await supabase
+      .from("registrations")
+      .select("*")
+      .eq("id", reg.id)
+      .single();
+
+    if (error || !registration) {
+      throw new Error(
+        `Registration not found: ${error?.message || "Unknown error"}`,
+      );
+    }
+
+    console.log(`Found registration: ${registration.registration_id}`);
+    console.log(`Profile image URL: ${registration.profile_image_url}`);
+
+    // Create frontend data structure for badge generation
+    const frontendData = {
+      title: registration.title,
+      firstName: registration.first_name,
+      lastName: registration.last_name,
+      nickname: registration.nickname,
+      phone: registration.phone,
+      email: registration.email,
+      yecProvince: registration.yec_province,
+      businessType: registration.business_type,
+      profileImage: registration.profile_image_url, // This is the storage path
+      chamberCard: registration.chamber_card_url,
+      paymentSlip: registration.payment_slip_url,
+    };
+
+    // Create mapped data structure
+    const mappedData = {
+      registration_id: registration.registration_id,
+      title: registration.title,
+      first_name: registration.first_name,
+      last_name: registration.last_name,
+      nickname: registration.nickname,
+      phone: registration.phone,
+      email: registration.email,
+      yec_province: registration.yec_province,
+      business_type: registration.business_type,
+      profile_image_url: registration.profile_image_url,
+      chamber_card_url: registration.chamber_card_url,
+      payment_slip_url: registration.payment_slip_url,
+    };
+
+    // Use the same badge generation logic as registration flow
+    const badgeUrl = await generateAndUploadBadge(mappedData, frontendData);
+
+    console.log(`✅ Admin badge generated with profile image: ${badgeUrl}`);
+    return badgeUrl;
+  } catch (error) {
+    console.error("❌ Admin badge generation failed:", error);
+    // Fallback to stub behavior if generation fails
+    return `https://storage.example/badges/${reg.id}.png`;
+  }
 }
 
 // Generate badge and upload to Supabase
@@ -100,14 +164,20 @@ export async function generateAndUploadBadge(
     const yecProvinceDisplay =
       yecProvinceField?.label || mappedData.yec_province;
 
-    // Handle profile image - could be URL or base64 data
+    // Handle profile image - could be URL, storage path, or base64 data
     let profileImageBase64: string | undefined;
+
+    // Initialize Supabase client for storage operations
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
 
     if (
       typeof frontendData.profileImage === "string" &&
       frontendData.profileImage.startsWith("http")
     ) {
-      // New format: URL from Supabase
+      // Direct HTTP URL format
       try {
         console.log(
           "Fetching profile image from URL:",
@@ -140,6 +210,71 @@ export async function generateAndUploadBadge(
         );
       } catch (error) {
         console.error("Error fetching profile image from URL:", error);
+        // Continue without profile image if fetch fails
+      }
+    } else if (
+      typeof frontendData.profileImage === "string" &&
+      frontendData.profileImage.includes("profile-images/")
+    ) {
+      // Storage path format - convert to signed URL using Supabase client
+      try {
+        console.log(
+          "Converting storage path to signed URL:",
+          frontendData.profileImage,
+        );
+
+        // Extract filename from storage path
+        const filename = frontendData.profileImage.replace(
+          "profile-images/",
+          "",
+        );
+
+        // Get signed URL from Supabase storage
+        const { data: signedUrlData, error: signedUrlError } =
+          await supabase.storage
+            .from("profile-images")
+            .createSignedUrl(filename, 3600); // 1 hour expiry
+
+        if (signedUrlError) {
+          throw new Error(
+            `Supabase signed URL error: ${signedUrlError.message}`,
+          );
+        }
+
+        if (!signedUrlData?.signedUrl) {
+          throw new Error("No signed URL returned from Supabase");
+        }
+
+        console.log("Got signed URL from Supabase:", signedUrlData.signedUrl);
+
+        // Fetch image using signed URL
+        const response = await fetch(signedUrlData.signedUrl);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.startsWith("image/")) {
+          throw new Error(`Invalid content type: ${contentType}`);
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Validate buffer size (max 5MB)
+        if (buffer.length > 5 * 1024 * 1024) {
+          throw new Error("Image file too large (max 5MB)");
+        }
+
+        profileImageBase64 = `data:${contentType};base64,${buffer.toString("base64")}`;
+        console.log(
+          "Profile image fetched successfully from storage path, size:",
+          buffer.length,
+          "bytes",
+        );
+      } catch (error) {
+        console.error("Error fetching profile image from storage path:", error);
         // Continue without profile image if fetch fails
       }
     } else if (frontendData.profileImage?.dataUrl) {
