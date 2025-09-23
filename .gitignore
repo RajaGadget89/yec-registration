@@ -83,6 +83,10 @@ coverage/
 # script
 reset-dev.sh
 backup.sh
+soft-reset.sh
+pre-cicd-check.sh
+pre-cicd-check-v2.sh
+fetch-test-tokens.mjs
 
 # ======================================= 
 # Documentation
