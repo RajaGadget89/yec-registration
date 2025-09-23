@@ -70,13 +70,25 @@ async function handlePOST(
 
     // Check if approval failed due to missing prerequisites
     if (!approvalResult.success) {
+      // Idempotent path: if already approved and scalar statuses are approved, still send email
+      const alreadyApproved =
+        (registration as any).status === "approved" &&
+        (registration as any).payment_review_status === "approved" &&
+        (registration as any).profile_review_status === "approved" &&
+        (registration as any).tcc_review_status === "approved";
+
+      if (!alreadyApproved) {
+        console.log(
+          "Approval failed due to prerequisites:",
+          approvalResult.message,
+        );
+        return NextResponse.json(
+          { ok: false, error: "not ready" },
+          { status: 400 },
+        );
+      }
       console.log(
-        "Approval failed due to prerequisites:",
-        approvalResult.message,
-      );
-      return NextResponse.json(
-        { ok: false, error: "not ready" },
-        { status: 400 },
+        "Idempotent approval: registration already approved; continuing to send email and emit event",
       );
     }
 

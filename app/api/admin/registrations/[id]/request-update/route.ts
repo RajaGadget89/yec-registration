@@ -112,7 +112,11 @@ async function handlePOST(
       notes: notes || null,
     };
 
-    // Update registration with new checklist (let database trigger handle status update)
+    // Update registration with new checklist and sync scalar statuses
+    const { deriveScalarStatuses } = await import(
+      "../../../../../lib/reviewStatusMapper"
+    );
+    const scalarStatuses = deriveScalarStatuses(currentChecklist as any);
     console.log(
       `[REQUEST_UPDATE_API] Updating registration with review_checklist:`,
       {
@@ -128,6 +132,9 @@ async function handlePOST(
           review_checklist: currentChecklist,
           update_reason: notes || dimension, // Set update_reason to notes if available, otherwise fallback to dimension
           updated_at: new Date().toISOString(),
+          payment_review_status: scalarStatuses.payment_review_status,
+          profile_review_status: scalarStatuses.profile_review_status,
+          tcc_review_status: scalarStatuses.tcc_review_status,
         })
         .eq("id", id)
         .select()

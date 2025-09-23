@@ -112,7 +112,11 @@ async function handlePOST(
     // Update the specific dimension
     currentChecklist[dimension] = { status: "passed" };
 
-    // Update registration with new checklist
+    // Update registration with new checklist and sync scalar statuses
+    const { deriveScalarStatuses } = await import(
+      "../../../../../lib/reviewStatusMapper"
+    );
+    const scalarStatuses = deriveScalarStatuses(currentChecklist as any);
     const { data: updatedRegistration, error: updateError } = await (
       supabase as any
     )
@@ -120,6 +124,9 @@ async function handlePOST(
       .update({
         review_checklist: currentChecklist,
         updated_at: new Date().toISOString(),
+        payment_review_status: scalarStatuses.payment_review_status,
+        profile_review_status: scalarStatuses.profile_review_status,
+        tcc_review_status: scalarStatuses.tcc_review_status,
       })
       .eq("id", id)
       .select()
@@ -153,6 +160,30 @@ async function handlePOST(
         approveResult[0].success
       ) {
         finalStatus = "approved";
+
+        // Outbox-only: emit event to enqueue approval-badge
+        try {
+          if (!user.email) {
+            throw new Error("Admin email is required");
+          }
+          await EventService.emitAdminApproved(updatedRegistration, user.email);
+          console.log("Admin approved event emitted (outbox enqueue)");
+        } catch (eventError) {
+          console.error("Error emitting admin approved event:", eventError);
+        }
+
+        // Auto-dispatch a small batch so email sends immediately without manual action
+        try {
+          const { dispatchEmailBatch } = await import(
+            "../../../../../lib/emails/dispatcher"
+          );
+          await dispatchEmailBatch(10, false);
+        } catch (dispatchError) {
+          console.warn(
+            "Auto-dispatch after approval failed (will be sent by cron/widget):",
+            dispatchError,
+          );
+        }
       }
     }
 

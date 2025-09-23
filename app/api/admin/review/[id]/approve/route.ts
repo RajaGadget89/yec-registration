@@ -56,15 +56,8 @@ export async function POST(
     }
 
     // Check if registration is in a valid state for approval
-
-    if ((registration as any).status !== "waiting_for_review") {
-      return createErrorResponse(
-        "INVALID_STATUS",
-        "Registration not in valid state for approval",
-        `Registration status is ${(registration as any).status}, expected waiting_for_review`,
-        409,
-      );
-    }
+    const statusNow = (registration as any).status as string;
+    const isWaiting = statusNow === "waiting_for_review";
 
     // Check if all dimensions are passed
 
@@ -88,32 +81,33 @@ export async function POST(
       );
     }
 
-    // Update registration to approved
+    // Update registration to approved only if currently waiting; otherwise treat as idempotent
+    let updatedRegistration = registration as any;
+    if (isWaiting) {
+      const { data, error: updateError } = await (supabase as any)
+        .from("registrations")
+        .update({
+          status: "approved",
+          update_reason: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", registrationId)
+        .select()
+        .single();
 
-    const { data: updatedRegistration, error: updateError } = await (
-      supabase as any
-    )
-      .from("registrations")
-      .update({
-        status: "approved",
-        update_reason: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", registrationId)
-      .select()
-      .single();
-
-    if (updateError || !updatedRegistration) {
-      console.error("Failed to update registration:", updateError);
-      return createErrorResponse(
-        "UPDATE_FAILED",
-        "Failed to approve registration",
-        "Could not update registration status to approved",
-        500,
-      );
+      if (updateError || !data) {
+        console.error("Failed to update registration:", updateError);
+        return createErrorResponse(
+          "UPDATE_FAILED",
+          "Failed to approve registration",
+          "Could not update registration status to approved",
+          500,
+        );
+      }
+      updatedRegistration = data;
     }
 
-    // Emit domain event
+    // Emit domain event (outbox-only path)
     try {
       const event = EventFactory.createAdminApproved(
         updatedRegistration,
@@ -123,6 +117,19 @@ export async function POST(
     } catch (eventError) {
       console.error("Failed to emit admin approved event:", eventError);
       // Don't fail the request if event emission fails
+    }
+
+    // Auto-dispatch a small batch so approval emails send immediately
+    try {
+      const { dispatchEmailBatch } = await import(
+        "../../../../../lib/emails/dispatcher"
+      );
+      await dispatchEmailBatch(10, false);
+    } catch (dispatchError) {
+      console.warn(
+        "Auto-dispatch after approve failed (cron/widget will handle):",
+        dispatchError,
+      );
     }
 
     // Log audit events
@@ -158,10 +165,12 @@ export async function POST(
       // Don't fail the request if audit logging fails
     }
 
-    // Return success response
+    // Return success response (idempotent)
     return NextResponse.json({
       success: true,
-      message: "Registration approved successfully",
+      message: isWaiting
+        ? "Registration approved successfully"
+        : "Registration already approved; event emitted",
       registration_id: registrationId,
       new_status: "approved",
       approved_by: adminEmail,
