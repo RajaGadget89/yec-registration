@@ -23,7 +23,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const updateSchema = z.object({
-  roles: z.array(z.enum(["admin", "super_admin"])).optional(),
+  business_roles: z.array(z.enum(["user_profile", "payment_slip", "tcc_card", "checker_admin"])).optional(),
   status: z.enum(["active", "suspended"]).optional(),
 });
 
@@ -127,7 +127,7 @@ export async function PUT(
     const validatedData = validationResult.data;
 
     // Validate that at least one update is provided
-    if (!validatedData.roles && !validatedData.status) {
+    if (!validatedData.business_roles && !validatedData.status) {
       return NextResponse.json(
         {
           code: "VALIDATION_ERROR",
@@ -158,8 +158,8 @@ export async function PUT(
 
     // Prepare update data
     const updateData: any = {};
-    if (validatedData.roles && validatedData.roles.length > 0) {
-      updateData.role = validatedData.roles[0]; // Take first role
+    if (validatedData.business_roles) {
+      updateData.business_roles = validatedData.business_roles;
     }
     if (validatedData.status) {
       updateData.status = validatedData.status;
@@ -269,7 +269,8 @@ export async function PUT(
       admin: {
         id: updatedAdmin.id,
         email: updatedAdmin.email,
-        roles: [updatedAdmin.role],
+        role: updatedAdmin.role,
+        business_roles: updatedAdmin.business_roles || [],
         status: updatedAdmin.status,
       },
     });

@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, Home, Shield, Users, DollarSign } from "lucide-react";
+import { BarChart3, Home, Shield } from "lucide-react";
 import Footer from "../components/Footer";
 import AdminUserInfoClient from "./_components/AdminUserInfoClient";
 import { EmailOutboxNavWidget } from "./_components/EmailOutboxNavWidget";
+import SuperAdminDropdown from "./_components/SuperAdminDropdown";
 
 import { getCurrentUser } from "../lib/auth-utils.server";
 import { getRolesForEmail } from "../lib/rbac";
+import { isCheckinSystemEnabled } from "../lib/features";
 import { headers } from "next/headers";
 
 // Force dynamic rendering for admin routes that use cookies
@@ -39,6 +41,9 @@ export default async function AdminLayout({
       isSuperAdmin = rbacRoles.has("super_admin");
     }
   }
+
+  // Check if check-in system is enabled
+  const checkinEnabled = isCheckinSystemEnabled();
 
   // Safe E2E bypass: env + explicit header
   const headersList = await headers();
@@ -105,36 +110,17 @@ export default async function AdminLayout({
               </Link>
               <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
 
-              {/* Admin Management Team - Super Admin Only */}
-              {isSuperAdmin &&
-                process.env.FEATURES_ADMIN_MANAGEMENT !== "false" && (
-                  <>
-                    <Link
-                      href="/admin/management"
-                      className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
-                    >
-                      <div className="p-2 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 shadow-sm group-hover:shadow-md group-hover:from-yec-primary/10 group-hover:to-yec-accent/10 transition-all duration-300">
-                        <Users className="h-4 w-4" />
-                      </div>
-                      <span className="font-semibold">
-                        Admin Management Team
-                      </span>
-                    </Link>
-                    <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
-                  </>
-                )}
-
-              {/* Pricing Management - Super Admin Only */}
-              {isSuperAdmin && (
+              {/* Check-in System - All Admins */}
+              {checkinEnabled && (
                 <>
                   <Link
-                    href="/admin/pricing-management"
+                    href="/admin/checkin/dashboard"
                     className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
                   >
                     <div className="p-2 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 shadow-sm group-hover:shadow-md group-hover:from-yec-primary/10 group-hover:to-yec-accent/10 transition-all duration-300">
-                      <DollarSign className="h-4 w-4" />
+                      <BarChart3 className="h-4 w-4" />
                     </div>
-                    <span className="font-semibold">Pricing Management</span>
+                    <span className="font-semibold">Check-in Dashboard</span>
                   </Link>
                   <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
                 </>
@@ -145,14 +131,20 @@ export default async function AdminLayout({
                 <EmailOutboxNavWidget />
               </div>
 
+              {/* Super Admin Dropdown */}
+              {isSuperAdmin && (
+                <>
+                  <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+                  <SuperAdminDropdown isCheckinEnabled={checkinEnabled} />
+                </>
+              )}
+
+              {/* Separator between navigation and user info */}
               <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
-              <span className="text-gray-500 dark:text-gray-400 font-medium">
-                Dashboard
-              </span>
             </div>
 
-            {/* Admin User Info and Actions */}
-            <div className="flex items-center space-x-3">
+            {/* Enhanced Admin User Info and Actions */}
+            <div className="flex items-center space-x-4">
               <AdminUserInfoClient user={user} />
             </div>
           </div>

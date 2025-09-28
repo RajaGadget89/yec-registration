@@ -484,6 +484,12 @@ async function drawQRCodeSection(
   const qrX = width - qrSize - 40; // 40px padding from right
   const qrY = height - qrSize - 90; // 40px padding from bottom, accounting for footer height
 
+  // Validate and ensure registrationId is available
+  if (!badgeData.registrationId) {
+    console.error("❌ CRITICAL: registrationId is missing from badgeData:", badgeData);
+    throw new Error("Registration ID is required for QR code generation");
+  }
+
   // QR code data
   const qrData: QRCodeData = {
     regId: badgeData.registrationId,

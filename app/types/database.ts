@@ -319,7 +319,7 @@ export interface RegistrationUpdate {
 }
 
 // Business role types for granular admin permissions
-export type BusinessRole = "user_profile" | "payment_slip" | "tcc_card";
+export type BusinessRole = "user_profile" | "payment_slip" | "tcc_card" | "checker_admin";
 
 // Admin user table types
 export interface AdminUser {

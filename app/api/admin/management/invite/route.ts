@@ -21,7 +21,7 @@ import { sendInvitationEmail } from "../../../../server/email/provider";
 const inviteSchema = z.object({
   email: z.string().email("Invalid email address"),
   roles: z
-    .array(z.enum(["admin", "super_admin"]))
+    .array(z.enum(["admin", "super_admin", "checker_admin"]))
     .min(1, "At least one role is required"),
 });
 

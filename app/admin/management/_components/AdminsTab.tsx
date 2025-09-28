@@ -163,9 +163,9 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
     setActionLoading(`business-roles-${adminId}`);
     try {
       const response = await fetch(
-        `/api/admin/management/admins/${adminId}/roles`,
+        `/api/admin/management/admins/${adminId}`,
         {
-          method: "PATCH",
+          method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
@@ -213,6 +213,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
     setEditingBusinessRoles(null);
     setTempBusinessRoles([]);
   };
+
 
   const toggleBusinessRole = (role: string) => {
     setTempBusinessRoles((prev) =>
@@ -566,7 +567,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                     {editingBusinessRoles === admin.id ? (
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-1">
-                          {["user_profile", "payment_slip", "tcc_card"].map(
+                          {["user_profile", "payment_slip", "tcc_card", "checker_admin"].map(
                             (role) => (
                               <label
                                 key={role}
@@ -664,30 +665,6 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() =>
-                          handleRoleChange(
-                            admin.id,
-                            admin.role === "super_admin"
-                              ? "admin"
-                              : "super_admin",
-                          )
-                        }
-                        disabled={actionLoading === `role-${admin.id}`}
-                        className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md transition-colors ${
-                          actionLoading === `role-${admin.id}`
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
-                            : "text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
-                        }`}
-                        data-testid="admins-action-role"
-                      >
-                        {actionLoading === `role-${admin.id}` ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                          <Edit3 className="h-3 w-3 mr-1" />
-                        )}
-                        Change Role
-                      </button>
                       <button
                         onClick={() =>
                           handleStatusChange(

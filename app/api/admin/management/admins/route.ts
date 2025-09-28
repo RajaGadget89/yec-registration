@@ -100,7 +100,7 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
       query = query.eq("is_active", false);
     }
 
-    if (role && ["admin", "super_admin"].includes(role)) {
+    if (role && ["admin", "super_admin", "checker_admin"].includes(role)) {
       query = query.eq("role", role);
     }
 

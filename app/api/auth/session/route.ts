@@ -56,6 +56,20 @@ export async function POST(req: Request) {
       return res; // cookie written
     }
 
+    if (body.token) {
+      // For magic link tokens, we need to verify the OTP
+      const { error } = await supabase.auth.verifyOtp({
+        token_hash: body.token,
+        type: 'magiclink'
+      });
+      if (error)
+        return NextResponse.json(
+          { ok: false, error: error.message },
+          { status: 401 },
+        );
+      return res; // cookie written
+    }
+
     return NextResponse.json(
       { ok: false, error: "missing credentials" },
       { status: 400 },
