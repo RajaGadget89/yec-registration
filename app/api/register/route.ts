@@ -97,6 +97,9 @@ async function handlePOST(req: NextRequest) {
     // Map frontend data to database format
     const mappedData = mapFrontendToDatabase(body);
 
+    // Initialize Supabase client first
+    const supabase = getSupabaseServiceClient();
+
     // Generate tracking code first
     let trackingCode: string | null = null;
     try {
@@ -173,8 +176,6 @@ async function handlePOST(req: NextRequest) {
       created_at: getThailandTimeISOString(), // Use Thailand timezone
       updated_at: getThailandTimeISOString(),
     };
-
-    const supabase = getSupabaseServiceClient();
 
     // trackingCode already generated above for badge generation
 

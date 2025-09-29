@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServiceClient } from "../../../../lib/supabase-server";
 import crypto from "crypto";
+import { approvalBadgeService } from "../../../../lib/approvalBadgeService";
 
 /**
  * Public API endpoint for dimension-specific registration updates
@@ -400,6 +401,28 @@ export async function POST(
       packageCode: updateData.selected_package_code,
     });
 
+    // ✅ CRITICAL FIX: Check if registration was previously approved
+    // A registration was previously approved if ALL THREE review statuses are "passed"
+    // even if the main status is "waiting_for_update_*" (admin requested update)
+    const { data: currentRegistrationStatus } = await supabase
+      .from("registrations")
+      .select("status, payment_review_status, profile_review_status, tcc_review_status")
+      .eq("id", registrationId)
+      .single();
+    
+    const wasApprovedBeforeUpdate = currentRegistrationStatus?.payment_review_status === 'passed' &&
+                                   currentRegistrationStatus?.profile_review_status === 'passed' &&
+                                   currentRegistrationStatus?.tcc_review_status === 'passed';
+
+    console.log("[PUBLIC_UPDATE_API] Approval status check:", {
+      registrationId,
+      currentStatus: currentRegistrationStatus?.status,
+      wasApprovedBeforeUpdate,
+      paymentStatus: currentRegistrationStatus?.payment_review_status,
+      profileStatus: currentRegistrationStatus?.profile_review_status,
+      tccStatus: currentRegistrationStatus?.tcc_review_status,
+    });
+
     // Update the registration
     const { data: updatedRegistration, error: updateError } = await supabase
       .from("registrations")
@@ -445,6 +468,18 @@ export async function POST(
 
     // The database trigger should automatically update the main status
     // based on the review_checklist changes
+
+    // NEW: Regenerate approval badge if registration was previously approved
+    if (wasApprovedBeforeUpdate) {
+      try {
+        console.log(`🔄 User updated previously approved registration - regenerating badge for: ${updatedRegistration.registration_id}`);
+        await approvalBadgeService.regenerateBadge(updatedRegistration.registration_id);
+        console.log(`✅ Badge regenerated for updated registration: ${updatedRegistration.registration_id}`);
+      } catch (regenerateError) {
+        console.warn("Badge regeneration failed for user update:", regenerateError);
+        // Don't fail the update if badge regeneration fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

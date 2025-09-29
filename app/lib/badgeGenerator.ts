@@ -304,7 +304,7 @@ async function drawHeader(
 
   // Main title
   ctx.font = getThaiFont(26, "bold");
-  drawThaiText(ctx, "YEC DAY 2024", width - 25, 40);
+  drawThaiText(ctx, "YEC DAY 2025", width - 25, 40);
 
   // Subtitle
   ctx.font = getThaiFont(16);
