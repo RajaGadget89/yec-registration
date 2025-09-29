@@ -146,17 +146,21 @@ async function handlePOST(
       currentChecklist.profile.status === "passed" &&
       currentChecklist.tcc.status === "passed";
 
-    console.log(`🔍 Dimension ${dimension} marked as passed. All dimensions passed: ${allPassed}`);
+    console.log(
+      `🔍 Dimension ${dimension} marked as passed. All dimensions passed: ${allPassed}`,
+    );
     console.log(`🔍 Current checklist status:`, {
       payment: currentChecklist.payment.status,
       profile: currentChecklist.profile.status,
-      tcc: currentChecklist.tcc.status
+      tcc: currentChecklist.tcc.status,
     });
 
     let finalStatus = updatedRegistration.status;
     if (allPassed) {
-      console.log(`🚀 All dimensions passed! Attempting auto-approval for registration: ${id}`);
-      
+      console.log(
+        `🚀 All dimensions passed! Attempting auto-approval for registration: ${id}`,
+      );
+
       // Auto-approve
       const { data: approveResult, error: approveError } = await (
         supabase as any
@@ -165,7 +169,7 @@ async function handlePOST(
       console.log(`🔍 fn_try_approve result:`, {
         error: approveError,
         result: approveResult,
-        success: approveResult?.[0]?.success
+        success: approveResult?.[0]?.success,
       });
 
       if (
@@ -177,7 +181,9 @@ async function handlePOST(
         finalStatus = "approved";
 
         // ✅ CRITICAL FIX: Fetch FRESH registration data after approval
-        console.log(`🔄 Fetching fresh registration data after approval for: ${id}`);
+        console.log(
+          `🔄 Fetching fresh registration data after approval for: ${id}`,
+        );
         const { data: freshRegistration, error: freshError } = await supabase
           .from("registrations")
           .select("*")
@@ -185,14 +191,17 @@ async function handlePOST(
           .single();
 
         if (freshError) {
-          console.error("❌ Failed to fetch fresh registration data:", freshError);
+          console.error(
+            "❌ Failed to fetch fresh registration data:",
+            freshError,
+          );
         } else {
           console.log(`✅ Fresh registration data fetched:`, {
             id: freshRegistration.id,
             registration_id: freshRegistration.registration_id,
             status: freshRegistration.status,
             first_name: freshRegistration.first_name,
-            last_name: freshRegistration.last_name
+            last_name: freshRegistration.last_name,
           });
         }
 
@@ -202,9 +211,16 @@ async function handlePOST(
             throw new Error("Admin email is required");
           }
           // ✅ CRITICAL FIX: Use FRESH registration data, not stale updatedRegistration
-          const registrationForEvent = freshError ? updatedRegistration : freshRegistration;
-          await EventService.emitAdminApproved(registrationForEvent, user.email);
-          console.log("Admin approved event emitted (outbox enqueue) with fresh data");
+          const registrationForEvent = freshError
+            ? updatedRegistration
+            : freshRegistration;
+          await EventService.emitAdminApproved(
+            registrationForEvent,
+            user.email,
+          );
+          console.log(
+            "Admin approved event emitted (outbox enqueue) with fresh data",
+          );
         } catch (eventError) {
           console.error("Error emitting admin approved event:", eventError);
         }

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   withAdminApiGuard as _withAdminApiGuard,
   validateAdminAccess as _validateAdminAccess,
-} from "@/app/lib/admin-guard-server";
-import { generateSignedUrl } from "@/app/lib/uploadFileToSupabase";
-import { getServiceRoleClient } from "@/app/lib/supabase-server";
-import { getRolesForEmail } from "@/app/lib/rbac";
+} from "@/lib/admin-guard-server";
+import { generateSignedUrl } from "@/lib/uploadFileToSupabase";
+import { getServiceRoleClient } from "@/lib/supabase-server";
+import { getRolesForEmail } from "@/lib/rbac";
 
 export const runtime = "nodejs";
 

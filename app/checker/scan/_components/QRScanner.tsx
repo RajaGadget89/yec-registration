@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { Scanner } from '@yudiel/react-qr-scanner';
+import { useState, useEffect, useCallback } from "react";
+import { Scanner } from "@yudiel/react-qr-scanner";
 
 interface QRScannerProps {
   onQRCodeDetected: (data: string) => void;
@@ -9,7 +9,11 @@ interface QRScannerProps {
   active: boolean;
 }
 
-export default function QRScanner({ onQRCodeDetected, onError, active }: QRScannerProps) {
+export default function QRScanner({
+  onQRCodeDetected,
+  onError,
+  active,
+}: QRScannerProps) {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   // const scannerRef = useRef<any>(null);
@@ -19,23 +23,27 @@ export default function QRScanner({ onQRCodeDetected, onError, active }: QRScann
       // Try with more flexible constraints to avoid OverconstrainedError
       const constraints = {
         video: {
-          facingMode: { ideal: 'environment' },
+          facingMode: { ideal: "environment" },
           width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
+          height: { ideal: 720 },
+        },
       };
-      
+
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       setHasPermission(true);
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
     } catch (error) {
-      console.error('Camera permission error:', error);
+      console.error("Camera permission error:", error);
       setHasPermission(false);
-      
-      if (error instanceof Error && error.name === 'OverconstrainedError') {
-        onError('Camera constraints not supported. Please try a different camera or device.');
+
+      if (error instanceof Error && error.name === "OverconstrainedError") {
+        onError(
+          "Camera constraints not supported. Please try a different camera or device.",
+        );
       } else {
-        onError('Camera access denied. Please allow camera access to scan QR codes.');
+        onError(
+          "Camera access denied. Please allow camera access to scan QR codes.",
+        );
       }
     }
   }, [onError]);
@@ -48,10 +56,10 @@ export default function QRScanner({ onQRCodeDetected, onError, active }: QRScann
 
   const handleQRCodeDetected = (result: string) => {
     if (isScanning) return; // Prevent multiple scans
-    
+
     setIsScanning(true);
     onQRCodeDetected(result);
-    
+
     // Reset scanning state after a delay
     setTimeout(() => {
       setIsScanning(false);
@@ -59,8 +67,8 @@ export default function QRScanner({ onQRCodeDetected, onError, active }: QRScann
   };
 
   const handleError = (error: any) => {
-    console.error('QR Scanner error:', error);
-    onError('QR code scanning error. Please try again.');
+    console.error("QR Scanner error:", error);
+    onError("QR code scanning error. Please try again.");
   };
 
   if (!active) {
@@ -75,7 +83,9 @@ export default function QRScanner({ onQRCodeDetected, onError, active }: QRScann
     return (
       <div className="w-full h-64 bg-red-50 border border-red-200 rounded-lg flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-600 text-lg font-semibold mb-2">Camera Access Required</div>
+          <div className="text-red-600 text-lg font-semibold mb-2">
+            Camera Access Required
+          </div>
           <p className="text-red-600 text-sm">
             Please allow camera access to scan QR codes.
           </p>
@@ -112,27 +122,25 @@ export default function QRScanner({ onQRCodeDetected, onError, active }: QRScann
           }}
           onError={handleError}
           constraints={{
-            video: {
-              facingMode: { ideal: 'environment' },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
           }}
           styles={{
             container: {
-              width: '100%',
-              height: '300px',
-              borderRadius: '8px',
-              overflow: 'hidden',
+              width: "100%",
+              height: "300px",
+              borderRadius: "8px",
+              overflow: "hidden",
             },
             video: {
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            },
           }}
         />
-        
+
         {/* Scanning overlay */}
         {isScanning && (
           <div className="absolute inset-0 bg-green-500 bg-opacity-20 flex items-center justify-center">
@@ -142,10 +150,10 @@ export default function QRScanner({ onQRCodeDetected, onError, active }: QRScann
           </div>
         )}
       </div>
-      
+
       <div className="mt-4 text-center">
         <p className="text-sm text-gray-600">
-          Point your camera at the QR code on the user's badge
+          Point your camera at the QR code on the user&apos;s badge
         </p>
       </div>
     </div>

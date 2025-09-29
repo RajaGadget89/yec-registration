@@ -246,7 +246,7 @@ export async function middleware(request: NextRequest) {
     let userEmail: string | undefined;
     let userRole: string | undefined;
     let isUserActive: boolean = false;
-    let authMethod: 'supabase-session' | 'admin-email-cookie' | 'none' = 'none';
+    let authMethod: 'supabase-session' | 'admin-email-cookie' | 'checker-email-cookie' | 'none' = 'none';
     
     // Debug: Track middleware execution
     response.headers.set('x-debug-middleware', 'executing');

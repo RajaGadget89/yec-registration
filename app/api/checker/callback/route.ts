@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { isCheckinSystemEnabled } from '../../../../lib/features';
-import { hasBusinessRole } from '../../../../lib/rbac';
-import { safeLogAccess } from '../../../../lib/audit/safeAudit';
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { isCheckinSystemEnabled } from "@/lib/features";
+// import { hasBusinessRole } from "@/lib/rbac"; // not used here
+import { safeLogAccess } from "@/lib/audit/safeAudit";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
   // Check feature flag
   if (!isCheckinSystemEnabled()) {
     return NextResponse.json(
-      { error: 'Feature not available' },
-      { status: 404 }
+      { error: "Feature not available" },
+      { status: 404 },
     );
   }
 
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
       console.error("[api/checker/callback] missing tokens in POST body");
       return NextResponse.json(
         { error: "Missing authentication tokens" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -70,10 +70,13 @@ export async function POST(req: NextRequest) {
     });
 
     if (error) {
-      console.error("[api/checker/callback] session establishment error:", error);
+      console.error(
+        "[api/checker/callback] session establishment error:",
+        error,
+      );
       return NextResponse.json(
         { error: "Session establishment failed" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -81,59 +84,73 @@ export async function POST(req: NextRequest) {
       console.error("[api/checker/callback] no session established");
       return NextResponse.json(
         { error: "No session established" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     const user = data.session.user;
-    console.log("[api/checker/callback] session established for user:", user.email);
+    console.log(
+      "[api/checker/callback] session established for user:",
+      user.email,
+    );
 
     // Set checker-email cookie and let middleware handle authentication (same as traditional admin system)
     // The middleware will check the database and validate the checker_admin role
 
     // Set checker-email cookie for checker guard (same as traditional admin system)
-    res.cookies.set("checker-email", user.email, {
+    res.cookies.set("checker-email", user.email || "", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
     });
-    console.log("[api/checker/callback] checker-email cookie set for:", user.email);
+    console.log(
+      "[api/checker/callback] checker-email cookie set for:",
+      user.email,
+    );
 
     void safeLogAccess({
-      action: 'checker_callback_access',
-      method: 'POST',
-      resource: 'api/checker/callback',
-      result: 'success',
-      request_id: req.headers.get('x-request-id') || 'unknown',
-      src_ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
-      user_agent: req.headers.get('user-agent') || undefined,
+      action: "checker_callback_access",
+      method: "POST",
+      resource: "api/checker/callback",
+      result: "success",
+      request_id: req.headers.get("x-request-id") || "unknown",
+      src_ip:
+        req.headers.get("x-forwarded-for") ||
+        req.headers.get("x-real-ip") ||
+        undefined,
+      user_agent: req.headers.get("user-agent") || undefined,
       meta: { userId: user.id, userEmail: user.email },
     });
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        email: user.email,
-      }
-    }, { status: 200, headers: res.headers });
+    return NextResponse.json(
+      {
+        success: true,
+        user: {
+          email: user.email,
+        },
+      },
+      { status: 200, headers: res.headers },
+    );
   } catch (error) {
-    console.error('Error in /api/checker/callback:', error);
+    console.error("Error in /api/checker/callback:", error);
     void safeLogAccess({
-      action: 'checker_callback_access',
-      method: 'POST',
-      resource: 'api/checker/callback',
-      result: 'error',
-      reason: 'Internal server error',
-      request_id: req.headers.get('x-request-id') || 'unknown',
-      src_ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || undefined,
-      user_agent: req.headers.get('user-agent') || undefined,
+      action: "checker_callback_access",
+      method: "POST",
+      resource: "api/checker/callback",
+      result: "error",
+      request_id: req.headers.get("x-request-id") || "unknown",
+      src_ip:
+        req.headers.get("x-forwarded-for") ||
+        req.headers.get("x-real-ip") ||
+        undefined,
+      user_agent: req.headers.get("user-agent") || undefined,
       meta: { error: (error as Error).message },
     });
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

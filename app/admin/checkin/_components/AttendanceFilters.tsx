@@ -15,16 +15,17 @@ export interface AttendanceFilterState {
   eventType: string;
   dateFrom: string;
   dateTo: string;
+  status: string;
   province: string;
   page: number;
   pageSize: number;
   sortBy: string;
-  sortOrder: 'asc' | 'desc';
+  sortOrder: "asc" | "desc";
 }
 
 interface AttendanceFiltersProps {
   onFiltersChange: (filters: AttendanceFilterState) => void;
-  onExport: (format: 'csv' | 'json') => void;
+  onExport: (format: "csv" | "json") => void;
   exportLoading?: boolean;
   initialFilters?: Partial<AttendanceFilterState>;
   filterOptions?: {
@@ -33,33 +34,35 @@ interface AttendanceFiltersProps {
   };
 }
 
-export default function AttendanceFilters({ 
+export default function AttendanceFilters({
   onFiltersChange,
   onExport,
   exportLoading = false,
   initialFilters = {},
-  filterOptions = { eventTypes: [], provinces: [] }
+  filterOptions = { eventTypes: [], provinces: [] },
 }: AttendanceFiltersProps) {
-  
   const [filters, setFilters] = useState<AttendanceFilterState>({
-    search: '',
-    eventType: '',
-    dateFrom: '',
-    dateTo: '',
-    province: '',
+    search: "",
+    eventType: "",
+    dateFrom: "",
+    dateTo: "",
+    status: "",
+    province: "",
     page: 1,
     pageSize: 20,
-    sortBy: 'checkin_time',
-    sortOrder: 'desc',
-    ...initialFilters
+    sortBy: "checkin_time",
+    sortOrder: "desc",
+    ...initialFilters,
   });
 
   const [isExpanded, setIsExpanded] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
+    null,
+  );
 
   // Update filters when initialFilters change
   useEffect(() => {
-    setFilters(prev => ({ ...prev, ...initialFilters }));
+    setFilters((prev) => ({ ...prev, ...initialFilters }));
   }, [initialFilters]);
 
   const updateFilters = (newFilters: Partial<AttendanceFilterState>) => {
@@ -70,25 +73,26 @@ export default function AttendanceFilters({
 
   const clearFilters = () => {
     const clearedFilters: AttendanceFilterState = {
-      search: '',
-      eventType: '',
-      dateFrom: '',
-      dateTo: '',
-      province: '',
+      search: "",
+      eventType: "",
+      dateFrom: "",
+      dateTo: "",
+      status: "",
+      province: "",
       page: 1,
       pageSize: 20,
-      sortBy: 'checkin_time',
-      sortOrder: 'desc'
+      sortBy: "checkin_time",
+      sortOrder: "desc",
     };
     setFilters(clearedFilters);
     onFiltersChange(clearedFilters);
   };
 
-  const handleExport = (format: 'csv' | 'json') => {
+  const handleExport = (format: "csv" | "json") => {
     onExport(format);
   };
 
-  const hasActiveFilters = 
+  const hasActiveFilters =
     filters.search ||
     filters.eventType ||
     filters.dateFrom ||
@@ -101,7 +105,9 @@ export default function AttendanceFilters({
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-2">
           <Filter className="h-4 w-4 text-gray-500" />
-          <h3 className="text-sm font-medium text-gray-900 dark:text-white">Filters</h3>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+            Filters
+          </h3>
           {hasActiveFilters && (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
               Active
@@ -110,7 +116,7 @@ export default function AttendanceFilters({
         </div>
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => handleExport('csv')}
+            onClick={() => handleExport("csv")}
             disabled={exportLoading}
             className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -279,7 +285,11 @@ export default function AttendanceFilters({
                 </select>
                 <select
                   value={filters.sortOrder}
-                  onChange={(e) => updateFilters({ sortOrder: e.target.value as 'asc' | 'desc' })}
+                  onChange={(e) =>
+                    updateFilters({
+                      sortOrder: e.target.value as "asc" | "desc",
+                    })
+                  }
                   className="px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="desc">↓</option>

@@ -1,16 +1,21 @@
-'use client';
+"use client";
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { 
-  MobileSession, 
-  getMobileSession, 
-  setMobileSession, 
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
+import { useRouter } from "next/navigation";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import {
+  MobileSession,
+  getMobileSession,
   clearMobileSession,
   refreshMobileSession,
-  startConnectionMonitoring
-} from '../../lib/checkin/mobileSession';
+  startConnectionMonitoring,
+} from "../../lib/checkin/mobileSession";
 
 interface MobileSessionContextType {
   session: MobileSession | null;
@@ -24,26 +29,31 @@ interface MobileSessionContextType {
   logout: () => Promise<void>;
 }
 
-const MobileSessionContext = createContext<MobileSessionContextType | null>(null);
+const MobileSessionContext = createContext<MobileSessionContextType | null>(
+  null,
+);
 
 interface MobileSessionProviderProps {
   children: ReactNode;
 }
 
-export function MobileSessionProvider({ children }: MobileSessionProviderProps) {
+export function MobileSessionProvider({
+  children,
+}: MobileSessionProviderProps) {
   const [session, setSession] = useState<MobileSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState({
     internet: true,
     database: true,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
-  
+
   const router = useRouter();
   const supabase = createClientComponentClient();
 
   useEffect(() => {
     initializeSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -60,7 +70,7 @@ export function MobileSessionProvider({ children }: MobileSessionProviderProps) 
   const initializeSession = async () => {
     try {
       setLoading(true);
-      
+
       // Check for existing session
       const existingSession = getMobileSession();
       if (existingSession) {
@@ -70,9 +80,11 @@ export function MobileSessionProvider({ children }: MobileSessionProviderProps) 
       }
 
       // Check Supabase session
-      const { data: { session: supabaseSession } } = await supabase.auth.getSession();
+      const {
+        data: { session: supabaseSession },
+      } = await supabase.auth.getSession();
       if (!supabaseSession) {
-        router.push('/checker/login');
+        router.push("/checker/login");
         return;
       }
 
@@ -81,11 +93,11 @@ export function MobileSessionProvider({ children }: MobileSessionProviderProps) 
       if (refreshedSession) {
         setSession(refreshedSession);
       } else {
-        router.push('/checker/login');
+        router.push("/checker/login");
       }
     } catch (error) {
-      console.error('Error initializing session:', error);
-      router.push('/checker/login');
+      console.error("Error initializing session:", error);
+      router.push("/checker/login");
     } finally {
       setLoading(false);
     }
@@ -98,12 +110,12 @@ export function MobileSessionProvider({ children }: MobileSessionProviderProps) 
         setSession(refreshedSession);
       } else {
         setSession(null);
-        router.push('/checker/login');
+        router.push("/checker/login");
       }
     } catch (error) {
-      console.error('Error refreshing session:', error);
+      console.error("Error refreshing session:", error);
       setSession(null);
-      router.push('/checker/login');
+      router.push("/checker/login");
     }
   };
 
@@ -111,17 +123,17 @@ export function MobileSessionProvider({ children }: MobileSessionProviderProps) 
     try {
       // Clear Supabase session
       await supabase.auth.signOut();
-      
+
       // Clear mobile session
       clearMobileSession();
       setSession(null);
-      
+
       // Redirect to login
-      router.push('/checker/login');
+      router.push("/checker/login");
     } catch (error) {
-      console.error('Error during logout:', error);
+      console.error("Error during logout:", error);
       // Force redirect even if logout fails
-      router.push('/checker/login');
+      router.push("/checker/login");
     }
   };
 
@@ -130,7 +142,7 @@ export function MobileSessionProvider({ children }: MobileSessionProviderProps) 
     loading,
     connectionStatus,
     refreshSession,
-    logout
+    logout,
   };
 
   return (
@@ -143,7 +155,9 @@ export function MobileSessionProvider({ children }: MobileSessionProviderProps) 
 export function useMobileSession(): MobileSessionContextType {
   const context = useContext(MobileSessionContext);
   if (!context) {
-    throw new Error('useMobileSession must be used within a MobileSessionProvider');
+    throw new Error(
+      "useMobileSession must be used within a MobileSessionProvider",
+    );
   }
   return context;
 }

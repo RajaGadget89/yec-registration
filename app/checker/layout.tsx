@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { getCurrentUser } from "../lib/auth-utils.server";
-import { redirect } from "next/navigation";
 
 // Force dynamic rendering for checker routes that use cookies
 export const dynamic = "force-dynamic";
@@ -17,9 +15,5 @@ export default async function CheckerLayout({
 }) {
   // The middleware handles authentication for protected routes
   // This layout only provides the UI wrapper
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {children}
-    </div>
-  );
+  return <div className="min-h-screen bg-gray-50">{children}</div>;
 }

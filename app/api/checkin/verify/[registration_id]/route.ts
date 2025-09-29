@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServiceClient } from '../../../../lib/supabase-server';
-import { getCurrentUser } from '../../../../lib/auth-utils.server';
-import { isCheckinSystemEnabled } from '../../../../lib/features';
-import { logAccess } from '../../../../lib/audit/auditClient';
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseServiceClient } from "../../../../lib/supabase-server";
+import { getCurrentUser } from "../../../../lib/auth-utils.server";
+import { isCheckinSystemEnabled } from "../../../../lib/features";
+import { logAccess } from "../../../../lib/audit/auditClient";
 
 /**
  * GET /api/checkin/verify/[registration_id]
@@ -10,7 +10,7 @@ import { logAccess } from '../../../../lib/audit/auditClient';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { registration_id: string } }
+  { params }: { params: { registration_id: string } },
 ) {
   const startTime = Date.now();
   const requestId = `checkin_verify_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -20,42 +20,39 @@ export async function GET(
     // Check feature flag
     if (!isCheckinSystemEnabled()) {
       return NextResponse.json(
-        { error: 'Feature not available' },
-        { status: 404 }
+        { error: "Feature not available" },
+        { status: 404 },
       );
     }
 
     // Check authentication
     const user = await getCurrentUser();
     if (!user || !user.is_active) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check authorization (admin, super_admin, or checker_admin)
-    if (!['admin', 'super_admin', 'checker_admin'].includes(user.role)) {
+    if (!["admin", "super_admin", "checker_admin"].includes(user.role)) {
       return NextResponse.json(
-        { error: 'Forbidden - Admin access required' },
-        { status: 403 }
+        { error: "Forbidden - Admin access required" },
+        { status: 403 },
       );
     }
 
     // Log access
     await logAccess({
-      action: 'checkin.verify.registration',
-      method: 'GET',
+      action: "checkin.verify.registration",
+      method: "GET",
       resource: `/api/checkin/verify/${registrationId}`,
-      result: 'attempting',
+      result: "attempting",
       request_id: requestId,
-      src_ip: req.headers.get('x-forwarded-for') || 'unknown',
-      user_agent: req.headers.get('user-agent') || undefined,
+      src_ip: req.headers.get("x-forwarded-for") || "unknown",
+      user_agent: req.headers.get("user-agent") || undefined,
       latency_ms: Date.now() - startTime,
-      meta: { 
+      meta: {
         actor: user.email,
-        registration_id: registrationId
-      }
+        registration_id: registrationId,
+      },
     });
 
     const supabase = getSupabaseServiceClient();
@@ -63,8 +60,9 @@ export async function GET(
     // Get user information by registration_id
     // Now that QR codes contain unique registration_id, we only need to search by that
     const { data: registration, error } = await supabase
-      .from('registrations')
-      .select(`
+      .from("registrations")
+      .select(
+        `
         registration_id,
         first_name,
         last_name,
@@ -73,30 +71,35 @@ export async function GET(
         status,
         yec_province,
         profile_image_url
-      `)
-      .eq('registration_id', registrationId)
+      `,
+      )
+      .eq("registration_id", registrationId)
       .single();
 
     if (error || !registration) {
-      console.log(`[checkin/verify] Registration not found with ID: ${registrationId}`);
+      console.log(
+        `[checkin/verify] Registration not found with ID: ${registrationId}`,
+      );
     } else {
-      console.log(`[checkin/verify] Found registration: ${registration.first_name} ${registration.last_name}`);
+      console.log(
+        `[checkin/verify] Found registration: ${registration.first_name} ${registration.last_name}`,
+      );
     }
 
     if (error || !registration) {
       return NextResponse.json(
-        { error: 'Registration not found' },
-        { status: 404 }
+        { error: "Registration not found" },
+        { status: 404 },
       );
     }
 
-    if (registration.status !== 'approved') {
+    if (registration.status !== "approved") {
       return NextResponse.json(
-        { 
-          error: 'Registration not approved',
-          registration_status: registration.status
+        {
+          error: "Registration not approved",
+          registration_status: registration.status,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -108,53 +111,52 @@ export async function GET(
       phone: registration.phone,
       yec_province: registration.yec_province,
       status: registration.status,
-      profile_image_url: registration.profile_image_url
+      profile_image_url: registration.profile_image_url,
     };
 
     // Log successful access
     await logAccess({
-      action: 'checkin.verify.registration',
-      method: 'GET',
+      action: "checkin.verify.registration",
+      method: "GET",
       resource: `/api/checkin/verify/${registrationId}`,
-      result: 'success',
+      result: "success",
       request_id: requestId,
-      src_ip: req.headers.get('x-forwarded-for') || 'unknown',
-      user_agent: req.headers.get('user-agent') || undefined,
+      src_ip: req.headers.get("x-forwarded-for") || "unknown",
+      user_agent: req.headers.get("user-agent") || undefined,
       latency_ms: Date.now() - startTime,
-      meta: { 
+      meta: {
         actor: user.email,
-        registration_id: registrationId
-      }
+        registration_id: registrationId,
+      },
     });
 
     return NextResponse.json({
       success: true,
-      user: userInfo
+      user: userInfo,
     });
-
   } catch (error) {
-    console.error('Error verifying registration:', error);
-    
+    console.error("Error verifying registration:", error);
+
     // Log error
     await logAccess({
-      action: 'checkin.verify.registration',
-      method: 'GET',
+      action: "checkin.verify.registration",
+      method: "GET",
       resource: `/api/checkin/verify/${registrationId}`,
-      result: 'error',
+      result: "error",
       request_id: requestId,
-      src_ip: req.headers.get('x-forwarded-for') || 'unknown',
-      user_agent: req.headers.get('user-agent') || undefined,
+      src_ip: req.headers.get("x-forwarded-for") || "unknown",
+      user_agent: req.headers.get("user-agent") || undefined,
       latency_ms: Date.now() - startTime,
-      meta: { 
-        actor: user?.email,
+      meta: {
+        actor: "unknown",
         registration_id: registrationId,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
     });
 
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

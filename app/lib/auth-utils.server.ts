@@ -75,7 +75,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     if (!adminEmail) {
       const adminEmailCookie = cookieStore.get("admin-email")?.value;
       const checkerEmailCookie = cookieStore.get("checker-email")?.value;
-      
+
       if (adminEmailCookie) {
         adminEmail = decodeURIComponent(adminEmailCookie);
         console.log(

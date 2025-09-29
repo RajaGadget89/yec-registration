@@ -7,7 +7,6 @@ import {
   Filter,
   Crown,
   Shield,
-  Edit3,
   Loader2,
   Trash2,
 } from "lucide-react";
@@ -106,7 +105,8 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
     setPage(1);
   };
 
-  const handleRoleChange = async (adminId: string, newRole: string) => {
+  // Note: role change flow not used in current UI
+  const _handleRoleChange = async (adminId: string, newRole: string) => {
     setActionLoading(`role-${adminId}`);
     try {
       const response = await fetch(`/api/admin/management/admins/${adminId}`, {
@@ -162,16 +162,13 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
   ) => {
     setActionLoading(`business-roles-${adminId}`);
     try {
-      const response = await fetch(
-        `/api/admin/management/admins/${adminId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ business_roles: newBusinessRoles }),
+      const response = await fetch(`/api/admin/management/admins/${adminId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({ business_roles: newBusinessRoles }),
+      });
 
       if (response.ok) {
         // Refresh the list
@@ -213,7 +210,6 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
     setEditingBusinessRoles(null);
     setTempBusinessRoles([]);
   };
-
 
   const toggleBusinessRole = (role: string) => {
     setTempBusinessRoles((prev) =>
@@ -567,26 +563,29 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                     {editingBusinessRoles === admin.id ? (
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-1">
-                          {["user_profile", "payment_slip", "tcc_card", "checker_admin"].map(
-                            (role) => (
-                              <label
-                                key={role}
-                                className="flex items-center space-x-1"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={tempBusinessRoles.includes(role)}
-                                  onChange={() => toggleBusinessRole(role)}
-                                  className="rounded border-gray-300"
-                                />
-                                <span className="text-xs text-gray-700 dark:text-gray-300">
-                                  {role
-                                    .replace("_", " ")
-                                    .replace(/\b\w/g, (l) => l.toUpperCase())}
-                                </span>
-                              </label>
-                            ),
-                          )}
+                          {[
+                            "user_profile",
+                            "payment_slip",
+                            "tcc_card",
+                            "checker_admin",
+                          ].map((role) => (
+                            <label
+                              key={role}
+                              className="flex items-center space-x-1"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={tempBusinessRoles.includes(role)}
+                                onChange={() => toggleBusinessRole(role)}
+                                className="rounded border-gray-300"
+                              />
+                              <span className="text-xs text-gray-700 dark:text-gray-300">
+                                {role
+                                  .replace("_", " ")
+                                  .replace(/\b\w/g, (l) => l.toUpperCase())}
+                              </span>
+                            </label>
+                          ))}
                         </div>
                         <div className="flex space-x-2">
                           <button

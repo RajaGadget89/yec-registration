@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
 
     // Verify the user has checker_admin business role
     const userEmail = sessionData.session.user.email;
-    if (!userEmail || !(await hasBusinessRole(userEmail, 'checker_admin'))) {
+    if (!userEmail || !(await hasBusinessRole(userEmail, "checker_admin"))) {
       console.error("[checker/verify] user not a checker admin:", userEmail);
       return NextResponse.redirect(
         new URL("/checker/login?error=not_checker_admin", getAppUrl()),

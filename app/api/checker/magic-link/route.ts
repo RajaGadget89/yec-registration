@@ -98,7 +98,10 @@ export async function POST(request: NextRequest) {
           actionLink,
         });
       } else {
-        console.error("[checker-magic-link] Email sending failed:", emailResult.reason);
+        console.error(
+          "[checker-magic-link] Email sending failed:",
+          emailResult.reason,
+        );
         return NextResponse.json({
           success: true,
           message:

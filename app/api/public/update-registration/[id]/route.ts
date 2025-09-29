@@ -406,13 +406,16 @@ export async function POST(
     // even if the main status is "waiting_for_update_*" (admin requested update)
     const { data: currentRegistrationStatus } = await supabase
       .from("registrations")
-      .select("status, payment_review_status, profile_review_status, tcc_review_status")
+      .select(
+        "status, payment_review_status, profile_review_status, tcc_review_status",
+      )
       .eq("id", registrationId)
       .single();
-    
-    const wasApprovedBeforeUpdate = currentRegistrationStatus?.payment_review_status === 'passed' &&
-                                   currentRegistrationStatus?.profile_review_status === 'passed' &&
-                                   currentRegistrationStatus?.tcc_review_status === 'passed';
+
+    const wasApprovedBeforeUpdate =
+      currentRegistrationStatus?.payment_review_status === "passed" &&
+      currentRegistrationStatus?.profile_review_status === "passed" &&
+      currentRegistrationStatus?.tcc_review_status === "passed";
 
     console.log("[PUBLIC_UPDATE_API] Approval status check:", {
       registrationId,
@@ -472,11 +475,20 @@ export async function POST(
     // NEW: Regenerate approval badge if registration was previously approved
     if (wasApprovedBeforeUpdate) {
       try {
-        console.log(`🔄 User updated previously approved registration - regenerating badge for: ${updatedRegistration.registration_id}`);
-        await approvalBadgeService.regenerateBadge(updatedRegistration.registration_id);
-        console.log(`✅ Badge regenerated for updated registration: ${updatedRegistration.registration_id}`);
+        console.log(
+          `🔄 User updated previously approved registration - regenerating badge for: ${updatedRegistration.registration_id}`,
+        );
+        await approvalBadgeService.regenerateBadge(
+          updatedRegistration.registration_id,
+        );
+        console.log(
+          `✅ Badge regenerated for updated registration: ${updatedRegistration.registration_id}`,
+        );
       } catch (regenerateError) {
-        console.warn("Badge regeneration failed for user update:", regenerateError);
+        console.warn(
+          "Badge regeneration failed for user update:",
+          regenerateError,
+        );
         // Don't fail the update if badge regeneration fails
       }
     }

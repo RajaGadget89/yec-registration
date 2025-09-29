@@ -71,10 +71,14 @@ export async function POST(req: Request) {
     try {
       // Try new approval badge system first (generates after 3-dimension approval)
       console.log("🏆 Attempting to generate approval badge...");
-      badgeUrl = await approvalBadgeService.generateApprovalBadge(registrationId);
+      badgeUrl =
+        await approvalBadgeService.generateApprovalBadge(registrationId);
       console.log(`✅ Approval badge generated: ${badgeUrl}`);
     } catch (approvalBadgeError) {
-      console.warn("Approval badge generation failed, using traditional fallback:", approvalBadgeError);
+      console.warn(
+        "Approval badge generation failed, using traditional fallback:",
+        approvalBadgeError,
+      );
       // Fallback to traditional badge generation
       badgeUrl = await generateBadge({
         id: (registration as any).id.toString(),

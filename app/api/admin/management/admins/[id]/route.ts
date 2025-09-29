@@ -23,7 +23,11 @@ import {
 export const dynamic = "force-dynamic";
 
 const updateSchema = z.object({
-  business_roles: z.array(z.enum(["user_profile", "payment_slip", "tcc_card", "checker_admin"])).optional(),
+  business_roles: z
+    .array(
+      z.enum(["user_profile", "payment_slip", "tcc_card", "checker_admin"]),
+    )
+    .optional(),
   status: z.enum(["active", "suspended"]).optional(),
 });
 
@@ -200,11 +204,14 @@ export async function PUT(
     });
 
     // Emit domain events based on changes (non-blocking)
-    if (validatedData.roles && validatedData.roles.length > 0) {
-      const newRole = validatedData.roles[0];
+    if (
+      validatedData.business_roles &&
+      validatedData.business_roles.length > 0
+    ) {
+      const newRole = validatedData.business_roles[0];
       if (newRole !== (currentAdmin as any).role) {
         try {
-          const event = EventFactory.createAdminRoleAssigned(adminId, newRole);
+          const event = EventFactory.createAdminRoleAssigned(adminId, "admin");
           await EventService.emit(event);
         } catch (eventError) {
           console.error("Error emitting role assigned event:", eventError);

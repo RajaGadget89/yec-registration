@@ -17,7 +17,11 @@ export type Role =
 export type Dimension = "payment" | "profile" | "tcc";
 
 // Business role types for granular permissions
-export type BusinessRole = "user_profile" | "payment_slip" | "tcc_card";
+export type BusinessRole =
+  | "user_profile"
+  | "payment_slip"
+  | "tcc_card"
+  | "checker_admin";
 
 /**
  * Normalizes email for consistent comparison

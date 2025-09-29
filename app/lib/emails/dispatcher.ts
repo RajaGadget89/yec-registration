@@ -344,7 +344,9 @@ export async function dispatchEmailBatch(
             if (tracking) {
               const { data: reg } = await supabase
                 .from("registrations")
-                .select("id, first_name, last_name, badge_url, status, payment_review_status, profile_review_status, tcc_review_status")
+                .select(
+                  "id, first_name, last_name, badge_url, status, payment_review_status, profile_review_status, tcc_review_status",
+                )
                 .eq("registration_id", tracking)
                 .single();
               if (reg) {
@@ -354,23 +356,33 @@ export async function dispatchEmailBatch(
                     // ✅ CRITICAL FIX: Use same logic as user update APIs
                     // Check if registration was previously approved (all review statuses passed)
                     // even if main status is 'waiting_for_review' (user updated after approval)
-                    if ((reg as any).payment_review_status === 'passed' &&
-                        (reg as any).profile_review_status === 'passed' &&
-                        (reg as any).tcc_review_status === 'passed') {
-                      
-                      console.log(`[DISPATCH] Using approval badge system for: ${tracking} (was previously approved)`);
-                       const { approvalBadgeService } = await import("../approvalBadgeService");
-                      badgeUrl = await approvalBadgeService.generateApprovalBadge(tracking);
+                    if (
+                      (reg as any).payment_review_status === "passed" &&
+                      (reg as any).profile_review_status === "passed" &&
+                      (reg as any).tcc_review_status === "passed"
+                    ) {
+                      console.log(
+                        `[DISPATCH] Using approval badge system for: ${tracking} (was previously approved)`,
+                      );
+                      const { approvalBadgeService } = await import(
+                        "../approvalBadgeService"
+                      );
+                      badgeUrl =
+                        await approvalBadgeService.generateApprovalBadge(
+                          tracking,
+                        );
                     } else {
                       // Fallback to traditional badge generation
-                      console.log(`[DISPATCH] Using traditional badge generation for: ${tracking}`);
+                      console.log(
+                        `[DISPATCH] Using traditional badge generation for: ${tracking}`,
+                      );
                       badgeUrl = await generateBadge({
                         id: String((reg as any).id),
                         firstName: (reg as any).first_name,
                         lastName: (reg as any).last_name,
                       });
                     }
-                    
+
                     // Persist badge_url for future sends
                     await (supabase as any)
                       .from("registrations")

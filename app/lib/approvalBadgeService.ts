@@ -15,7 +15,7 @@ export class ApprovalBadgeService {
    */
   async generateApprovalBadge(registrationId: string): Promise<string> {
     console.log(`🏆 Generating approval badge for: ${registrationId}`);
-    
+
     try {
       // Get full registration data
       const { data: registration, error } = await this.supabase
@@ -25,11 +25,13 @@ export class ApprovalBadgeService {
         .single();
 
       if (error || !registration) {
-        throw new Error(`Registration not found: ${error?.message || "Unknown error"}`);
+        throw new Error(
+          `Registration not found: ${error?.message || "Unknown error"}`,
+        );
       }
 
       // Validate registration is approved
-      if (registration.status !== 'approved') {
+      if (registration.status !== "approved") {
         throw new Error(`Registration not approved: ${registration.status}`);
       }
 
@@ -40,20 +42,25 @@ export class ApprovalBadgeService {
 
       // Generate badge with proper data structure
       const badgeData = await this.createBadgeDataWithProfile(registration);
-      const badgeBuffer = await generateYECBadge(badgeData);
-      
+      const badgeBuffer = await generateYECBadge({
+        ...badgeData,
+        profileImageBase64: badgeData.profileImageBase64 || undefined,
+      });
+
       // Upload to Supabase with approval prefix
       const filename = `approval-${registration.registration_id}.png`;
       const badgeUrl = await uploadBadgeToSupabase(badgeBuffer, filename);
-      
+
       // Update database with new badge URL
       await this.updateBadgeUrl(registrationId, badgeUrl);
-      
+
       console.log(`✅ Approval badge generated: ${badgeUrl}`);
       return badgeUrl;
-      
     } catch (error) {
-      console.error(`❌ Approval badge generation failed for ${registrationId}:`, error);
+      console.error(
+        `❌ Approval badge generation failed for ${registrationId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -63,7 +70,7 @@ export class ApprovalBadgeService {
    */
   async regenerateBadge(registrationId: string): Promise<string> {
     console.log(`🔄 Regenerating badge for: ${registrationId}`);
-    
+
     // Same logic as generateApprovalBadge but with regeneration flag
     return this.generateApprovalBadge(registrationId);
   }
@@ -73,12 +80,12 @@ export class ApprovalBadgeService {
    */
   private isAllDimensionsPassed(registration: any): boolean {
     const normalize = (v: string | null | undefined) =>
-      (v || '').toString().toLowerCase();
+      (v || "").toString().toLowerCase();
 
     // Accept both 'passed' (checklist semantics) and 'approved' (scalar semantics)
     const ok = (v: string | null | undefined) => {
       const n = normalize(v);
-      return n === 'passed' || n === 'approved';
+      return n === "passed" || n === "approved";
     };
 
     const scalarOk =
@@ -94,7 +101,7 @@ export class ApprovalBadgeService {
     const profile = normalize(checklist?.profile?.status);
     const tcc = normalize(checklist?.tcc?.status);
 
-    return (payment === 'passed' && profile === 'passed' && tcc === 'passed');
+    return payment === "passed" && profile === "passed" && tcc === "passed";
   }
 
   /**
@@ -106,11 +113,17 @@ export class ApprovalBadgeService {
 
     try {
       const storagePath: string | null = registration.profile_image_url || null;
-      if (storagePath && typeof storagePath === 'string' && storagePath.trim() !== '') {
+      if (
+        storagePath &&
+        typeof storagePath === "string" &&
+        storagePath.trim() !== ""
+      ) {
         // profile_image_url is stored as "<bucket>/<filePath>" (e.g., "profile-images/12345.png")
-        const firstSlash = storagePath.indexOf('/');
-        const bucket = firstSlash > 0 ? storagePath.slice(0, firstSlash) : 'profile-images';
-        const filePath = firstSlash > 0 ? storagePath.slice(firstSlash + 1) : storagePath;
+        const firstSlash = storagePath.indexOf("/");
+        const bucket =
+          firstSlash > 0 ? storagePath.slice(0, firstSlash) : "profile-images";
+        const filePath =
+          firstSlash > 0 ? storagePath.slice(firstSlash + 1) : storagePath;
 
         // Create a short-lived signed URL from the correct bucket
         const { data: signed, error: signedErr } = await this.supabase.storage
@@ -121,12 +134,12 @@ export class ApprovalBadgeService {
           const res = await fetch(signed.signedUrl);
           if (res.ok) {
             const arrayBuffer = await res.arrayBuffer();
-            profileImageBase64 = Buffer.from(arrayBuffer).toString('base64');
+            profileImageBase64 = Buffer.from(arrayBuffer).toString("base64");
           }
         }
       }
     } catch (e) {
-      console.warn('Profile image fetch failed, using default silhouette:', e);
+      console.warn("Profile image fetch failed, using default silhouette:", e);
       profileImageBase64 = null;
     }
 
@@ -148,9 +161,9 @@ export class ApprovalBadgeService {
   private async updateBadgeUrl(registrationId: string, badgeUrl: string) {
     const { error } = await this.supabase
       .from("registrations")
-      .update({ 
+      .update({
         badge_url: badgeUrl,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq("registration_id", registrationId);
 

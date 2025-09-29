@@ -1,34 +1,34 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { isCheckinSystemEnabled } from '../../lib/features';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { isCheckinSystemEnabled } from "../../lib/features";
 
 export default function CheckerLoginPage() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
-  const router = useRouter();
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const _router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('');
-    setError('');
+    setMessage("");
+    setError("");
 
     try {
       // Check feature flag
       if (!isCheckinSystemEnabled()) {
-        setError('Check-in system is not available');
+        setError("Check-in system is not available");
         return;
       }
 
       // Use checker-specific magic link generation
-      const response = await fetch('/api/checker/magic-link', {
-        method: 'POST',
+      const response = await fetch("/api/checker/magic-link", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ email }),
       });
@@ -38,10 +38,10 @@ export default function CheckerLoginPage() {
       if (!response.ok) {
         setError(`Error: ${result.error}`);
       } else {
-        setMessage(result.message || 'Check your email for the magic link!');
+        setMessage(result.message || "Check your email for the magic link!");
       }
     } catch (_error) {
-      setError('An unexpected error occurred');
+      setError("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,10 @@ export default function CheckerLoginPage() {
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleLogin}>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Email address
               </label>
               <div className="mt-1">
@@ -88,7 +91,7 @@ export default function CheckerLoginPage() {
                 disabled={loading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-yec-primary hover:bg-yec-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yec-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Sending...' : 'Send Magic Link'}
+                {loading ? "Sending..." : "Send Magic Link"}
               </button>
             </div>
 

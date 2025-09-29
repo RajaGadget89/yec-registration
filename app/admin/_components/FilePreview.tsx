@@ -11,8 +11,8 @@ import {
   AlertCircle,
   Eye,
 } from "lucide-react";
-import { useToastHelpers } from "@/app/components/ui/toast";
-import { t } from "@/app/lib/i18n";
+import { useToastHelpers } from "@/components/ui/toast";
+import { t } from "@/lib/i18n";
 
 interface FilePreviewProps {
   registrationId: string;

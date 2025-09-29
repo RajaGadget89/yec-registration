@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useMobileSession } from '../_components/MobileSessionProvider';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useMobileSession } from "../_components/MobileSessionProvider";
 
 interface ActiveEvent {
   id: string;
@@ -20,13 +20,13 @@ interface ActiveEvent {
 export default function EventsPage() {
   const [events, setEvents] = useState<ActiveEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const router = useRouter();
   const { session, connectionStatus } = useMobileSession();
 
   useEffect(() => {
     if (!session) {
-      router.push('/checker/login');
+      router.push("/checker/login");
       return;
     }
 
@@ -36,29 +36,29 @@ export default function EventsPage() {
   const loadEvents = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/checkin/events/active');
-      
+      const response = await fetch("/api/checkin/events/active");
+
       if (!response.ok) {
-        throw new Error('Failed to load events');
+        throw new Error("Failed to load events");
       }
 
       const data = await response.json();
       setEvents(data.events || []);
     } catch (error) {
-      console.error('Error loading events:', error);
-      setError('Failed to load events. Please try again.');
+      console.error("Error loading events:", error);
+      setError("Failed to load events. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const formatDateTime = (dateTime: string) => {
-    return new Date(dateTime).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateTime).toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -80,11 +80,13 @@ export default function EventsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Active Events</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Active Events
+              </h1>
               <p className="text-sm text-gray-600">Available check-in events</p>
             </div>
             <button
-              onClick={() => router.push('/checker/scan')}
+              onClick={() => router.push("/checker/scan")}
               className="text-sm text-gray-600 hover:text-gray-900"
             >
               Back to Dashboard
@@ -110,7 +112,9 @@ export default function EventsPage() {
         {events.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">📅</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Events</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No Active Events
+            </h3>
             <p className="text-gray-600">
               There are currently no active check-in events available.
             </p>
@@ -152,7 +156,9 @@ export default function EventsPage() {
                   </div>
                   <div className="ml-4">
                     <button
-                      onClick={() => router.push(`/checker/scan?event=${event.id}`)}
+                      onClick={() =>
+                        router.push(`/checker/scan?event=${event.id}`)
+                      }
                       className="bg-yec-primary text-white px-4 py-2 rounded-md hover:bg-yec-accent focus:outline-none focus:ring-2 focus:ring-yec-primary"
                     >
                       Start Scanning
@@ -168,22 +174,29 @@ export default function EventsPage() {
         <div className="mt-8 bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-medium text-gray-900">Connection Status</h3>
+              <h3 className="text-sm font-medium text-gray-900">
+                Connection Status
+              </h3>
               <p className="text-sm text-gray-600">
-                Last checked: {new Date(connectionStatus.timestamp).toLocaleTimeString()}
+                Last checked:{" "}
+                {new Date(connectionStatus.timestamp).toLocaleTimeString()}
               </p>
             </div>
             <div className="flex space-x-4">
               <div className="flex items-center">
-                <div className={`w-3 h-3 rounded-full mr-2 ${
-                  connectionStatus.internet ? 'bg-green-400' : 'bg-red-400'
-                }`}></div>
+                <div
+                  className={`w-3 h-3 rounded-full mr-2 ${
+                    connectionStatus.internet ? "bg-green-400" : "bg-red-400"
+                  }`}
+                ></div>
                 <span className="text-sm text-gray-600">Internet</span>
               </div>
               <div className="flex items-center">
-                <div className={`w-3 h-3 rounded-full mr-2 ${
-                  connectionStatus.database ? 'bg-green-400' : 'bg-red-400'
-                }`}></div>
+                <div
+                  className={`w-3 h-3 rounded-full mr-2 ${
+                    connectionStatus.database ? "bg-green-400" : "bg-red-400"
+                  }`}
+                ></div>
                 <span className="text-sm text-gray-600">Database</span>
               </div>
             </div>

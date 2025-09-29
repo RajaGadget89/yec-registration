@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAuth } from "../../../../lib/auth-client";
-import {
-  upsertAdminUser,
-  updateLastLogin,
-} from "../../../../lib/auth-utils.server";
-import { withAuditLogging } from "../../../../lib/audit/withAuditAccess";
+import { getSupabaseAuth } from "@/lib/auth-client";
+import { upsertAdminUser, updateLastLogin } from "@/lib/auth-utils.server";
+import { withAuditLogging } from "@/lib/audit/withAuditAccess";
 // import { EventService } from '../../../lib/events/eventService'; // Removed - not used
 
 // Ensure Node.js runtime for service role key access

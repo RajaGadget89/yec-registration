@@ -23,33 +23,43 @@ interface CheckinRecord {
 interface AttendanceDataTableProps {
   checkins: CheckinRecord[];
   loading: boolean;
-  onSort: (sortBy: string, sortOrder: 'asc' | 'desc') => void;
-  currentSort: { sortBy: string; sortOrder: 'asc' | 'desc' };
+  onSort: (sortBy: string, sortOrder: "asc" | "desc") => void;
+  currentSort: { sortBy: string; sortOrder: "asc" | "desc" };
 }
 
 export default function AttendanceDataTable({
   checkins,
   loading,
   onSort,
-  currentSort
+  currentSort,
 }: AttendanceDataTableProps) {
-  const [selectedCheckin, setSelectedCheckin] = useState<CheckinRecord | null>(null);
+  const [selectedCheckin, setSelectedCheckin] = useState<CheckinRecord | null>(
+    null,
+  );
 
   const formatDateTime = (dateTime: string) => {
-    return format(new Date(dateTime), 'dd/MM/yyyy HH:mm');
+    return format(new Date(dateTime), "dd/MM/yyyy HH:mm");
   };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      approved: { color: 'bg-green-100 text-green-800', label: 'Approved' },
-      waiting_for_review: { color: 'bg-yellow-100 text-yellow-800', label: 'Waiting for Review' },
-      rejected: { color: 'bg-red-100 text-red-800', label: 'Rejected' }
+      approved: { color: "bg-green-100 text-green-800", label: "Approved" },
+      waiting_for_review: {
+        color: "bg-yellow-100 text-yellow-800",
+        label: "Waiting for Review",
+      },
+      rejected: { color: "bg-red-100 text-red-800", label: "Rejected" },
     };
-    
-    const config = statusConfig[status as keyof typeof statusConfig] || { color: 'bg-gray-100 text-gray-800', label: status };
-    
+
+    const config = statusConfig[status as keyof typeof statusConfig] || {
+      color: "bg-gray-100 text-gray-800",
+      label: status,
+    };
+
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+      <span
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}
+      >
         {config.label}
       </span>
     );
@@ -57,36 +67,56 @@ export default function AttendanceDataTable({
 
   const getBusinessRuleBadge = (businessRule: string) => {
     const ruleConfig = {
-      ONE_TIME_ONLY: { color: 'bg-blue-100 text-blue-800', label: 'Badge Distribution' },
-      MULTIPLE_ALLOWED: { color: 'bg-gray-100 text-gray-800', label: 'Multiple Allowed' }
+      ONE_TIME_ONLY: {
+        color: "bg-blue-100 text-blue-800",
+        label: "Badge Distribution",
+      },
+      MULTIPLE_ALLOWED: {
+        color: "bg-gray-100 text-gray-800",
+        label: "Multiple Allowed",
+      },
     };
-    
-    const config = ruleConfig[businessRule as keyof typeof ruleConfig] || { color: 'bg-gray-100 text-gray-800', label: businessRule };
-    
+
+    const config = ruleConfig[businessRule as keyof typeof ruleConfig] || {
+      color: "bg-gray-100 text-gray-800",
+      label: businessRule,
+    };
+
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+      <span
+        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}
+      >
         {config.label}
       </span>
     );
   };
 
   const handleSort = (column: string) => {
-    const newSortOrder = currentSort.sortBy === column && currentSort.sortOrder === 'asc' ? 'desc' : 'asc';
+    const newSortOrder =
+      currentSort.sortBy === column && currentSort.sortOrder === "asc"
+        ? "desc"
+        : "asc";
     onSort(column, newSortOrder);
   };
 
-  const SortButton = ({ column, children }: { column: string; children: React.ReactNode }) => (
+  const SortButton = ({
+    column,
+    children,
+  }: {
+    column: string;
+    children: React.ReactNode;
+  }) => (
     <button
       onClick={() => handleSort(column)}
       className="flex items-center space-x-1 text-left font-medium text-gray-900 hover:text-gray-700"
     >
       <span>{children}</span>
       <span className="text-gray-400">
-        {currentSort.sortBy === column ? (
-          currentSort.sortOrder === 'asc' ? '↑' : '↓'
-        ) : (
-          '↕'
-        )}
+        {currentSort.sortBy === column
+          ? currentSort.sortOrder === "asc"
+            ? "↑"
+            : "↓"
+          : "↕"}
       </span>
     </button>
   );
@@ -95,7 +125,9 @@ export default function AttendanceDataTable({
     return (
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Attendance Records</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            Attendance Records
+          </h3>
         </div>
         <div className="p-6">
           <div className="animate-pulse space-y-4">
@@ -112,9 +144,11 @@ export default function AttendanceDataTable({
     <div className="bg-white shadow rounded-lg">
       <div className="px-6 py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-gray-900">Attendance Records</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            Attendance Records
+          </h3>
           <span className="text-sm text-gray-500">
-            {checkins.length} record{checkins.length !== 1 ? 's' : ''}
+            {checkins.length} record{checkins.length !== 1 ? "s" : ""}
           </span>
         </div>
       </div>
@@ -149,7 +183,10 @@ export default function AttendanceDataTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {checkins.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                <td
+                  colSpan={7}
+                  className="px-6 py-12 text-center text-gray-500"
+                >
                   <div className="text-gray-400 text-4xl mb-2">📝</div>
                   <p>No attendance records found</p>
                   <p className="text-sm">Try adjusting your filters</p>
@@ -166,16 +203,26 @@ export default function AttendanceDataTable({
                     {formatDateTime(checkin.checkin_time)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{checkin.user_name}</div>
-                    <div className="text-sm text-gray-500">{checkin.user_email}</div>
-                    <div className="text-xs text-gray-400">{checkin.company_name}</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {checkin.user_name}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {checkin.user_email}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {checkin.company_name}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{checkin.event_name}</div>
-                    <div className="text-sm text-gray-500">{checkin.event_type}</div>
+                    <div className="text-sm font-medium text-gray-900">
+                      {checkin.event_name}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {checkin.event_type}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {checkin.location || '-'}
+                    {checkin.location || "-"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getStatusBadge(checkin.status)}
@@ -199,7 +246,9 @@ export default function AttendanceDataTable({
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">Check-in Details</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                  Check-in Details
+                </h3>
                 <button
                   onClick={() => setSelectedCheckin(null)}
                   className="text-gray-400 hover:text-gray-600"
@@ -207,45 +256,73 @@ export default function AttendanceDataTable({
                   ✕
                 </button>
               </div>
-              
+
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">User</label>
-                  <p className="text-sm text-gray-900">{selectedCheckin.user_name}</p>
-                  <p className="text-sm text-gray-500">{selectedCheckin.user_email}</p>
+                  <label className="text-sm font-medium text-gray-500">
+                    User
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedCheckin.user_name}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {selectedCheckin.user_email}
+                  </p>
                 </div>
-                
+
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Event</label>
-                  <p className="text-sm text-gray-900">{selectedCheckin.event_name}</p>
-                  <p className="text-sm text-gray-500">{selectedCheckin.event_type}</p>
+                  <label className="text-sm font-medium text-gray-500">
+                    Event
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedCheckin.event_name}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {selectedCheckin.event_type}
+                  </p>
                 </div>
-                
+
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Check-in Time</label>
-                  <p className="text-sm text-gray-900">{formatDateTime(selectedCheckin.checkin_time)}</p>
+                  <label className="text-sm font-medium text-gray-500">
+                    Check-in Time
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {formatDateTime(selectedCheckin.checkin_time)}
+                  </p>
                 </div>
-                
+
                 {selectedCheckin.location && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Location</label>
-                    <p className="text-sm text-gray-900">{selectedCheckin.location}</p>
+                    <label className="text-sm font-medium text-gray-500">
+                      Location
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {selectedCheckin.location}
+                    </p>
                   </div>
                 )}
-                
+
                 {selectedCheckin.notes && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Notes</label>
-                    <p className="text-sm text-gray-900">{selectedCheckin.notes}</p>
+                    <label className="text-sm font-medium text-gray-500">
+                      Notes
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {selectedCheckin.notes}
+                    </p>
                   </div>
                 )}
-                
+
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Checked By</label>
-                  <p className="text-sm text-gray-900">{selectedCheckin.checked_by}</p>
+                  <label className="text-sm font-medium text-gray-500">
+                    Checked By
+                  </label>
+                  <p className="text-sm text-gray-900">
+                    {selectedCheckin.checked_by}
+                  </p>
                 </div>
               </div>
-              
+
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setSelectedCheckin(null)}

@@ -18,7 +18,7 @@ interface AttendancePaginationProps {
 export default function AttendancePagination({
   pagination,
   onPageChange,
-  onPageSizeChange
+  onPageSizeChange,
 }: AttendancePaginationProps) {
   const { page, pageSize, total, totalPages } = pagination;
 
@@ -28,7 +28,7 @@ export default function AttendancePagination({
   const getPageNumbers = () => {
     const pages = [];
     const maxVisiblePages = 5;
-    
+
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -36,12 +36,12 @@ export default function AttendancePagination({
     } else {
       const startPage = Math.max(1, page - 2);
       const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-      
+
       for (let i = startPage; i <= endPage; i++) {
         pages.push(i);
       }
     }
-    
+
     return pages;
   };
 
@@ -65,16 +65,16 @@ export default function AttendancePagination({
           Next
         </button>
       </div>
-      
+
       <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-gray-700">
-            Showing <span className="font-medium">{startItem}</span> to{' '}
-            <span className="font-medium">{endItem}</span> of{' '}
+            Showing <span className="font-medium">{startItem}</span> to{" "}
+            <span className="font-medium">{endItem}</span> of{" "}
             <span className="font-medium">{total}</span> results
           </p>
         </div>
-        
+
         <div className="flex items-center space-x-4">
           {/* Page Size Selector */}
           <div className="flex items-center space-x-2">
@@ -95,7 +95,10 @@ export default function AttendancePagination({
           </div>
 
           {/* Pagination Controls */}
-          <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+          <nav
+            className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+            aria-label="Pagination"
+          >
             {/* Previous Button */}
             <button
               onClick={() => onPageChange(page - 1)}
@@ -113,8 +116,8 @@ export default function AttendancePagination({
                 onClick={() => onPageChange(pageNum)}
                 className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
                   pageNum === page
-                    ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                    : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                    ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                    : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
                 }`}
               >
                 {pageNum}

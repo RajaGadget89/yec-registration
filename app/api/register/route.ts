@@ -129,7 +129,10 @@ async function handlePOST(req: NextRequest) {
     // Generate badge and upload to Supabase
     let badgeUrl: string | null = null;
     try {
-      console.log("Starting badge generation process with tracking code:", trackingCode);
+      console.log(
+        "Starting badge generation process with tracking code:",
+        trackingCode,
+      );
       badgeUrl = await generateAndUploadBadge(mappedDataWithTracking, body);
       console.log("Badge generation completed successfully:", badgeUrl);
     } catch (error) {

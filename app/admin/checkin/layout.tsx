@@ -1,8 +1,8 @@
-import { Metadata } from 'next';
+import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: 'Check-in System - Admin Dashboard',
-  description: 'Manage check-in events and view attendance statistics',
+  title: "Check-in System - Admin Dashboard",
+  description: "Manage check-in events and view attendance statistics",
 };
 
 export default function CheckinLayout({
@@ -10,11 +10,5 @@ export default function CheckinLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {children}
-    </div>
-  );
+  return <div className="min-h-screen bg-gray-50">{children}</div>;
 }
-
-

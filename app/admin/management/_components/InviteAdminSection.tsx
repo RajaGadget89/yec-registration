@@ -10,7 +10,9 @@ export default function InviteAdminSection({
   onInviteSuccess,
 }: InviteAdminSectionProps) {
   const [email, setEmail] = useState("");
-  const [roles, setRoles] = useState<("admin" | "super_admin" | "checker_admin")[]>(["admin"]);
+  const [roles, setRoles] = useState<
+    ("admin" | "super_admin" | "checker_admin")[]
+  >(["admin"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -72,7 +74,9 @@ export default function InviteAdminSection({
     }
   };
 
-  const handleRoleChange = (role: "admin" | "super_admin" | "checker_admin") => {
+  const handleRoleChange = (
+    role: "admin" | "super_admin" | "checker_admin",
+  ) => {
     setRoles((prev) =>
       prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role],
     );
@@ -149,7 +153,8 @@ export default function InviteAdminSection({
                 disabled={loading}
               />
               <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                Checker Admin - Can scan QR codes and review user information (read-only)
+                Checker Admin - Can scan QR codes and review user information
+                (read-only)
               </span>
             </label>
           </div>

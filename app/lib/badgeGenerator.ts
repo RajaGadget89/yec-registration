@@ -99,6 +99,36 @@ const YEC_COLORS = {
   darkBlue: "#0D47A1", // Darker blue for better contrast
 };
 
+// Helper to draw a gradient chevron (arrow) layer
+function drawChevronLayer(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  peakY: number,
+  spread: number,
+  topColor: string,
+  bottomColor: string,
+  alpha: number,
+): void {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const gradient = ctx.createLinearGradient(
+    width / 2,
+    peakY - 40,
+    width / 2,
+    peakY + spread + 40,
+  );
+  gradient.addColorStop(0, topColor);
+  gradient.addColorStop(1, bottomColor);
+  ctx.fillStyle = gradient as any;
+  ctx.beginPath();
+  ctx.moveTo(0, peakY + spread);
+  ctx.lineTo(width / 2, peakY);
+  ctx.lineTo(width, peakY + spread);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 // Business type mapping from FormSchema
 const BUSINESS_TYPE_LABELS: { [key: string]: string } = {
   technology: "เทคโนโลยี",
@@ -156,7 +186,8 @@ function drawThaiText(
 ): void {
   try {
     // Set the font using the active font family
-    const currentFontSize = parseInt(ctx.font) || 16;
+    const sizeMatch = ctx.font.match(/(\d+)px/);
+    const currentFontSize = sizeMatch ? parseInt(sizeMatch[1], 10) : 16;
     const currentWeight = ctx.font.includes("bold") ? "bold" : "normal";
     ctx.font = getThaiFont(currentFontSize, currentWeight);
 
@@ -196,9 +227,9 @@ function removeNamePrefix(fullName: string): string {
 }
 
 export async function generateYECBadge(badgeData: BadgeData): Promise<Buffer> {
-  // Badge dimensions (ID card size) - increased for better content spacing
-  const width = 750;
-  const height = 500;
+  // Print-ready vertical card (12cm x 19cm at ~300DPI)
+  const width = 1417; // 12cm @ 300dpi ≈ 1417px
+  const height = 2244; // 19cm @ 300dpi ≈ 2244px
 
   // Create canvas
   const canvas = createCanvas(width, height);
@@ -210,12 +241,42 @@ export async function generateYECBadge(badgeData: BadgeData): Promise<Buffer> {
     activeFontFamily,
   );
 
-  // Set background
-  ctx.fillStyle = YEC_COLORS.white;
+  // Paint a black base to eliminate any white gaps beneath overlays
+  ctx.fillStyle = "#0E0E0E";
   ctx.fillRect(0, 0, width, height);
 
+  // Background style to match example: top light/dark blue chevrons, lower black diagonal panel
+  const topHeight = Math.floor(height * 0.35);
+  // Base top color
+  ctx.fillStyle = "#2F68C9"; // strong blue
+  ctx.fillRect(0, 0, width, topHeight);
+  // Chevron overlays with subtle gradients (3 layers)
+  // Align the chevron peak just ABOVE the profile circle to remove blue blank
+  const photoSizeForLayout = 560;
+  const photoYForLayout = Math.floor(topHeight - photoSizeForLayout / 2);
+  const peakY = Math.max(120, photoYForLayout - 40);
+  // Outer light layer (widest)
+  drawChevronLayer(ctx, width, peakY + 60, 640, "#86D0FF", "#4A8DE0", 1.0);
+  // Middle medium layer
+  drawChevronLayer(ctx, width, peakY + 10, 480, "#69B8FF", "#3F7ED6", 0.95);
+  // Inner dark layer (narrowest)
+  drawChevronLayer(ctx, width, peakY - 40, 340, "#4E96F0", "#2F68C9", 0.9);
+  // Bottom black polygon with upward peak (matching reference)
+  ctx.fillStyle = "#0E0E0E";
+  ctx.beginPath();
+  // Position black apex slightly inside upper portion of the circle for tight overlap
+  const apexY = Math.floor(photoYForLayout + photoSizeForLayout * 0.1);
+  const edgeY = apexY + 300;
+  ctx.moveTo(0, edgeY);
+  ctx.lineTo(width / 2, apexY);
+  ctx.lineTo(width, edgeY);
+  ctx.lineTo(width, height);
+  ctx.lineTo(0, height);
+  ctx.closePath();
+  ctx.fill();
+
   // Add header with logo and branding
-  await drawHeader(ctx, width);
+  await drawHeader(ctx);
 
   // Add main content area
   await drawMainContent(ctx, badgeData, width, height);
@@ -223,24 +284,22 @@ export async function generateYECBadge(badgeData: BadgeData): Promise<Buffer> {
   // Add footer
   drawFooter(ctx, width, height);
 
+  // Print trim border to aid cutting (safe inset)
+  try {
+    ctx.save();
+    const inset = 20;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#66A7FF";
+    ctx.setLineDash([10, 8]);
+    ctx.strokeRect(inset, inset, width - inset * 2, height - inset * 2);
+    ctx.restore();
+  } catch {}
+
   console.log("✅ Badge generation completed successfully");
   return canvas.toBuffer("image/png");
 }
 
-async function drawHeader(
-  ctx: CanvasRenderingContext2D,
-  width: number,
-): Promise<void> {
-  const headerHeight = 90;
-
-  // Header background with gradient
-  const gradient = ctx.createLinearGradient(0, 0, width, 0);
-  gradient.addColorStop(0, YEC_COLORS.darkBlue);
-  gradient.addColorStop(1, YEC_COLORS.primary);
-
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, headerHeight);
-
+async function drawHeader(ctx: CanvasRenderingContext2D): Promise<void> {
   try {
     // Load and draw YEC logo with white background for better readability
     const logoPath = path.join(
@@ -251,24 +310,14 @@ async function drawHeader(
     );
     if (fs.existsSync(logoPath)) {
       const logo = await loadImage(logoPath);
-      const logoWidth = 130;
-      const logoHeight = 55;
-      const logoX = 25;
-      const logoY = (headerHeight - logoHeight) / 2;
+      // Scale logo to visually match the header text height and align centers
+      const logoHeight = 120; // approximate text cap height (112px) with padding
+      const aspect = 320 / 140;
+      const logoWidth = Math.round(logoHeight * aspect);
+      const logoX = 96;
+      const logoY = 80;
 
-      // Draw white background circle for logo
-      ctx.fillStyle = YEC_COLORS.white;
-      ctx.beginPath();
-      ctx.arc(
-        logoX + logoWidth / 2,
-        logoY + logoHeight / 2,
-        Math.max(logoWidth, logoHeight) / 2 + 5,
-        0,
-        2 * Math.PI,
-      );
-      ctx.fill();
-
-      // Draw logo
+      // Draw logo on dark background
       ctx.drawImage(logo as any, logoX, logoY, logoWidth, logoHeight);
       console.log("✅ YEC logo drawn successfully with white background");
     } else {
@@ -298,20 +347,21 @@ async function drawHeader(
     drawThaiText(ctx, "YEC", 90, 52);
   }
 
-  // Right side branding
+  // Wordmark next to logo
   ctx.fillStyle = YEC_COLORS.white;
-  ctx.textAlign = "right";
-
-  // Main title
-  ctx.font = getThaiFont(26, "bold");
-  drawThaiText(ctx, "YEC DAY 2025", width - 25, 40);
-
-  // Subtitle
-  ctx.font = getThaiFont(16);
-  drawThaiText(ctx, "Young Entrepreneurs Chamber", width - 25, 62);
-
-  // Reset text alignment
   ctx.textAlign = "left";
+  ctx.font = getThaiFont(112, "bold");
+  // Align text vertically centered to the logo block
+  const textCenterY = 80 + 120 / 2;
+  const prevBaseline = ctx.textBaseline as CanvasTextBaseline;
+  ctx.textBaseline = "middle";
+  const headerX = 96 + Math.round(120 * (320 / 140)) + 36;
+  // Faux-extra-bold: stroke + fill to increase visual weight
+  ctx.strokeStyle = YEC_COLORS.white;
+  ctx.lineWidth = 3;
+  ctx.strokeText("YEC DAY 2025", headerX, textCenterY);
+  drawThaiText(ctx, "YEC DAY 2025", headerX, textCenterY);
+  ctx.textBaseline = prevBaseline || "alphabetic";
 }
 
 async function drawMainContent(
@@ -320,37 +370,31 @@ async function drawMainContent(
   width: number,
   height: number,
 ): Promise<void> {
-  const contentY = 110;
-  const contentHeight = height - 160; // Leave space for header and footer
+  // Reference layout aims to match the example card: centered portrait photo
+  // overlapping blue/black sections, centered text, a thin cyan divider, then
+  // a large QR code below.
 
-  // Draw content background with subtle border
-  ctx.fillStyle = YEC_COLORS.lightGray;
-  ctx.fillRect(25, contentY, width - 50, contentHeight);
+  // 1) Draw the user section (photo + text + divider) and capture the Y
+  // coordinate after the divider to anchor the QR section.
+  const afterDividerY = await drawUserSection(ctx, badgeData, width, height);
 
-  // Draw white content area
-  ctx.fillStyle = YEC_COLORS.white;
-  ctx.fillRect(30, contentY + 5, width - 60, contentHeight - 10);
-
-  // Left side: Profile photo and user info
-  await drawUserSection(ctx, badgeData, width, contentY);
-
-  // Bottom-right: QR code (moved from right side)
-  await drawQRCodeSection(ctx, badgeData, width, height);
+  // 2) Draw QR code, centered and large, starting a bit below the divider
+  await drawQRCodeSection(ctx, badgeData, width, height, afterDividerY + 30);
 }
 
 async function drawUserSection(
   ctx: CanvasRenderingContext2D,
   badgeData: BadgeData,
   width: number,
-  contentY: number,
-): Promise<void> {
-  const leftSectionX = 60;
-  const leftSectionY = contentY + 25;
-
-  // Profile photo
-  const photoSize = 140;
-  const photoX = leftSectionX;
-  const photoY = leftSectionY;
+  height: number,
+): Promise<number> {
+  // Place the circular profile photo centered horizontally, overlapping the
+  // boundary between the blue chevrons and the black polygon.
+  const topHeight = Math.floor(height * 0.25);
+  const photoSize = 560;
+  const centerX = Math.floor(width / 2);
+  const photoX = centerX - Math.floor(photoSize / 2);
+  const photoY = topHeight - Math.floor(photoSize / 2);
 
   if (badgeData.profileImageBase64) {
     try {
@@ -396,64 +440,86 @@ async function drawUserSection(
     drawDefaultProfilePhoto(ctx, photoX, photoY, photoSize);
   }
 
-  // Add border
-  ctx.strokeStyle = YEC_COLORS.primary;
-  ctx.lineWidth = 4;
+  // Add rings: thick white ring outside + slim cyan highlight like sample
+  ctx.lineWidth = 18;
+  ctx.strokeStyle = YEC_COLORS.white;
   ctx.beginPath();
-  ctx.arc(
-    photoX + photoSize / 2,
-    photoY + photoSize / 2,
-    photoSize / 2,
-    0,
-    2 * Math.PI,
-  );
+  ctx.arc(centerX, photoY + photoSize / 2, photoSize / 2 + 12, 0, 2 * Math.PI);
+  ctx.stroke();
+  ctx.lineWidth = 10;
+  ctx.strokeStyle = "#66A7FF";
+  ctx.beginPath();
+  ctx.arc(centerX, photoY + photoSize / 2, photoSize / 2 - 6, 0, 2 * Math.PI);
   ctx.stroke();
 
-  // User information (to the right of photo)
-  const infoX = photoX + photoSize + 40;
-  const infoY = photoY + 15;
-  const lineHeight = 55;
+  // User information (centered under photo on the black panel)
+  const textStartY = photoY + photoSize + 200; // Increased from 140 to 200 to move text lower
+  const lineHeight = 96;
 
-  ctx.textAlign = "left";
-
-  // Full Name (Line 1) - emphasized and without prefix
+  // Draw nickname above full name, centered
   const cleanName = removeNamePrefix(badgeData.fullName);
-  ctx.fillStyle = YEC_COLORS.primary;
-  ctx.font = getThaiFont(44, "bold");
-  drawThaiText(ctx, `${cleanName}`, infoX, infoY);
+  const nicknameText = `(${badgeData.nickname})`;
 
-  // Nickname (Line 2) - on a new line
-  ctx.fillStyle = YEC_COLORS.accent;
-  ctx.font = getThaiFont(36, "bold");
-  drawThaiText(ctx, `(${badgeData.nickname})`, infoX, infoY + lineHeight);
+  // Reset alignment to centered for both elements
+  ctx.textAlign = "center";
 
-  // YEC Member Province (Line 3)
-  ctx.fillStyle = YEC_COLORS.darkBlue;
-  ctx.font = getThaiFont(18, "bold");
-  drawThaiText(
-    ctx,
-    `จังหวัดสมาชิก YEC: ${badgeData.yecProvince}`,
-    infoX,
-    infoY + lineHeight * 2,
-  );
+  // Draw nickname first (above the name) with 10% larger size
+  ctx.fillStyle = "#1FB6FF";
+  ctx.font = getThaiFont(106, "bold"); // 96 * 1.1 = 105.6, rounded to 106
+  drawThaiText(ctx, nicknameText, centerX, textStartY - 60);
 
-  // Business Type (Line 4)
+  // Draw full name below nickname (moved down to prevent overlap)
+  ctx.fillStyle = YEC_COLORS.white;
+  ctx.font = getThaiFont(96, "bold");
+  drawThaiText(ctx, cleanName, centerX, textStartY + 80);
+
+  // Province, Business type, Phone
   const businessTypeLabel =
     badgeData.businessType === "other" && badgeData.businessTypeOther
       ? badgeData.businessTypeOther
       : BUSINESS_TYPE_LABELS[badgeData.businessType] || badgeData.businessType;
 
-  ctx.fillStyle = YEC_COLORS.black;
-  ctx.font = getThaiFont(18);
+  // Reset alignment to centered for the following block items
+  ctx.textAlign = "center";
+  ctx.fillStyle = YEC_COLORS.white;
+  ctx.font = getThaiFont(50, "bold");
+  drawThaiText(
+    ctx,
+    `จังหวัดสมาชิก YEC: ${
+      (badgeData.yecProvince &&
+        (badgeData.yecProvince as string).toUpperCase()) ||
+      badgeData.yecProvince
+    }`,
+    centerX,
+    textStartY + lineHeight * 1.7,
+  );
+
+  ctx.fillStyle = YEC_COLORS.white;
+  ctx.font = getThaiFont(47);
   drawThaiText(
     ctx,
     `ประเภทกิจการ: ${businessTypeLabel}`,
-    infoX,
-    infoY + lineHeight * 3,
+    centerX,
+    textStartY + lineHeight * 2.55,
   );
 
-  // Phone (Line 5) - full number, not masked
-  drawThaiText(ctx, `โทร: ${badgeData.phone}`, infoX, infoY + lineHeight * 4);
+  // TEMPORARILY DISABLED: Phone number display per customer request
+  // ctx.fillStyle = YEC_COLORS.white;
+  // ctx.font = getThaiFont(47);
+  // drawThaiText(
+  //   ctx,
+  //   `โทร: ${badgeData.phone}`,
+  //   centerX,
+  //   textStartY + lineHeight * 3.2,
+  // );
+
+  // Thin cyan divider line below the text, matching the reference card
+  const dividerY = textStartY + lineHeight * 3.35 + 40;
+  ctx.fillStyle = "#1FB6FF";
+  ctx.fillRect(Math.floor(width * 0.18), dividerY, Math.floor(width * 0.64), 6);
+
+  // Return a Y anchor for the QR section
+  return dividerY;
 }
 
 function drawDefaultProfilePhoto(
@@ -479,14 +545,23 @@ async function drawQRCodeSection(
   badgeData: BadgeData,
   width: number,
   height: number,
+  startY: number,
 ): Promise<void> {
-  const qrSize = 160;
-  const qrX = width - qrSize - 40; // 40px padding from right
-  const qrY = height - qrSize - 90; // 40px padding from bottom, accounting for footer height
+  // Large, centered QR code placed below the divider line
+  const footerHeight = 160;
+  const availableHeight = height - footerHeight - startY - 80;
+  const baseSize = Math.min(720, Math.max(520, Math.floor(availableHeight)));
+  const targetSize = Math.floor(baseSize * 0.9); // reduce by ~10%
+  const qrSize = targetSize;
+  const qrX = Math.floor(width / 2 - qrSize / 2);
+  const qrY = Math.floor(startY + 50);
 
   // Validate and ensure registrationId is available
   if (!badgeData.registrationId) {
-    console.error("❌ CRITICAL: registrationId is missing from badgeData:", badgeData);
+    console.error(
+      "❌ CRITICAL: registrationId is missing from badgeData:",
+      badgeData,
+    );
     throw new Error("Registration ID is required for QR code generation");
   }
 
@@ -522,9 +597,9 @@ async function drawQRCodeSection(
 
     // Add QR code label
     ctx.fillStyle = YEC_COLORS.gray;
-    ctx.font = getThaiFont(16);
+    ctx.font = getThaiFont(28);
     ctx.textAlign = "center";
-    drawThaiText(ctx, "Scan for details", qrX + qrSize / 2, qrY + qrSize + 25);
+    drawThaiText(ctx, "Scan for details", qrX + qrSize / 2, qrY + qrSize + 40);
 
     console.log("✅ QR code drawn successfully");
   } catch (error) {
@@ -544,22 +619,20 @@ function drawFooter(
   width: number,
   height: number,
 ): void {
-  const footerHeight = 50;
+  const footerHeight = 160;
   const footerY = height - footerHeight;
 
-  // Footer background
-  const gradient = ctx.createLinearGradient(0, footerY, width, footerY);
-  gradient.addColorStop(0, YEC_COLORS.accent);
-  gradient.addColorStop(1, YEC_COLORS.highlight);
-
-  ctx.fillStyle = gradient;
+  // Solid dark-blue footer bar
+  ctx.fillStyle = YEC_COLORS.darkBlue;
   ctx.fillRect(0, footerY, width, footerHeight);
 
   // Footer text
   ctx.fillStyle = YEC_COLORS.white;
-  ctx.font = getThaiFont(16, "bold");
+  ctx.font = getThaiFont(26, "bold");
   ctx.textAlign = "center";
-  drawThaiText(ctx, "Official YEC Registration Badge", width / 2, footerY + 32);
+  drawThaiText(ctx, "Official YEC Registration Badge", width / 2, footerY + 40);
+  drawThaiText(ctx, "2025 YEC Day.", width / 2, footerY + 90);
+  drawThaiText(ctx, "All rights reserved.", width / 2, footerY + 120);
 }
 
 // Utility function to convert file to base64

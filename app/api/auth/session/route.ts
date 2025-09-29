@@ -60,7 +60,7 @@ export async function POST(req: Request) {
       // For magic link tokens, we need to verify the OTP
       const { error } = await supabase.auth.verifyOtp({
         token_hash: body.token,
-        type: 'magiclink'
+        type: "magiclink",
       });
       if (error)
         return NextResponse.json(

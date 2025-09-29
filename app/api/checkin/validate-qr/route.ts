@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServiceClient } from '../../../../lib/supabase-server';
-import { getCurrentUser } from '../../../../lib/auth-utils.server';
-import { isCheckinSystemEnabled } from '../../../../lib/features';
-import { logAccess } from '../../../../lib/audit/auditClient';
+import { NextRequest, NextResponse } from "next/server";
+import { getSupabaseServiceClient } from "@/lib/supabase-server";
+import { getCurrentUser } from "@/lib/auth-utils.server";
+import { isCheckinSystemEnabled } from "@/lib/features";
+import { logAccess } from "@/lib/audit/auditClient";
 
 /**
  * POST /api/checkin/validate-qr
@@ -16,25 +16,22 @@ export async function POST(req: NextRequest) {
     // Check feature flag
     if (!isCheckinSystemEnabled()) {
       return NextResponse.json(
-        { error: 'Feature not available' },
-        { status: 404 }
+        { error: "Feature not available" },
+        { status: 404 },
       );
     }
 
     // Check authentication
     const user = await getCurrentUser();
     if (!user || !user.is_active) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Check authorization (admin, super_admin, or checker_admin)
-    if (!['admin', 'super_admin', 'checker_admin'].includes(user.role)) {
+    if (!["admin", "super_admin", "checker_admin"].includes(user.role)) {
       return NextResponse.json(
-        { error: 'Forbidden - Admin access required' },
-        { status: 403 }
+        { error: "Forbidden - Admin access required" },
+        { status: 403 },
       );
     }
 
@@ -43,48 +40,48 @@ export async function POST(req: NextRequest) {
     // Validate input
     if (!qr_data) {
       return NextResponse.json(
-        { error: 'Missing required field: qr_data' },
-        { status: 400 }
+        { error: "Missing required field: qr_data" },
+        { status: 400 },
       );
     }
 
     // Log access
     await logAccess({
-      action: 'checkin.qr.validate',
-      method: 'POST',
-      resource: '/api/checkin/validate-qr',
-      result: 'attempting',
+      action: "checkin.qr.validate",
+      method: "POST",
+      resource: "/api/checkin/validate-qr",
+      result: "attempting",
       request_id: requestId,
-      src_ip: req.headers.get('x-forwarded-for') || 'unknown',
-      user_agent: req.headers.get('user-agent') || undefined,
+      src_ip: req.headers.get("x-forwarded-for") || "unknown",
+      user_agent: req.headers.get("user-agent") || undefined,
       latency_ms: Date.now() - startTime,
-      meta: { 
-        actor: user.email
-      }
+      meta: {
+        actor: user.email,
+      },
     });
 
     // Parse QR code data
     let parsedData;
     try {
       parsedData = JSON.parse(qr_data);
-    } catch (error) {
+    } catch (_error) {
       return NextResponse.json(
-        { 
-          valid: false, 
-          error: 'Invalid QR code format' 
+        {
+          valid: false,
+          error: "Invalid QR code format",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Validate QR code structure
     if (!parsedData.regId || !parsedData.fullName || !parsedData.phone) {
       return NextResponse.json(
-        { 
-          valid: false, 
-          error: 'Invalid QR code data structure' 
+        {
+          valid: false,
+          error: "Invalid QR code data structure",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -92,8 +89,9 @@ export async function POST(req: NextRequest) {
 
     // Get user information from database
     const { data: registration, error } = await supabase
-      .from('registrations')
-      .select(`
+      .from("registrations")
+      .select(
+        `
         registration_id,
         first_name,
         last_name,
@@ -101,45 +99,46 @@ export async function POST(req: NextRequest) {
         phone,
         status,
         yec_province
-      `)
-      .eq('registration_id', parsedData.regId)
+      `,
+      )
+      .eq("registration_id", parsedData.regId)
       .single();
 
     if (error || !registration) {
       return NextResponse.json(
-        { 
-          valid: false, 
-          error: 'Registration not found' 
+        {
+          valid: false,
+          error: "Registration not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    if (registration.status !== 'approved') {
+    if (registration.status !== "approved") {
       return NextResponse.json(
-        { 
-          valid: false, 
-          error: 'Registration not approved',
-          registration_status: registration.status
+        {
+          valid: false,
+          error: "Registration not approved",
+          registration_status: registration.status,
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Log successful access
     await logAccess({
-      action: 'checkin.qr.validate',
-      method: 'POST',
-      resource: '/api/checkin/validate-qr',
-      result: 'success',
+      action: "checkin.qr.validate",
+      method: "POST",
+      resource: "/api/checkin/validate-qr",
+      result: "success",
       request_id: requestId,
-      src_ip: req.headers.get('x-forwarded-for') || 'unknown',
-      user_agent: req.headers.get('user-agent') || undefined,
+      src_ip: req.headers.get("x-forwarded-for") || "unknown",
+      user_agent: req.headers.get("user-agent") || undefined,
       latency_ms: Date.now() - startTime,
-      meta: { 
+      meta: {
         actor: user.email,
-        registration_id: parsedData.regId
-      }
+        registration_id: parsedData.regId,
+      },
     });
 
     return NextResponse.json({
@@ -156,29 +155,27 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Error validating QR code:', error);
+    console.error("Error validating QR code:", error);
 
     // Log error
     await logAccess({
-      action: 'checkin.qr.validate',
-      method: 'POST',
-      resource: '/api/checkin/validate-qr',
-      result: 'error',
+      action: "checkin.qr.validate",
+      method: "POST",
+      resource: "/api/checkin/validate-qr",
+      result: "error",
       request_id: requestId,
-      src_ip: req.headers.get('x-forwarded-for') || 'unknown',
-      user_agent: req.headers.get('user-agent') || undefined,
+      src_ip: req.headers.get("x-forwarded-for") || "unknown",
+      user_agent: req.headers.get("user-agent") || undefined,
       latency_ms: Date.now() - startTime,
       meta: {
-        error: error instanceof Error ? error.message : 'Unknown error',
-        actor: 'unknown'
-      }
+        error: error instanceof Error ? error.message : "Unknown error",
+        actor: "unknown",
+      },
     });
 
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }
-
-

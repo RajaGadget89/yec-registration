@@ -2,20 +2,31 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ChevronDown, Users, DollarSign, Calendar, Settings } from "lucide-react";
+import {
+  ChevronDown,
+  Users,
+  DollarSign,
+  Calendar,
+  Settings,
+} from "lucide-react";
 
 interface SuperAdminDropdownProps {
   isCheckinEnabled: boolean;
 }
 
-export default function SuperAdminDropdown({ isCheckinEnabled }: SuperAdminDropdownProps) {
+export default function SuperAdminDropdown({
+  isCheckinEnabled,
+}: SuperAdminDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
@@ -32,23 +43,23 @@ export default function SuperAdminDropdown({ isCheckinEnabled }: SuperAdminDropd
       icon: Users,
       label: "Admin Management Team",
       description: "Manage admin users and roles",
-      show: process.env.FEATURES_ADMIN_MANAGEMENT !== "false"
+      show: process.env.FEATURES_ADMIN_MANAGEMENT !== "false",
     },
     {
       href: "/admin/pricing-management",
       icon: DollarSign,
       label: "Pricing Management",
       description: "Configure pricing and packages",
-      show: true
+      show: true,
     },
     {
       href: "/admin/checkin/events",
       icon: Calendar,
       label: "Manage Events",
       description: "Create and manage check-in events",
-      show: isCheckinEnabled
-    }
-  ].filter(item => item.show);
+      show: isCheckinEnabled,
+    },
+  ].filter((item) => item.show);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -60,18 +71,24 @@ export default function SuperAdminDropdown({ isCheckinEnabled }: SuperAdminDropd
           <Settings className="h-4 w-4" />
         </div>
         <span className="font-semibold">Super Admin</span>
-        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          className={`h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+        />
       </button>
 
       {isOpen && (
         <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Super Admin Tools</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Advanced management and configuration</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Super Admin Tools
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Advanced management and configuration
+            </p>
           </div>
-          
+
           <div className="py-2">
-            {menuItems.map((item, index) => (
+            {menuItems.map((item, _index) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -92,7 +109,7 @@ export default function SuperAdminDropdown({ isCheckinEnabled }: SuperAdminDropd
               </Link>
             ))}
           </div>
-          
+
           <div className="p-3 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600">
             <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
               <div className="w-2 h-2 bg-yec-primary rounded-full"></div>
@@ -104,4 +121,3 @@ export default function SuperAdminDropdown({ isCheckinEnabled }: SuperAdminDropd
     </div>
   );
 }
-

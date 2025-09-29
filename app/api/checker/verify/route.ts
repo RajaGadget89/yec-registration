@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { getAppUrl } from '../../../../lib/env';
-import { hasBusinessRole } from '../../../../lib/rbac';
-import { safeLogAccess } from '../../../../lib/audit/safeAudit';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { getAppUrl } from "@/lib/env";
+import { hasBusinessRole } from "@/lib/rbac";
+import { safeLogAccess } from "@/lib/audit/safeAudit";
+import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
@@ -14,21 +14,25 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const token_hash = searchParams.get('token');
-  const type = searchParams.get('type');
-  const next = searchParams.get('next') || '/checker/scan'; // Default redirect to checker scan page
+  const token_hash = searchParams.get("token");
+  const type = searchParams.get("type");
+  const next = searchParams.get("next") || "/checker/scan"; // Default redirect to checker scan page
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
         get: (name) => cookieStore.get(name)?.value,
-        set: (name, value, options) => cookieStore.set(name, value, options),
-        remove: (name, options) => cookieStore.set(name, '', { ...options, expires: new Date(0) }),
+        set: (name, value, options) => {
+          cookieStore.set(name, value, options);
+        },
+        remove: (name, options) => {
+          cookieStore.set(name, "", { ...options, expires: new Date(0) });
+        },
       },
-    }
+    },
   );
 
   let sessionData;
@@ -50,14 +54,16 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error("[checker/verify] OTP verification failed:", error);
       void safeLogAccess({
-        action: 'checker_verify_otp',
-        method: 'GET',
-        resource: 'checker/verify',
-        result: 'failure',
-        reason: `OTP verification failed: ${error.message}`,
-        request_id: request.headers.get('x-request-id') || 'unknown',
-        src_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
-        user_agent: request.headers.get('user-agent') || undefined,
+        action: "checker_verify_otp",
+        method: "GET",
+        resource: "checker/verify",
+        result: "failure",
+        request_id: request.headers.get("x-request-id") || "unknown",
+        src_ip:
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          undefined,
+        user_agent: request.headers.get("user-agent") || undefined,
         meta: { error: error.message, tokenType: type },
       });
       return NextResponse.redirect(
@@ -71,32 +77,43 @@ export async function GET(request: NextRequest) {
 
     sessionData = data;
   } else {
-    console.error("[checker/verify] missing token or type for server-side OTP flow");
+    console.error(
+      "[checker/verify] missing token or type for server-side OTP flow",
+    );
     void safeLogAccess({
-      action: 'checker_verify_otp',
-      method: 'GET',
-      resource: 'checker/verify',
-      result: 'failure',
-      reason: 'Missing token or type',
-      request_id: request.headers.get('x-request-id') || 'unknown',
-      src_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
-      user_agent: request.headers.get('user-agent') || undefined,
+      action: "checker_verify_otp",
+      method: "GET",
+      resource: "checker/verify",
+      result: "failure",
+      request_id: request.headers.get("x-request-id") || "unknown",
+      src_ip:
+        request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") ||
+        undefined,
+      user_agent: request.headers.get("user-agent") || undefined,
       meta: { tokenPresent: !!authToken, typePresent: !!type },
     });
-    return NextResponse.redirect(new URL("/checker/login?error=invalid_link", getAppUrl()), 303);
+    return NextResponse.redirect(
+      new URL("/checker/login?error=invalid_link", getAppUrl()),
+      303,
+    );
   }
 
   if (!sessionData?.session) {
-    console.error("[checker/verify] no session established after OTP verification");
+    console.error(
+      "[checker/verify] no session established after OTP verification",
+    );
     void safeLogAccess({
-      action: 'checker_verify_otp',
-      method: 'GET',
-      resource: 'checker/verify',
-      result: 'failure',
-      reason: 'No session established',
-      request_id: request.headers.get('x-request-id') || 'unknown',
-      src_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
-      user_agent: request.headers.get('user-agent') || undefined,
+      action: "checker_verify_otp",
+      method: "GET",
+      resource: "checker/verify",
+      result: "failure",
+      request_id: request.headers.get("x-request-id") || "unknown",
+      src_ip:
+        request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") ||
+        undefined,
+      user_agent: request.headers.get("user-agent") || undefined,
     });
     return NextResponse.redirect(
       new URL("/checker/login?error=no_session", getAppUrl()),
@@ -111,17 +128,19 @@ export async function GET(request: NextRequest) {
 
   // Verify the user has the 'checker_admin' business role
   const userEmail = sessionData.session.user.email;
-  if (!userEmail || !(await hasBusinessRole(userEmail, 'checker_admin'))) {
+  if (!userEmail || !(await hasBusinessRole(userEmail, "checker_admin"))) {
     console.error("[checker/verify] user not a checker admin:", userEmail);
     void safeLogAccess({
-      action: 'checker_verify_otp',
-      method: 'GET',
-      resource: 'checker/verify',
-      result: 'failure',
-      reason: 'User not a checker admin',
-      request_id: request.headers.get('x-request-id') || 'unknown',
-      src_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
-      user_agent: request.headers.get('user-agent') || undefined,
+      action: "checker_verify_otp",
+      method: "GET",
+      resource: "checker/verify",
+      result: "failure",
+      request_id: request.headers.get("x-request-id") || "unknown",
+      src_ip:
+        request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") ||
+        undefined,
+      user_agent: request.headers.get("user-agent") || undefined,
       meta: { userEmail: userEmail },
     });
     return NextResponse.redirect(
@@ -130,15 +149,18 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  console.log("[checker/verify] checker admin access confirmed for:", userEmail);
+  console.log(
+    "[checker/verify] checker admin access confirmed for:",
+    userEmail,
+  );
 
   // Set checker-email cookie for checker access (similar to admin-email cookie)
   const response = NextResponse.next();
-  response.cookies.set('checker-email', userEmail, {
+  response.cookies.set("checker-email", userEmail, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });
 
@@ -146,13 +168,16 @@ export async function GET(request: NextRequest) {
 
   // Log successful authentication
   void safeLogAccess({
-    action: 'checker_verify_otp',
-    method: 'GET',
-    resource: 'checker/verify',
-    result: 'success',
-    request_id: request.headers.get('x-request-id') || 'unknown',
-    src_ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
-    user_agent: request.headers.get('user-agent') || undefined,
+    action: "checker_verify_otp",
+    method: "GET",
+    resource: "checker/verify",
+    result: "success",
+    request_id: request.headers.get("x-request-id") || "unknown",
+    src_ip:
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      undefined,
+    user_agent: request.headers.get("user-agent") || undefined,
     meta: { userEmail: userEmail },
   });
 
