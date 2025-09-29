@@ -97,11 +97,43 @@ async function handlePOST(req: NextRequest) {
     // Map frontend data to database format
     const mappedData = mapFrontendToDatabase(body);
 
+    // Initialize Supabase client first
+    const supabase = getSupabaseServiceClient();
+
+    // Generate tracking code first
+    let trackingCode: string | null = null;
+    try {
+      const provinceCode = getProvinceCode(mappedData.yec_province);
+      const { data: genCode, error: genErr } = await (supabase as any).rpc(
+        "generate_tracking_code",
+        { p_province_code: provinceCode },
+      );
+      if (genErr) throw genErr;
+      trackingCode = genCode as string;
+    } catch (genError) {
+      console.error("Failed to generate tracking code:", genError);
+      return createErrorResponse(
+        "TRACKING_CODE_FAILED",
+        "Failed to generate tracking code",
+        genError instanceof Error ? genError.message : String(genError),
+        500,
+      );
+    }
+
+    // Update mappedData with the generated tracking code
+    const mappedDataWithTracking = {
+      ...mappedData,
+      registration_id: trackingCode,
+    };
+
     // Generate badge and upload to Supabase
     let badgeUrl: string | null = null;
     try {
-      console.log("Starting badge generation process...");
-      badgeUrl = await generateAndUploadBadge(mappedData, body);
+      console.log(
+        "Starting badge generation process with tracking code:",
+        trackingCode,
+      );
+      badgeUrl = await generateAndUploadBadge(mappedDataWithTracking, body);
       console.log("Badge generation completed successfully:", badgeUrl);
     } catch (error) {
       console.error("Badge generation failed:", error);
@@ -148,27 +180,7 @@ async function handlePOST(req: NextRequest) {
       updated_at: getThailandTimeISOString(),
     };
 
-    const supabase = getSupabaseServiceClient();
-
-    // Generate human-friendly tracking code using DB function
-    let trackingCode: string | null = null;
-    try {
-      const provinceCode = getProvinceCode(mappedData.yec_province);
-      const { data: genCode, error: genErr } = await (supabase as any).rpc(
-        "generate_tracking_code",
-        { p_province_code: provinceCode },
-      );
-      if (genErr) throw genErr;
-      trackingCode = genCode as string;
-    } catch (genError) {
-      console.error("Failed to generate tracking code:", genError);
-      return createErrorResponse(
-        "TRACKING_CODE_FAILED",
-        "Failed to generate tracking code",
-        genError instanceof Error ? genError.message : String(genError),
-        500,
-      );
-    }
+    // trackingCode already generated above for badge generation
 
     const { data: registration, error } = await (supabase as any)
       .from("registrations")

@@ -15,7 +15,12 @@
     "incremental": true,
     "baseUrl": ".",
     "types": ["node"],
-    "paths": { "@/*": ["./*"] },
+    "paths": { 
+      "@/*": ["./app/*"],
+      "@/lib/*": ["./app/lib/*"],
+      "@/components/*": ["./app/components/*"],
+      "@/types/*": ["./app/types/*"]
+    },
     "plugins": [{ "name": "next" }]
   },
   "include": ["next-env.d.ts", "app/**/*.ts", "app/**/*.tsx", "lib/**/*.ts", "lib/**/*.tsx", "components/**/*.ts", "components/**/*.tsx", "contexts/**/*.ts", "contexts/**/*.tsx", "types/**/*.ts", "types/**/*.tsx", "middleware.ts", ".next/types/**/*.ts"],

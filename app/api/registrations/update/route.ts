@@ -174,8 +174,32 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // Update registration
+    // ✅ CRITICAL FIX: Check if registration was previously approved
+    // A registration was previously approved if ALL THREE review statuses are "passed"
+    // even if the main status is "waiting_for_update_*" (admin requested update)
+    const { data: currentRegistrationStatus } = await (supabase as any)
+      .from("registrations")
+      .select(
+        "status, payment_review_status, profile_review_status, tcc_review_status",
+      )
+      .eq("id", registrationId)
+      .single();
 
+    const wasApprovedBeforeUpdate =
+      currentRegistrationStatus?.payment_review_status === "passed" &&
+      currentRegistrationStatus?.profile_review_status === "passed" &&
+      currentRegistrationStatus?.tcc_review_status === "passed";
+
+    console.log("[REGISTRATIONS_UPDATE_API] Approval status check:", {
+      registrationId,
+      currentStatus: currentRegistrationStatus?.status,
+      wasApprovedBeforeUpdate,
+      paymentStatus: currentRegistrationStatus?.payment_review_status,
+      profileStatus: currentRegistrationStatus?.profile_review_status,
+      tccStatus: currentRegistrationStatus?.tcc_review_status,
+    });
+
+    // Update registration
     const { data: updatedRegistration, error: updateError } = await (
       supabase as any
     )
@@ -207,6 +231,30 @@ export async function POST(request: NextRequest) {
     if (!tokenMarked) {
       console.error("Failed to mark token as used");
       // Don't fail the request if token update fails
+    }
+
+    // NEW: Regenerate approval badge if registration was previously approved
+    if (wasApprovedBeforeUpdate) {
+      try {
+        console.log(
+          `🔄 User updated previously approved registration - regenerating badge for: ${updatedRegistration.registration_id}`,
+        );
+        const { approvalBadgeService } = await import(
+          "@/lib/approvalBadgeService"
+        );
+        await approvalBadgeService.regenerateBadge(
+          updatedRegistration.registration_id,
+        );
+        console.log(
+          `✅ Badge regenerated for updated registration: ${updatedRegistration.registration_id}`,
+        );
+      } catch (regenerateError) {
+        console.warn(
+          "Badge regeneration failed for user update:",
+          regenerateError,
+        );
+        // Don't fail the update if badge regeneration fails
+      }
     }
 
     // Emit domain event

@@ -70,9 +70,9 @@ export async function POST(request: NextRequest) {
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">YEC Admin Login</h2>
-          <p>Click the link below to sign in to your admin account:</p>
+          <p>Click the link below to access the admin dashboard:</p>
           <a href="${actionLink}" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 20px 0;">
-            Sign In to Admin Dashboard
+            Access Admin Dashboard
           </a>
           <p style="color: #666; font-size: 14px;">
             If the button doesn't work, copy and paste this link into your browser:<br>

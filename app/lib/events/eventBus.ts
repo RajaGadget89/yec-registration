@@ -5,6 +5,7 @@ import { TelegramNotificationHandler } from "./handlers/telegramNotificationHand
 import { AuditLogHandler } from "./handlers/auditLogHandler";
 import { AuditDomainHandler } from "./handlers/auditDomainHandler";
 import { PaymentSlipHandler } from "./handlers/paymentSlipHandler";
+import { ApprovalBadgeHandler } from "./handlers/approvalBadgeHandler";
 import { AUTH_TRACE, AUTH_NO_EVENTS, getCallerInfo } from "./trace";
 
 /**
@@ -29,6 +30,7 @@ export class EventBus {
     const auditHandler = new AuditLogHandler();
     const auditDomainHandler = new AuditDomainHandler();
     const paymentSlipHandler = new PaymentSlipHandler();
+    const approvalBadgeHandler = new ApprovalBadgeHandler();
 
     // Register handlers for all event types
     const eventTypes: RegistrationEvent["type"][] = [
@@ -55,6 +57,8 @@ export class EventBus {
       this.registerHandler(eventType, auditDomainHandler);
       // Payment slip handler only cares about payment.* events and will no-op otherwise
       this.registerHandler(eventType, paymentSlipHandler);
+      // Approval badge handler for admin.approved and user.resubmitted events
+      this.registerHandler(eventType, approvalBadgeHandler);
     });
   }
 

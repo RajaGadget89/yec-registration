@@ -18,6 +18,10 @@ const eslintConfig = [
       "**/*.spec.*",
       "**/*.test.*",
       "tests/",
+      "backups/",
+      "artifacts/",
+      "tmp/",
+      ".github/",
       "coverage/",
       ".next/",
       "node_modules/"

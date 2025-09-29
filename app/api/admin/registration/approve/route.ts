@@ -117,7 +117,8 @@ async function handlePOST(request: NextRequest) {
       if (!user.email) {
         throw new Error("Admin email is required");
       }
-      await EventService.emitAdminApproved(registration, user.email);
+      // Use updatedRegistration data, not old registration data
+      await EventService.emitAdminApproved(updatedRegistration, user.email);
       console.log("Admin approved event emitted successfully");
     } catch (eventError) {
       console.error("Error emitting admin approved event:", eventError);

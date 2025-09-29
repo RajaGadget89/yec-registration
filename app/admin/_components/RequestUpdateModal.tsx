@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { X, AlertTriangle } from "lucide-react";
-import { t } from "@/app/lib/i18n";
-import type { Dimension } from "@/app/lib/rbac";
+import { t } from "@/lib/i18n";
+import type { Dimension } from "@/lib/rbac";
 
 interface RequestUpdateModalProps {
   isOpen: boolean;

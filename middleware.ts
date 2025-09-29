@@ -126,6 +126,9 @@ export async function middleware(request: NextRequest) {
   // Allowlist paths that should bypass admin protection
   const allowlistPaths = [
     '/admin/login',
+    '/checker/login',
+    '/checker/verify',
+    '/checker/callback',
     '/auth',
     '/api',
     '/_next',
@@ -167,37 +170,72 @@ export async function middleware(request: NextRequest) {
       return forbiddenResponse;
     }
 
-    // 2. Try Supabase session first (fast path)
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get: (key: string) => request.cookies.get(key)?.value,
-          set: (key, value, options) => {
-            // Forward cookie mutations to the response
-            response.cookies.set(key, value, options);
-          },
-          remove: (key, options) => {
-            // Forward cookie removal to the response
-            response.cookies.set(key, "", { ...options, expires: new Date(0) });
-          },
-        },
-      },
-    );
-
-    // Debug: Log cookie values
-    const authCookie = request.cookies.get('sb-nuxahfrelvfvsmhzvxqm-auth-token');
-    const adminEmailCookie = request.cookies.get('admin-email');
-    console.log('[middleware] Cookie debug:', {
-      hasAuthCookie: !!authCookie,
-      authCookieValue: authCookie?.value?.substring(0, 50) + '...',
-      hasAdminEmailCookie: !!adminEmailCookie,
-      adminEmailValue: adminEmailCookie?.value
-    });
-
-    // Get the current session (this will automatically refresh if needed)
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    // 2. Try Supabase session first (fast path) - with robust cookie parsing
+    let session: any = null;
+    let sessionError: any = null;
+    
+    try {
+      // Use the same robust cookie parsing logic as other parts of the app
+      const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split(".")[0];
+      const authCookieName = `sb-${projectRef}-auth-token`;
+      const authCookie = request.cookies.get(authCookieName)?.value;
+      
+      console.log('[middleware] Cookie debug:', {
+        hasAuthCookie: !!authCookie,
+        authCookieName: authCookieName,
+        authCookieValue: authCookie?.substring(0, 50) + '...',
+      });
+      
+      if (authCookie) {
+        console.log('[middleware] Found auth cookie, attempting to parse');
+        
+        // Parse the cookie using the same logic as /api/admin/me
+        const b64 = authCookie.startsWith("base64-") ? authCookie.slice(7) : authCookie;
+        const jsonStr = Buffer.from(b64, "base64").toString("utf8");
+        
+        // Clean up any trailing characters that might cause JSON parsing issues
+        const cleanJsonStr = jsonStr
+          .replace(/[^\x20-\x7E]*$/, "")
+          .replace(/[%]+$/, "");
+        
+        // Try to find the last complete JSON object
+        const lastBrace = cleanJsonStr.lastIndexOf("}");
+        if (lastBrace !== -1) {
+          const truncatedJson = cleanJsonStr.substring(0, lastBrace + 1);
+          const json = JSON.parse(truncatedJson);
+          
+          if (json?.access_token && json?.refresh_token) {
+            // Create Supabase client and set session
+            const supabase = createServerClient(
+              process.env.NEXT_PUBLIC_SUPABASE_URL!,
+              process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+              {
+                cookies: {
+                  get: (key: string) => request.cookies.get(key)?.value,
+                  set: (key, value, options) => {
+                    response.cookies.set(key, value, options);
+                  },
+                  remove: (key, options) => {
+                    response.cookies.set(key, "", { ...options, expires: new Date(0) });
+                  },
+                },
+              },
+            );
+            
+            const { data: sessionData, error: sessionErr } = await supabase.auth.setSession({
+              access_token: json.access_token,
+              refresh_token: json.refresh_token,
+            });
+            
+            session = sessionData?.session;
+            sessionError = sessionErr;
+          }
+        }
+      }
+    } catch (error) {
+      console.log('[middleware] Cookie parsing error (non-fatal):', error);
+      // Continue without session - this is expected for malformed cookies
+    }
     
     console.log('[middleware] Session debug:', {
       hasSession: !!session,
@@ -208,7 +246,7 @@ export async function middleware(request: NextRequest) {
     let userEmail: string | undefined;
     let userRole: string | undefined;
     let isUserActive: boolean = false;
-    let authMethod: 'supabase-session' | 'admin-email-cookie' | 'none' = 'none';
+    let authMethod: 'supabase-session' | 'admin-email-cookie' | 'checker-email-cookie' | 'none' = 'none';
     
     // Debug: Track middleware execution
     response.headers.set('x-debug-middleware', 'executing');
@@ -285,17 +323,50 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    // 4. Check for checker authentication (for /checker routes) - PRIORITY CHECK
+    if (pathname.startsWith('/checker')) {
+      const checkerEmail = request.cookies.get("checker-email")?.value;
+      response.headers.set('x-debug-checker-email', checkerEmail ? 'found' : 'not-found');
+      
+      if (checkerEmail) {
+        console.log(`[auth-debug] middleware: checking checker-email cookie: ${checkerEmail}`);
+        try {
+          // Check if user has checker_admin business role
+          const { hasBusinessRole } = await import('./app/lib/rbac');
+          const isCheckerAdmin = await hasBusinessRole(checkerEmail, 'checker_admin');
+          
+          if (isCheckerAdmin) {
+            response.headers.set('x-debug-checker-lookup', 'success');
+            userEmail = checkerEmail.toLowerCase();
+            userRole = 'checker_admin';
+            isUserActive = true;
+            authMethod = 'checker-email-cookie';
+            console.log(`[auth-debug] middleware: checker-email cookie auth successful: ${userEmail}`);
+          } else {
+            response.headers.set('x-debug-checker-lookup', 'not-checker-admin');
+            console.log(`[auth-debug] middleware: checker-email cookie user not a checker admin: ${checkerEmail}`);
+          }
+        } catch (error) {
+          response.headers.set('x-debug-checker-lookup', 'error');
+          console.error(`[auth-debug] middleware: error checking checker-email cookie:`, error);
+        }
+      } else {
+        console.log(`[auth-debug] middleware: no checker-email cookie found`);
+      }
+    }
+
     // Debug: Track final authMethod
     response.headers.set('x-debug-final-authmethod', authMethod);
     
-    // 4. Decision logic (same as page guard)
+    // 5. Decision logic (same as page guard)
     if (authMethod === 'none') {
       if (AUTH_TRACE) {
         console.log(`[auth-debug] middleware: no valid session found`);
       }
-      // No session, redirect to login
+      // No session, redirect to appropriate login page
+      const loginPath = pathname.startsWith('/checker') ? '/checker/login' : '/admin/login';
       const redirectResponse = NextResponse.redirect(
-        new URL(`/admin/login?next=${encodeURIComponent(pathname)}`, request.url),
+        new URL(`${loginPath}?next=${encodeURIComponent(pathname)}`, request.url),
         307
       );
       redirectResponse.headers.set('x-admin-guard', 'deny:no-session');
@@ -329,16 +400,29 @@ export async function middleware(request: NextRequest) {
       return redirectResponse;
     }
 
-    // Authorize both super_admin and admin for general /admin routes
-    const isAdminRole = userRole === 'super_admin' || userRole === 'admin';
-    const isSuperOnlyPath = pathname.startsWith('/admin/management');
-    if (!isAdminRole || (isSuperOnlyPath && userRole !== 'super_admin')) {
-      if (AUTH_TRACE) {
-        console.log(`[auth-debug] middleware deny`, { userEmail, userRole, isSuperOnlyPath });
+    // Authorize based on route and role
+    if (pathname.startsWith('/checker')) {
+      // Checker routes require checker_admin role
+      if (userRole !== 'checker_admin') {
+        if (AUTH_TRACE) {
+          console.log(`[auth-debug] middleware deny checker route`, { userEmail, userRole });
+        }
+        const forbiddenResponse = new NextResponse("Forbidden", { status: 403 });
+        forbiddenResponse.headers.set('x-admin-guard', 'deny:not-checker-admin');
+        return forbiddenResponse;
       }
-      const forbiddenResponse = new NextResponse("Forbidden", { status: 403 });
-      forbiddenResponse.headers.set('x-admin-guard', isSuperOnlyPath ? 'deny:super-only' : 'deny:not-admin');
-      return forbiddenResponse;
+    } else if (pathname.startsWith('/admin')) {
+      // Admin routes require super_admin or admin role
+      const isAdminRole = userRole === 'super_admin' || userRole === 'admin';
+      const isSuperOnlyPath = pathname.startsWith('/admin/management');
+      if (!isAdminRole || (isSuperOnlyPath && userRole !== 'super_admin')) {
+        if (AUTH_TRACE) {
+          console.log(`[auth-debug] middleware deny admin route`, { userEmail, userRole, isSuperOnlyPath });
+        }
+        const forbiddenResponse = new NextResponse("Forbidden", { status: 403 });
+        forbiddenResponse.headers.set('x-admin-guard', isSuperOnlyPath ? 'deny:super-only' : 'deny:not-admin');
+        return forbiddenResponse;
+      }
     }
 
     // Check business role permissions for specific routes
@@ -399,5 +483,6 @@ export const config = {
   matcher: [
     '/admin',
     '/admin/((?!login|logout|callback).*)', // Exclude login, logout, and callback routes
+    '/checker/((?!login|callback|verify).*)', // Exclude login, callback, and verify routes
   ],
 };

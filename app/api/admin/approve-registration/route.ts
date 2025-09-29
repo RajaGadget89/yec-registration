@@ -2,6 +2,7 @@ import { getSupabaseServiceClient } from "../../../lib/supabase-server";
 import { sendApprovedEmail } from "../../../lib/emailService";
 import { generateBadge } from "../../../lib/generateBadge";
 import { getThailandTimeISOString } from "../../../lib/timezoneUtils";
+import { approvalBadgeService } from "../../../lib/approvalBadgeService";
 
 export async function POST(req: Request) {
   try {
@@ -65,12 +66,27 @@ export async function POST(req: Request) {
       );
     }
 
-    // 3) Generate badge URL
-    const badgeUrl = await generateBadge({
-      id: (registration as any).id.toString(),
-      firstName: (registration as any).first_name,
-      lastName: (registration as any).last_name,
-    });
+    // 3) Generate badge URL - NEW APPROVAL BADGE SYSTEM
+    let badgeUrl: string;
+    try {
+      // Try new approval badge system first (generates after 3-dimension approval)
+      console.log("🏆 Attempting to generate approval badge...");
+      badgeUrl =
+        await approvalBadgeService.generateApprovalBadge(registrationId);
+      console.log(`✅ Approval badge generated: ${badgeUrl}`);
+    } catch (approvalBadgeError) {
+      console.warn(
+        "Approval badge generation failed, using traditional fallback:",
+        approvalBadgeError,
+      );
+      // Fallback to traditional badge generation
+      badgeUrl = await generateBadge({
+        id: (registration as any).id.toString(),
+        firstName: (registration as any).first_name,
+        lastName: (registration as any).last_name,
+      });
+      console.log(`✅ Traditional badge generated as fallback: ${badgeUrl}`);
+    }
 
     // 4) Update DB: status = "approved", badge_url = generated URL
     const payload = {

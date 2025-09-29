@@ -10,7 +10,7 @@ import {
   Download,
   ZoomIn,
 } from "lucide-react";
-import { t } from "@/app/lib/i18n";
+import { t } from "@/lib/i18n";
 
 interface LightboxModalProps {
   isOpen: boolean;

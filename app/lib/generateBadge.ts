@@ -31,6 +31,15 @@ export async function generateBadge(reg: {
     console.log(`Found registration: ${registration.registration_id}`);
     console.log(`Profile image URL: ${registration.profile_image_url}`);
 
+    // Validate registration_id exists
+    if (!registration.registration_id) {
+      console.error(
+        "❌ CRITICAL: registration.registration_id is missing:",
+        registration,
+      );
+      throw new Error("Registration ID is required for badge generation");
+    }
+
     // Create frontend data structure for badge generation
     const frontendData = {
       title: registration.title,
@@ -287,6 +296,20 @@ export async function generateAndUploadBadge(
 
     const fullName = `${mappedData.title} ${mappedData.first_name} ${mappedData.last_name}`;
 
+    // Validate registration_id before creating badge data
+    if (!mappedData.registration_id) {
+      console.error(
+        "❌ CRITICAL: registration_id is missing from mappedData:",
+        mappedData,
+      );
+      throw new Error("Registration ID is required for badge generation");
+    }
+
+    console.log(
+      "🔍 Badge generation - registration_id:",
+      mappedData.registration_id,
+    );
+
     const badgeData = {
       registrationId: mappedData.registration_id,
       fullName,
@@ -297,6 +320,11 @@ export async function generateAndUploadBadge(
       businessTypeOther: mappedData.business_type_other,
       profileImageBase64,
     };
+
+    console.log(
+      "🔍 Badge generation - badgeData.registrationId:",
+      badgeData.registrationId,
+    );
 
     // Generate badge
     const badgeBuffer = await generateYECBadge(badgeData);

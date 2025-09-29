@@ -7,7 +7,6 @@ import {
   Filter,
   Crown,
   Shield,
-  Edit3,
   Loader2,
   Trash2,
 } from "lucide-react";
@@ -106,7 +105,8 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
     setPage(1);
   };
 
-  const handleRoleChange = async (adminId: string, newRole: string) => {
+  // Note: role change flow not used in current UI
+  const _handleRoleChange = async (adminId: string, newRole: string) => {
     setActionLoading(`role-${adminId}`);
     try {
       const response = await fetch(`/api/admin/management/admins/${adminId}`, {
@@ -162,16 +162,13 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
   ) => {
     setActionLoading(`business-roles-${adminId}`);
     try {
-      const response = await fetch(
-        `/api/admin/management/admins/${adminId}/roles`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ business_roles: newBusinessRoles }),
+      const response = await fetch(`/api/admin/management/admins/${adminId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({ business_roles: newBusinessRoles }),
+      });
 
       if (response.ok) {
         // Refresh the list
@@ -566,26 +563,29 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                     {editingBusinessRoles === admin.id ? (
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-1">
-                          {["user_profile", "payment_slip", "tcc_card"].map(
-                            (role) => (
-                              <label
-                                key={role}
-                                className="flex items-center space-x-1"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={tempBusinessRoles.includes(role)}
-                                  onChange={() => toggleBusinessRole(role)}
-                                  className="rounded border-gray-300"
-                                />
-                                <span className="text-xs text-gray-700 dark:text-gray-300">
-                                  {role
-                                    .replace("_", " ")
-                                    .replace(/\b\w/g, (l) => l.toUpperCase())}
-                                </span>
-                              </label>
-                            ),
-                          )}
+                          {[
+                            "user_profile",
+                            "payment_slip",
+                            "tcc_card",
+                            "checker_admin",
+                          ].map((role) => (
+                            <label
+                              key={role}
+                              className="flex items-center space-x-1"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={tempBusinessRoles.includes(role)}
+                                onChange={() => toggleBusinessRole(role)}
+                                className="rounded border-gray-300"
+                              />
+                              <span className="text-xs text-gray-700 dark:text-gray-300">
+                                {role
+                                  .replace("_", " ")
+                                  .replace(/\b\w/g, (l) => l.toUpperCase())}
+                              </span>
+                            </label>
+                          ))}
                         </div>
                         <div className="flex space-x-2">
                           <button
@@ -664,30 +664,6 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() =>
-                          handleRoleChange(
-                            admin.id,
-                            admin.role === "super_admin"
-                              ? "admin"
-                              : "super_admin",
-                          )
-                        }
-                        disabled={actionLoading === `role-${admin.id}`}
-                        className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md transition-colors ${
-                          actionLoading === `role-${admin.id}`
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
-                            : "text-blue-700 bg-blue-100 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/30"
-                        }`}
-                        data-testid="admins-action-role"
-                      >
-                        {actionLoading === `role-${admin.id}` ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                          <Edit3 className="h-3 w-3 mr-1" />
-                        )}
-                        Change Role
-                      </button>
                       <button
                         onClick={() =>
                           handleStatusChange(

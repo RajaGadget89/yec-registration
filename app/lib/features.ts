@@ -10,6 +10,10 @@
  */
 export function isFeatureEnabled(feature: string): boolean {
   const envValue = process.env[`FEATURES_${feature.toUpperCase()}`];
+  // For development, default to true if not explicitly set to false
+  if (process.env.NODE_ENV === "development" && envValue !== "false") {
+    return true;
+  }
   return envValue === "true";
 }
 
@@ -20,6 +24,7 @@ export const FEATURES = {
   ADMIN_JOB_ASSIGNMENT: "ADMIN_JOB_ASSIGNMENT",
   GRANULAR_RBAC: "GRANULAR_RBAC",
   ADMIN_MANAGEMENT: "ADMIN_MANAGEMENT",
+  CHECKIN_SYSTEM: "CHECKIN_SYSTEM",
 } as const;
 
 /**
@@ -41,4 +46,11 @@ export function isGranularRBACEnabled(): boolean {
  */
 export function isAdminManagementEnabled(): boolean {
   return isFeatureEnabled(FEATURES.ADMIN_MANAGEMENT);
+}
+
+/**
+ * Check if check-in system feature is enabled
+ */
+export function isCheckinSystemEnabled(): boolean {
+  return isFeatureEnabled(FEATURES.CHECKIN_SYSTEM);
 }

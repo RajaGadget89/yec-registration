@@ -74,10 +74,17 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     let adminEmail = user?.email;
     if (!adminEmail) {
       const adminEmailCookie = cookieStore.get("admin-email")?.value;
+      const checkerEmailCookie = cookieStore.get("checker-email")?.value;
+
       if (adminEmailCookie) {
         adminEmail = decodeURIComponent(adminEmailCookie);
         console.log(
           `[AUTH] No Supabase session, but found admin-email cookie: ${adminEmail}`,
+        );
+      } else if (checkerEmailCookie) {
+        adminEmail = decodeURIComponent(checkerEmailCookie);
+        console.log(
+          `[AUTH] No Supabase session, but found checker-email cookie: ${adminEmail}`,
         );
       }
     }

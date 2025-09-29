@@ -36,18 +36,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Validate business role permissions for email outbox access
-    const { hasBusinessRole } = await import("../../../lib/rbac");
-    const hasEmailAccess = await hasBusinessRole(user.email, "user_profile");
-    if (!hasEmailAccess) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Insufficient permissions for email outbox access",
-        },
-        { status: 403 },
-      );
-    }
+    // Allow both admin and super_admin users to access email outbox
+    // No additional business role check needed since user.role is already validated above
 
     console.log(
       `[email-outbox-stats] GET request authorized - requester: ${user.email}, result: 200`,
