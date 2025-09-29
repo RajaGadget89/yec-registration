@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { isCheckinSystemEnabled } from "@/lib/features";
 import QRScanner from "./QRScanner";
 import EventSelector from "./EventSelector";
 import CheckinConfirmation from "./CheckinConfirmation";
@@ -32,6 +31,7 @@ interface QRScannerClientProps {
 
 export default function QRScannerClient({ user }: QRScannerClientProps) {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
+  const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -42,6 +42,26 @@ export default function QRScannerClient({ user }: QRScannerClientProps) {
   const [scannerKey, setScannerKey] = useState(0); // Key to force scanner refresh
 
   const router = useRouter();
+
+  // Check feature flag on component mount
+  useEffect(() => {
+    const checkFeatureFlag = async () => {
+      try {
+        const response = await fetch("/api/features/checkin-system");
+        if (response.ok) {
+          const data = await response.json();
+          setFeatureEnabled(data.enabled);
+        } else {
+          setFeatureEnabled(false);
+        }
+      } catch (error) {
+        console.error("Failed to check feature flag:", error);
+        setFeatureEnabled(false);
+      }
+    };
+
+    checkFeatureFlag();
+  }, []);
 
   // Handle event selection change and reset scanner state
   const handleEventSelect = (eventId: string) => {
@@ -306,7 +326,20 @@ export default function QRScannerClient({ user }: QRScannerClientProps) {
     }
   };
 
-  if (!isCheckinSystemEnabled()) {
+  // Show loading while checking feature flag
+  if (featureEnabled === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yec-primary mx-auto"></div>
+          <p className="mt-4 text-gray-600">Checking system availability...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if feature is disabled
+  if (featureEnabled === false) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
