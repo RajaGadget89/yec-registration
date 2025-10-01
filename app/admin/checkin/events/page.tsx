@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 // imports removed: getCurrentUser, isCheckinSystemEnabled (unused)
 
 interface Event {
@@ -30,6 +31,10 @@ interface EventType {
   business_rule_category: string;
 }
 
+const EventTypesTab = dynamic(() => import("./_components/EventTypesTab"), {
+  ssr: false,
+});
+
 export default function CheckinEventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
@@ -38,6 +43,8 @@ export default function CheckinEventsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const router = useRouter();
+  const params = useSearchParams();
+  const activeTab = (params?.get("tab") || "events") as "events" | "types";
 
   useEffect(() => {
     loadEvents();
@@ -193,17 +200,6 @@ export default function CheckinEventsPage() {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yec-primary mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading events...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -212,10 +208,10 @@ export default function CheckinEventsPage() {
           <div className="flex justify-between items-center py-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                Check-in Events
+                Check-in Management
               </h1>
               <p className="text-sm text-gray-600">
-                Manage check-in events for the seminar
+                Manage check-in events and event types
               </p>
             </div>
             <div className="flex space-x-3">
@@ -225,14 +221,44 @@ export default function CheckinEventsPage() {
               >
                 Dashboard
               </button>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="bg-yec-primary text-white px-4 py-2 rounded-md hover:bg-yec-accent"
-              >
-                Create Event
-              </button>
+              {activeTab === "events" && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="bg-yec-primary text-white px-4 py-2 rounded-md hover:bg-yec-accent"
+                >
+                  Create Event
+                </button>
+              )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-8" aria-label="Tabs">
+            <a
+              href="/admin/checkin/events?tab=events"
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "events"
+                  ? "border-purple-500 text-purple-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Events
+            </a>
+            <a
+              href="/admin/checkin/events?tab=types"
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === "types"
+                  ? "border-purple-500 text-purple-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              Event Types
+            </a>
+          </nav>
         </div>
       </div>
 
@@ -250,7 +276,14 @@ export default function CheckinEventsPage() {
           </div>
         )}
 
-        {events.length === 0 ? (
+        {activeTab === "types" ? (
+          <EventTypesTab />
+        ) : loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yec-primary mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading events...</p>
+          </div>
+        ) : events.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">📅</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -346,7 +379,7 @@ export default function CheckinEventsPage() {
       </div>
 
       {/* Create Event Modal */}
-      {showCreateModal && (
+      {activeTab === "events" && showCreateModal && (
         <EventFormModal
           eventTypes={eventTypes}
           onSubmit={handleCreateEvent}
@@ -355,7 +388,7 @@ export default function CheckinEventsPage() {
       )}
 
       {/* Edit Event Modal */}
-      {editingEvent && (
+      {activeTab === "events" && editingEvent && (
         <EventFormModal
           eventTypes={eventTypes}
           event={editingEvent}

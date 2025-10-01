@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       .select(
         `
         *,
-        event_types:event_type_id(name, description, business_rule_category),
+        event_types:event_type_id(id, name, description, business_rule_category),
         created_by_user:created_by(email)
       `,
       )

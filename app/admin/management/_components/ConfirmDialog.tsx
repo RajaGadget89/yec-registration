@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 interface ConfirmDialogProps {
@@ -30,6 +30,11 @@ export default function ConfirmDialog({
 }: ConfirmDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Auto open when a plan is provided from parent (e.g., after dry-run)
+  useEffect(() => {
+    if (plan) setIsOpen(true);
+  }, [plan]);
 
   const handleConfirm = async () => {
     try {
@@ -73,6 +78,22 @@ export default function ConfirmDialog({
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       {description}
                     </p>
+
+                    {/* Enhanced awareness message for production safety */}
+                    <div className="mt-3 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
+                      <div className="font-semibold mb-2">
+                        ⚠️ CRITICAL ACTION WARNING
+                      </div>
+                      <div className="space-y-1">
+                        <div>• This action cannot be undone</div>
+                        <div>• The admin will immediately lose all access</div>
+                        <div>• All associated permissions will be revoked</div>
+                        <div>• Super admin accounts cannot be deleted</div>
+                        <div>
+                          • This action will be logged for audit purposes
+                        </div>
+                      </div>
+                    </div>
 
                     {plan && (
                       <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-md">
