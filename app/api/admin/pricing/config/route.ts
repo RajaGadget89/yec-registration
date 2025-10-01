@@ -30,7 +30,26 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const config = await DynamicPricingCalculator.getPricingConfig();
+    let config;
+    try {
+      config = await DynamicPricingCalculator.getPricingConfig();
+    } catch (_e) {
+      // If settings are missing, return a scaffold so UI can render and save
+      const nowIso = new Date().toISOString();
+      return NextResponse.json({
+        earlyBirdDeadline: nowIso,
+        prices: {
+          earlyBirdOutOfQuota: 0,
+          earlyBirdInQuotaDouble: 0,
+          earlyBirdInQuotaSingle: 0,
+          normalOutOfQuota: 0,
+          normalInQuotaDouble: 0,
+          normalInQuotaSingle: 0,
+        },
+        allowInQuotaAfterEarlyBird: false,
+        inQuotaSurchargeAfterEarlyBird: 0,
+      });
+    }
 
     return NextResponse.json({
       earlyBirdDeadline: config.early_bird_deadline,
