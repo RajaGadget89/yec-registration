@@ -79,12 +79,16 @@ export default function ConfirmDialog({
                       {description}
                     </p>
 
-                    {/* Awareness message for Super Admin before deletion */}
+                    {/* Enhanced awareness message for production safety */}
                     <div className="mt-3 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
-                      This action cannot be undone. The selected admin will
-                      immediately lose access. Please confirm you want to
-                      permanently delete this admin user (super_admin deletion
-                      is not allowed).
+                      <div className="font-semibold mb-2">⚠️ CRITICAL ACTION WARNING</div>
+                      <div className="space-y-1">
+                        <div>• This action cannot be undone</div>
+                        <div>• The admin will immediately lose all access</div>
+                        <div>• All associated permissions will be revoked</div>
+                        <div>• Super admin accounts cannot be deleted</div>
+                        <div>• This action will be logged for audit purposes</div>
+                      </div>
                     </div>
 
                     {plan && (
