@@ -95,9 +95,9 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
     }
 
     if (status === "active") {
-      query = query.eq("is_active", true);
+      query = query.eq("status", "active");
     } else if (status === "suspended") {
-      query = query.eq("is_active", false);
+      query = query.eq("status", "suspended");
     }
 
     if (role && ["admin", "super_admin", "checker_admin"].includes(role)) {
@@ -134,7 +134,7 @@ async function listAdmins(request: NextRequest): Promise<NextResponse> {
         ...(isAdminJobAssignmentEnabled() && {
           business_roles: (admin as any).business_roles || [],
         }),
-        status: (admin as any).is_active ? "active" : "suspended",
+        status: (admin as any).status,
         created_at: (admin as any).created_at,
         updated_at: (admin as any).updated_at,
         last_login_at: (admin as any).last_login_at,

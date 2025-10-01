@@ -328,8 +328,8 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
     );
   };
 
-  const getStatusBadge = (status: string, isActive: boolean) => {
-    if (!isActive) {
+  const getStatusBadge = (status: string) => {
+    if (status === "suspended") {
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-200">
           Suspended
@@ -638,7 +638,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(admin.status, admin.is_active)}
+                    {getStatusBadge(admin.status)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     <div>
@@ -668,14 +668,14 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                         onClick={() =>
                           handleStatusChange(
                             admin.id,
-                            admin.is_active ? "suspended" : "active",
+                            admin.status === "active" ? "suspended" : "active",
                           )
                         }
                         disabled={actionLoading === `status-${admin.id}`}
                         className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md transition-colors ${
                           actionLoading === `status-${admin.id}`
                             ? "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-600 dark:text-gray-400"
-                            : admin.is_active
+                            : admin.status === "active"
                               ? "text-red-700 bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30"
                               : "text-green-700 bg-green-100 hover:bg-green-200 dark:bg-green-900/20 dark:text-green-300 dark:hover:bg-green-900/30"
                         }`}
@@ -684,7 +684,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                         {actionLoading === `status-${admin.id}` ? (
                           <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                         ) : null}
-                        {admin.is_active ? "Suspend" : "Activate"}
+                        {admin.status === "active" ? "Suspend" : "Activate"}
                       </button>
 
                       {/* DEV-ONLY: Delete button for admin users (not super_admin) */}

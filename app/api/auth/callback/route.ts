@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { isAdmin } from "../../../lib/auth-utils";
+import { checkAdminAccess } from "../../../lib/auth-utils";
 import { getAppUrl, getCookieOptions } from "../../../lib/env";
 
 export const dynamic = "force-dynamic";
@@ -97,14 +97,43 @@ export async function POST(request: NextRequest) {
       sessionData.session.user.email,
     );
 
-    // Verify the user is an admin
+    // Verify the user is an admin and check for suspended status
     const userEmail = sessionData.session.user.email;
-    if (!userEmail || !(await isAdmin(userEmail))) {
-      console.error("[api/callback] user not in admin allowlist:", userEmail);
+    if (!userEmail) {
+      console.error("[api/callback] no user email in session");
       return NextResponse.json(
         { message: "Access denied. Admin privileges required." },
         { status: 403 },
       );
+    }
+
+    console.log("[api/callback] calling checkAdminAccess for:", userEmail);
+    const adminAccess = await checkAdminAccess(userEmail);
+    console.log("[api/callback] checkAdminAccess result:", adminAccess);
+
+    if (!adminAccess.allowed) {
+      if (adminAccess.reason === "suspended") {
+        console.error("[api/callback] user account suspended:", userEmail);
+        return NextResponse.json(
+          {
+            code: "ACCOUNT_SUSPENDED",
+            message:
+              "Your admin access is suspended. Please contact an administrator.",
+          },
+          { status: 403 },
+        );
+      } else {
+        console.error(
+          "[api/callback] user not in admin allowlist:",
+          userEmail,
+          "reason:",
+          adminAccess.reason,
+        );
+        return NextResponse.json(
+          { message: "Access denied. Admin privileges required." },
+          { status: 403 },
+        );
+      }
     }
 
     console.log("[api/callback] admin access confirmed");

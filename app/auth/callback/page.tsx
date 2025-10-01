@@ -88,14 +88,32 @@ function AuthCallbackContent() {
           });
 
           if (!serverResponse.ok) {
-            console.error(
-              "[callback] server cookie set failed:",
-              serverResponse.status,
-            );
+            let friendly = "Authentication failed: Server session setup failed";
+            let code: string | undefined;
+            try {
+              const payload = await serverResponse.json();
+              code = payload?.code;
+              if (code === "ACCOUNT_SUSPENDED") {
+                friendly =
+                  payload.message ||
+                  "Your admin access is suspended. Please contact an administrator.";
+              }
+            } catch {}
+
+            if (code === "ACCOUNT_SUSPENDED") {
+              // Treat as handled state: avoid red console error noise
+              console.info(
+                "[callback] account suspended – showing friendly message",
+              );
+            } else {
+              console.error(
+                "[callback] server cookie set failed:",
+                serverResponse.status,
+              );
+            }
+
             setStatus("error");
-            setErrorMessage(
-              "Authentication failed: Server session setup failed",
-            );
+            setErrorMessage(friendly);
             return;
           }
 
