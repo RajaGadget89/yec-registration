@@ -375,23 +375,59 @@ export class DynamicPricingCalculator {
       );
     }
 
-    // Update pricing configuration
-    const { error } = await supabase
+    // Check if event_settings record exists
+    const { data: existingRecord, error: fetchError } = await supabase
       .from("event_settings")
-      .update({
+      .select("id")
+      .single();
+
+    if (fetchError && fetchError.code !== "PGRST116") {
+      // PGRST116 is "not found" error, which is expected if no record exists
+      throw new Error(
+        `Failed to check existing configuration: ${fetchError.message}`,
+      );
+    }
+
+    if (existingRecord) {
+      // Update existing record
+      const { error } = await supabase
+        .from("event_settings")
+        .update({
+          pricing_config: config,
+          early_bird_deadline_utc: config.early_bird_deadline,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingRecord.id);
+
+      if (error) {
+        throw new Error(
+          `Failed to update pricing configuration: ${error.message}`,
+        );
+      }
+    } else {
+      // Create new record
+      const { error } = await supabase.from("event_settings").insert({
         pricing_config: config,
         early_bird_deadline_utc: config.early_bird_deadline,
+        registration_deadline_utc: config.early_bird_deadline, // Use same as early bird for now
+        // price_packages is NOT NULL in schema (legacy field). Seed with empty array to satisfy constraint.
+        price_packages: [],
+        // keep eligibility rules empty by default
+        eligibility_rules: {
+          blocked_emails: [],
+          blocked_domains: [],
+          blocked_keywords: [],
+        },
+        timezone: "Asia/Bangkok",
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      })
-      .eq(
-        "id",
-        (await supabase.from("event_settings").select("id").single()).data?.id,
-      );
+      });
 
-    if (error) {
-      throw new Error(
-        `Failed to update pricing configuration: ${error.message}`,
-      );
+      if (error) {
+        throw new Error(
+          `Failed to create pricing configuration: ${error.message}`,
+        );
+      }
     }
 
     // Log the change for audit trail

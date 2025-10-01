@@ -99,16 +99,20 @@ export default async function AdminLayout({
                 <span className="font-semibold">Admin</span>
               </Link>
               <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
-              <Link
-                href="/admin/audit"
-                className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
-              >
-                <div className="p-2 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 shadow-sm group-hover:shadow-md group-hover:from-yec-primary/10 group-hover:to-yec-accent/10 transition-all duration-300">
-                  <Shield className="h-4 w-4" />
-                </div>
-                <span className="font-semibold">Audit</span>
-              </Link>
-              <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+              {false && (
+                <>
+                  <Link
+                    href="/admin/audit"
+                    className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
+                  >
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 shadow-sm group-hover:shadow-md group-hover:from-yec-primary/10 group-hover:to-yec-accent/10 transition-all duration-300">
+                      <Shield className="h-4 w-4" />
+                    </div>
+                    <span className="font-semibold">Audit</span>
+                  </Link>
+                  <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+                </>
+              )}
 
               {/* Check-in System - All Admins */}
               {checkinEnabled && (
