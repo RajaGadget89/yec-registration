@@ -81,13 +81,17 @@ export default function ConfirmDialog({
 
                     {/* Enhanced awareness message for production safety */}
                     <div className="mt-3 rounded-md border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-3 text-sm text-red-700 dark:text-red-300">
-                      <div className="font-semibold mb-2">⚠️ CRITICAL ACTION WARNING</div>
+                      <div className="font-semibold mb-2">
+                        ⚠️ CRITICAL ACTION WARNING
+                      </div>
                       <div className="space-y-1">
                         <div>• This action cannot be undone</div>
                         <div>• The admin will immediately lose all access</div>
                         <div>• All associated permissions will be revoked</div>
                         <div>• Super admin accounts cannot be deleted</div>
-                        <div>• This action will be logged for audit purposes</div>
+                        <div>
+                          • This action will be logged for audit purposes
+                        </div>
                       </div>
                     </div>
 

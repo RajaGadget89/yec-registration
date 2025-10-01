@@ -327,9 +327,11 @@ async function getDeletePlanHandler(req: Request, ctx: any) {
   // Enhanced logging for production deletions
   const appEnv = process.env.APP_ENV || process.env.NODE_ENV;
   const { id: adminId } = await ctx.params;
-  
+
   if (appEnv === "production") {
-    console.log(`[ADMIN_DELETE] PRODUCTION DELETE ATTEMPT - Admin: ${ctx.me?.email}, Target: ${adminId}`);
+    console.log(
+      `[ADMIN_DELETE] PRODUCTION DELETE ATTEMPT - Admin: ${ctx.me?.email}, Target: ${adminId}`,
+    );
   }
   if (!adminId) {
     return NextResponse.json(
