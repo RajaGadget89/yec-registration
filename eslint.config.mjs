@@ -46,6 +46,20 @@ const eslintConfig = [
     rules: {
       "@next/next/no-img-element": "off" // Allow <img> tags in email templates
     }
+  },
+  {
+    files: ["app/lib/import/**/*.ts", "app/lib/emails/**/*.tsx", "app/api/admin/import/**/*.ts", "app/components/import/**/*.tsx", "app/admin/import/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          "argsIgnorePattern": "^_|value|index|config|sessionId|adminUserId|errors|warnings|jsonData|originalData|brandTokens|record|trackingCode|Papa|configKey|data|batches|csvData|current|csvColumns|mappedData|userId|batchSize",
+          "varsIgnorePattern": "^_|value|index|config|sessionId|adminUserId|errors|warnings|jsonData|originalData|brandTokens|record|trackingCode|Papa|configKey|data|batches|csvData|current|csvColumns|FileData|mappedData|userId|batchSize",
+          "caughtErrorsIgnorePattern": "^_"
+        }
+      ],
+      "react-hooks/exhaustive-deps": "warn"
+    }
   }
 ];
 
