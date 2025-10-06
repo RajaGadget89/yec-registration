@@ -42,6 +42,7 @@ export const provinceSlugToCode: Record<string, string> = {
   "phra-nakhon-si-ayutthaya": "AYA",
   phrae: "PRE",
   phuket: "PKT",
+  phatthalung: "PTL",
   "prachin-buri": "PRI",
   "prachuap-khiri-khan": "PKN",
   ranong: "RNG",

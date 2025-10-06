@@ -8,6 +8,7 @@ import {
   DollarSign,
   Calendar,
   Settings,
+  Upload,
 } from "lucide-react";
 
 interface SuperAdminDropdownProps {
@@ -50,6 +51,13 @@ export default function SuperAdminDropdown({
       icon: DollarSign,
       label: "Pricing Management",
       description: "Configure pricing and packages",
+      show: true,
+    },
+    {
+      href: "/admin/import",
+      icon: Upload,
+      label: "Google Form Import",
+      description: "Import registration data from Google Forms",
       show: true,
     },
     {

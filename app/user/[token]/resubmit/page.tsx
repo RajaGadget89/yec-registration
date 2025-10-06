@@ -482,6 +482,7 @@ export default function UserResubmissionPage() {
                       <option value="education">Education</option>
                       <option value="retail">Retail</option>
                       <option value="manufacturing">Manufacturing</option>
+                      <option value="hotel">Hotel & Accommodation</option>
                       <option value="other">Other</option>
                     </select>
                   </div>

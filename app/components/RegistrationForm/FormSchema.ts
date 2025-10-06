@@ -267,6 +267,8 @@ export const formSchema: FormField[] = [
       { value: "legal", label: "กฎหมาย" },
       { value: "marketing", label: "การตลาด" },
       { value: "agriculture", label: "เกษตรกรรม" },
+      { value: "hotel", label: "โรงแรมและที่พัก" },
+      { value: "services", label: "บริการ" },
       { value: "other", label: "อื่น ๆ" },
     ],
     extraField: {
