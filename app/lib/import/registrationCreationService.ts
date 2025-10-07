@@ -106,10 +106,9 @@ export class RegistrationCreationService {
         return v;
       };
 
-      // Process files from Google Drive URLs
-      const fileProcessingResults = await this.processFiles(transformedData);
-
-      // Create registration record
+      // ✅ File processing now happens BEFORE registration creation in PreRegistrationFileProcessor
+      // The transformedData already contains storage URLs, not Google Drive URLs
+      // No need to call this.processFiles() anymore - it was causing duplicate processing!
       console.log(
         `[DB Insert] ${trackingCode} business_type: "${transformedData.business_type}"`,
       );
@@ -117,10 +116,13 @@ export class RegistrationCreationService {
         `[DB Insert] ${trackingCode} business_type_other: "${transformedData.business_type_other}"`,
       );
       console.log(
-        `[DB Insert] ${trackingCode} chamber_card_url (before processFiles): "${transformedData.chamber_card_url}"`,
+        `[DB Insert] ${trackingCode} chamber_card_url: "${transformedData.chamber_card_url}"`,
       );
       console.log(
-        `[DB Insert] ${trackingCode} chamber_card_url (after processFiles): "${fileProcessingResults.chamberCardUrl}"`,
+        `[DB Insert] ${trackingCode} profile_image_url: "${transformedData.profile_image_url}"`,
+      );
+      console.log(
+        `[DB Insert] ${trackingCode} payment_slip_url: "${transformedData.payment_slip_url}"`,
       );
 
       // Sanitize line_id to match DB constraint: ^[a-zA-Z0-9._-]+$
@@ -171,9 +173,10 @@ export class RegistrationCreationService {
         roommate_phone: transformedData.roommate_phone,
         external_hotel_name: finalExternalHotelName,
         travel_type: transformedData.travel_type,
-        profile_image_url: fileProcessingResults.profileImageUrl,
-        chamber_card_url: fileProcessingResults.chamberCardUrl,
-        payment_slip_url: fileProcessingResults.paymentSlipUrl,
+        // Use storage URLs directly from transformedData (already processed by PreRegistrationFileProcessor)
+        profile_image_url: transformedData.profile_image_url || null,
+        chamber_card_url: transformedData.chamber_card_url || null,
+        payment_slip_url: transformedData.payment_slip_url || null,
         badge_url: null, // Will be generated later
         email_sent: false,
         email_sent_at: null,
@@ -183,11 +186,11 @@ export class RegistrationCreationService {
         payment_review_status: "approved" as const, // Pre-approved
         profile_review_status: "approved" as const, // Pre-approved
         tcc_review_status: "approved" as const, // Pre-approved
-        // Enforce approved checklist shape if not provided
+        // Enforce approved checklist shape to match traditional form registrations
         review_checklist: asJson(td.review_checklist) || {
-          tcc: { status: "approved" },
-          payment: { status: "approved" },
-          profile: { status: "approved" },
+          tcc: { status: "passed" },
+          payment: { status: "passed" },
+          profile: { status: "passed" },
         },
         price_applied:
           typeof td.price_applied === "number"
@@ -304,7 +307,9 @@ export class RegistrationCreationService {
         registrationId: registration.id,
         trackingCode,
         fileProcessingResults: {
-          ...fileProcessingResults,
+          profileImageUrl: transformedData.profile_image_url || undefined,
+          chamberCardUrl: transformedData.chamber_card_url || undefined,
+          paymentSlipUrl: transformedData.payment_slip_url || undefined,
         },
       };
     } catch (error: any) {

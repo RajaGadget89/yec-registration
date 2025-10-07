@@ -220,8 +220,11 @@ export class BadgeGenerationService {
    */
   private async fetchProfileImageAsBase64(imageUrl: string): Promise<string> {
     try {
-      // If it's already a Supabase storage URL, download it
-      if (imageUrl.includes("supabase")) {
+      console.log(`📷 Fetching profile image from: ${imageUrl}`);
+
+      // Check if it's a full Supabase public URL
+      if (imageUrl.includes("supabase.co/storage/v1/object/public/")) {
+        console.log(`📷 Fetching from public URL`);
         const response = await fetch(imageUrl);
         if (!response.ok) {
           throw new Error(`Failed to fetch image: ${response.statusText}`);
@@ -232,11 +235,39 @@ export class BadgeGenerationService {
         return `data:image/jpeg;base64,${base64}`;
       }
 
-      // If it's a Google Drive URL, it should have been processed by FileProcessingPipeline
-      // and converted to Supabase storage URL
-      throw new Error("Profile image URL is not a Supabase storage URL");
+      // If it's a storage path in format "bucket/path", use Supabase storage client
+      if (imageUrl.includes("/")) {
+        const parts = imageUrl.split("/");
+        const bucket = parts[0];
+        const path = parts.slice(1).join("/");
+
+        console.log(
+          `📷 Downloading from storage: bucket=${bucket}, path=${path}`,
+        );
+
+        const { data, error } = await this.supabase.storage
+          .from(bucket)
+          .download(path);
+
+        if (error) {
+          throw new Error(`Failed to download from storage: ${error.message}`);
+        }
+
+        if (!data) {
+          throw new Error("No data returned from storage");
+        }
+
+        const buffer = await data.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString("base64");
+        console.log(
+          `✅ Profile image fetched successfully (${(buffer.byteLength / 1024).toFixed(2)} KB)`,
+        );
+        return `data:image/jpeg;base64,${base64}`;
+      }
+
+      throw new Error("Profile image URL format not recognized");
     } catch (error: any) {
-      console.error("Error fetching profile image:", error);
+      console.error("❌ Error fetching profile image:", error);
       throw error;
     }
   }

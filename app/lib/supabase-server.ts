@@ -1,7 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import type { Database } from "../types/database";
 import { assertDbRouting, logDbRouting } from "./env-guards";
 
 // Validate database routing on module load (development only)
@@ -31,7 +30,7 @@ export function getServerSupabase(req: NextRequest, res: NextResponse) {
     throw new Error("Missing Supabase environment variables");
   }
 
-  const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+  const supabase = createServerClient<any>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       get(name: string) {
         return req.cookies.get(name)?.value;
@@ -61,7 +60,7 @@ export function getMiddlewareSupabase(req: NextRequest) {
     throw new Error("Missing Supabase environment variables");
   }
 
-  const supabase = createServerClient<Database>(supabaseUrl, supabaseAnonKey, {
+  const supabase = createServerClient<any>(supabaseUrl, supabaseAnonKey, {
     cookies: {
       get(name: string) {
         return req.cookies.get(name)?.value;
@@ -91,7 +90,7 @@ export function getSupabaseServiceClient() {
     throw new Error("Missing Supabase environment variables");
   }
 
-  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+  return createClient<any>(supabaseUrl, supabaseServiceKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -112,7 +111,7 @@ export function getServiceRoleClient() {
     throw new Error("Missing Supabase environment variables");
   }
 
-  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+  return createClient<any>(supabaseUrl, supabaseServiceKey, {
     auth: {
       persistSession: false,
     },

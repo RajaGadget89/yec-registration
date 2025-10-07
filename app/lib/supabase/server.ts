@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../../types/database";
 import { isE2E } from "../env/isE2E";
 
 /**
@@ -11,7 +10,7 @@ import { isE2E } from "../env/isE2E";
  */
 export async function getSupabaseServerClient() {
   const cookieStore = await cookies();
-  return createServerClient<Database>(
+  return createServerClient<any>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -36,7 +35,7 @@ export async function getSupabaseServerClient() {
  * for operations that require elevated privileges (bypasses RLS)
  */
 export function getSupabaseServiceClient() {
-  return createClient<Database>(
+  return createClient<any>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {

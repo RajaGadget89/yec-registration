@@ -1,5 +1,3 @@
-// import { createClient } from '@supabase/supabase-js';
-
 export interface FileData {
   originalUrl: string;
   filename: string;
@@ -25,28 +23,105 @@ export interface ValidationResult {
   errors: string[];
 }
 
+interface OAuthTokenResponse {
+  access_token: string;
+  expires_in: number;
+  token_type: string;
+  refresh_token?: string;
+}
+
 export class GoogleDriveService {
-  private apiKey: string;
+  private clientId: string;
+  private clientSecret: string;
+  private refreshToken: string;
   private baseUrl = "https://www.googleapis.com/drive/v3";
+  private tokenUrl = "https://oauth2.googleapis.com/token";
+
+  // Token caching
+  private accessToken: string | null = null;
+  private tokenExpiresAt: number = 0;
 
   constructor() {
-    this.apiKey = process.env.GOOGLE_DRIVE_API_KEY || "";
-    if (!this.apiKey) {
+    this.clientId = process.env.GOOGLE_DRIVE_CLIENT_ID || "";
+    this.clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET || "";
+    this.refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN || "";
+
+    if (!this.clientId || !this.clientSecret || !this.refreshToken) {
       console.warn(
-        "⚠️ GOOGLE_DRIVE_API_KEY environment variable is not set - Google Drive functionality will be disabled",
+        "⚠️ Google Drive OAuth credentials not configured - Google Drive functionality will be disabled",
+      );
+      console.warn(
+        "Required: GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, GOOGLE_DRIVE_REFRESH_TOKEN",
       );
     }
+  }
+
+  /**
+   * Get a valid access token (refresh if expired)
+   */
+  private async getAccessToken(): Promise<string> {
+    // Check if we have a cached token that's still valid
+    if (this.accessToken && Date.now() < this.tokenExpiresAt) {
+      return this.accessToken;
+    }
+
+    // Refresh the token
+    try {
+      console.log("🔄 Refreshing Google Drive access token...");
+
+      const params = new URLSearchParams({
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
+        refresh_token: this.refreshToken,
+        grant_type: "refresh_token",
+      });
+
+      const response = await fetch(this.tokenUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Token refresh failed: ${error}`);
+      }
+
+      const data: OAuthTokenResponse = await response.json();
+
+      // Cache the token (subtract 60 seconds for safety margin)
+      this.accessToken = data.access_token;
+      this.tokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000;
+
+      console.log("✅ Access token refreshed successfully");
+      return this.accessToken;
+    } catch (error) {
+      console.error("❌ Failed to refresh access token:", error);
+      throw new Error(
+        `OAuth token refresh failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Check if OAuth is configured
+   */
+  private isConfigured(): boolean {
+    return !!(this.clientId && this.clientSecret && this.refreshToken);
   }
 
   /**
    * Download a file from Google Drive share URL
    */
   async downloadFile(shareUrl: string): Promise<FileData> {
-    if (!this.apiKey) {
+    if (!this.isConfigured()) {
       throw new Error(
-        "GoogleDriveService not available - GOOGLE_DRIVE_API_KEY not configured",
+        "GoogleDriveService not available - OAuth credentials not configured",
       );
     }
+
     try {
       // Extract file ID from share URL
       const fileId = this.extractFileId(shareUrl);
@@ -57,18 +132,24 @@ export class GoogleDriveService {
       // Get file metadata first
       const metadata = await this.getFileMetadata(fileId);
 
-      // Download file content
+      // Get access token
+      const accessToken = await this.getAccessToken();
+
+      // Download file content using OAuth
       const response = await fetch(
-        `${this.baseUrl}/files/${fileId}?alt=media&key=${this.apiKey}`,
+        `${this.baseUrl}/files/${fileId}?alt=media`,
         {
           headers: {
-            Authorization: `Bearer ${this.apiKey}`,
+            Authorization: `Bearer ${accessToken}`,
           },
         },
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to download file: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to download file: ${response.statusText} - ${errorText}`,
+        );
       }
 
       const buffer = Buffer.from(await response.arrayBuffer());
@@ -143,17 +224,22 @@ export class GoogleDriveService {
    */
   async getFileMetadata(fileId: string): Promise<FileMetadata> {
     try {
+      const accessToken = await this.getAccessToken();
+
       const response = await fetch(
-        `${this.baseUrl}/files/${fileId}?key=${this.apiKey}`,
+        `${this.baseUrl}/files/${fileId}?fields=id,name,mimeType,size,webViewLink,webContentLink`,
         {
           headers: {
-            Authorization: `Bearer ${this.apiKey}`,
+            Authorization: `Bearer ${accessToken}`,
           },
         },
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to get file metadata: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to get file metadata: ${response.statusText} - ${errorText}`,
+        );
       }
 
       const data = await response.json();

@@ -77,6 +77,51 @@ export interface Database {
         Insert: never;
         Update: never;
       };
+      import_sessions: {
+        Row: ImportSession;
+        Insert: ImportSessionInsert;
+        Update: ImportSessionUpdate;
+      };
+      import_audit_logs: {
+        Row: ImportAuditLog;
+        Insert: ImportAuditLogInsert;
+        Update: ImportAuditLogUpdate;
+      };
+      import_batches: {
+        Row: ImportBatch;
+        Insert: ImportBatchInsert;
+        Update: ImportBatchUpdate;
+      };
+      user_checkins: {
+        Row: UserCheckin;
+        Insert: UserCheckinInsert;
+        Update: UserCheckinUpdate;
+      };
+      checkin_events: {
+        Row: CheckinEvent;
+        Insert: CheckinEventInsert;
+        Update: CheckinEventUpdate;
+      };
+      event_types: {
+        Row: EventType;
+        Insert: EventTypeInsert;
+        Update: EventTypeUpdate;
+      };
+      payment_slip_analysis: {
+        Row: PaymentSlipAnalysis;
+        Insert: PaymentSlipAnalysisInsert;
+        Update: PaymentSlipAnalysisUpdate;
+      };
+      update_tokens: {
+        Row: UpdateToken;
+        Insert: UpdateTokenInsert;
+        Update: UpdateTokenUpdate;
+      };
+      email_queue: {
+        Row: EmailQueue;
+        Insert: EmailQueueInsert;
+        Update: EmailQueueUpdate;
+      };
     };
     Views: {
       [key: string]: unknown;
@@ -335,12 +380,15 @@ export interface AdminUser {
   updated_at: string;
   last_login_at: string | null;
   is_active: boolean;
+  status: "active" | "suspended";
 }
 
 export interface AdminUserInsert {
   email: string;
   role?: "admin" | "super_admin";
   business_roles?: BusinessRole[];
+  is_active?: boolean;
+  status?: "active" | "suspended";
   created_at?: string;
   updated_at?: string;
 }
@@ -349,6 +397,8 @@ export interface AdminUserUpdate {
   email?: string;
   role?: "admin" | "super_admin";
   business_roles?: BusinessRole[];
+  is_active?: boolean;
+  status?: "active" | "suspended";
   created_at?: string;
   updated_at?: string;
 }
@@ -753,4 +803,340 @@ export interface SchemaMigration {
   version: string;
   statements: string[];
   name: string;
+}
+
+// Import session table types
+export interface ImportSession {
+  id: string;
+  admin_user_id: string;
+  csv_filename: string;
+  total_records: number;
+  processed_records: number;
+  successful_records: number;
+  failed_records: number;
+  status: "pending" | "processing" | "completed" | "failed" | "rolled_back";
+  metadata: any;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+}
+
+export interface ImportSessionInsert {
+  admin_user_id: string;
+  csv_filename: string;
+  total_records: number;
+  processed_records?: number;
+  successful_records?: number;
+  failed_records?: number;
+  status?: "pending" | "processing" | "completed" | "failed" | "rolled_back";
+  metadata?: any;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string | null;
+}
+
+export interface ImportSessionUpdate {
+  admin_user_id?: string;
+  csv_filename?: string;
+  total_records?: number;
+  processed_records?: number;
+  successful_records?: number;
+  failed_records?: number;
+  status?: "pending" | "processing" | "completed" | "failed" | "rolled_back";
+  metadata?: any;
+  created_at?: string;
+  updated_at?: string;
+  completed_at?: string | null;
+}
+
+// Import audit log table types
+export interface ImportAuditLog {
+  id: string;
+  import_session_id: string;
+  admin_user_id: string;
+  event_type: string;
+  event_details: any;
+  created_at: string;
+}
+
+export interface ImportAuditLogInsert {
+  import_session_id: string;
+  admin_user_id: string;
+  event_type: string;
+  event_details: any;
+  created_at?: string;
+}
+
+export interface ImportAuditLogUpdate {
+  import_session_id?: string;
+  admin_user_id?: string;
+  event_type?: string;
+  event_details?: any;
+  created_at?: string;
+}
+
+// Import batch table types
+export interface ImportBatch {
+  id: string;
+  import_session_id: string;
+  batch_number: number;
+  status: "pending" | "processing" | "completed" | "failed";
+  records_count: number;
+  processed_count: number;
+  successful_count: number;
+  failed_count: number;
+  error_log: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ImportBatchInsert {
+  import_session_id: string;
+  batch_number: number;
+  status?: "pending" | "processing" | "completed" | "failed";
+  records_count: number;
+  processed_count?: number;
+  successful_count?: number;
+  failed_count?: number;
+  error_log?: any;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ImportBatchUpdate {
+  import_session_id?: string;
+  batch_number?: number;
+  status?: "pending" | "processing" | "completed" | "failed";
+  records_count?: number;
+  processed_count?: number;
+  successful_count?: number;
+  failed_count?: number;
+  error_log?: any;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// User checkin table types
+export interface UserCheckin {
+  id: string;
+  registration_id: string;
+  checkin_event_id: string;
+  event_type_id: string;
+  checkin_time: string;
+  location: string | null;
+  notes: string | null;
+  checked_in_by: string;
+  metadata: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserCheckinInsert {
+  registration_id: string;
+  checkin_event_id: string;
+  event_type_id: string;
+  checkin_time: string;
+  location?: string | null;
+  notes?: string | null;
+  checked_in_by: string;
+  metadata?: any;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UserCheckinUpdate {
+  registration_id?: string;
+  checkin_event_id?: string;
+  event_type_id?: string;
+  checkin_time?: string;
+  location?: string | null;
+  notes?: string | null;
+  checked_in_by?: string;
+  metadata?: any;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Checkin event table types
+export interface CheckinEvent {
+  id: string;
+  name: string;
+  description: string | null;
+  location: string | null;
+  start_time: string;
+  end_time: string;
+  event_type_id: string;
+  created_by: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CheckinEventInsert {
+  name: string;
+  description?: string | null;
+  location?: string | null;
+  start_time: string;
+  end_time: string;
+  event_type_id: string;
+  created_by: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CheckinEventUpdate {
+  name?: string;
+  description?: string | null;
+  location?: string | null;
+  start_time?: string;
+  end_time?: string;
+  event_type_id?: string;
+  created_by?: string;
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Event type table types
+export interface EventType {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  is_default: boolean;
+  business_rule_category: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventTypeInsert {
+  name: string;
+  description?: string | null;
+  is_active?: boolean;
+  is_default?: boolean;
+  business_rule_category: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EventTypeUpdate {
+  name?: string;
+  description?: string | null;
+  is_active?: boolean;
+  is_default?: boolean;
+  business_rule_category?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Payment slip analysis table types
+export interface PaymentSlipAnalysis {
+  id: string;
+  application_id: string;
+  file_path: string;
+  result_json: any;
+  analyzer_version: string;
+  created_at: string;
+}
+
+export interface PaymentSlipAnalysisInsert {
+  application_id: string;
+  file_path: string;
+  result_json: any;
+  analyzer_version: string;
+  created_at?: string;
+}
+
+export interface PaymentSlipAnalysisUpdate {
+  application_id?: string;
+  file_path?: string;
+  result_json?: any;
+  analyzer_version?: string;
+  created_at?: string;
+}
+
+// Update token table types
+export interface UpdateToken {
+  id: string;
+  token_hash: string;
+  registration_id: string;
+  dimension: "payment" | "profile" | "tcc";
+  created_by: string;
+  notes: string | null;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateTokenInsert {
+  token_hash: string;
+  registration_id: string;
+  dimension: "payment" | "profile" | "tcc";
+  created_by: string;
+  notes?: string | null;
+  expires_at: string;
+  used_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UpdateTokenUpdate {
+  token_hash?: string;
+  registration_id?: string;
+  dimension?: "payment" | "profile" | "tcc";
+  created_by?: string;
+  notes?: string | null;
+  expires_at?: string;
+  used_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Email queue table types
+export interface EmailQueue {
+  id: string;
+  to_email: string;
+  subject: string;
+  template: string;
+  payload: any;
+  status: "pending" | "sent" | "failed" | "retrying";
+  attempts: number;
+  max_attempts: number;
+  next_attempt: string | null;
+  sent_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EmailQueueInsert {
+  to_email: string;
+  subject: string;
+  template: string;
+  payload: any;
+  status?: "pending" | "sent" | "failed" | "retrying";
+  attempts?: number;
+  max_attempts?: number;
+  next_attempt?: string | null;
+  sent_at?: string | null;
+  last_error?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface EmailQueueUpdate {
+  to_email?: string;
+  subject?: string;
+  template?: string;
+  payload?: any;
+  status?: "pending" | "sent" | "failed" | "retrying";
+  attempts?: number;
+  max_attempts?: number;
+  next_attempt?: string | null;
+  sent_at?: string | null;
+  last_error?: string | null;
+  created_at?: string;
+  updated_at?: string;
 }
