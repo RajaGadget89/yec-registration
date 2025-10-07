@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const { data: registration, error } = await supabase
     .from("registrations")
     .select("*")
-    .eq(id ? "id" : "registration_id", id || registration_id)
+    .eq(id ? "id" : "registration_id", (id || registration_id) as string)
     .single();
 
   return NextResponse.json({

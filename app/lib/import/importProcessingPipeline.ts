@@ -11,6 +11,7 @@ import {
   RegistrationCreationService,
   BatchRegistrationResult,
 } from "./registrationCreationService";
+import { PreRegistrationFileProcessor } from "./preRegistrationFileProcessor";
 import { JsonConfigurationTransformer } from "./jsonConfigurationTransformer";
 import { getSupabaseServiceClient } from "../supabase-server";
 
@@ -64,6 +65,7 @@ export class ImportProcessingPipeline {
   private dataTransformer = new DataTransformerService();
   private trackingCodeService = new TrackingCodeService();
   private registrationCreationService = new RegistrationCreationService();
+  private fileProcessor = new PreRegistrationFileProcessor();
   private supabase = getSupabaseServiceClient();
 
   /**
@@ -151,11 +153,35 @@ export class ImportProcessingPipeline {
         throw new Error("Tracking code generation failed");
       }
 
-      // Step 4: Create registrations from re-transformed data (if not dry run)
+      // Step 3.5: Process files from Google Drive BEFORE registration creation
+      // This is CRITICAL so badge generation can access storage URLs
+      console.log(
+        "📥 Processing files from Google Drive to Supabase Storage...",
+      );
+      const recordsWithStorageUrls =
+        await this.fileProcessor.processFilesForBatch(
+          reTransformedData.map((data: any, index: number) => ({
+            id:
+              (trackingCodeResult.trackingCodes[index] as any)?.trackingCode ||
+              `temp-${index}`,
+            transformedData: data,
+          })),
+          sessionId,
+        );
+
+      // Update the data with storage URLs
+      const updatedData = recordsWithStorageUrls.map(
+        (r: any) => r.transformedData,
+      );
+      console.log(
+        "✅ Files processed - registrations will have storage URLs for badge generation",
+      );
+
+      // Step 4: Create registrations from data with storage URLs (if not dry run)
       let registrationResult: BatchRegistrationResult | null = null;
       if (!dryRun) {
         registrationResult = await this.createRegistrationsFromPreview(
-          reTransformedData,
+          updatedData, // ← Now has storage URLs instead of Google Drive URLs!
           trackingCodeResult,
           sessionId,
           adminUserId,

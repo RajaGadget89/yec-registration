@@ -302,10 +302,11 @@ export class AdvancedDataTransformerService {
     transformedRow.tcc_review_status = "approved";
     transformedRow.profile_review_status = "approved";
     transformedRow.payment_review_status = "approved";
+    // Use "passed" to match traditional form registrations
     transformedRow.review_checklist = JSON.stringify({
-      tcc: { status: "approved" },
-      payment: { status: "approved" },
-      profile: { status: "approved" },
+      tcc: { status: "passed" },
+      payment: { status: "passed" },
+      profile: { status: "passed" },
     });
 
     // Defaults

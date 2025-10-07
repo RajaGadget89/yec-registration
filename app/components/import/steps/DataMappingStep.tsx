@@ -221,7 +221,9 @@ export function DataMappingStep({
   const _loadDefaultConfiguration = async () => {
     try {
       console.log("🔄 Loading default configuration...");
-      const response = await fetch("/api/admin/import/mapping/default");
+      const response = await fetch("/api/admin/import/mapping/default", {
+        cache: "no-store",
+      });
 
       if (response.status === 204) {
         console.log("ℹ️ No default configuration found, using system defaults");
@@ -253,7 +255,9 @@ export function DataMappingStep({
   const loadJsonConfiguration = async () => {
     try {
       setJsonConfigError(null);
-      const response = await fetch("/api/import/load-config");
+      const response = await fetch("/api/import/load-config", {
+        cache: "no-store",
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to load configuration: ${response.statusText}`);
@@ -437,7 +441,9 @@ export function DataMappingStep({
   // Default mapping: auto-load when available
   const tryLoadDefault = async (current: ColumnMapping[]) => {
     try {
-      const res = await fetch("/api/admin/import/mapping/default");
+      const res = await fetch("/api/admin/import/mapping/default", {
+        cache: "no-store",
+      });
       if (!res.ok) return;
       const cfg = await res.json();
       applyMappingConfig(cfg);
