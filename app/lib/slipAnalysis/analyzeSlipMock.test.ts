@@ -13,3 +13,4 @@ describe("analyzeSlipMock", () => {
     expect(res.amountDetected).toBe(20000);
   });
 });
+

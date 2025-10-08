@@ -5,10 +5,12 @@ import Footer from "../components/Footer";
 import AdminUserInfoClient from "./_components/AdminUserInfoClient";
 import { EmailOutboxNavWidget } from "./_components/EmailOutboxNavWidget";
 import SuperAdminDropdown from "./_components/SuperAdminDropdown";
+import CMSNavigation from "./_components/CMSNavigation";
 
 import { getCurrentUser } from "../lib/auth-utils.server";
 import { getRolesForEmail } from "../lib/rbac";
 import { isCheckinSystemEnabled } from "../lib/features";
+import { hasCMSAdminRole } from "../lib/cms-auth";
 import { headers } from "next/headers";
 
 // Force dynamic rendering for admin routes that use cookies
@@ -27,6 +29,7 @@ export default async function AdminLayout({
   // Normal mode: perform full authentication check
   let user = null;
   let isSuperAdmin = false;
+  let hasCMSAccess = false;
 
   user = await getCurrentUser();
 
@@ -39,6 +42,13 @@ export default async function AdminLayout({
     if (!isSuperAdmin) {
       const rbacRoles = getRolesForEmail(user.email);
       isSuperAdmin = rbacRoles.has("super_admin");
+    }
+
+    // Check CMS access (super_admin or cms_admin business role)
+    if (isSuperAdmin) {
+      hasCMSAccess = true;
+    } else {
+      hasCMSAccess = await hasCMSAdminRole(user.email);
     }
   }
 
@@ -134,6 +144,14 @@ export default async function AdminLayout({
               <div className="relative">
                 <EmailOutboxNavWidget />
               </div>
+
+              {/* CMS Navigation */}
+              {hasCMSAccess && (
+                <>
+                  <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+                  <CMSNavigation hasCMSAccess={hasCMSAccess} />
+                </>
+              )}
 
               {/* Super Admin Dropdown */}
               {isSuperAdmin && (

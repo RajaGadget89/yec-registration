@@ -21,7 +21,8 @@ export type BusinessRole =
   | "user_profile"
   | "payment_slip"
   | "tcc_card"
-  | "checker_admin";
+  | "checker_admin"
+  | "cms_admin";
 
 /**
  * Normalizes email for consistent comparison
@@ -219,7 +220,7 @@ export async function getBusinessRoles(email: string): Promise<BusinessRole[]> {
 
     // Super admin has all business roles
     if ((admin as any).role === "super_admin") {
-      return ["user_profile", "payment_slip", "tcc_card"];
+      return ["user_profile", "payment_slip", "tcc_card", "cms_admin"];
     }
 
     // Return actual business roles
@@ -242,7 +243,7 @@ function getBusinessRolesFromEnv(email: string): BusinessRole[] {
 
   // Super admin has all business roles
   if (roles.has("super_admin")) {
-    return ["user_profile", "payment_slip", "tcc_card"];
+    return ["user_profile", "payment_slip", "tcc_card", "cms_admin"];
   }
 
   // Map RBAC roles to business roles
