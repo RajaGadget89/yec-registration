@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import EventTypeFormModal, { EventTypeModel } from "./EventTypeFormModal";
 
 export default function EventTypesTab() {

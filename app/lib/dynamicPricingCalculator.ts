@@ -40,6 +40,9 @@ export interface PriceCalculationResult {
 export interface AvailableOptions {
   hotelChoices: string[];
   roomTypes: string[];
+  // Pricing configuration context for dynamic form behavior
+  allowInQuotaAfterEarlyBird: boolean;
+  isEarlyBird: boolean;
 }
 
 export interface PricingConfigUpdate {
@@ -332,6 +335,8 @@ export class DynamicPricingCalculator {
     return {
       hotelChoices,
       roomTypes,
+      allowInQuotaAfterEarlyBird: pricingConfig.allow_in_quota_after_early_bird,
+      isEarlyBird,
     };
   }
 

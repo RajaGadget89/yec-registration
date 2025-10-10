@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Clock, RefreshCw, X, AlertCircle, Loader2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ssrSafeIdempotencyKey } from "../../../lib/ssr-safe";
@@ -171,12 +172,12 @@ export default function PendingTab() {
           <div className="text-sm mb-4">
             All invitations have been processed or expired
           </div>
-          <a
+          <Link
             href="/admin/management?tab=invite"
             className="inline-flex items-center px-4 py-2 text-sm font-medium text-purple-600 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/20 dark:text-purple-400 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
           >
             Send New Invitation
-          </a>
+          </Link>
         </div>
       </div>
     );

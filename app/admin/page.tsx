@@ -14,6 +14,8 @@ type AdminSearchParams = {
   search?: string;
   dateFrom?: string;
   dateTo?: string;
+  hotelChoice?: string;
+  travelType?: string;
   sortColumn?: string;
   sortDirection?: "asc" | "desc";
 };
@@ -37,6 +39,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     search: params.search || "",
     dateFrom: params.dateFrom || "",
     dateTo: params.dateTo || "",
+    hotelChoice: params.hotelChoice?.split(",").filter(Boolean) || [],
+    travelType: params.travelType?.split(",").filter(Boolean) || [],
   };
 
   const pagination: PaginationParams = {

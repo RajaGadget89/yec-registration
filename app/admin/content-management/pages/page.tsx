@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "../../../lib/auth-utils.server";
 import { hasCMSAdminRole } from "../../../lib/cms-auth";
 import PagesManagement from "./_components/PagesManagement";
+import AdminHeader from "../../_components/AdminHeader";
 
 export const metadata: Metadata = {
   title: "Pages Management - CMS Admin",
@@ -26,14 +27,12 @@ export default async function PagesManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Pages Management</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Create, edit, and manage website pages
-          </p>
-        </div>
-      </div>
+      <AdminHeader
+        compact
+        backHref="/admin/content-management"
+        title="Pages Management"
+        subtitle="Create, edit, and manage website pages"
+      />
 
       <PagesManagement />
     </div>

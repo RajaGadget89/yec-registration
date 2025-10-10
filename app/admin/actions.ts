@@ -9,6 +9,8 @@ export interface FilterState {
   search: string;
   dateFrom: string;
   dateTo: string;
+  hotelChoice?: string[];
+  travelType?: string[];
 }
 
 export interface PaginationParams {
@@ -77,6 +79,14 @@ export async function getRegistrations(
 
     if (filters.provinces.length > 0) {
       query = query.in("yec_province", filters.provinces);
+    }
+
+    if (filters.hotelChoice && filters.hotelChoice.length > 0) {
+      query = query.in("hotel_choice", filters.hotelChoice);
+    }
+
+    if (filters.travelType && filters.travelType.length > 0) {
+      query = query.in("travel_type", filters.travelType);
     }
 
     if (filters.search) {
@@ -150,6 +160,20 @@ export async function getRegistrations(
       statusCountsQuery = statusCountsQuery.in(
         "yec_province",
         filters.provinces,
+      );
+    }
+
+    if (filters.hotelChoice && filters.hotelChoice.length > 0) {
+      statusCountsQuery = statusCountsQuery.in(
+        "hotel_choice",
+        filters.hotelChoice,
+      );
+    }
+
+    if (filters.travelType && filters.travelType.length > 0) {
+      statusCountsQuery = statusCountsQuery.in(
+        "travel_type",
+        filters.travelType,
       );
     }
 
@@ -311,6 +335,14 @@ export async function exportToCSV(filters: FilterState): Promise<string> {
       query = query.in("yec_province", filters.provinces);
     }
 
+    if (filters.hotelChoice && filters.hotelChoice.length > 0) {
+      query = query.in("hotel_choice", filters.hotelChoice);
+    }
+
+    if (filters.travelType && filters.travelType.length > 0) {
+      query = query.in("travel_type", filters.travelType);
+    }
+
     if (filters.search) {
       const searchTerm = `%${filters.search}%`;
       query = query.or(
@@ -338,19 +370,8 @@ export async function exportToCSV(filters: FilterState): Promise<string> {
       return "registration_id,title,first_name,last_name,email,phone,company_name,yec_province,status,created_at\n";
     }
 
-    // Convert to CSV
-    const headers = [
-      "registration_id",
-      "title",
-      "first_name",
-      "last_name",
-      "email",
-      "phone",
-      "company_name",
-      "yec_province",
-      "status",
-      "created_at",
-    ];
+    // Convert to CSV with all columns of registrations table
+    const headers = Object.keys(registrations[0] || {});
 
     const csvRows = [
       headers.join(","),

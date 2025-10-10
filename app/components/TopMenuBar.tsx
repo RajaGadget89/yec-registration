@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import ThemeToggle from "./ThemeToggle";
 
 export default function TopMenuBar() {
@@ -120,6 +121,26 @@ export default function TopMenuBar() {
               >
                 Register
               </button>
+              <Link
+                href="/activities"
+                className={`text-lg font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1 ${
+                  isLandingPage && !isScrolled
+                    ? "text-white hover:text-yec-accent"
+                    : "text-yec-primary hover:text-yec-accent"
+                }`}
+              >
+                Activities
+              </Link>
+              <Link
+                href="/news"
+                className={`text-lg font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1 ${
+                  isLandingPage && !isScrolled
+                    ? "text-white hover:text-yec-accent"
+                    : "text-yec-primary hover:text-yec-accent"
+                }`}
+              >
+                News
+              </Link>
               <a
                 href="#about"
                 className={`text-lg font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1 ${

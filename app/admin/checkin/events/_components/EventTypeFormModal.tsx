@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 
 export type BusinessRuleCategory = "MULTIPLE_ALLOWED" | "ONE_TIME_ONLY";
 

@@ -3,23 +3,27 @@
  * Checks if current user has access to CMS functionality
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { canAccessCMS, getCMSAccessLevel, getCMSPermissions } from '../../../lib/cms-auth';
-import { getCurrentUser } from '../../../lib/auth-utils.server';
+import { NextRequest, NextResponse } from "next/server";
+import {
+  canAccessCMS,
+  getCMSAccessLevel,
+  getCMSPermissions,
+} from "../../../lib/cms-auth";
+import { getCurrentUser } from "../../../lib/auth-utils.server";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     // Get current user
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json(
-        { 
-          hasAccess: false, 
-          accessLevel: 'none',
+        {
+          hasAccess: false,
+          accessLevel: "none",
           permissions: [],
-          message: 'Authentication required' 
+          message: "Authentication required",
         },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -34,20 +38,19 @@ export async function GET(request: NextRequest) {
       permissions,
       user: {
         email: user.email,
-        role: user.role
-      }
-    });
-
-  } catch (error) {
-    console.error('CMS access check error:', error);
-    return NextResponse.json(
-      { 
-        hasAccess: false, 
-        accessLevel: 'none',
-        permissions: [],
-        error: 'Internal server error' 
+        role: user.role,
       },
-      { status: 500 }
+    });
+  } catch (error) {
+    console.error("CMS access check error:", error);
+    return NextResponse.json(
+      {
+        hasAccess: false,
+        accessLevel: "none",
+        permissions: [],
+        error: "Internal server error",
+      },
+      { status: 500 },
     );
   }
 }

@@ -3,10 +3,14 @@
  * Handles CMS access control and permission checking
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { withContentManagementGuard } from '../../../../lib/cms-api-guard';
-import { getCurrentUserFromRequest } from '../../../../lib/auth-utils.server';
-import { getCMSUserInfo, getCMSPermissions, getCMSAccessLevel } from '../../../../lib/cms-auth';
+import { NextRequest, NextResponse } from "next/server";
+import { withContentManagementGuard } from "../../../../lib/cms-api-guard";
+import { getCurrentUserFromRequest } from "../../../../lib/auth-utils.server";
+import {
+  getCMSUserInfo,
+  getCMSPermissions,
+  getCMSAccessLevel,
+} from "../../../../lib/cms-auth";
 
 /**
  * GET /api/admin/cms/access-control
@@ -20,7 +24,7 @@ export async function GET(request: NextRequest) {
 
     const user = await getCurrentUserFromRequest(request);
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Get comprehensive CMS user info
@@ -32,20 +36,22 @@ export async function GET(request: NextRequest) {
       user: {
         id: user.id,
         email: user.email,
-        role: user.role
+        role: user.role,
       },
       cms: {
         hasAccess: cmsUserInfo.hasAccess,
         accessLevel: cmsUserInfo.accessLevel,
         permissions: cmsUserInfo.permissions,
-        businessRoles: cmsUserInfo.businessRoles
+        businessRoles: cmsUserInfo.businessRoles,
       },
       permissions,
-      accessLevel
+      accessLevel,
     });
-
   } catch (error) {
-    console.error('CMS Access Control GET error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("CMS Access Control GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

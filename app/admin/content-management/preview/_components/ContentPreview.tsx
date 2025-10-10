@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Monitor, Smartphone, Tablet, RefreshCw, Eye, Settings, Globe, Lock } from "lucide-react";
+import {
+  Monitor,
+  Smartphone,
+  Tablet,
+  RefreshCw,
+  Eye,
+  Settings,
+  Globe,
+  Lock,
+} from "lucide-react";
 
 interface PreviewContent {
   id: string;
@@ -14,8 +23,12 @@ interface PreviewContent {
 }
 
 export default function ContentPreview() {
-  const [selectedDevice, setSelectedDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
-  const [selectedContent, setSelectedContent] = useState<PreviewContent | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<
+    "desktop" | "tablet" | "mobile"
+  >("desktop");
+  const [selectedContent, setSelectedContent] = useState<PreviewContent | null>(
+    null,
+  );
   const [contentList, setContentList] = useState<PreviewContent[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState("");
@@ -45,7 +58,7 @@ export default function ContentPreview() {
   const handleContentSelect = (content: PreviewContent) => {
     setSelectedContent(content);
     // Generate preview URL based on content type and device
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:8080";
     const previewUrl = `${baseUrl}/preview/${content.type}/${content.id}?device=${selectedDevice}`;
     setPreviewUrl(previewUrl);
   };
@@ -53,7 +66,8 @@ export default function ContentPreview() {
   const handleDeviceChange = (device: "desktop" | "tablet" | "mobile") => {
     setSelectedDevice(device);
     if (selectedContent) {
-      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      const baseUrl =
+        process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:8080";
       const previewUrl = `${baseUrl}/preview/${selectedContent.type}/${selectedContent.id}?device=${device}`;
       setPreviewUrl(previewUrl);
     }
@@ -113,7 +127,9 @@ export default function ContentPreview() {
       {/* Device Selector */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Device Preview</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Device Preview
+          </h2>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => fetchContentList()}
@@ -154,8 +170,10 @@ export default function ContentPreview() {
         {/* Content List */}
         <div className="lg:col-span-1">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Select Content</h3>
-            
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Select Content
+            </h3>
+
             <div className="space-y-3">
               {contentList.map((content) => (
                 <div
@@ -168,7 +186,9 @@ export default function ContentPreview() {
                   }`}
                 >
                   <div className="flex items-start space-x-3">
-                    <div className="text-2xl">{getContentTypeIcon(content.type)}</div>
+                    <div className="text-2xl">
+                      {getContentTypeIcon(content.type)}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {content.title}
@@ -190,7 +210,8 @@ export default function ContentPreview() {
                         )}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Updated: {new Date(content.last_updated).toLocaleDateString()}
+                        Updated:{" "}
+                        {new Date(content.last_updated).toLocaleDateString()}
                       </div>
                     </div>
                   </div>
@@ -201,7 +222,9 @@ export default function ContentPreview() {
             {contentList.length === 0 && (
               <div className="text-center py-8">
                 <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">No content available</h3>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                  No content available
+                </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Create some content to preview it here.
                 </p>
@@ -214,10 +237,16 @@ export default function ContentPreview() {
         <div className="lg:col-span-2">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Preview</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Preview
+              </h3>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500 dark:text-gray-400">
-                  {selectedDevice === "desktop" ? "1920x1080" : selectedDevice === "tablet" ? "768x1024" : "375x667"}
+                  {selectedDevice === "desktop"
+                    ? "1920x1080"
+                    : selectedDevice === "tablet"
+                      ? "768x1024"
+                      : "375x667"}
                 </span>
               </div>
             </div>
@@ -225,7 +254,9 @@ export default function ContentPreview() {
             {selectedContent ? (
               <div className="space-y-4">
                 {/* Preview Frame */}
-                <div className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden ${getDeviceDimensions(selectedDevice)}`}>
+                <div
+                  className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden ${getDeviceDimensions(selectedDevice)}`}
+                >
                   {previewUrl ? (
                     <iframe
                       src={previewUrl}
@@ -268,7 +299,8 @@ export default function ContentPreview() {
                     Select content to preview
                   </h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Choose content from the list to see how it looks on different devices.
+                    Choose content from the list to see how it looks on
+                    different devices.
                   </p>
                 </div>
               </div>
@@ -293,7 +325,9 @@ export default function ContentPreview() {
               </button>
             </div>
             <div className="p-4">
-              <div className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden ${getDeviceDimensions(selectedDevice)}`}>
+              <div
+                className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden ${getDeviceDimensions(selectedDevice)}`}
+              >
                 {previewUrl ? (
                   <iframe
                     src={previewUrl}

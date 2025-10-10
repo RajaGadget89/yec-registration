@@ -9,7 +9,6 @@ import { getThailandTimeISOString } from "../../lib/timezoneUtils";
 import { EventService } from "../../lib/events/eventService";
 import { DynamicPricingCalculator } from "../../lib/dynamicPricingCalculator";
 import { EventFactory } from "../../lib/events/eventFactory";
-import { precheckRegistration } from "../../lib/precheck";
 import {
   createErrorResponse,
   createUnexpectedErrorResponse,
@@ -46,16 +45,8 @@ async function handlePOST(req: NextRequest) {
       );
     }
 
-    // Precheck: Validate preconditions
-    const precheckResult = await precheckRegistration();
-    if (!precheckResult.success) {
-      return createErrorResponse(
-        precheckResult.code!,
-        precheckResult.hint!,
-        precheckResult.details,
-        precheckResult.code === "REGISTRATION_CLOSED" ? 400 : 409,
-      );
-    }
+    // Note: Registration deadline validation removed to allow users to register anytime
+    // Only pricing is controlled by early bird deadline, not registration availability
 
     // Calculate pricing using new dynamic pricing system
     let priceApplied: number | null = null;

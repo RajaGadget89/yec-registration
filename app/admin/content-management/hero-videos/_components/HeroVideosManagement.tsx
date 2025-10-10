@@ -1,7 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, Play, Pause, Monitor, Smartphone, Tablet, Upload } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Play,
+  Monitor,
+  Smartphone,
+  Tablet,
+} from "lucide-react";
 
 interface HeroVideo {
   id: string;
@@ -28,20 +38,19 @@ export default function HeroVideosManagement() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage, _setItemsPerPage] = useState(10);
 
-  useEffect(() => {
-    fetchVideos();
-  }, [currentPage, searchTerm, filterDevice, filterStatus]);
-
-  const fetchVideos = async () => {
+  const fetchVideos = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
         page: currentPage.toString(),
-        limit: "10",
+        limit: itemsPerPage.toString(),
         ...(searchTerm && { search: searchTerm }),
         ...(filterDevice !== "all" && { device_type: filterDevice }),
-        ...(filterStatus !== "all" && { is_active: filterStatus === "active" ? "true" : "false" }),
+        ...(filterStatus !== "all" && {
+          is_active: filterStatus === "active" ? "true" : "false",
+        }),
       });
 
       const response = await fetch(`/api/admin/cms/hero-videos?${params}`);
@@ -57,7 +66,11 @@ export default function HeroVideosManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, searchTerm, filterDevice, filterStatus, itemsPerPage]);
+
+  useEffect(() => {
+    fetchVideos();
+  }, [fetchVideos]);
 
   const handleDelete = async (videoId: string) => {
     if (!confirm("Are you sure you want to delete this hero video?")) {
@@ -81,7 +94,10 @@ export default function HeroVideosManagement() {
     }
   };
 
-  const handleToggleStatus = async (videoId: string, currentStatus: boolean) => {
+  const handleToggleStatus = async (
+    videoId: string,
+    currentStatus: boolean,
+  ) => {
     try {
       const response = await fetch(`/api/admin/cms/hero-videos/${videoId}`, {
         method: "PUT",
@@ -204,9 +220,11 @@ export default function HeroVideosManagement() {
             {/* Video Thumbnail */}
             <div className="aspect-video bg-gray-100 dark:bg-gray-700 relative">
               {video.thumbnail_url ? (
-                <img
+                <Image
                   src={video.thumbnail_url}
                   alt={video.title || "Hero video"}
+                  width={400}
+                  height={225}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -214,10 +232,12 @@ export default function HeroVideosManagement() {
                   <Play className="h-12 w-12 text-gray-400" />
                 </div>
               )}
-              
+
               {/* Device Type Badge */}
               <div className="absolute top-2 left-2">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDeviceColor(video.device_type)}`}>
+                <span
+                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDeviceColor(video.device_type)}`}
+                >
                   {getDeviceIcon(video.device_type)}
                   <span className="ml-1 capitalize">{video.device_type}</span>
                 </span>
@@ -243,7 +263,7 @@ export default function HeroVideosManagement() {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                 {video.title || "Untitled Video"}
               </h3>
-              
+
               {video.description && (
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
                   {video.description}
@@ -254,19 +274,27 @@ export default function HeroVideosManagement() {
               <div className="space-y-2 mb-4">
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <span>Autoplay</span>
-                  <span className={video.autoplay ? "text-green-600" : "text-gray-400"}>
+                  <span
+                    className={
+                      video.autoplay ? "text-green-600" : "text-gray-400"
+                    }
+                  >
                     {video.autoplay ? "On" : "Off"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <span>Loop</span>
-                  <span className={video.loop ? "text-green-600" : "text-gray-400"}>
+                  <span
+                    className={video.loop ? "text-green-600" : "text-gray-400"}
+                  >
                     {video.loop ? "On" : "Off"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <span>Muted</span>
-                  <span className={video.muted ? "text-green-600" : "text-gray-400"}>
+                  <span
+                    className={video.muted ? "text-green-600" : "text-gray-400"}
+                  >
                     {video.muted ? "On" : "Off"}
                   </span>
                 </div>
@@ -303,7 +331,7 @@ export default function HeroVideosManagement() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-                
+
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   Order: {video.display_order}
                 </div>
@@ -327,7 +355,9 @@ export default function HeroVideosManagement() {
             Page {currentPage} of {totalPages}
           </span>
           <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            onClick={() =>
+              setCurrentPage(Math.min(totalPages, currentPage + 1))
+            }
             disabled={currentPage === totalPages}
             className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -340,7 +370,9 @@ export default function HeroVideosManagement() {
       {videos.length === 0 && !loading && (
         <div className="text-center py-12">
           <Play className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No hero videos found</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+            No hero videos found
+          </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Get started by creating your first hero video.
           </p>

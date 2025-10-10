@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "../../../lib/auth-utils.server";
 import { hasCMSAdminRole } from "../../../lib/cms-auth";
 import ResponsiveContentManagement from "./_components/ResponsiveContentManagement";
+import AdminHeader from "../../_components/AdminHeader";
 
 export const metadata: Metadata = {
   title: "Responsive Content Management - CMS Admin",
@@ -26,14 +27,12 @@ export default async function ResponsiveContentPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Responsive Content Management</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Manage device-specific content for optimal user experience
-          </p>
-        </div>
-      </div>
+      <AdminHeader
+        compact
+        backHref="/admin/content-management"
+        title="Responsive Content Management"
+        subtitle="Manage device-specific content for optimal user experience"
+      />
 
       <ResponsiveContentManagement />
     </div>

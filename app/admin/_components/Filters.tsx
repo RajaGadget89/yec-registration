@@ -21,6 +21,8 @@ export interface FilterState {
   search: string;
   dateFrom: string;
   dateTo: string;
+  hotelChoice?: string[];
+  travelType?: string[];
 }
 
 export default function Filters({ provinces }: FiltersProps) {
@@ -32,6 +34,10 @@ export default function Filters({ provinces }: FiltersProps) {
     search: searchParams.get("search") || "",
     dateFrom: searchParams.get("dateFrom") || "",
     dateTo: searchParams.get("dateTo") || "",
+    hotelChoice:
+      searchParams.get("hotelChoice")?.split(",").filter(Boolean) || [],
+    travelType:
+      searchParams.get("travelType")?.split(",").filter(Boolean) || [],
   });
 
   const [isExpanded, setIsExpanded] = useState(false);
@@ -70,6 +76,12 @@ export default function Filters({ provinces }: FiltersProps) {
     if (updatedFilters.dateTo) {
       params.set("dateTo", updatedFilters.dateTo);
     }
+    if (updatedFilters.hotelChoice && updatedFilters.hotelChoice.length > 0) {
+      params.set("hotelChoice", updatedFilters.hotelChoice.join(","));
+    }
+    if (updatedFilters.travelType && updatedFilters.travelType.length > 0) {
+      params.set("travelType", updatedFilters.travelType.join(","));
+    }
 
     const newUrl = params.toString() ? `?${params.toString()}` : "/admin";
 
@@ -84,6 +96,8 @@ export default function Filters({ provinces }: FiltersProps) {
       search: "",
       dateFrom: "",
       dateTo: "",
+      hotelChoice: [],
+      travelType: [],
     };
     setFilters(clearedFilters);
 
@@ -286,6 +300,74 @@ export default function Filters({ provinces }: FiltersProps) {
               </div>
             </div>
           </div>
+
+          {/* Hotel Choice Filter */}
+          <div className="bg-white/50 dark:bg-gray-700/50 rounded-xl p-4 backdrop-blur-sm border border-white/20 dark:border-gray-600/20">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              ตัวเลือกโรงแรม
+            </label>
+            <div className="space-y-2">
+              {[
+                { value: "in-quota", label: "โรงแรมในสิทธิ์" },
+                { value: "out-of-quota", label: "โรงแรมนอกสิทธิ์" },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className="flex items-center space-x-3 cursor-pointer group"
+                >
+                  <input
+                    type="checkbox"
+                    checked={filters.hotelChoice?.includes(opt.value) || false}
+                    onChange={(e) => {
+                      const current = filters.hotelChoice || [];
+                      const next = e.target.checked
+                        ? [...current, opt.value]
+                        : current.filter((v) => v !== opt.value);
+                      updateFilters({ hotelChoice: next });
+                    }}
+                    className="w-4 h-4 text-yec-primary bg-white border-gray-300 rounded focus:ring-yec-primary/50 focus:ring-2"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                    {opt.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Travel Type Filter */}
+          <div className="bg-white/50 dark:bg-gray-700/50 rounded-xl p-4 backdrop-blur-sm border border-white/20 dark:border-gray-600/20">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              ตัวเลือกการเดินทาง
+            </label>
+            <div className="space-y-2">
+              {[
+                { value: "private-car", label: "รถยนต์ส่วนตัว" },
+                { value: "van", label: "รถตู้รับส่ง" },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className="flex items-center space-x-3 cursor-pointer group"
+                >
+                  <input
+                    type="checkbox"
+                    checked={filters.travelType?.includes(opt.value) || false}
+                    onChange={(e) => {
+                      const current = filters.travelType || [];
+                      const next = e.target.checked
+                        ? [...current, opt.value]
+                        : current.filter((v) => v !== opt.value);
+                      updateFilters({ travelType: next });
+                    }}
+                    className="w-4 h-4 text-yec-primary bg-white border-gray-300 rounded focus:ring-yec-primary/50 focus:ring-2"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                    {opt.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -339,6 +421,46 @@ export default function Filters({ provinces }: FiltersProps) {
               </button>
             </span>
           )}
+          {(filters.hotelChoice || []).map((v) => (
+            <span
+              key={v}
+              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100/80 text-purple-800 dark:bg-purple-900/80 dark:text-purple-200 backdrop-blur-sm"
+            >
+              {v === "in-quota" ? "โรงแรมในสิทธิ์" : "โรงแรมนอกสิทธิ์"}
+              <button
+                onClick={() =>
+                  updateFilters({
+                    hotelChoice: (filters.hotelChoice || []).filter(
+                      (x) => x !== v,
+                    ),
+                  })
+                }
+                className="ml-2 hover:bg-purple-200/80 dark:hover:bg-purple-800/80 rounded-full p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          {(filters.travelType || []).map((v) => (
+            <span
+              key={v}
+              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-pink-100/80 text-pink-800 dark:bg-pink-900/80 dark:text-pink-200 backdrop-blur-sm"
+            >
+              {v === "private-car" ? "รถยนต์ส่วนตัว" : "รถตู้รับส่ง"}
+              <button
+                onClick={() =>
+                  updateFilters({
+                    travelType: (filters.travelType || []).filter(
+                      (x) => x !== v,
+                    ),
+                  })
+                }
+                className="ml-2 hover:bg-pink-200/80 dark:hover:bg-pink-800/80 rounded-full p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
         </div>
       )}
     </div>

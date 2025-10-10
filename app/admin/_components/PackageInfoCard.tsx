@@ -14,12 +14,15 @@ export default function PackageInfoCard({
   const getAccommodationText = (
     hotelChoice: string,
     roomType: string | null,
+    externalHotelName?: string | null,
   ) => {
     if (hotelChoice === "no-accommodation") {
       return "ไม่ต้องการที่พัก";
     }
     if (hotelChoice === "out-of-quota") {
-      return "เลือกโรงแรมเอง";
+      return externalHotelName && externalHotelName.trim() !== ""
+        ? `เลือกโรงแรมเอง - ${externalHotelName}`
+        : "เลือกโรงแรมเอง";
     }
     if (hotelChoice === "in-quota") {
       if (roomType === "single") return "โรงแรมที่จัดไว้ให้ - พักเดี่ยว";
@@ -62,6 +65,7 @@ export default function PackageInfoCard({
           {getAccommodationText(
             registration.hotel_choice,
             registration.room_type,
+            registration.external_hotel_name,
           )}
         </div>
 

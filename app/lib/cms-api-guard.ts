@@ -3,9 +3,9 @@
  * Ensures only authorized users can access CMS functionality
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { canAccessCMS, hasCMSPermission, CMSPermission } from './cms-auth';
-import { getCurrentUser } from './auth-utils.server';
+import { NextRequest, NextResponse } from "next/server";
+import { canAccessCMS, hasCMSPermission, CMSPermission } from "./cms-auth";
+import { getCurrentUser } from "./auth-utils.server";
 
 /**
  * CMS API Guard middleware
@@ -15,15 +15,26 @@ import { getCurrentUser } from './auth-utils.server';
  */
 export async function withCMSApiGuard(
   request: NextRequest,
-  requiredPermission: CMSPermission
+  requiredPermission: CMSPermission,
 ): Promise<NextResponse | null> {
   try {
+    // Development bypass for easier testing
+    if (
+      process.env.NODE_ENV === "development" &&
+      process.env.DEV_ADMIN_BYPASS === "true"
+    ) {
+      console.log(
+        "[CMS_API_GUARD] DEV_ADMIN_BYPASS enabled - allowing CMS access",
+      );
+      return null; // Allow access
+    }
+
     // Get current user
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { error: "Authentication required" },
+        { status: 401 },
       );
     }
 
@@ -31,27 +42,30 @@ export async function withCMSApiGuard(
     const hasAccess = await canAccessCMS(user.email);
     if (!hasAccess) {
       return NextResponse.json(
-        { error: 'CMS access denied. Required role: cms_admin or super_admin' },
-        { status: 403 }
+        { error: "CMS access denied. Required role: cms_admin or super_admin" },
+        { status: 403 },
       );
     }
 
     // Check specific permission
-    const hasPermission = await hasCMSPermission(user.email, requiredPermission);
+    const hasPermission = await hasCMSPermission(
+      user.email,
+      requiredPermission,
+    );
     if (!hasPermission) {
       return NextResponse.json(
         { error: `Permission denied. Required: ${requiredPermission}` },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
     // Access granted, return null to continue
     return null;
   } catch (error) {
-    console.error('CMS API Guard error:', error);
+    console.error("CMS API Guard error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }
@@ -62,9 +76,9 @@ export async function withCMSApiGuard(
  * @returns NextResponse or null (if access granted)
  */
 export async function withContentManagementGuard(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<NextResponse | null> {
-  return await withCMSApiGuard(request, 'content_manage');
+  return await withCMSApiGuard(request, "content_manage");
 }
 
 /**
@@ -73,9 +87,9 @@ export async function withContentManagementGuard(
  * @returns NextResponse or null (if access granted)
  */
 export async function withMediaUploadGuard(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<NextResponse | null> {
-  return await withCMSApiGuard(request, 'media_upload');
+  return await withCMSApiGuard(request, "media_upload");
 }
 
 /**
@@ -84,9 +98,9 @@ export async function withMediaUploadGuard(
  * @returns NextResponse or null (if access granted)
  */
 export async function withBrandingManagementGuard(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<NextResponse | null> {
-  return await withCMSApiGuard(request, 'branding_manage');
+  return await withCMSApiGuard(request, "branding_manage");
 }
 
 /**
@@ -95,9 +109,9 @@ export async function withBrandingManagementGuard(
  * @returns NextResponse or null (if access granted)
  */
 export async function withContentPublishGuard(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<NextResponse | null> {
-  return await withCMSApiGuard(request, 'content_publish');
+  return await withCMSApiGuard(request, "content_publish");
 }
 
 /**
@@ -106,9 +120,9 @@ export async function withContentPublishGuard(
  * @returns NextResponse or null (if access granted)
  */
 export async function withNewsManagementGuard(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<NextResponse | null> {
-  return await withCMSApiGuard(request, 'news_manage');
+  return await withCMSApiGuard(request, "news_manage");
 }
 
 /**
@@ -117,9 +131,9 @@ export async function withNewsManagementGuard(
  * @returns NextResponse or null (if access granted)
  */
 export async function withTemplateManagementGuard(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<NextResponse | null> {
-  return await withCMSApiGuard(request, 'templates_manage');
+  return await withCMSApiGuard(request, "templates_manage");
 }
 
 /**
@@ -128,9 +142,9 @@ export async function withTemplateManagementGuard(
  * @returns NextResponse or null (if access granted)
  */
 export async function withSEOOptimizationGuard(
-  request: NextRequest
+  request: NextRequest,
 ): Promise<NextResponse | null> {
-  return await withCMSApiGuard(request, 'seo_optimize');
+  return await withCMSApiGuard(request, "seo_optimize");
 }
 
 /**
@@ -141,7 +155,7 @@ export async function withSEOOptimizationGuard(
  */
 export async function withCustomCMSGuard(
   request: NextRequest,
-  permission: CMSPermission
+  permission: CMSPermission,
 ): Promise<NextResponse | null> {
   return await withCMSApiGuard(request, permission);
 }

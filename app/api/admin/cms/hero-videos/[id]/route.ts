@@ -3,11 +3,11 @@
  * Handles GET, PUT, DELETE operations for specific hero videos
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { withContentManagementGuard } from '../../../../../lib/cms-api-guard';
-import { getCurrentUserFromRequest } from '../../../../../lib/auth-utils.server';
-import { maybeServiceClient } from '../../../../../lib/supabase/server';
-import { z } from 'zod';
+import { NextRequest, NextResponse } from "next/server";
+import { withContentManagementGuard } from "../../../../../lib/cms-api-guard";
+import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
+import { maybeServiceClient } from "../../../../../lib/supabase/server";
+import { z } from "zod";
 
 const UpdateHeroVideoSchema = z.object({
   desktop_video_url: z.string().url().optional(),
@@ -15,7 +15,7 @@ const UpdateHeroVideoSchema = z.object({
   fallback_image_url: z.string().url().optional(),
   autoplay: z.boolean().optional(),
   muted: z.boolean().optional(),
-  loop: z.boolean().optional()
+  loop: z.boolean().optional(),
 });
 
 /**
@@ -24,7 +24,7 @@ const UpdateHeroVideoSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     // Check authentication and permissions
@@ -35,8 +35,9 @@ export async function GET(
     const supabase = await maybeServiceClient(request);
 
     const { data: video, error } = await supabase
-      .from('cms_hero_videos')
-      .select(`
+      .from("cms_hero_videos")
+      .select(
+        `
         id,
         page_id,
         desktop_video_url,
@@ -47,23 +48,32 @@ export async function GET(
         loop,
         created_at,
         updated_at
-      `)
-      .eq('id', id)
+      `,
+      )
+      .eq("id", id)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Hero video not found' }, { status: 404 });
+      if (error.code === "PGRST116") {
+        return NextResponse.json(
+          { error: "Hero video not found" },
+          { status: 404 },
+        );
       }
-      console.error('Error fetching hero video:', error);
-      return NextResponse.json({ error: 'Failed to fetch hero video' }, { status: 500 });
+      console.error("Error fetching hero video:", error);
+      return NextResponse.json(
+        { error: "Failed to fetch hero video" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json(video);
-
   } catch (error) {
-    console.error('Hero Video GET error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Hero Video GET error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -73,7 +83,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     // Check authentication and permissions
@@ -82,7 +92,7 @@ export async function PUT(
 
     const user = await getCurrentUserFromRequest(request);
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = params;
@@ -93,52 +103,70 @@ export async function PUT(
 
     // Check if hero video exists
     const { data: existingVideo } = await supabase
-      .from('cms_hero_videos')
-      .select('id, desktop_video_url, mobile_video_url')
-      .eq('id', id)
+      .from("cms_hero_videos")
+      .select("id, desktop_video_url, mobile_video_url")
+      .eq("id", id)
       .single();
 
     if (!existingVideo) {
-      return NextResponse.json({ error: 'Hero video not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: "Hero video not found" },
+        { status: 404 },
+      );
     }
 
     // Validate that at least one video URL will remain after update
-    const finalDesktopUrl = validatedData.desktop_video_url !== undefined 
-      ? validatedData.desktop_video_url 
-      : existingVideo.desktop_video_url;
-    const finalMobileUrl = validatedData.mobile_video_url !== undefined 
-      ? validatedData.mobile_video_url 
-      : existingVideo.mobile_video_url;
+    const finalDesktopUrl =
+      validatedData.desktop_video_url !== undefined
+        ? validatedData.desktop_video_url
+        : existingVideo.desktop_video_url;
+    const finalMobileUrl =
+      validatedData.mobile_video_url !== undefined
+        ? validatedData.mobile_video_url
+        : existingVideo.mobile_video_url;
 
     if (!finalDesktopUrl && !finalMobileUrl) {
-      return NextResponse.json({ error: 'At least one video URL (desktop or mobile) must be provided' }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: "At least one video URL (desktop or mobile) must be provided",
+        },
+        { status: 400 },
+      );
     }
 
     // Update hero video
     const { data: updatedVideo, error } = await supabase
-      .from('cms_hero_videos')
+      .from("cms_hero_videos")
       .update({
         ...validatedData,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
     if (error) {
-      console.error('Error updating hero video:', error);
-      return NextResponse.json({ error: 'Failed to update hero video' }, { status: 500 });
+      console.error("Error updating hero video:", error);
+      return NextResponse.json(
+        { error: "Failed to update hero video" },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json(updatedVideo);
-
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 });
+      return NextResponse.json(
+        { error: "Validation error", details: error.errors },
+        { status: 400 },
+      );
     }
-    
-    console.error('Hero Video PUT error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    console.error("Hero Video PUT error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -148,7 +176,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     // Check authentication and permissions
@@ -160,30 +188,38 @@ export async function DELETE(
 
     // Check if hero video exists
     const { data: existingVideo } = await supabase
-      .from('cms_hero_videos')
-      .select('id, page_id')
-      .eq('id', id)
+      .from("cms_hero_videos")
+      .select("id, page_id")
+      .eq("id", id)
       .single();
 
     if (!existingVideo) {
-      return NextResponse.json({ error: 'Hero video not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: "Hero video not found" },
+        { status: 404 },
+      );
     }
 
     // Delete hero video
     const { error } = await supabase
-      .from('cms_hero_videos')
+      .from("cms_hero_videos")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) {
-      console.error('Error deleting hero video:', error);
-      return NextResponse.json({ error: 'Failed to delete hero video' }, { status: 500 });
+      console.error("Error deleting hero video:", error);
+      return NextResponse.json(
+        { error: "Failed to delete hero video" },
+        { status: 500 },
+      );
     }
 
-    return NextResponse.json({ message: 'Hero video deleted successfully' });
-
+    return NextResponse.json({ message: "Hero video deleted successfully" });
   } catch (error) {
-    console.error('Hero Video DELETE error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Hero Video DELETE error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

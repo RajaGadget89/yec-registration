@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "../../../lib/auth-utils.server";
 import { hasCMSAdminRole } from "../../../lib/cms-auth";
 import SEOTools from "./_components/SEOTools";
+import AdminHeader from "../../_components/AdminHeader";
 
 export const metadata: Metadata = {
   title: "SEO Tools - CMS Admin",
@@ -26,14 +27,12 @@ export default async function SEOToolsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">SEO Tools</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Analyze and optimize your content for search engines
-          </p>
-        </div>
-      </div>
+      <AdminHeader
+        compact
+        backHref="/admin/content-management"
+        title="SEO Tools"
+        subtitle="Analyze and optimize your content for search engines"
+      />
 
       <SEOTools />
     </div>

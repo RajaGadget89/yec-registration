@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 // imports removed: getCurrentUser, isCheckinSystemEnabled (unused)
 
@@ -238,7 +239,7 @@ export default function CheckinEventsPage() {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-8" aria-label="Tabs">
-            <a
+            <Link
               href="/admin/checkin/events?tab=events"
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === "events"
@@ -247,8 +248,8 @@ export default function CheckinEventsPage() {
               }`}
             >
               Events
-            </a>
-            <a
+            </Link>
+            <Link
               href="/admin/checkin/events?tab=types"
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === "types"
@@ -257,7 +258,7 @@ export default function CheckinEventsPage() {
               }`}
             >
               Event Types
-            </a>
+            </Link>
           </nav>
         </div>
       </div>

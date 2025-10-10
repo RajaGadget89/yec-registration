@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import Link from "next/link";
 import { Users, Shield, Mail, Clock, Activity } from "lucide-react";
 import { getCurrentUser } from "../../lib/auth-utils.server";
 import { hasRole } from "../../lib/auth-utils.server";
@@ -95,7 +96,7 @@ export default async function ManagementPage({
             className="flex space-x-8 px-6"
             aria-label="Admin Management Tabs"
           >
-            <a
+            <Link
               href="/admin/management?tab=invite"
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === "invite"
@@ -108,8 +109,8 @@ export default async function ManagementPage({
                 <Mail className="h-4 w-4" />
                 <span>Invite</span>
               </div>
-            </a>
-            <a
+            </Link>
+            <Link
               href="/admin/management?tab=pending"
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === "pending"
@@ -122,8 +123,8 @@ export default async function ManagementPage({
                 <Clock className="h-4 w-4" />
                 <span>Pending</span>
               </div>
-            </a>
-            <a
+            </Link>
+            <Link
               href="/admin/management?tab=admins"
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === "admins"
@@ -136,8 +137,8 @@ export default async function ManagementPage({
                 <Users className="h-4 w-4" />
                 <span>Admins</span>
               </div>
-            </a>
-            <a
+            </Link>
+            <Link
               href="/admin/management?tab=activity"
               className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === "activity"
@@ -150,7 +151,7 @@ export default async function ManagementPage({
                 <Activity className="h-4 w-4" />
                 <span>Activity</span>
               </div>
-            </a>
+            </Link>
           </nav>
         </div>
 

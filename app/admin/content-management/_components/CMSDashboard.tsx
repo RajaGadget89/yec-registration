@@ -13,6 +13,7 @@ import {
   Eye,
   Layout,
   Clock,
+  Calendar,
 } from "lucide-react";
 
 interface CMSStats {
@@ -82,6 +83,13 @@ export default function CMSDashboard() {
       description: "Manage logos and brand colors",
       color: "from-pink-500 to-pink-600",
     },
+    {
+      href: "/admin/content-management/event-settings",
+      icon: Calendar,
+      title: "Event Settings",
+      description: "Manage event banner and details",
+      color: "from-orange-500 to-orange-600",
+    },
   ];
 
   const managementSections = [
@@ -138,8 +146,12 @@ export default function CMSDashboard() {
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Pages</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalPages}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Total Pages
+              </p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                {stats.totalPages}
+              </p>
             </div>
             <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/20">
               <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -150,8 +162,12 @@ export default function CMSDashboard() {
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">News Articles</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalNews}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                News Articles
+              </p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                {stats.totalNews}
+              </p>
             </div>
             <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/20">
               <Newspaper className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -162,10 +178,15 @@ export default function CMSDashboard() {
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Media Files</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalMedia}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Media Files
+              </p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                {stats.totalMedia}
+              </p>
             </div>
             <div className="p-3 rounded-full bg-purple-100 dark:bg-purple-900/20">
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
               <Image className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
           </div>
@@ -174,8 +195,12 @@ export default function CMSDashboard() {
         <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Recent Activity</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats.recentActivity}</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                Recent Activity
+              </p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                {stats.recentActivity}
+              </p>
             </div>
             <div className="p-3 rounded-full bg-orange-100 dark:bg-orange-900/20">
               <Clock className="h-6 w-6 text-orange-600 dark:text-orange-400" />
@@ -186,7 +211,9 @@ export default function CMSDashboard() {
 
       {/* Quick Actions */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Quick Actions</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+          Quick Actions
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action, index) => (
             <Link
@@ -195,7 +222,9 @@ export default function CMSDashboard() {
               className="group p-6 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-yec-primary dark:hover:border-yec-accent transition-all duration-200 hover:shadow-lg"
             >
               <div className="flex items-center space-x-4">
-                <div className={`p-3 rounded-lg bg-gradient-to-r ${action.color} shadow-lg group-hover:shadow-xl transition-all duration-200`}>
+                <div
+                  className={`p-3 rounded-lg bg-gradient-to-r ${action.color} shadow-lg group-hover:shadow-xl transition-all duration-200`}
+                >
                   <action.icon className="h-6 w-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -214,7 +243,9 @@ export default function CMSDashboard() {
 
       {/* Management Sections */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Content Management</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+          Content Management
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {managementSections.map((section, index) => (
             <Link
@@ -242,17 +273,25 @@ export default function CMSDashboard() {
 
       {/* Recent Activity */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Recent Activity</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+          Recent Activity
+        </h2>
         <div className="space-y-4">
           <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
             <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/20">
               <FileText className="h-4 w-4 text-green-600 dark:text-green-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">New page created</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">About Us page was created</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                New page created
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                About Us page was created
+              </p>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">2 hours ago</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              2 hours ago
+            </span>
           </div>
 
           <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
@@ -260,21 +299,34 @@ export default function CMSDashboard() {
               <Newspaper className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">News article published</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">YEC Day 2024 Announcement</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                News article published
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                YEC Day 2024 Announcement
+              </p>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">5 hours ago</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              5 hours ago
+            </span>
           </div>
 
           <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
             <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900/20">
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
               <Image className="h-4 w-4 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">Media uploaded</p>
-              <p className="text-xs text-gray-600 dark:text-gray-400">5 new images added to gallery</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                Media uploaded
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                5 new images added to gallery
+              </p>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">1 day ago</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              1 day ago
+            </span>
           </div>
         </div>
       </div>

@@ -408,7 +408,7 @@ const validateExternalHotelName = (
   if (!value || value.trim() === "") {
     return {
       isValid: false,
-      message: "กรุณากรอกชื่อโรงแรมที่เลือกเอง",
+      message: "กรุณาเลือกรายชื่อโรงแรมแนะนำ",
       status: "invalid",
     };
   }

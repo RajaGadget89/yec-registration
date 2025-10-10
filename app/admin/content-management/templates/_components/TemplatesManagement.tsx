@@ -1,7 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, Copy, Eye, Download, Upload, Layout, FileText, Image, Video } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Copy,
+  Eye,
+  Upload,
+  Layout,
+  FileText,
+  Video,
+} from "lucide-react";
 
 interface ContentTemplate {
   id: string;
@@ -25,22 +37,21 @@ export default function TemplatesManagement() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [selectedTemplate, setSelectedTemplate] = useState<ContentTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<ContentTemplate | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  useEffect(() => {
-    fetchTemplates();
-  }, [currentPage, searchTerm, filterType, filterStatus]);
-
-  const fetchTemplates = async () => {
+  const fetchTemplates = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
         page: currentPage.toString(),
-        limit: "12",
+        limit: "10",
         ...(searchTerm && { search: searchTerm }),
         ...(filterType !== "all" && { template_type: filterType }),
-        ...(filterStatus !== "all" && { is_active: filterStatus === "active" ? "true" : "false" }),
+        ...(filterStatus !== "all" && {
+          is_active: filterStatus === "active" ? "true" : "false",
+        }),
       });
 
       const response = await fetch(`/api/admin/cms/templates?${params}`);
@@ -56,7 +67,11 @@ export default function TemplatesManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, searchTerm, filterType, filterStatus]);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
   const handleDelete = async (templateId: string) => {
     if (!confirm("Are you sure you want to delete this template?")) {
@@ -80,7 +95,10 @@ export default function TemplatesManagement() {
     }
   };
 
-  const handleToggleStatus = async (templateId: string, currentStatus: boolean) => {
+  const handleToggleStatus = async (
+    templateId: string,
+    currentStatus: boolean,
+  ) => {
     try {
       const response = await fetch(`/api/admin/cms/templates/${templateId}`, {
         method: "PUT",
@@ -256,9 +274,11 @@ export default function TemplatesManagement() {
             {/* Template Preview */}
             <div className="aspect-video bg-gray-100 dark:bg-gray-700 relative">
               {template.preview_image ? (
-                <img
+                <Image
                   src={template.preview_image}
                   alt={template.name}
+                  width={400}
+                  height={225}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -266,7 +286,7 @@ export default function TemplatesManagement() {
                   {getTemplateTypeIcon(template.template_type)}
                 </div>
               )}
-              
+
               {/* System Template Badge */}
               {template.is_system && (
                 <div className="absolute top-2 left-2">
@@ -279,7 +299,9 @@ export default function TemplatesManagement() {
               {/* Status Badge */}
               <div className="absolute top-2 right-2">
                 <button
-                  onClick={() => handleToggleStatus(template.id, template.is_active)}
+                  onClick={() =>
+                    handleToggleStatus(template.id, template.is_active)
+                  }
                   className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors duration-200 ${
                     template.is_active
                       ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/30"
@@ -297,11 +319,13 @@ export default function TemplatesManagement() {
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
                   {template.name}
                 </h3>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTemplateTypeColor(template.template_type)}`}>
+                <span
+                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTemplateTypeColor(template.template_type)}`}
+                >
                   {template.template_type.replace("-", " ")}
                 </span>
               </div>
-              
+
               {template.description && (
                 <p className="text-xs text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
                   {template.description}
@@ -349,7 +373,7 @@ export default function TemplatesManagement() {
                     </button>
                   )}
                 </div>
-                
+
                 <button
                   onClick={() => {
                     // TODO: Implement use template
@@ -385,13 +409,15 @@ export default function TemplatesManagement() {
                 ✕
               </button>
             </div>
-            
+
             <div className="p-6">
               {selectedTemplate.preview_image ? (
                 <div className="mb-6">
-                  <img
+                  <Image
                     src={selectedTemplate.preview_image}
                     alt={selectedTemplate.name}
+                    width={600}
+                    height={400}
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700"
                   />
                 </div>
@@ -408,7 +434,9 @@ export default function TemplatesManagement() {
 
               {selectedTemplate.description && (
                 <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Description</h4>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                    Description
+                  </h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     {selectedTemplate.description}
                   </p>
@@ -417,18 +445,26 @@ export default function TemplatesManagement() {
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Template Type</h4>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTemplateTypeColor(selectedTemplate.template_type)}`}>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                    Template Type
+                  </h4>
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTemplateTypeColor(selectedTemplate.template_type)}`}
+                  >
                     {selectedTemplate.template_type.replace("-", " ")}
                   </span>
                 </div>
                 <div>
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">Status</h4>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                    selectedTemplate.is_active
-                      ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                      : "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400"
-                  }`}>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                    Status
+                  </h4>
+                  <span
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      selectedTemplate.is_active
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                        : "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400"
+                    }`}
+                  >
                     {selectedTemplate.is_active ? "Active" : "Inactive"}
                   </span>
                 </div>
@@ -470,7 +506,9 @@ export default function TemplatesManagement() {
             Page {currentPage} of {totalPages}
           </span>
           <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            onClick={() =>
+              setCurrentPage(Math.min(totalPages, currentPage + 1))
+            }
             disabled={currentPage === totalPages}
             className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -483,7 +521,9 @@ export default function TemplatesManagement() {
       {templates.length === 0 && !loading && (
         <div className="text-center py-12">
           <Layout className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No templates found</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+            No templates found
+          </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Get started by creating your first template.
           </p>

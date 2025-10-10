@@ -3,17 +3,17 @@
  * Provides granular permissions for Content Management System
  */
 
-import { hasBusinessRole, getBusinessRoles } from './rbac';
-import { getCurrentUser } from './auth-utils.server';
+import { hasBusinessRole, getBusinessRoles } from "./rbac";
+import { getCurrentUser } from "./auth-utils.server";
 
 export type CMSPermission =
-  | 'content_manage'
-  | 'media_upload'
-  | 'branding_manage'
-  | 'content_publish'
-  | 'news_manage'
-  | 'templates_manage'
-  | 'seo_optimize';
+  | "content_manage"
+  | "media_upload"
+  | "branding_manage"
+  | "content_publish"
+  | "news_manage"
+  | "templates_manage"
+  | "seo_optimize";
 
 /**
  * Checks if user has CMS admin business role
@@ -21,7 +21,7 @@ export type CMSPermission =
  * @returns true if user has cms_admin role, false otherwise
  */
 export async function hasCMSAdminRole(email: string): Promise<boolean> {
-  return await hasBusinessRole(email, 'cms_admin');
+  return await hasBusinessRole(email, "cms_admin");
 }
 
 /**
@@ -32,13 +32,25 @@ export async function hasCMSAdminRole(email: string): Promise<boolean> {
  */
 export async function hasCMSPermission(
   email: string,
-  permission: CMSPermission
+  permission: CMSPermission,
 ): Promise<boolean> {
+  // Development bypass for easier testing
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.DEV_ADMIN_BYPASS === "true"
+  ) {
+    console.log(
+      "[CMS_AUTH] DEV_ADMIN_BYPASS enabled - allowing CMS permission:",
+      permission,
+    );
+    return true;
+  }
+
   const user = await getCurrentUser();
   if (!user) return false;
 
   // Super admin has all permissions
-  if (user.role === 'super_admin') return true;
+  if (user.role === "super_admin") return true;
 
   // Check if user has cms_admin business role
   const hasCMSRole = await hasCMSAdminRole(email);
@@ -46,13 +58,13 @@ export async function hasCMSPermission(
 
   // Map business role to specific permissions
   switch (permission) {
-    case 'content_manage':
-    case 'media_upload':
-    case 'branding_manage':
-    case 'content_publish':
-    case 'news_manage':
-    case 'templates_manage':
-    case 'seo_optimize':
+    case "content_manage":
+    case "media_upload":
+    case "branding_manage":
+    case "content_publish":
+    case "news_manage":
+    case "templates_manage":
+    case "seo_optimize":
       return true; // cms_admin has all CMS permissions
     default:
       return false;
@@ -64,18 +76,20 @@ export async function hasCMSPermission(
  * @param email - User email address
  * @returns Array of CMS permissions
  */
-export async function getCMSPermissions(email: string): Promise<CMSPermission[]> {
+export async function getCMSPermissions(
+  email: string,
+): Promise<CMSPermission[]> {
   const hasCMS = await hasCMSAdminRole(email);
   if (!hasCMS) return [];
 
   return [
-    'content_manage',
-    'media_upload',
-    'branding_manage',
-    'content_publish',
-    'news_manage',
-    'templates_manage',
-    'seo_optimize'
+    "content_manage",
+    "media_upload",
+    "branding_manage",
+    "content_publish",
+    "news_manage",
+    "templates_manage",
+    "seo_optimize",
   ];
 }
 
@@ -85,11 +99,20 @@ export async function getCMSPermissions(email: string): Promise<CMSPermission[]>
  * @returns true if user can access CMS, false otherwise
  */
 export async function canAccessCMS(email: string): Promise<boolean> {
+  // Development bypass for easier testing
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.DEV_ADMIN_BYPASS === "true"
+  ) {
+    console.log("[CMS_AUTH] DEV_ADMIN_BYPASS enabled - allowing CMS access");
+    return true;
+  }
+
   const user = await getCurrentUser();
   if (!user) return false;
 
   // Super admin can always access
-  if (user.role === 'super_admin') return true;
+  if (user.role === "super_admin") return true;
 
   // Check if user has cms_admin business role
   return await hasCMSAdminRole(email);
@@ -100,14 +123,16 @@ export async function canAccessCMS(email: string): Promise<boolean> {
  * @param email - User email address
  * @returns CMS access level: 'none', 'cms_admin', or 'super_admin'
  */
-export async function getCMSAccessLevel(email: string): Promise<'none' | 'cms_admin' | 'super_admin'> {
+export async function getCMSAccessLevel(
+  email: string,
+): Promise<"none" | "cms_admin" | "super_admin"> {
   const user = await getCurrentUser();
-  if (!user) return 'none';
+  if (!user) return "none";
 
-  if (user.role === 'super_admin') return 'super_admin';
-  
+  if (user.role === "super_admin") return "super_admin";
+
   const hasCMS = await hasCMSAdminRole(email);
-  return hasCMS ? 'cms_admin' : 'none';
+  return hasCMS ? "cms_admin" : "none";
 }
 
 /**
@@ -118,10 +143,10 @@ export async function getCMSAccessLevel(email: string): Promise<'none' | 'cms_ad
  */
 export async function validateCMSAccess(
   email: string,
-  requiredPermission: CMSPermission
+  requiredPermission: CMSPermission,
 ): Promise<boolean> {
   if (!email) return false;
-  
+
   return await hasCMSPermission(email, requiredPermission);
 }
 
@@ -132,7 +157,7 @@ export async function validateCMSAccess(
  */
 export async function getCMSUserInfo(email: string): Promise<{
   hasAccess: boolean;
-  accessLevel: 'none' | 'cms_admin' | 'super_admin';
+  accessLevel: "none" | "cms_admin" | "super_admin";
   permissions: CMSPermission[];
   businessRoles: string[];
 }> {
@@ -145,6 +170,6 @@ export async function getCMSUserInfo(email: string): Promise<{
     hasAccess,
     accessLevel,
     permissions,
-    businessRoles
+    businessRoles,
   };
 }

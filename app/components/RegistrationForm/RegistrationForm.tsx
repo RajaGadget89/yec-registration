@@ -63,7 +63,33 @@ export default function RegistrationForm() {
         }));
       }
     }
+
+    // Auto-set travel_type based on hotel choice when travel_type field is hidden
+    if (
+      availableOptions &&
+      !availableOptions.allowInQuotaAfterEarlyBird &&
+      !availableOptions.isEarlyBird
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        travelType: prev.hotelChoice === "out-of-quota" ? "van" : "private-car",
+      }));
+    }
   }, [availableOptions, formData.hotelChoice, formData.roomType]);
+
+  // Update travel_type when hotel choice changes and travel_type field is hidden
+  useEffect(() => {
+    if (
+      availableOptions &&
+      !availableOptions.allowInQuotaAfterEarlyBird &&
+      !availableOptions.isEarlyBird
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        travelType: prev.hotelChoice === "out-of-quota" ? "van" : "private-car",
+      }));
+    }
+  }, [formData.hotelChoice, availableOptions]);
 
   // New state for token-based updates
   const [isTokenUpdate, setIsTokenUpdate] = useState(false);
@@ -1031,6 +1057,11 @@ export default function RegistrationForm() {
                     field.dependsOn &&
                     formData[field.dependsOn.field] !== field.dependsOn.value
                   ) {
+                    return null;
+                  }
+
+                  // Check if field is hidden due to pricing configuration
+                  if ((field as any).hidden) {
                     return null;
                   }
 

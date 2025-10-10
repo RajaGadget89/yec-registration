@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "../../../lib/auth-utils.server";
 import { hasCMSAdminRole } from "../../../lib/cms-auth";
 import NewsManagement from "./_components/NewsManagement";
+import AdminHeader from "../../_components/AdminHeader";
 
 export const metadata: Metadata = {
   title: "News Management - CMS Admin",
@@ -26,14 +27,12 @@ export default async function NewsManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">News Management</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Create, edit, and manage news articles
-          </p>
-        </div>
-      </div>
+      <AdminHeader
+        compact
+        backHref="/admin/content-management"
+        title="News Management"
+        subtitle="Create, edit, and manage news articles"
+      />
 
       <NewsManagement />
     </div>

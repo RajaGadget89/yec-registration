@@ -1,7 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, Monitor, Smartphone, Tablet, Eye, Copy, Save } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Eye,
+  Copy,
+  Save,
+} from "lucide-react";
 
 interface ResponsiveContent {
   id: string;
@@ -24,14 +35,11 @@ export default function ResponsiveContentManagement() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [selectedContent, setSelectedContent] = useState<ResponsiveContent | null>(null);
+  const [selectedContent, setSelectedContent] =
+    useState<ResponsiveContent | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
-  useEffect(() => {
-    fetchContent();
-  }, [currentPage, searchTerm, filterDevice, filterType, filterStatus]);
-
-  const fetchContent = async () => {
+  const fetchContent = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -40,10 +48,14 @@ export default function ResponsiveContentManagement() {
         ...(searchTerm && { search: searchTerm }),
         ...(filterDevice !== "all" && { device_type: filterDevice }),
         ...(filterType !== "all" && { content_type: filterType }),
-        ...(filterStatus !== "all" && { is_active: filterStatus === "active" ? "true" : "false" }),
+        ...(filterStatus !== "all" && {
+          is_active: filterStatus === "active" ? "true" : "false",
+        }),
       });
 
-      const response = await fetch(`/api/admin/cms/responsive-content?${params}`);
+      const response = await fetch(
+        `/api/admin/cms/responsive-content?${params}`,
+      );
       if (!response.ok) {
         throw new Error("Failed to fetch responsive content");
       }
@@ -56,7 +68,11 @@ export default function ResponsiveContentManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, searchTerm, filterDevice, filterType, filterStatus]);
+
+  useEffect(() => {
+    fetchContent();
+  }, [fetchContent]);
 
   const handleDelete = async (contentId: string) => {
     if (!confirm("Are you sure you want to delete this content?")) {
@@ -64,9 +80,12 @@ export default function ResponsiveContentManagement() {
     }
 
     try {
-      const response = await fetch(`/api/admin/cms/responsive-content/${contentId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `/api/admin/cms/responsive-content/${contentId}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       if (!response.ok) {
         throw new Error("Failed to delete content");
@@ -80,17 +99,23 @@ export default function ResponsiveContentManagement() {
     }
   };
 
-  const handleToggleStatus = async (contentId: string, currentStatus: boolean) => {
+  const handleToggleStatus = async (
+    contentId: string,
+    currentStatus: boolean,
+  ) => {
     try {
-      const response = await fetch(`/api/admin/cms/responsive-content/${contentId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/admin/cms/responsive-content/${contentId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            is_active: !currentStatus,
+          }),
         },
-        body: JSON.stringify({
-          is_active: !currentStatus,
-        }),
-      });
+      );
 
       if (!response.ok) {
         throw new Error("Failed to update content status");
@@ -113,13 +138,16 @@ export default function ResponsiveContentManagement() {
     if (!selectedContent) return;
 
     try {
-      const response = await fetch(`/api/admin/cms/responsive-content/${selectedContent.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `/api/admin/cms/responsive-content/${selectedContent.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(selectedContent),
         },
-        body: JSON.stringify(selectedContent),
-      });
+      );
 
       if (!response.ok) {
         throw new Error("Failed to update content");
@@ -285,15 +313,19 @@ export default function ResponsiveContentManagement() {
             {/* Content Preview */}
             <div className="aspect-video bg-gray-100 dark:bg-gray-700 flex items-center justify-center relative">
               <div className="text-center">
-                <div className="text-4xl mb-2">{getContentTypeIcon(item.content_type)}</div>
+                <div className="text-4xl mb-2">
+                  {getContentTypeIcon(item.content_type)}
+                </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400 capitalize">
                   {item.content_type} Content
                 </div>
               </div>
-              
+
               {/* Device Type Badge */}
               <div className="absolute top-2 left-2">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDeviceColor(item.device_type)}`}>
+                <span
+                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDeviceColor(item.device_type)}`}
+                >
                   {getDeviceIcon(item.device_type)}
                   <span className="ml-1 capitalize">{item.device_type}</span>
                 </span>
@@ -336,9 +368,10 @@ export default function ResponsiveContentManagement() {
                 {item.content_type === "video" && item.content_data?.title && (
                   <div>Video: {item.content_data.title}</div>
                 )}
-                {item.content_type === "component" && item.content_data?.name && (
-                  <div>Component: {item.content_data.name}</div>
-                )}
+                {item.content_type === "component" &&
+                  item.content_data?.name && (
+                    <div>Component: {item.content_data.name}</div>
+                  )}
               </div>
 
               {/* Actions */}
@@ -406,10 +439,15 @@ export default function ResponsiveContentManagement() {
                   </label>
                   <select
                     value={selectedContent.device_type}
-                    onChange={(e) => setSelectedContent({
-                      ...selectedContent,
-                      device_type: e.target.value as "desktop" | "tablet" | "mobile"
-                    })}
+                    onChange={(e) =>
+                      setSelectedContent({
+                        ...selectedContent,
+                        device_type: e.target.value as
+                          | "desktop"
+                          | "tablet"
+                          | "mobile",
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yec-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                   >
                     <option value="desktop">Desktop</option>
@@ -424,10 +462,16 @@ export default function ResponsiveContentManagement() {
                   </label>
                   <select
                     value={selectedContent.content_type}
-                    onChange={(e) => setSelectedContent({
-                      ...selectedContent,
-                      content_type: e.target.value as "text" | "image" | "video" | "component"
-                    })}
+                    onChange={(e) =>
+                      setSelectedContent({
+                        ...selectedContent,
+                        content_type: e.target.value as
+                          | "text"
+                          | "image"
+                          | "video"
+                          | "component",
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yec-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                   >
                     <option value="text">Text</option>
@@ -444,10 +488,12 @@ export default function ResponsiveContentManagement() {
                   <input
                     type="number"
                     value={selectedContent.display_order}
-                    onChange={(e) => setSelectedContent({
-                      ...selectedContent,
-                      display_order: parseInt(e.target.value) || 0
-                    })}
+                    onChange={(e) =>
+                      setSelectedContent({
+                        ...selectedContent,
+                        display_order: parseInt(e.target.value) || 0,
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yec-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
                   />
                 </div>
@@ -457,13 +503,18 @@ export default function ResponsiveContentManagement() {
                     type="checkbox"
                     id="is_active"
                     checked={selectedContent.is_active}
-                    onChange={(e) => setSelectedContent({
-                      ...selectedContent,
-                      is_active: e.target.checked
-                    })}
+                    onChange={(e) =>
+                      setSelectedContent({
+                        ...selectedContent,
+                        is_active: e.target.checked,
+                      })
+                    }
                     className="h-4 w-4 text-yec-primary focus:ring-yec-primary border-gray-300 rounded"
                   />
-                  <label htmlFor="is_active" className="text-sm text-gray-700 dark:text-gray-300">
+                  <label
+                    htmlFor="is_active"
+                    className="text-sm text-gray-700 dark:text-gray-300"
+                  >
                     Active
                   </label>
                 </div>
@@ -503,7 +554,9 @@ export default function ResponsiveContentManagement() {
             Page {currentPage} of {totalPages}
           </span>
           <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+            onClick={() =>
+              setCurrentPage(Math.min(totalPages, currentPage + 1))
+            }
             disabled={currentPage === totalPages}
             className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -516,7 +569,9 @@ export default function ResponsiveContentManagement() {
       {content.length === 0 && !loading && (
         <div className="text-center py-12">
           <Monitor className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No responsive content found</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
+            No responsive content found
+          </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Get started by creating your first responsive content.
           </p>
