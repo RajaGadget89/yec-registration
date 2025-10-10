@@ -125,6 +125,17 @@ export default function EventCarousel({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle keyboard events if the carousel is focused or if user is not typing in an input field
+      const target = e.target as HTMLElement;
+      const isTypingInInput =
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.contentEditable === "true";
+
+      if (isTypingInInput) {
+        return; // Don't interfere with typing in input fields
+      }
+
       if (e.key === "ArrowLeft") {
         e.preventDefault();
         goToPrevious();
