@@ -150,6 +150,25 @@ export async function getCurrentUserFromRequest(
   req: Request,
 ): Promise<AuthenticatedUser | null> {
   try {
+    // Development bypass for easier testing
+    if (
+      process.env.NODE_ENV === "development" &&
+      process.env.DEV_ADMIN_BYPASS === "true"
+    ) {
+      console.log(
+        "[AUTH_UTILS] DEV_ADMIN_BYPASS enabled - returning mock user",
+      );
+      return {
+        id: "dev-admin-id",
+        email: "dev-admin@example.com",
+        role: "super_admin",
+        business_roles: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_login_at: null,
+        is_active: true,
+      };
+    }
     const cookieStore = await cookies();
     const supa = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

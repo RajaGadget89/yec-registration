@@ -1,4 +1,4 @@
-import { Users, Eye, CheckCircle, XCircle } from "lucide-react";
+import { Users, CheckCircle, XCircle, Eye } from "lucide-react";
 
 interface SummaryCardsProps {
   totalRegistrations: number;

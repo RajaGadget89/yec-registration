@@ -60,6 +60,25 @@ export const REQUIRED_BUCKETS: StorageBucketConfig[] = [
     description:
       "YEC brand assets (logos, icons) - public access for email templates",
   },
+  {
+    name: "cms-media",
+    public: true,
+    allowedMimeTypes: [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "image/svg+xml",
+      "image/gif",
+      "video/mp4",
+      "video/webm",
+      "video/quicktime",
+      "application/pdf",
+    ],
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+    description:
+      "CMS media files (images, videos, documents) - public access for content display",
+  },
 ];
 
 /**

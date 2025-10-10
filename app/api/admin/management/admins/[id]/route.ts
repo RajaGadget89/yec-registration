@@ -25,7 +25,13 @@ export const dynamic = "force-dynamic";
 const updateSchema = z.object({
   business_roles: z
     .array(
-      z.enum(["user_profile", "payment_slip", "tcc_card", "checker_admin"]),
+      z.enum([
+        "user_profile",
+        "payment_slip",
+        "tcc_card",
+        "checker_admin",
+        "cms_admin",
+      ]),
     )
     .optional(),
   status: z.enum(["active", "suspended"]).optional(),

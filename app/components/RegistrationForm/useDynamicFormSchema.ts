@@ -4,6 +4,8 @@ import { formSchema, FormField } from "./FormSchema";
 interface AvailableOptions {
   hotelChoices: string[];
   roomTypes: string[];
+  allowInQuotaAfterEarlyBird?: boolean;
+  isEarlyBird?: boolean;
 }
 
 interface DynamicFormSchemaHook {
@@ -68,10 +70,27 @@ export function useDynamicFormSchema(): DynamicFormSchemaHook {
           availableOptions.hotelChoices.includes(option.value),
         ) || [];
 
-      return {
-        ...field,
-        options: filteredOptions,
-      };
+      // Dynamic labels and options based on pricing configuration
+      let updatedField = { ...field, options: filteredOptions };
+
+      // When in-quota is not allowed after early bird, change labels to van service
+      if (
+        !availableOptions.allowInQuotaAfterEarlyBird &&
+        !availableOptions.isEarlyBird
+      ) {
+        updatedField = {
+          ...updatedField,
+          label: "ตัวเลือกบริการรับส่ง",
+          options: filteredOptions.map((option) => {
+            if (option.value === "no-accommodation") {
+              return { ...option, label: "ไม่ต้องการบริการรับส่ง" };
+            }
+            return option;
+          }),
+        };
+      }
+
+      return updatedField;
     }
 
     if (field.id === "roomType" && availableOptions) {
@@ -85,6 +104,20 @@ export function useDynamicFormSchema(): DynamicFormSchemaHook {
         ...field,
         options: filteredOptions,
       };
+    }
+
+    // Hide travel_type field when in-quota is not allowed after early bird
+    if (field.id === "travelType" && availableOptions) {
+      if (
+        !availableOptions.allowInQuotaAfterEarlyBird &&
+        !availableOptions.isEarlyBird
+      ) {
+        return {
+          ...field,
+          // Mark field as hidden by adding a special property
+          hidden: true,
+        };
+      }
     }
 
     return field;

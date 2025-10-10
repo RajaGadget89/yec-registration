@@ -568,6 +568,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
                             "payment_slip",
                             "tcc_card",
                             "checker_admin",
+                            "cms_admin",
                           ].map((role) => (
                             <label
                               key={role}

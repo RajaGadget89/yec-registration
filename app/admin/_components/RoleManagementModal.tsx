@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Crown, Shield, AlertTriangle, X, CheckCircle } from "lucide-react";
+import { Crown, Shield, X, CheckCircle, AlertTriangle } from "lucide-react";
 
 interface AdminUser {
   id: string;

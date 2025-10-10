@@ -125,6 +125,12 @@ export default function AdminDashboard({
       if (currentFilters.dateTo) {
         params.set("dateTo", currentFilters.dateTo);
       }
+      if (currentFilters.hotelChoice && currentFilters.hotelChoice.length > 0) {
+        params.set("hotelChoice", currentFilters.hotelChoice.join(","));
+      }
+      if (currentFilters.travelType && currentFilters.travelType.length > 0) {
+        params.set("travelType", currentFilters.travelType.join(","));
+      }
 
       const exportUrl = `/api/admin/export-csv?${params.toString()}`;
       window.open(exportUrl, "_blank");

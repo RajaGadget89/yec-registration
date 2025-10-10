@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { FailedRecordsTable } from "../../components/FailedRecordsTable";
 
 interface SessionData {
@@ -179,7 +180,7 @@ export default function ImportErrorsPage() {
 
       {/* Back Button */}
       <div className="mt-8">
-        <a
+        <Link
           href="/admin/import"
           className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
         >
@@ -197,7 +198,7 @@ export default function ImportErrorsPage() {
             />
           </svg>
           Back to Import Dashboard
-        </a>
+        </Link>
       </div>
     </div>
   );

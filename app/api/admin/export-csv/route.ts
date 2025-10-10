@@ -24,6 +24,10 @@ export async function GET(request: NextRequest) {
       search: searchParams.get("search") || "",
       dateFrom: searchParams.get("dateFrom") || "",
       dateTo: searchParams.get("dateTo") || "",
+      hotelChoice:
+        searchParams.get("hotelChoice")?.split(",").filter(Boolean) || [],
+      travelType:
+        searchParams.get("travelType")?.split(",").filter(Boolean) || [],
     };
 
     // Generate CSV data

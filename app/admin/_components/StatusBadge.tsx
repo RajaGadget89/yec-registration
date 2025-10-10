@@ -15,6 +15,7 @@ export default function StatusBadge({
   // New helper to render a stack of two badges when needed
   if (Array.isArray(status)) {
     // Type guard in case future refactors pass arrays; keep backward compat now
+    return null;
   }
   const getStatusConfig = (status: string) => {
     switch (status) {

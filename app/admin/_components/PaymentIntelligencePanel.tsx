@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 
 type Props = {
   applicationId: string;
@@ -19,7 +19,7 @@ export function PaymentIntelligencePanel({
   analysis,
   slipPath,
 }: Props) {
-  const [state, setState] = React.useState<{
+  const [state, setState] = useState<{
     status: "match" | "mismatch" | "pending" | "unknown";
     amount: number | null;
     confidence: number;

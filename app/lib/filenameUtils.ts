@@ -38,6 +38,8 @@ export function sanitizeFilename(filename: string): string {
     .replace(/\s+/g, "_")
     // Replace unsafe characters (including parentheses) with underscores
     .replace(/[<>:"|?*\\/()]/g, "_")
+    // Replace Unicode characters with ASCII-safe equivalents
+    .replace(/[^\x00-\x7F]/g, "_")
     // Replace multiple underscores with single underscore
     .replace(/_+/g, "_")
     // Remove leading/trailing underscores

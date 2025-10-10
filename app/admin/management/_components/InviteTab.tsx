@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Mail, Send } from "lucide-react";
 import { Alert, Button, Input, Checkbox } from "./shared/AdminUIComponents";
 import { ssrSafeIdempotencyKey } from "../../../lib/ssr-safe";
@@ -193,12 +194,12 @@ export default function InviteTab() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span>Invitation sent successfully to {success.email}</span>
-              <a
+              <Link
                 href="/admin/management?tab=pending"
                 className="text-sm text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 underline"
               >
                 View Pending Invitations
-              </a>
+              </Link>
             </div>
             <div className="text-xs">
               Invitation ID: {success.id} | Expires:{" "}
