@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseServerClient as getSupabase } from "../../../lib/supabase/server";
+import { getSupabaseServerClient } from "../../../lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await getSupabase();
+    const supabase = await getSupabaseServerClient();
     const { searchParams } = new URL(request.url);
+
     const limit = parseInt(searchParams.get("limit") || "10");
-    const search = searchParams.get("search") || "";
     const language = searchParams.get("language") || "all";
     const sort = searchParams.get("sort") || "newest";
 
-    // Build query
     let query = supabase
       .from("cms_news")
       .select(
@@ -19,47 +18,31 @@ export async function GET(request: NextRequest) {
         headline,
         content,
         image_url,
+        external_links,
+        hashtags,
         meta_description,
         language,
-        is_active,
         published_at,
-        created_at,
-        hashtags,
-        external_links
+        created_at
       `,
-        { count: "exact" },
       )
       .eq("is_active", true);
 
-    // Apply search filter
-    if (search) {
-      query = query.or(`headline.ilike.%${search}%,content.ilike.%${search}%`);
-    }
-
-    // Apply language filter
+    // Apply language filter only if not "all"
     if (language !== "all") {
       query = query.eq("language", language);
     }
 
     // Apply sorting
-    switch (sort) {
-      case "oldest":
-        query = query.order("published_at", { ascending: true });
-        break;
-      case "alphabetical":
-        query = query.order("headline", { ascending: true });
-        break;
-      case "reverse-alphabetical":
-        query = query.order("headline", { ascending: false });
-        break;
-      default: // newest
-        query = query.order("published_at", { ascending: false });
+    if (sort === "newest") {
+      query = query.order("published_at", { ascending: false });
+    } else if (sort === "oldest") {
+      query = query.order("published_at", { ascending: true });
+    } else {
+      query = query.order("created_at", { ascending: false });
     }
 
-    // Apply limit
-    query = query.limit(limit);
-
-    const { data: news, error, count } = await query;
+    const { data: news, error } = await query.limit(limit);
 
     if (error) {
       console.error("Error fetching news:", error);
@@ -69,14 +52,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({
-      news: news || [],
-      count: count || 0,
-    });
-  } catch (e) {
-    console.error("News API error:", e);
+    return NextResponse.json({ news: news || [] });
+  } catch (error) {
+    console.error("News GET error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch news" },
+      { error: "Internal server error" },
       { status: 500 },
     );
   }

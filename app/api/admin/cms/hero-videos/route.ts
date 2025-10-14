@@ -9,15 +9,20 @@ import { getCurrentUserFromRequest } from "../../../../lib/auth-utils.server";
 import { maybeServiceClient } from "../../../../lib/supabase/server";
 import { z } from "zod";
 
+// Disable caching for this API route
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 // Validation schemas
 const CreateHeroVideoSchema = z.object({
   page_id: z.string().uuid(),
-  desktop_video_url: z.string().url().optional(),
-  mobile_video_url: z.string().url().optional(),
-  fallback_image_url: z.string().url().optional(),
+  desktop_video_url: z.string().url().optional().or(z.literal("")),
+  mobile_video_url: z.string().url().optional().or(z.literal("")),
+  fallback_image_url: z.string().url().optional().or(z.literal("")),
   autoplay: z.boolean().default(true),
   muted: z.boolean().default(true),
   loop: z.boolean().default(true),
+  is_active: z.boolean().default(true),
 });
 
 // const UpdateHeroVideoSchema = CreateHeroVideoSchema.partial().omit({ page_id: true });
@@ -41,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     const offset = (page - 1) * limit;
 
-    // Build query
+    // Build query with page information
     let query = supabase
       .from("cms_hero_videos")
       .select(
@@ -54,8 +59,16 @@ export async function GET(request: NextRequest) {
         autoplay,
         muted,
         loop,
+        is_active,
+        is_landing_page_active,
         created_at,
-        updated_at
+        updated_at,
+        cms_pages!inner(
+          id,
+          slug,
+          title,
+          language
+        )
       `,
       )
       .order("created_at", { ascending: false })
@@ -110,7 +123,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = CreateHeroVideoSchema.parse(body);
+
+    // Clean up empty strings for optional URL fields
+    const cleanedBody = {
+      ...body,
+      desktop_video_url: body.desktop_video_url || undefined,
+      mobile_video_url: body.mobile_video_url || undefined,
+      fallback_image_url: body.fallback_image_url || undefined,
+    };
+
+    const validatedData = CreateHeroVideoSchema.parse(cleanedBody);
 
     const supabase = await maybeServiceClient(request);
 
@@ -167,8 +189,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(newVideo, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error("Validation error:", error.errors);
       return NextResponse.json(
-        { error: "Validation error", details: error.errors },
+        {
+          error: "Validation error",
+          details: error.errors.map((err) => ({
+            field: err.path.join("."),
+            message: err.message,
+          })),
+        },
         { status: 400 },
       );
     }

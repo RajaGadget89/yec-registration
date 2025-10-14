@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Eye, ArrowLeft, Link, Hash } from "lucide-react";
 import MediaSelector from "../../../../components/cms/MediaSelector";
+import ClientOnlyRichTextEditor from "../../../../components/cms/ClientOnlyRichTextEditor";
 
 interface NewsArticle {
   id: string;
@@ -57,14 +58,23 @@ export default function NewsEditor({ articleId }: NewsEditorProps) {
   const fetchArticle = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("Fetching article with ID:", articleId);
       const response = await fetch(`/api/admin/cms/news/${articleId}`);
+      console.log("Response status:", response.status);
       if (!response.ok) {
+        if (response.status === 404) {
+          console.log("Article not found - 404 response");
+          setArticle(null);
+          return;
+        }
         throw new Error("Failed to fetch article");
       }
       const data = await response.json();
-      setArticle(data.article);
+      console.log("Fetched article data:", data);
+      setArticle(data);
     } catch (error) {
       console.error("Error fetching article:", error);
+      setArticle(null);
     } finally {
       setLoading(false);
     }
@@ -73,6 +83,23 @@ export default function NewsEditor({ articleId }: NewsEditorProps) {
   useEffect(() => {
     fetchArticle();
   }, [fetchArticle]);
+
+  // Populate form when article data is loaded
+  useEffect(() => {
+    if (article) {
+      console.log("Populating form with article:", article);
+      setForm({
+        headline: article.headline || "",
+        content: article.content || "",
+        image_url: article.image_url || "",
+        meta_description: article.meta_description || "",
+        language: article.language || "en",
+        is_active: article.is_active ?? true,
+        hashtags: article.hashtags || [],
+        external_links: article.external_links || [],
+      });
+    }
+  }, [article]);
 
   const handleSave = async () => {
     try {
@@ -142,6 +169,7 @@ export default function NewsEditor({ articleId }: NewsEditorProps) {
   }
 
   if (!article) {
+    console.log("Article is null/undefined, showing not found message");
     return (
       <div className="text-center py-12">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white">
@@ -262,12 +290,11 @@ export default function NewsEditor({ articleId }: NewsEditorProps) {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Content *
             </label>
-            <textarea
-              rows={8}
+            <ClientOnlyRichTextEditor
               value={form.content}
-              onChange={(e) => setForm({ ...form, content: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white text-gray-900 placeholder-gray-500 shadow-sm focus:ring-2 focus:ring-yec-primary focus:border-yec-primary/50 dark:bg-gray-700 dark:text-white"
+              onChange={(value) => setForm({ ...form, content: value })}
               placeholder="Write your article content here..."
+              className="w-full"
             />
           </div>
 

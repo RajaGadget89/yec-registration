@@ -11,15 +11,15 @@ import crypto from "crypto";
 
 async function handlePOST(
   request: NextRequest,
-  { params }: { params: { token: string } },
+  { params }: { params: Promise<{ token: string }> },
 ) {
   // Get language from Accept-Language header
   const acceptLanguage = request.headers.get("accept-language");
   const language: Language = getLanguageFromHeader(acceptLanguage);
 
   try {
-    console.log("Resubmit endpoint called with token:", params.token);
-    const { token } = params;
+    const { token } = await params;
+    console.log("Resubmit endpoint called with token:", token);
     const body = await request.json();
     console.log("Request body:", body);
 

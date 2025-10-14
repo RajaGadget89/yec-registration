@@ -75,7 +75,11 @@ export default function MediaSelector({
       }
 
       const data = await response.json();
-      setMediaFiles(data.media || []);
+      // Filter to only show image files
+      const imageFiles = (data.media || []).filter((file: MediaFile) =>
+        file.mime_type.startsWith("image/"),
+      );
+      setMediaFiles(imageFiles);
     } catch (error) {
       console.error("Error fetching media:", error);
     } finally {
@@ -306,6 +310,7 @@ export default function MediaSelector({
                   <option value="image/png">PNG</option>
                   <option value="image/webp">WebP</option>
                   <option value="image/svg+xml">SVG</option>
+                  <option value="image/gif">GIF</option>
                 </select>
               </div>
             </div>
@@ -349,7 +354,7 @@ export default function MediaSelector({
                                 </svg>
                                 <span className="text-sm">Small Image</span>
                               </div>
-                            ) : (
+                            ) : file.mime_type.startsWith("image/") ? (
                               <>
                                 <Image
                                   src={file.file_path}
@@ -426,6 +431,21 @@ export default function MediaSelector({
                                   }}
                                 />
                               </>
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-100">
+                                <svg
+                                  className="w-8 h-8 mb-2"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                                <span className="text-sm">Non-Image File</span>
+                              </div>
                             )}
                           </div>
                           <div className="p-2">

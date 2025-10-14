@@ -13,7 +13,21 @@ if (!supabaseDomain) {
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   images: {
-    domains: supabaseDomain ? [supabaseDomain, 'example.com'] : ['example.com'],
+    remotePatterns: [
+      ...(supabaseDomain ? [{
+        protocol: 'https' as const,
+        hostname: supabaseDomain,
+      }] : []),
+      {
+        protocol: 'https' as const,
+        hostname: 'example.com',
+      },
+      {
+        protocol: 'https' as const,
+        hostname: 'img.youtube.com',
+        pathname: '/vi/**',
+      },
+    ],
   },
   async headers() {
     return [

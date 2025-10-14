@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Save, Eye, ArrowLeft, Link, Hash } from "lucide-react";
 import MediaSelector from "../../../../components/cms/MediaSelector";
+import ClientOnlyRichTextEditor from "../../../../components/cms/ClientOnlyRichTextEditor";
 
 interface ActivityCard {
   id: string;
@@ -347,12 +348,11 @@ export default function ActivityCardEditor({
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Content *
             </label>
-            <textarea
-              rows={8}
+            <ClientOnlyRichTextEditor
               value={form.content}
-              onChange={(e) => setForm({ ...form, content: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white text-gray-900 placeholder-gray-500 shadow-sm focus:ring-2 focus:ring-yec-primary focus:border-yec-primary/50 dark:bg-gray-700 dark:text-white"
+              onChange={(value) => setForm({ ...form, content: value })}
               placeholder="Write your activity content here..."
+              className="w-full"
             />
           </div>
 

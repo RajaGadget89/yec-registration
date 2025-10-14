@@ -61,7 +61,11 @@ export default function MediaLibraryModal({
       }
 
       const data = await response.json();
-      setMedia(data.media || []);
+      // Filter to only show image files
+      const imageFiles = (data.media || []).filter((file: MediaFile) =>
+        file.mime_type.startsWith("image/"),
+      );
+      setMedia(imageFiles);
     } catch (error) {
       console.error("Error fetching media:", error);
     } finally {

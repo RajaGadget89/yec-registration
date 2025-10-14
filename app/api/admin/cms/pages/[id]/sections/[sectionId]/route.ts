@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withContentManagementGuard } from "../../../../../../lib/cms-api-guard";
-import { maybeServiceClient } from "../../../../../../lib/supabase/server";
+import { withContentManagementGuard } from "../../../../../../../lib/cms-api-guard";
+import { maybeServiceClient } from "../../../../../../../lib/supabase/server";
 import { z } from "zod";
-
-const CreateSectionSchema = z.object({
-  section_type: z.string().min(1),
-  section_order: z.number().int().nonnegative().default(0),
-  title: z.string().optional(),
-  content: z.any().optional(),
-  is_active: z.boolean().optional().default(true),
-});
 
 const UpdateSectionSchema = z.object({
   section_type: z.string().min(1).optional(),
@@ -21,47 +13,50 @@ const UpdateSectionSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string; sectionId: string }> },
 ) {
   const guard = await withContentManagementGuard(request);
   if (guard) return guard;
 
   const supabase = await maybeServiceClient(request);
-  const { id } = await params;
+  const { id, sectionId } = await params;
+
   const { data, error } = await supabase
     .from("cms_page_sections")
     .select("id, section_type, section_order, title, content, is_active")
     .eq("page_id", id)
-    .order("section_order", { ascending: true });
+    .eq("id", sectionId)
+    .single();
+
   if (error)
     return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ sections: data || [] });
+  return NextResponse.json({ section: data });
 }
 
-export async function POST(
+export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string; sectionId: string }> },
 ) {
   const guard = await withContentManagementGuard(request);
   if (guard) return guard;
 
   try {
     const body = await request.json();
-    const { id } = await params;
-    const input = CreateSectionSchema.parse(body);
+    const { id, sectionId } = await params;
+    const input = UpdateSectionSchema.parse(body);
     const supabase = await maybeServiceClient(request);
+
     const { data, error } = await supabase
       .from("cms_page_sections")
-      .insert({
-        page_id: id,
-        section_type: input.section_type,
-        section_order: input.section_order,
-        title: input.title,
-        content: input.content ?? null,
-        is_active: input.is_active ?? true,
+      .update({
+        ...input,
+        updated_at: new Date().toISOString(),
       })
+      .eq("page_id", id)
+      .eq("id", sectionId)
       .select()
       .single();
+
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ section: data });
@@ -76,40 +71,27 @@ export async function POST(
   }
 }
 
-export async function PUT(
+export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string; sectionId: string }> },
 ) {
   const guard = await withContentManagementGuard(request);
   if (guard) return guard;
 
   try {
-    const body = await request.json();
-    const { id } = await params;
-    const input = UpdateSectionSchema.parse(body);
+    const { id, sectionId } = await params;
     const supabase = await maybeServiceClient(request);
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("cms_page_sections")
-      .update({
-        ...input,
-        updated_at: new Date().toISOString(),
-      })
+      .delete()
       .eq("page_id", id)
-      .eq("id", body.section_id) // We need to pass section_id in the request body
-      .select()
-      .single();
+      .eq("id", sectionId);
 
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ section: data });
-  } catch (e) {
-    if (e instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation error", details: e.errors },
-        { status: 400 },
-      );
-    }
+    return NextResponse.json({ success: true });
+  } catch (_e) {
     return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
   }
 }

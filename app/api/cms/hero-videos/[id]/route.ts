@@ -3,9 +3,10 @@ import { getSupabaseServerClient } from "../../../../lib/supabase/server";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const supabase = await getSupabaseServerClient();
 
     const { data: video, error } = await supabase
@@ -26,7 +27,7 @@ export async function GET(
         updated_at
       `,
       )
-      .eq("id", params.id)
+      .eq("id", id)
       .single();
 
     if (error || !video) {
