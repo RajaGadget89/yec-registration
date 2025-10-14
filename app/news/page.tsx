@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { getSupabaseServerClient } from "../lib/supabase/server";
+import { getSupabaseServiceClient } from "../lib/supabase/server";
 import NewsListing from "./_components/NewsListing";
 import TopMenuBar from "../components/TopMenuBar";
 import Footer from "../components/Footer";
@@ -20,7 +20,7 @@ interface NewsPageProps {
 }
 
 export default async function NewsPage({ searchParams }: NewsPageProps) {
-  const supabase = await getSupabaseServerClient();
+  const supabase = getSupabaseServiceClient();
 
   // Parse search parameters
   const params = await searchParams;

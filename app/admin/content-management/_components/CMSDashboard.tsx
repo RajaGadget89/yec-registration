@@ -14,6 +14,7 @@ import {
   Layout,
   Clock,
   Calendar,
+  HelpCircle,
 } from "lucide-react";
 
 interface CMSStats {
@@ -128,6 +129,12 @@ export default function CMSDashboard() {
       icon: Layout,
       title: "Templates",
       description: "Manage content templates",
+    },
+    {
+      href: "/admin/content-management/faq-management",
+      icon: HelpCircle,
+      title: "FAQ Management",
+      description: "Create and manage FAQ groups and items",
     },
   ];
 

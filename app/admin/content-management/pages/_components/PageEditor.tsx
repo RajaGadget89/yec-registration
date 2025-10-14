@@ -7,6 +7,7 @@ import AdminHeader from "../../../_components/AdminHeader";
 import MultiMediaSelector from "../../../../components/cms/MultiMediaSelector";
 import ClientOnlyRichTextEditor from "../../../../components/cms/ClientOnlyRichTextEditor";
 import HeroVideoSelector from "../../../../components/cms/HeroVideoSelector";
+import FAQGroupSelector from "../../../../components/cms/FAQGroupSelector";
 
 type Props = { pageId: string };
 
@@ -25,6 +26,7 @@ export default function PageEditor({ pageId }: Props) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editingSection, setEditingSection] = useState<any>(null);
+  const [showFAQGroupSelector, setShowFAQGroupSelector] = useState(false);
   const [newSection, setNewSection] = useState({
     section_type: "content",
     title: "",
@@ -49,6 +51,8 @@ export default function PageEditor({ pageId }: Props) {
       show_description: true,
       show_image: true,
       show_hashtags: true,
+      // FAQ configuration
+      faq_group_id: null as string | null,
     },
   });
 
@@ -211,6 +215,8 @@ export default function PageEditor({ pageId }: Props) {
           show_description: true,
           show_image: true,
           show_hashtags: true,
+          // FAQ configuration
+          faq_group_id: null,
         },
       });
     } catch (error) {
@@ -473,6 +479,7 @@ export default function PageEditor({ pageId }: Props) {
               <option value="content">Content</option>
               <option value="banner">Banner</option>
               <option value="activity_cards">Activity Cards</option>
+              <option value="faq">FAQ</option>
             </select>
             <input
               placeholder="Title"
@@ -628,6 +635,46 @@ export default function PageEditor({ pageId }: Props) {
                       Show hashtags
                     </span>
                   </label>
+                </div>
+              </div>
+            ) : newSection.section_type === "faq" ? (
+              <div className="col-span-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  FAQ Group
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFAQGroupSelector(true)}
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-left hover:border-yec-primary focus:ring-2 focus:ring-yec-primary focus:border-transparent"
+                  >
+                    {newSection.content.faq_group_id ? (
+                      <span className="text-gray-900 dark:text-white">
+                        FAQ Group Selected
+                      </span>
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Select FAQ Group
+                      </span>
+                    )}
+                  </button>
+                  {newSection.content.faq_group_id && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setNewSection({
+                          ...newSection,
+                          content: {
+                            ...newSection.content,
+                            faq_group_id: null,
+                          },
+                        })
+                      }
+                      className="px-3 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1003,6 +1050,20 @@ export default function PageEditor({ pageId }: Props) {
               </div>
             </div>
           </div>
+        )}
+
+        {/* FAQ Group Selector Modal */}
+        {showFAQGroupSelector && (
+          <FAQGroupSelector
+            selectedGroupId={newSection.content.faq_group_id}
+            onSelect={(groupId) => {
+              setNewSection({
+                ...newSection,
+                content: { ...newSection.content, faq_group_id: groupId },
+              });
+            }}
+            onClose={() => setShowFAQGroupSelector(false)}
+          />
         )}
       </div>
     </div>

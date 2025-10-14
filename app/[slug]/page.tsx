@@ -8,6 +8,7 @@ import RichTextSection from "../components/cms/sections/RichText";
 import GallerySection from "../components/cms/sections/Gallery";
 import BannerSection from "../components/cms/sections/Banner";
 import ActivityCardsSection from "../components/cms/sections/ActivityCards";
+import FAQSection from "../components/cms/sections/FAQ";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -97,6 +98,8 @@ export default async function CmsPage({ params }: Props) {
                   <BannerSection title={s.title} content={s.content} />
                 ) : type === "activity_cards" ? (
                   <ActivityCardsSection title={s.title} content={s.content} />
+                ) : type === "faq" ? (
+                  <FAQSection title={s.title} content={s.content} />
                 ) : (
                   <section className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 shadow-lg">
                     {s.title && (
