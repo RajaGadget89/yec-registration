@@ -125,3 +125,62 @@ export async function PUT(
     );
   }
 }
+
+/**
+ * DELETE /api/admin/cms/pages/[id]
+ * Permanently delete a CMS page and its sections
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    // Check authentication and permissions
+    const guardResponse = await withContentManagementGuard(request);
+    if (guardResponse) return guardResponse;
+
+    const user = await getCurrentUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const supabase = await maybeServiceClient(request);
+
+    // First, delete associated sections (if any)
+    const { error: sectionsError } = await supabase
+      .from("cms_page_sections")
+      .delete()
+      .eq("page_id", id);
+
+    if (sectionsError) {
+      console.error("Error deleting page sections:", sectionsError);
+      return NextResponse.json(
+        { error: "Failed to delete page sections" },
+        { status: 500 },
+      );
+    }
+
+    // Then, delete the page
+    const { error: pageError } = await supabase
+      .from("cms_pages")
+      .delete()
+      .eq("id", id);
+
+    if (pageError) {
+      console.error("Error deleting page:", pageError);
+      return NextResponse.json(
+        { error: "Failed to delete page" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting page:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
