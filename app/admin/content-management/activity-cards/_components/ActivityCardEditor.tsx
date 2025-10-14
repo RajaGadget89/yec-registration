@@ -152,13 +152,38 @@ export default function ActivityCardEditor({
   };
 
   const addHashtag = () => {
-    if (hashtagInput.trim() && !form.hashtags.includes(hashtagInput.trim())) {
-      setForm({
-        ...form,
-        hashtags: [...form.hashtags, hashtagInput.trim()],
-      });
-      setHashtagInput("");
+    const trimmedHashtag = hashtagInput.trim();
+
+    // Validate hashtag format
+    if (!trimmedHashtag) {
+      alert("Please enter a hashtag");
+      return;
     }
+
+    // Check for spaces (traditional hashtags should not contain spaces)
+    if (trimmedHashtag.includes(" ")) {
+      alert(
+        "Hashtags cannot contain spaces. Use underscores (_) or camelCase instead. Example: #LongTermTravel or #Long_Term_Travel",
+      );
+      return;
+    }
+
+    // Check if hashtag already exists
+    if (form.hashtags.includes(trimmedHashtag)) {
+      alert("This hashtag already exists");
+      return;
+    }
+
+    // Add hashtag with # prefix if not already present
+    const hashtagWithPrefix = trimmedHashtag.startsWith("#")
+      ? trimmedHashtag
+      : `#${trimmedHashtag}`;
+
+    setForm({
+      ...form,
+      hashtags: [...form.hashtags, hashtagWithPrefix],
+    });
+    setHashtagInput("");
   };
 
   const removeHashtag = (index: number) => {
@@ -430,10 +455,14 @@ export default function ActivityCardEditor({
               <input
                 type="text"
                 value={hashtagInput}
-                onChange={(e) => setHashtagInput(e.target.value)}
+                onChange={(e) => {
+                  // Remove spaces as user types
+                  const value = e.target.value.replace(/\s/g, "");
+                  setHashtagInput(value);
+                }}
                 onKeyPress={(e) => e.key === "Enter" && addHashtag()}
                 className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white text-gray-900 placeholder-gray-500 shadow-sm focus:ring-2 focus:ring-yec-primary focus:border-yec-primary/50 dark:bg-gray-700 dark:text-white"
-                placeholder="Add hashtag"
+                placeholder="Add hashtag (no spaces allowed)"
               />
               <button
                 onClick={addHashtag}
