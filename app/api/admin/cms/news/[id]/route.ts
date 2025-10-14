@@ -89,6 +89,13 @@ export async function GET(
       );
     }
 
+    if (!news) {
+      return NextResponse.json(
+        { error: "News article not found" },
+        { status: 404 },
+      );
+    }
+
     return NextResponse.json(news);
   } catch (error) {
     console.error("News Article GET error:", error);

@@ -163,6 +163,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Note: TopMenuBar and Footer are now global components included in all CMS pages
+    // No need to create them as sections since they're part of the page layout
+
     return NextResponse.json(newPage, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {

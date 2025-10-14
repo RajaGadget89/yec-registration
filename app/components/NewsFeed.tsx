@@ -36,12 +36,15 @@ export default function NewsFeed() {
         setLoading(true);
         setError(null);
 
-        const res = await fetch("/api/cms/news?limit=10&sort=newest", {
-          cache: "no-store",
-          headers: {
-            "Content-Type": "application/json",
+        const res = await fetch(
+          "/api/cms/news?limit=10&sort=newest&language=all",
+          {
+            cache: "no-store",
+            headers: {
+              "Content-Type": "application/json",
+            },
           },
-        });
+        );
 
         if (!res.ok) {
           throw new Error(`Failed to load news: ${res.status}`);

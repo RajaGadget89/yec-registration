@@ -10,12 +10,13 @@ import { maybeServiceClient } from "../../../../../lib/supabase/server";
 import { z } from "zod";
 
 const UpdateHeroVideoSchema = z.object({
-  desktop_video_url: z.string().url().optional(),
-  mobile_video_url: z.string().url().optional(),
-  fallback_image_url: z.string().url().optional(),
+  desktop_video_url: z.string().url().optional().or(z.literal("")),
+  mobile_video_url: z.string().url().optional().or(z.literal("")),
+  fallback_image_url: z.string().url().optional().or(z.literal("")),
   autoplay: z.boolean().optional(),
   muted: z.boolean().optional(),
   loop: z.boolean().optional(),
+  is_active: z.boolean().optional(),
 });
 
 /**
@@ -46,8 +47,16 @@ export async function GET(
         autoplay,
         muted,
         loop,
+        is_active,
+        is_landing_page_active,
         created_at,
-        updated_at
+        updated_at,
+        cms_pages!inner(
+          id,
+          slug,
+          title,
+          language
+        )
       `,
       )
       .eq("id", id)
@@ -97,7 +106,16 @@ export async function PUT(
 
     const { id } = params;
     const body = await request.json();
-    const validatedData = UpdateHeroVideoSchema.parse(body);
+
+    // Clean up empty strings for optional URL fields
+    const cleanedBody = {
+      ...body,
+      desktop_video_url: body.desktop_video_url || undefined,
+      mobile_video_url: body.mobile_video_url || undefined,
+      fallback_image_url: body.fallback_image_url || undefined,
+    };
+
+    const validatedData = UpdateHeroVideoSchema.parse(cleanedBody);
 
     const supabase = await maybeServiceClient(request);
 
