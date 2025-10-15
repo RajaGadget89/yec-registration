@@ -4,6 +4,7 @@
 
 export const provinceSlugToCode: Record<string, string> = {
   bangkok: "BKK",
+  "bueng-kan": "BKN",
   krabi: "KBI",
   kanchanaburi: "KRI",
   kalasin: "KSN",
