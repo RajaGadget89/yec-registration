@@ -4,7 +4,8 @@ import {
   registerFont,
   CanvasRenderingContext2D,
 } from "canvas";
-import QRCode from "qrcode";
+// QR drawing is centralized in qrService
+import { encryptQrPayload, renderQrToCanvas } from "./qr/qrService";
 import path from "path";
 import fs from "fs";
 
@@ -164,7 +165,7 @@ interface BadgeData {
   profileImageBase64?: string;
 }
 
-interface QRCodeData {
+interface _QRCodeData {
   regId: string;
   fullName: string;
   phone: string;
@@ -565,35 +566,16 @@ async function drawQRCodeSection(
     throw new Error("Registration ID is required for QR code generation");
   }
 
-  // QR code data
-  const qrData: QRCodeData = {
-    regId: badgeData.registrationId,
-    fullName: badgeData.fullName,
-    phone: badgeData.phone,
-  };
+  // Encrypted QR payload (tracking_id + form_key)
+  const trackingId = badgeData.registrationId; // use registrationId as tracking id for YEC
+  const formKey = "yec";
 
   try {
-    // Validate QR data
-    const qrDataString = JSON.stringify(qrData);
-    if (!qrDataString || qrDataString === "{}") {
-      throw new Error("Empty QR code data");
-    }
-
-    console.log("📱 Generating QR code with data:", qrDataString);
-
-    // Generate QR code
-    const qrCodeDataURL = await QRCode.toDataURL(qrDataString, {
-      width: qrSize,
-      margin: 3,
-      color: {
-        dark: YEC_COLORS.primary,
-        light: YEC_COLORS.white,
-      },
+    const token = await encryptQrPayload({
+      tracking_id: trackingId,
+      form_key: formKey,
     });
-
-    // Load QR code image
-    const qrImage = await loadImage(qrCodeDataURL);
-    ctx.drawImage(qrImage as any, qrX, qrY, qrSize, qrSize);
+    await renderQrToCanvas(ctx as any, qrX, qrY, qrSize, token);
 
     // Add QR code label
     ctx.fillStyle = YEC_COLORS.gray;

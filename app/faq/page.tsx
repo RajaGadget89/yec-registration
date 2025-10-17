@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function FAQPage() {
-  const supabase = getSupabaseServiceClient();
+  const supabase = await getSupabaseServiceClient();
 
   try {
     // Fetch all published FAQ groups

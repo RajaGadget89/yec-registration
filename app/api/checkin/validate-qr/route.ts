@@ -3,6 +3,7 @@ import { getSupabaseServiceClient } from "@/lib/supabase-server";
 import { getCurrentUser } from "@/lib/auth-utils.server";
 import { isCheckinSystemEnabled } from "@/lib/features";
 import { logAccess } from "@/lib/audit/auditClient";
+import { decryptQrPayload } from "@/lib/qr/qrService";
 
 /**
  * POST /api/checkin/validate-qr
@@ -35,12 +36,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { qr_data } = await req.json();
+    const body = await req.json();
+    const { qr_data, qr_token } = body || {};
 
     // Validate input
-    if (!qr_data) {
+    if (!qr_data && !qr_token) {
       return NextResponse.json(
-        { error: "Missing required field: qr_data" },
+        { error: "Missing required field: qr_data or qr_token" },
         { status: 400 },
       );
     }
@@ -60,22 +62,40 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Parse QR code data
-    let parsedData;
-    try {
-      parsedData = JSON.parse(qr_data);
-    } catch (_error) {
-      return NextResponse.json(
-        {
-          valid: false,
-          error: "Invalid QR code format",
-        },
-        { status: 400 },
-      );
+    // Parse QR code data (legacy JSON) or decrypt token (new)
+    let parsedData: any;
+    if (qr_token) {
+      try {
+        const payload = decryptQrPayload(qr_token);
+        parsedData = {
+          tracking_id: payload.tracking_id,
+          form_key: payload.form_key,
+        };
+      } catch (_err) {
+        return NextResponse.json(
+          { valid: false, error: "Invalid or expired QR token" },
+          { status: 400 },
+        );
+      }
+    } else {
+      try {
+        parsedData = JSON.parse(qr_data);
+      } catch (_error) {
+        return NextResponse.json(
+          {
+            valid: false,
+            error: "Invalid QR code format",
+          },
+          { status: 400 },
+        );
+      }
     }
 
     // Validate QR code structure
-    if (!parsedData.regId || !parsedData.fullName || !parsedData.phone) {
+    const hasLegacyShape =
+      parsedData.regId && parsedData.fullName && parsedData.phone;
+    const hasEncryptedShape = parsedData.tracking_id && parsedData.form_key;
+    if (!hasLegacyShape && !hasEncryptedShape) {
       return NextResponse.json(
         {
           valid: false,
@@ -87,22 +107,37 @@ export async function POST(req: NextRequest) {
 
     const supabase = getSupabaseServiceClient();
 
-    // Get user information from database
-    const { data: registration, error } = await supabase
-      .from("registrations")
-      .select(
-        `
-        registration_id,
-        first_name,
-        last_name,
-        email,
-        phone,
-        status,
-        yec_province
-      `,
-      )
-      .eq("registration_id", parsedData.regId)
-      .single();
+    // Get user information from database (support legacy YEC and form-based)
+    let registration: any = null;
+    let error: any = null;
+    if (hasLegacyShape) {
+      ({ data: registration, error } = await supabase
+        .from("registrations")
+        .select(
+          `registration_id, first_name, last_name, email, phone, status, yec_province`,
+        )
+        .eq("registration_id", parsedData.regId)
+        .single());
+    } else {
+      const { data, error: formError } = await supabase
+        .from("form_registrations")
+        .select(`id, form_key, tracking_id, core_data, extra_data, status`)
+        .eq("form_key", parsedData.form_key)
+        .eq("tracking_id", parsedData.tracking_id)
+        .single();
+      error = formError;
+      if (data) {
+        registration = {
+          registration_id: data.id,
+          first_name: data.core_data?.first_name || data.core_data?.name || "",
+          last_name: data.core_data?.last_name || "",
+          email: data.core_data?.email,
+          phone: data.core_data?.phone,
+          status: data.status,
+          yec_province: data.extra_data?.yec_province,
+        };
+      }
+    }
 
     if (error || !registration) {
       return NextResponse.json(
@@ -137,7 +172,7 @@ export async function POST(req: NextRequest) {
       latency_ms: Date.now() - startTime,
       meta: {
         actor: user.email,
-        registration_id: parsedData.regId,
+        registration_id: registration.registration_id,
       },
     });
 

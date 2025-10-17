@@ -494,4 +494,55 @@ export class EventFactory {
       correlation_id: invitationId,
     };
   }
+
+  /**
+   * Create a badge generated event
+   */
+  static createBadgeGenerated(payload: {
+    applicationId: string;
+    badgePath: string;
+    correlationId: string;
+  }): DomainEvent {
+    return {
+      id: randomUUID(),
+      type: "badge.generated",
+      payload,
+      timestamp: new Date().toISOString(),
+      correlation_id: payload.correlationId,
+    };
+  }
+
+  /**
+   * Create a checkin completed event
+   */
+  static createCheckinCompleted(payload: {
+    applicationId: string;
+    checkinEventId: string;
+    correlationId: string;
+  }): DomainEvent {
+    return {
+      id: randomUUID(),
+      type: "checkin.completed",
+      payload,
+      timestamp: new Date().toISOString(),
+      correlation_id: payload.correlationId,
+    };
+  }
+
+  /**
+   * Create an import completed event
+   */
+  static createImportCompleted(payload: {
+    jobId: string;
+    formKey: string;
+    correlationId: string;
+  }): DomainEvent {
+    return {
+      id: randomUUID(),
+      type: "import.completed",
+      payload,
+      timestamp: new Date().toISOString(),
+      correlation_id: payload.correlationId,
+    };
+  }
 }

@@ -9,6 +9,8 @@ import {
   Calendar,
   Settings,
   Upload,
+  ChevronRight,
+  Hash,
 } from "lucide-react";
 
 interface SuperAdminDropdownProps {
@@ -19,6 +21,7 @@ export default function SuperAdminDropdown({
   isCheckinEnabled,
 }: SuperAdminDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -47,10 +50,36 @@ export default function SuperAdminDropdown({
       show: process.env.FEATURES_ADMIN_MANAGEMENT !== "false",
     },
     {
+      href: "/admin/super-admin/form-email-templates",
+      icon: Settings,
+      label: "Form Email Templates",
+      description: "Configure email templates for forms",
+      show: true,
+    },
+    {
       href: "/admin/pricing-management",
       icon: DollarSign,
       label: "Pricing Management",
       description: "Configure pricing and packages",
+      show: true,
+      submenu: [
+        {
+          href: "/admin/pricing-management",
+          label: "Traditional Registration",
+          description: "Manage pricing for traditional forms",
+        },
+        {
+          href: "/admin/super-admin/form-pricing",
+          label: "Form Pricing Management",
+          description: "Configure pricing for new registration forms",
+        },
+      ],
+    },
+    {
+      href: "/admin/super-admin/tracking-id-config",
+      icon: Hash,
+      label: "Tracking ID Format",
+      description: "Configure tracking ID formats for forms",
       show: true,
     },
     {
@@ -97,24 +126,82 @@ export default function SuperAdminDropdown({
 
           <div className="py-2">
             {menuItems.map((item, _index) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 group"
-                onClick={() => setIsOpen(false)}
-              >
-                <div className="p-2 rounded-lg bg-gradient-to-br from-yec-primary/10 to-yec-accent/10 group-hover:from-yec-primary/20 group-hover:to-yec-accent/20 transition-all duration-200">
-                  <item.icon className="h-4 w-4 text-yec-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-yec-primary transition-colors duration-200">
-                    {item.label}
+              <div key={item.href}>
+                {item.submenu ? (
+                  <div className="relative">
+                    <button
+                      onClick={() =>
+                        setOpenSubmenu(
+                          openSubmenu === item.href ? null : item.href,
+                        )
+                      }
+                      className="flex items-center justify-between w-full px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 group"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 rounded-lg bg-gradient-to-br from-yec-primary/10 to-yec-accent/10 group-hover:from-yec-primary/20 group-hover:to-yec-accent/20 transition-all duration-200">
+                          <item.icon className="h-4 w-4 text-yec-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-yec-primary transition-colors duration-200">
+                            {item.label}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            {item.description}
+                          </div>
+                        </div>
+                      </div>
+                      <ChevronRight
+                        className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                          openSubmenu === item.href ? "rotate-90" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {openSubmenu === item.href && (
+                      <div className="bg-gray-50 dark:bg-gray-700 border-l-2 border-yec-primary/20">
+                        {item.submenu.map((subItem) => (
+                          <Link
+                            key={subItem.href}
+                            href={subItem.href}
+                            className="flex items-center space-x-3 px-8 py-2 hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors duration-200 group"
+                            onClick={() => {
+                              setIsOpen(false);
+                              setOpenSubmenu(null);
+                            }}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-yec-primary transition-colors duration-200">
+                                {subItem.label}
+                              </div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {subItem.description}
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {item.description}
-                  </div>
-                </div>
-              </Link>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className="flex items-center space-x-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 group"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-yec-primary/10 to-yec-accent/10 group-hover:from-yec-primary/20 group-hover:to-yec-accent/20 transition-all duration-200">
+                      <item.icon className="h-4 w-4 text-yec-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white group-hover:text-yec-primary transition-colors duration-200">
+                        {item.label}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {item.description}
+                      </div>
+                    </div>
+                  </Link>
+                )}
+              </div>
             ))}
           </div>
 

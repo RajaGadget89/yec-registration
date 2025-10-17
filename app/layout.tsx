@@ -40,6 +40,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
   themeColor: "#ffffff",
 };
 
@@ -48,6 +50,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Note: We cannot fetch on server in this client file head tags easily.
+  // Use a small client script to swap favicon from Branding if available.
   return (
     <html lang="en">
       <head>
@@ -70,6 +74,25 @@ export default function RootLayout({
           href="/assets/favicon-32x32.png"
         />
         <link rel="manifest" href="/assets/site.webmanifest" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                try {
+                  fetch('/api/cms/branding', { cache: 'no-store' }).then(function(r){
+                    if(!r.ok) return; return r.json();
+                  }).then(function(data){
+                    if(!data || !data.branding || !data.branding.logo_favicon_url) return;
+                    var href = data.branding.logo_favicon_url;
+                    var link = document.querySelector('link[rel="icon"]');
+                    if(!link){ link = document.createElement('link'); link.rel='icon'; document.head.appendChild(link); }
+                    link.href = href;
+                  }).catch(function(){});
+                } catch(e){}
+              })();
+            `,
+          }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

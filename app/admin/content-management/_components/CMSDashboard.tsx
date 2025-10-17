@@ -15,6 +15,7 @@ import {
   Clock,
   Calendar,
   HelpCircle,
+  FormInput,
 } from "lucide-react";
 
 interface CMSStats {
@@ -94,6 +95,12 @@ export default function CMSDashboard() {
   ];
 
   const managementSections = [
+    {
+      href: "/admin/content-management/form-builder",
+      icon: FormInput,
+      title: "Form Builder",
+      description: "Create and manage registration forms",
+    },
     {
       href: "/admin/content-management/activity-cards",
       icon: Layout,

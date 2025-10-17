@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10");
     const page_id = searchParams.get("page_id");
     const is_active = searchParams.get("is_active");
+    const search = searchParams.get("search");
 
     const offset = (page - 1) * limit;
 
@@ -82,6 +83,7 @@ export async function GET(request: NextRequest) {
         created_at,
         updated_at
       `,
+        { count: "exact" },
       )
       .order("display_order", { ascending: true })
       .range(offset, offset + limit - 1);
@@ -92,6 +94,12 @@ export async function GET(request: NextRequest) {
     }
     if (is_active !== null) {
       query = query.eq("is_active", is_active === "true");
+    }
+    if (search && search.trim().length > 0) {
+      const term = search.trim();
+      query = query.or(
+        `title.ilike.%${term}%,description.ilike.%${term}%,content.ilike.%${term}%`,
+      );
     }
 
     const { data: cards, error, count } = await query;

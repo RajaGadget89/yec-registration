@@ -132,15 +132,12 @@ export class EventService {
   // These methods have been removed as they are not part of the current event system
 
   /**
-   * Emit a generic event
+   * Emit a domain event
    */
   static async emit(event: any): Promise<EventHandlerResult[]> {
     return await this.emitEvent(event);
   }
 
-  /**
-   * Emit an event and return results
-   */
   private static async emitEvent(event: any): Promise<EventHandlerResult[]> {
     try {
       console.log(`Emitting event: ${event.type}`, {

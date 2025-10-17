@@ -109,7 +109,25 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = CreateBrandingSchema.parse(body);
+    // Remove empty strings/nullish from payload, including nested brand_colors
+    const cleanedBase = Object.fromEntries(
+      Object.entries(body).filter(
+        ([_, v]) => v !== "" && v !== null && v !== undefined,
+      ),
+    );
+    const cleaned = {
+      ...cleanedBase,
+      ...(cleanedBase.brand_colors
+        ? {
+            brand_colors: Object.fromEntries(
+              Object.entries(
+                cleanedBase.brand_colors as Record<string, unknown>,
+              ).filter(([_, v]) => v !== "" && v !== null && v !== undefined),
+            ),
+          }
+        : {}),
+    };
+    const validatedData = CreateBrandingSchema.parse(cleaned);
 
     const supabase = await maybeServiceClient(request);
 
@@ -178,7 +196,25 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = UpdateBrandingSchema.parse(body);
+    // Remove empty strings/nullish from payload, including nested brand_colors
+    const cleanedBase = Object.fromEntries(
+      Object.entries(body).filter(
+        ([_, v]) => v !== "" && v !== null && v !== undefined,
+      ),
+    );
+    const cleaned = {
+      ...cleanedBase,
+      ...(cleanedBase.brand_colors
+        ? {
+            brand_colors: Object.fromEntries(
+              Object.entries(
+                cleanedBase.brand_colors as Record<string, unknown>,
+              ).filter(([_, v]) => v !== "" && v !== null && v !== undefined),
+            ),
+          }
+        : {}),
+    };
+    const validatedData = UpdateBrandingSchema.parse(cleaned);
 
     const supabase = await maybeServiceClient(request);
 

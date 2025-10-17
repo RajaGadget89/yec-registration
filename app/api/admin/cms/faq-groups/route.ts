@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
 
     // Get item counts for each group
     const groupsWithCounts = await Promise.all(
-      (groups || []).map(async (group) => {
+      (groups || []).map(async (group: any) => {
         const { count: itemCount } = await supabase
           .from("cms_faq_items")
           .select("*", { count: "exact", head: true })
