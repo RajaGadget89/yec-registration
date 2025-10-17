@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
-import type { UnifiedRegistration } from "@/app/lib/admin/unifiedRegistrationService";
+import type { UnifiedRegistration } from "../../lib/admin/unifiedRegistrationService";
 
 interface UnifiedRegistrationTableProps {
   registrations: UnifiedRegistration[];
@@ -16,7 +15,7 @@ export default function UnifiedRegistrationTable({
   loading,
   onRegistrationSelect,
 }: UnifiedRegistrationTableProps) {
-  const router = useRouter();
+  const _router = useRouter();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -66,7 +65,7 @@ export default function UnifiedRegistrationTable({
         </span>
       );
     }
-    
+
     return (
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
         {formName}
@@ -80,7 +79,10 @@ export default function UnifiedRegistrationTable({
         <div className="animate-pulse">
           <div className="h-12 bg-gray-200 dark:bg-gray-700"></div>
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-700"></div>
+            <div
+              key={i}
+              className="h-16 bg-gray-200 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-700"
+            ></div>
           ))}
         </div>
       </div>
@@ -140,14 +142,17 @@ export default function UnifiedRegistrationTable({
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  {getFormTypeBadge(registration.form_type, registration.form_name)}
+                  {getFormTypeBadge(
+                    registration.form_type,
+                    registration.form_name,
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     {getStatusIcon(registration.status)}
                     <span
                       className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                        registration.status
+                        registration.status,
                       )}`}
                     >
                       {registration.status.replace(/_/g, " ").toUpperCase()}

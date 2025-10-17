@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { audit } from "@/app/lib/audit";
+import { getSupabaseServerClient } from "../../../../../lib/supabase/server";
+import { audit } from "../../../../../lib/audit";
+import { hasRoleFromRequest } from "../../../../../lib/auth-utils.server";
 
 interface RouteParams {
   params: {
@@ -8,53 +9,62 @@ interface RouteParams {
   };
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function GET(request: NextRequest, context: RouteParams) {
   try {
-    const { formKey } = params;
+    const { formKey } = await (context as any).params;
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Check if user has super admin role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile || profile.role !== "super_admin") {
+    // Allow admin or super_admin via centralized helper
+    if (!(await hasRoleFromRequest(request, "admin"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get form type and badge template
+    // Get form type basic info
     const { data: formType, error: formError } = await supabase
       .from("form_types")
-      .select("form_key, name, config")
+      .select("form_key, name")
       .eq("form_key", formKey)
       .eq("is_active", true)
       .single();
 
     if (formError || !formType) {
-      return NextResponse.json(
-        { error: "Form not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Form not found" }, { status: 404 });
     }
 
-    const template = formType.config?.badge_config || null;
+    // Read template from new table; fallback to legacy config if needed
+    let template: any = null;
+    const { data: badgeRow } = await supabase
+      .from("form_badge_templates")
+      .select("template")
+      .eq("form_key", formKey)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (badgeRow?.template) {
+      template = badgeRow.template;
+    } else {
+      const { data: legacy } = await supabase
+        .from("form_types")
+        .select("config")
+        .eq("form_key", formKey)
+        .single();
+      template = legacy?.config?.badge_config || null;
+    }
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: `/api/admin/super-admin/form-badge-templates/${formKey}`,
+      action: "GET",
+      method: "GET",
+      resource: `form-badge-templates-${formKey}`,
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: { form_key: formKey, template_requested: true },
     });
 
@@ -70,97 +80,80 @@ export async function GET(
     console.error("Error in badge template API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function PUT(request: NextRequest, context: RouteParams) {
   try {
-    const { formKey } = params;
+    const { formKey } = await (context as any).params;
     const body = await request.json();
     const { template } = body;
 
     if (!template) {
       return NextResponse.json(
         { error: "Template is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    // Check if user has super admin role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile || profile.role !== "super_admin") {
+    if (!(await hasRoleFromRequest(request, "admin"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Validate template structure
-    const requiredFields = ["title_text", "background_color", "text_color", "fields"];
+    const requiredFields = [
+      "title_text",
+      "background_color",
+      "text_color",
+      "fields",
+    ];
     for (const field of requiredFields) {
       if (!template[field]) {
         return NextResponse.json(
           { error: `Missing required field: ${field}` },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
 
-    // Get current form config
-    const { data: formType, error: formError } = await supabase
-      .from("form_types")
-      .select("config")
-      .eq("form_key", formKey)
-      .single();
-
-    if (formError || !formType) {
-      return NextResponse.json(
-        { error: "Form not found" },
-        { status: 404 }
-      );
-    }
-
-    // Update form config with badge template
-    const updatedConfig = {
-      ...formType.config,
-      badge_config: template,
-    };
-
+    // Upsert into form_badge_templates
     const { error: updateError } = await supabase
-      .from("form_types")
-      .update({
-        config: updatedConfig,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("form_key", formKey);
+      .from("form_badge_templates")
+      .upsert(
+        {
+          form_key: formKey,
+          template,
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "form_key" },
+      );
 
     if (updateError) {
       console.error("Error updating badge template:", updateError);
       return NextResponse.json(
         { error: "Failed to update badge template" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: `/api/admin/super-admin/form-badge-templates/${formKey}`,
+      action: "GET",
+      method: "GET",
+      resource: `form-badge-templates-${formKey}`,
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: {
         form_key: formKey,
         template_updated: true,
@@ -176,75 +169,47 @@ export async function PUT(
     console.error("Error updating badge template:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function DELETE(request: NextRequest, context: RouteParams) {
   try {
-    const { formKey } = params;
+    const { formKey } = await (context as any).params;
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    // Check if user has super admin role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (!profile || profile.role !== "super_admin") {
+    if (!(await hasRoleFromRequest(request, "admin"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Get current form config
-    const { data: formType, error: formError } = await supabase
-      .from("form_types")
-      .select("config")
-      .eq("form_key", formKey)
-      .single();
-
-    if (formError || !formType) {
-      return NextResponse.json(
-        { error: "Form not found" },
-        { status: 404 }
-      );
-    }
-
-    // Remove badge config from form config
-    const updatedConfig = { ...formType.config };
-    delete updatedConfig.badge_config;
-
     const { error: updateError } = await supabase
-      .from("form_types")
-      .update({
-        config: updatedConfig,
-        updated_at: new Date().toISOString(),
-      })
+      .from("form_badge_templates")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq("form_key", formKey);
 
     if (updateError) {
       console.error("Error removing badge template:", updateError);
       return NextResponse.json(
         { error: "Failed to remove badge template" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: `/api/admin/super-admin/form-badge-templates/${formKey}`,
+      action: "GET",
+      method: "GET",
+      resource: `form-badge-templates-${formKey}`,
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: {
         form_key: formKey,
         template_deleted: true,
@@ -259,7 +224,7 @@ export async function DELETE(
     console.error("Error removing badge template:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

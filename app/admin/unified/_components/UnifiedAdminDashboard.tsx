@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Activity, Users, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Download, Activity, Users, CheckCircle, Clock } from "lucide-react";
 import UnifiedFilters from "../../_components/UnifiedFilters";
 import UnifiedRegistrationTable from "../../_components/UnifiedRegistrationTable";
-import type { UnifiedRegistration } from "@/app/lib/admin/unifiedRegistrationService";
+import type { UnifiedRegistration } from "../../../lib/admin/unifiedRegistrationService";
 
 interface FormType {
   form_key: string;
@@ -52,7 +52,8 @@ export default function UnifiedAdminDashboard({
   const [formTypes] = useState(initialFormTypes);
   const [stats, setStats] = useState(initialStats);
   const [loading, setLoading] = useState(false);
-  const [selectedRegistration, setSelectedRegistration] = useState<UnifiedRegistration | null>(null);
+  const [selectedRegistration, setSelectedRegistration] =
+    useState<UnifiedRegistration | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
   // Update state when props change
@@ -78,7 +79,9 @@ export default function UnifiedAdminDashboard({
         limit: "50",
       });
 
-      const response = await fetch(`/api/admin/registrations-unified?${params}`);
+      const response = await fetch(
+        `/api/admin/registrations-unified?${params}`,
+      );
       if (response.ok) {
         const data = await response.json();
         setRegistrations(data.registrations);
@@ -113,7 +116,7 @@ export default function UnifiedAdminDashboard({
     return stats.by_status[status] || 0;
   };
 
-  const getFormTypeCount = (formType: string) => {
+  const _getFormTypeCount = (formType: string) => {
     return stats.by_form_type[formType] || 0;
   };
 
@@ -220,9 +223,14 @@ export default function UnifiedAdminDashboard({
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.entries(stats.by_form_type).map(([formType, count]) => (
-              <div key={formType} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div
+                key={formType}
+                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+              >
                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {formType === "traditional" ? "YEC Day (Traditional)" : formType}
+                  {formType === "traditional"
+                    ? "YEC Day (Traditional)"
+                    : formType}
                 </span>
                 <span className="text-sm font-bold text-gray-900 dark:text-white">
                   {count.toLocaleString()}
@@ -251,9 +259,9 @@ export default function UnifiedAdminDashboard({
         {pagination.total_pages > 1 && (
           <div className="mt-8 flex items-center justify-between">
             <div className="text-sm text-gray-700 dark:text-gray-300">
-              Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
-              {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-              {pagination.total.toLocaleString()} results
+              Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+              {Math.min(pagination.page * pagination.limit, pagination.total)}{" "}
+              of {pagination.total.toLocaleString()} results
             </div>
             <div className="flex items-center space-x-2">
               <button
@@ -290,8 +298,18 @@ export default function UnifiedAdminDashboard({
                     onClick={handleCloseDetails}
                     className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -304,20 +322,36 @@ export default function UnifiedAdminDashboard({
                     </h3>
                     <dl className="space-y-2">
                       <div>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Name</dt>
-                        <dd className="text-sm text-gray-900 dark:text-white">{selectedRegistration.name}</dd>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Name
+                        </dt>
+                        <dd className="text-sm text-gray-900 dark:text-white">
+                          {selectedRegistration.name}
+                        </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Email</dt>
-                        <dd className="text-sm text-gray-900 dark:text-white">{selectedRegistration.email}</dd>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Email
+                        </dt>
+                        <dd className="text-sm text-gray-900 dark:text-white">
+                          {selectedRegistration.email}
+                        </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Phone</dt>
-                        <dd className="text-sm text-gray-900 dark:text-white">{selectedRegistration.phone}</dd>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Phone
+                        </dt>
+                        <dd className="text-sm text-gray-900 dark:text-white">
+                          {selectedRegistration.phone}
+                        </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Tracking ID</dt>
-                        <dd className="text-sm text-gray-900 dark:text-white font-mono">{selectedRegistration.tracking_id}</dd>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Tracking ID
+                        </dt>
+                        <dd className="text-sm text-gray-900 dark:text-white font-mono">
+                          {selectedRegistration.tracking_id}
+                        </dd>
                       </div>
                     </dl>
                   </div>
@@ -327,23 +361,39 @@ export default function UnifiedAdminDashboard({
                     </h3>
                     <dl className="space-y-2">
                       <div>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Form Type</dt>
-                        <dd className="text-sm text-gray-900 dark:text-white">{selectedRegistration.form_name}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Status</dt>
-                        <dd className="text-sm text-gray-900 dark:text-white">{selectedRegistration.status}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Created</dt>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Form Type
+                        </dt>
                         <dd className="text-sm text-gray-900 dark:text-white">
-                          {new Date(selectedRegistration.created_at).toLocaleString()}
+                          {selectedRegistration.form_name}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Updated</dt>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Status
+                        </dt>
                         <dd className="text-sm text-gray-900 dark:text-white">
-                          {new Date(selectedRegistration.updated_at).toLocaleString()}
+                          {selectedRegistration.status}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Created
+                        </dt>
+                        <dd className="text-sm text-gray-900 dark:text-white">
+                          {new Date(
+                            selectedRegistration.created_at,
+                          ).toLocaleString()}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                          Updated
+                        </dt>
+                        <dd className="text-sm text-gray-900 dark:text-white">
+                          {new Date(
+                            selectedRegistration.updated_at,
+                          ).toLocaleString()}
                         </dd>
                       </div>
                     </dl>

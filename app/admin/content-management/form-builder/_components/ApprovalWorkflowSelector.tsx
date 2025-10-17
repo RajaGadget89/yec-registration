@@ -7,26 +7,29 @@ interface ApprovalWorkflowSelectorProps {
   onChange: (workflow: ApprovalWorkflowTemplate) => void;
 }
 
-export default function ApprovalWorkflowSelector({ value, onChange }: ApprovalWorkflowSelectorProps) {
+export default function ApprovalWorkflowSelector({
+  value,
+  onChange,
+}: ApprovalWorkflowSelectorProps) {
   const workflows = [
     {
       value: "payment_only" as ApprovalWorkflowTemplate,
       title: "Payment Only",
       description: "Only payment slip verification required",
-      dimensions: ["Payment Slip"]
+      dimensions: ["Payment Slip"],
     },
     {
       value: "payment_profile" as ApprovalWorkflowTemplate,
       title: "Payment + Profile",
       description: "Payment slip and profile verification required",
-      dimensions: ["Payment Slip", "Profile Information"]
+      dimensions: ["Payment Slip", "Profile Information"],
     },
     {
       value: "full_3d" as ApprovalWorkflowTemplate,
       title: "Full 3-Dimension",
       description: "Complete verification: Payment, Profile, and TCC",
-      dimensions: ["Payment Slip", "Profile Information", "TCC Document"]
-    }
+      dimensions: ["Payment Slip", "Profile Information", "TCC Document"],
+    },
   ];
 
   return (
@@ -34,7 +37,7 @@ export default function ApprovalWorkflowSelector({ value, onChange }: ApprovalWo
       <label className="block text-sm font-medium text-gray-700 mb-3">
         Approval Workflow Template
       </label>
-      
+
       <div className="space-y-3">
         {workflows.map((workflow) => (
           <div
@@ -90,14 +93,27 @@ export default function ApprovalWorkflowSelector({ value, onChange }: ApprovalWo
       </div>
 
       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-        <h5 className="text-sm font-medium text-gray-900 mb-2">How it works:</h5>
+        <h5 className="text-sm font-medium text-gray-900 mb-2">
+          How it works:
+        </h5>
         <ul className="text-sm text-gray-600 space-y-1">
-          <li>• <strong>Payment Only:</strong> Users submit payment slip, admin verifies payment, then approves</li>
-          <li>• <strong>Payment + Profile:</strong> Users submit payment slip and profile info, admin verifies both, then approves</li>
-          <li>• <strong>Full 3-Dimension:</strong> Users submit payment slip, profile info, and TCC document, admin verifies all three, then approves</li>
+          <li>
+            • <strong>Payment Only:</strong> Users submit payment slip, admin
+            verifies payment, then approves
+          </li>
+          <li>
+            • <strong>Payment + Profile:</strong> Users submit payment slip and
+            profile info, admin verifies both, then approves
+          </li>
+          <li>
+            • <strong>Full 3-Dimension:</strong> Users submit payment slip,
+            profile info, and TCC document, admin verifies all three, then
+            approves
+          </li>
         </ul>
         <p className="text-sm text-gray-500 mt-2">
-          The approval workflow determines which verification steps are required before a registration can be approved.
+          The approval workflow determines which verification steps are required
+          before a registration can be approved.
         </p>
       </div>
     </div>

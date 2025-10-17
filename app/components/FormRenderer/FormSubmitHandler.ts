@@ -1,5 +1,6 @@
 import { formRegistrationService } from "../../lib/form-system/formRegistrationService";
 import { formTrackingIdService } from "../../lib/form-system/formTrackingIdService";
+import { CoreRegistrationData } from "../../types/form-system";
 
 export interface FormSubmissionData {
   formKey: string;
@@ -24,11 +25,14 @@ export class FormSubmitHandler {
       const { formKey, formData, pricingData } = data;
 
       // Generate tracking ID
-      const trackingResult = await formTrackingIdService.generateTrackingId(formKey, formData);
-      
+      const trackingResult = await formTrackingIdService.generateTrackingId(
+        formKey,
+        formData,
+      );
+
       // Prepare core data (common fields)
       const coreData = this.extractCoreData(formData);
-      
+
       // Prepare extra data (form-specific fields)
       const extraData = this.extractExtraData(formData);
 
@@ -37,26 +41,26 @@ export class FormSubmitHandler {
         form_key: formKey,
         tracking_id: trackingResult.tracking_id,
         sequence_number: trackingResult.sequence_number,
-        core_data: coreData,
+        core_data: coreData as CoreRegistrationData,
         extra_data: extraData,
         pricing_data: pricingData || {},
         status: "waiting_for_review",
         dimension_status: this.initializeDimensionStatus(formKey),
-        badge_path: null,
-        import_job_id: null
+        badge_path: undefined,
+        import_job_id: undefined,
       });
 
       return {
         success: true,
         registrationId: registration.id,
         trackingId: registration.tracking_id,
-        message: "Registration submitted successfully"
+        message: "Registration submitted successfully",
       };
     } catch (error) {
       console.error("Form submission error:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Failed to submit form"
+        error: error instanceof Error ? error.message : "Failed to submit form",
       };
     }
   }
@@ -65,10 +69,10 @@ export class FormSubmitHandler {
    * Extract core data from form data
    */
   private extractCoreData(formData: Record<string, any>): Record<string, any> {
-    const coreFields = ['name', 'email', 'phone', 'organization', 'company'];
+    const coreFields = ["name", "email", "phone", "organization", "company"];
     const coreData: Record<string, any> = {};
 
-    coreFields.forEach(field => {
+    coreFields.forEach((field) => {
       if (formData[field] !== undefined) {
         coreData[field] = formData[field];
       }
@@ -81,10 +85,10 @@ export class FormSubmitHandler {
    * Extract extra data (form-specific fields)
    */
   private extractExtraData(formData: Record<string, any>): Record<string, any> {
-    const coreFields = ['name', 'email', 'phone', 'organization', 'company'];
+    const coreFields = ["name", "email", "phone", "organization", "company"];
     const extraData: Record<string, any> = {};
 
-    Object.keys(formData).forEach(key => {
+    Object.keys(formData).forEach((key) => {
       if (!coreFields.includes(key) && formData[key] !== undefined) {
         extraData[key] = formData[key];
       }
@@ -96,13 +100,13 @@ export class FormSubmitHandler {
   /**
    * Initialize dimension status based on form's approval workflow
    */
-  private initializeDimensionStatus(formKey: string): Record<string, any> {
+  private initializeDimensionStatus(_formKey: string): Record<string, any> {
     // This would typically be fetched from the form configuration
     // For now, we'll use a default structure
     return {
       payment: { status: "pending", notes: "" },
       profile: { status: "pending", notes: "" },
-      tcc: { status: "pending", notes: "" }
+      tcc: { status: "pending", notes: "" },
     };
   }
 
@@ -128,9 +132,9 @@ export class FormSubmitHandler {
 
       return {
         valid: errors.length === 0,
-        errors
+        errors,
       };
-    } catch (error) {
+    } catch (_error) {
       errors.push("Validation failed");
       return { valid: false, errors };
     }
@@ -145,7 +149,8 @@ export class FormSubmitHandler {
     submittedAt: string;
   } | null> {
     try {
-      const registration = await formRegistrationService.getById(registrationId);
+      const registration =
+        await formRegistrationService.getById(registrationId);
       if (!registration) {
         return null;
       }
@@ -153,7 +158,7 @@ export class FormSubmitHandler {
       return {
         status: registration.status,
         trackingId: registration.tracking_id,
-        submittedAt: registration.created_at
+        submittedAt: registration.created_at,
       };
     } catch (error) {
       console.error("Error getting submission status:", error);

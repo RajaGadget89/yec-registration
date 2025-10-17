@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FormType } from "@/app/types/form-system";
+import { useState, useEffect, useCallback } from "react";
 
 interface TrackingIdConfig {
   prefix: string;
@@ -12,7 +11,7 @@ interface TrackingIdConfig {
 }
 
 interface TrackingIdConfigEditorProps {
-  form: FormType;
+  form: { form_key: string; name?: string };
   onClose: () => void;
   onSave: () => void;
 }
@@ -23,7 +22,7 @@ export default function TrackingIdConfigEditor({
   onSave,
 }: TrackingIdConfigEditorProps) {
   const [config, setConfig] = useState<TrackingIdConfig>({
-    prefix: form.form_key.toUpperCase().substring(0, 3),
+    prefix: (form?.form_key || "").toUpperCase().substring(0, 3),
     sequence_start: 1,
     sequence_length: 6,
     format: "PREFIX-000000",
@@ -34,15 +33,14 @@ export default function TrackingIdConfigEditor({
   const [saving, setSaving] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  useEffect(() => {
-    loadExistingConfig();
-  }, [form]);
-
-  const loadExistingConfig = async () => {
+  const loadExistingConfig = useCallback(async () => {
     try {
       setLoading(true);
+      if (!form?.form_key) {
+        return; // nothing to load for empty/new state
+      }
       const response = await fetch(
-        `/api/admin/super-admin/tracking-id-config/${form.form_key}`
+        `/api/admin/super-admin/tracking-id-config/${form.form_key}`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -55,7 +53,11 @@ export default function TrackingIdConfigEditor({
     } finally {
       setLoading(false);
     }
-  };
+  }, [form?.form_key]);
+
+  useEffect(() => {
+    loadExistingConfig();
+  }, [form, loadExistingConfig]);
 
   const validateConfig = (config: TrackingIdConfig): string[] => {
     const errors: string[] = [];
@@ -76,7 +78,11 @@ export default function TrackingIdConfigEditor({
       errors.push("Sequence length must be between 1 and 10");
     }
 
-    if (!config.format || !config.format.includes("PREFIX") || !config.format.includes("000000")) {
+    if (
+      !config.format ||
+      !config.format.includes("PREFIX") ||
+      !config.format.includes("000000")
+    ) {
       errors.push("Format must include PREFIX and 000000 placeholders");
     }
 
@@ -84,11 +90,19 @@ export default function TrackingIdConfigEditor({
   };
 
   const generatePreview = (config: TrackingIdConfig): string => {
-    const paddedSequence = config.sequence_start.toString().padStart(config.sequence_length, '0');
-    return config.format.replace('PREFIX', config.prefix).replace('000000', paddedSequence);
+    const paddedSequence = config.sequence_start
+      .toString()
+      .padStart(config.sequence_length, "0");
+    return config.format
+      .replace("PREFIX", config.prefix)
+      .replace("000000", paddedSequence);
   };
 
   const handleSave = async () => {
+    if (!form?.form_key) {
+      setValidationErrors(["Please select a form row to configure."]);
+      return;
+    }
     const errors = validateConfig(config);
     if (errors.length > 0) {
       setValidationErrors(errors);
@@ -98,14 +112,14 @@ export default function TrackingIdConfigEditor({
     try {
       setSaving(true);
       setValidationErrors([]);
-      
+
       const response = await fetch(
         `/api/admin/super-admin/tracking-id-config/${form.form_key}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ config }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -159,15 +173,26 @@ export default function TrackingIdConfigEditor({
                 Tracking ID Configuration
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Configure tracking ID format for: {form.name}
+                Configure tracking ID format for:{" "}
+                {form ? form.name || form.form_key : "New configuration"}
               </p>
             </div>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -214,7 +239,11 @@ export default function TrackingIdConfigEditor({
               <input
                 type="number"
                 value={config.sequence_start}
-                onChange={(e) => updateConfig({ sequence_start: parseInt(e.target.value) || 0 })}
+                onChange={(e) =>
+                  updateConfig({
+                    sequence_start: parseInt(e.target.value) || 0,
+                  })
+                }
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                 min="0"
               />
@@ -230,7 +259,11 @@ export default function TrackingIdConfigEditor({
               <input
                 type="number"
                 value={config.sequence_length}
-                onChange={(e) => updateConfig({ sequence_length: parseInt(e.target.value) || 6 })}
+                onChange={(e) =>
+                  updateConfig({
+                    sequence_length: parseInt(e.target.value) || 6,
+                  })
+                }
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                 min="1"
                 max="10"
@@ -254,10 +287,12 @@ export default function TrackingIdConfigEditor({
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white font-mono"
                 placeholder="PREFIX-000000"
               />
-              
+
               {/* Format Presets */}
               <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Common formats:</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                  Common formats:
+                </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {[
                     "PREFIX-000000",
@@ -300,7 +335,11 @@ export default function TrackingIdConfigEditor({
                 {generatePreview(config)}
               </div>
               <div className="text-sm text-gray-500 dark:text-gray-400">
-                After this: {generatePreview({ ...config, sequence_start: config.sequence_start + 1 })}
+                After this:{" "}
+                {generatePreview({
+                  ...config,
+                  sequence_start: config.sequence_start + 1,
+                })}
               </div>
             </div>
           </div>
@@ -314,7 +353,10 @@ export default function TrackingIdConfigEditor({
               onChange={(e) => updateConfig({ is_active: e.target.checked })}
               className="mr-2"
             />
-            <label htmlFor="is_active" className="text-sm text-gray-700 dark:text-gray-300">
+            <label
+              htmlFor="is_active"
+              className="text-sm text-gray-700 dark:text-gray-300"
+            >
               Active (generate IDs for this form)
             </label>
           </div>

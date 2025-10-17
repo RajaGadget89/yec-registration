@@ -122,7 +122,7 @@ export default function BrandingManagement() {
     }
   };
 
-  const handleLogoUpload = async (
+  const _handleLogoUpload = async (
     type: "desktop" | "mobile" | "favicon",
     file: File,
   ) => {
@@ -250,9 +250,10 @@ export default function BrandingManagement() {
                   <Image
                     src={branding.logo_desktop_url}
                     alt="Desktop Logo"
-                    width={200}
-                    height={100}
-                    className="max-w-full max-h-full object-contain"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 200px"
+                    className="object-contain"
+                    priority
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = "none";
@@ -298,22 +299,6 @@ export default function BrandingManagement() {
                 <ImageIcon className="h-4 w-4" />
                 <span>Browse Media</span>
               </button>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) =>
-                  e.target.files?.[0] &&
-                  handleLogoUpload("desktop", e.target.files[0])
-                }
-                className="hidden"
-                id="desktop-upload"
-              />
-              <label
-                htmlFor="desktop-upload"
-                className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                <Upload className="h-4 w-4" />
-              </label>
             </div>
           </div>
 
@@ -332,9 +317,10 @@ export default function BrandingManagement() {
                   <Image
                     src={branding.logo_mobile_url}
                     alt="Mobile Logo"
-                    width={150}
-                    height={150}
-                    className="max-w-full max-h-full object-contain"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 150px"
+                    className="object-contain"
+                    priority
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = "none";
@@ -380,22 +366,6 @@ export default function BrandingManagement() {
                 <ImageIcon className="h-4 w-4" />
                 <span>Browse Media</span>
               </button>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) =>
-                  e.target.files?.[0] &&
-                  handleLogoUpload("mobile", e.target.files[0])
-                }
-                className="hidden"
-                id="mobile-upload"
-              />
-              <label
-                htmlFor="mobile-upload"
-                className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                <Upload className="h-4 w-4" />
-              </label>
             </div>
           </div>
 
@@ -416,7 +386,7 @@ export default function BrandingManagement() {
                     alt="Favicon"
                     width={32}
                     height={32}
-                    className="w-8 h-8 object-contain"
+                    className="object-contain"
                     onError={(e) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = "none";
@@ -462,22 +432,6 @@ export default function BrandingManagement() {
                 <ImageIcon className="h-4 w-4" />
                 <span>Browse Media</span>
               </button>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) =>
-                  e.target.files?.[0] &&
-                  handleLogoUpload("favicon", e.target.files[0])
-                }
-                className="hidden"
-                id="favicon-upload"
-              />
-              <label
-                htmlFor="favicon-upload"
-                className="flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer"
-              >
-                <Upload className="h-4 w-4" />
-              </label>
             </div>
           </div>
         </div>

@@ -1,26 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { audit } from "@/app/lib/audit";
+import { getSupabaseServerClient } from "../../../../../lib/supabase/server";
+import { audit } from "../../../../../lib/audit";
+import { hasRoleFromRequest } from "../../../../../lib/auth-utils.server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has super admin role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.role !== "super_admin") {
+    // Authorize as super admin using central auth utility (supports RBAC fallback)
+    const isSuperAdmin = await hasRoleFromRequest(request, "super_admin");
+    if (!isSuperAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const supabase = await getSupabaseServerClient();
 
     // Get all form types
     const { data: formTypes, error: formTypesError } = await supabase
@@ -33,7 +24,7 @@ export async function GET(request: NextRequest) {
       console.error("Error fetching form types:", formTypesError);
       return NextResponse.json(
         { error: "Failed to fetch form types" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -47,7 +38,7 @@ export async function GET(request: NextRequest) {
       console.error("Error fetching pricing configs:", pricingError);
       return NextResponse.json(
         { error: "Failed to fetch pricing configs" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -61,22 +52,25 @@ export async function GET(request: NextRequest) {
     });
 
     // Build response with pricing status for each form
-    const pricingStatus = formTypes?.map((form) => {
-      const pricingInfo = pricingStatusMap.get(form.form_key);
-      return {
-        form_key: form.form_key,
-        form_name: form.name,
-        has_pricing: !!pricingInfo,
-        pricing_type: pricingInfo?.pricing_type,
-        last_updated: pricingInfo?.last_updated,
-      };
-    }) || [];
+    const pricingStatus =
+      formTypes?.map((form) => {
+        const pricingInfo = pricingStatusMap.get(form.form_key);
+        return {
+          form_key: form.form_key,
+          form_name: form.name,
+          has_pricing: !!pricingInfo,
+          pricing_type: pricingInfo?.pricing_type,
+          last_updated: pricingInfo?.last_updated,
+        };
+      }) || [];
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: "/api/admin/super-admin/form-pricing/status",
+      action: "get_pricing_status",
+      method: "GET",
+      resource: "form_pricing_status",
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: { form_count: formTypes?.length || 0 },
     });
 
@@ -88,7 +82,7 @@ export async function GET(request: NextRequest) {
     console.error("Error in form pricing status API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

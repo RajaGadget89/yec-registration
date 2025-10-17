@@ -1,9 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, XCircle, Clock, AlertCircle, User, CreditCard, Building } from "lucide-react";
-import { formApprovalService, type ApprovalResult } from "@/app/lib/form-system/formApprovalService";
+import {
+  CheckCircle,
+  XCircle,
+  Clock,
+  AlertCircle,
+  User,
+  CreditCard,
+  Building,
+} from "lucide-react";
+// Remove server-side import - we'll handle this in the page component
 
 interface FormApprovalReviewProps {
   registration: any;
@@ -19,37 +27,48 @@ export default function FormApprovalReview({
   approverId,
 }: FormApprovalReviewProps) {
   const router = useRouter();
-  const [approvalResult, setApprovalResult] = useState<ApprovalResult | null>(null);
+  const [approvalResult, setApprovalResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [notes, setNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
 
-  useEffect(() => {
-    checkApprovalEligibility();
-  }, [formKey, registration.id]);
-
-  const checkApprovalEligibility = async () => {
+  const checkApprovalEligibility = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await formApprovalService.canApprove(formKey, registration.id);
+      const response = await fetch(
+        `/api/admin/review/form/${formKey}/${registration.id}/can-approve`,
+      );
+      const result = await response.json();
       setApprovalResult(result);
     } catch (error) {
       console.error("Error checking approval eligibility:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [formKey, registration.id]);
+
+  useEffect(() => {
+    checkApprovalEligibility();
+  }, [formKey, registration.id, checkApprovalEligibility]);
 
   const handleApprove = async () => {
     try {
       setActionLoading(true);
-      const result = await formApprovalService.approveRegistration(
-        formKey,
-        registration.id,
-        approverId,
-        notes
+      const response = await fetch(
+        `/api/admin/review/form/${formKey}/${registration.id}/approve`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            approverId,
+            notes,
+          }),
+        },
       );
+      const result = await response.json();
 
       if (result.success) {
         alert("Registration approved successfully!");
@@ -73,12 +92,20 @@ export default function FormApprovalReview({
 
     try {
       setActionLoading(true);
-      const result = await formApprovalService.rejectRegistration(
-        formKey,
-        registration.id,
-        approverId,
-        rejectionReason
+      const response = await fetch(
+        `/api/admin/review/form/${formKey}/${registration.id}/reject`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            approverId,
+            reason: rejectionReason,
+          }),
+        },
       );
+      const result = await response.json();
 
       if (result.success) {
         alert("Registration rejected successfully!");
@@ -97,12 +124,20 @@ export default function FormApprovalReview({
   const handleDimensionPass = async (dimension: string) => {
     try {
       setActionLoading(true);
-      const result = await formApprovalService.markDimensionPass(
-        formKey,
-        registration.id,
-        dimension,
-        approverId
+      const response = await fetch(
+        `/api/admin/review/form/${formKey}/${registration.id}/mark-pass`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            dimension,
+            approverId,
+          }),
+        },
       );
+      const result = await response.json();
 
       if (result.success) {
         alert(result.message);
@@ -222,8 +257,8 @@ export default function FormApprovalReview({
                   registration.status === "approved"
                     ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                     : registration.status === "rejected"
-                    ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                    : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                      ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                      : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
                 }`}
               >
                 {registration.status.replace(/_/g, " ").toUpperCase()}
@@ -233,7 +268,9 @@ export default function FormApprovalReview({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
-              <span className="text-gray-500 dark:text-gray-400">Tracking ID:</span>
+              <span className="text-gray-500 dark:text-gray-400">
+                Tracking ID:
+              </span>
               <span className="ml-2 font-mono text-gray-900 dark:text-white">
                 {registration.tracking_id}
               </span>
@@ -266,42 +303,50 @@ export default function FormApprovalReview({
                   Workflow Type:
                 </span>
                 <span className="text-sm text-gray-900 dark:text-white">
-                  {approvalResult.new_dimension_status && Object.keys(approvalResult.new_dimension_status).length > 0
-                    ? Object.keys(approvalResult.new_dimension_status).join(", ").toUpperCase()
+                  {approvalResult.new_dimension_status &&
+                  Object.keys(approvalResult.new_dimension_status).length > 0
+                    ? Object.keys(approvalResult.new_dimension_status)
+                        .join(", ")
+                        .toUpperCase()
                     : "No approval required"}
                 </span>
               </div>
             </div>
 
             {/* Dimension Status */}
-            {Object.entries(approvalResult.new_dimension_status).map(([dimension, status]) => (
-              <div key={dimension} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg mb-2">
-                <div className="flex items-center space-x-3">
-                  {getDimensionIcon(dimension)}
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
-                    {dimension} Verification
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDimensionStatusColor(
-                      status
-                    )}`}
-                  >
-                    {status.toUpperCase()}
-                  </span>
-                  {status !== "submitted" && (
-                    <button
-                      onClick={() => handleDimensionPass(dimension)}
-                      disabled={actionLoading}
-                      className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+            {Object.entries(approvalResult.new_dimension_status).map(
+              ([dimension, status]) => (
+                <div
+                  key={dimension}
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg mb-2"
+                >
+                  <div className="flex items-center space-x-3">
+                    {getDimensionIcon(dimension)}
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
+                      {dimension} Verification
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDimensionStatusColor(
+                        status as string,
+                      )}`}
                     >
-                      Mark Pass
-                    </button>
-                  )}
+                      {(status as string).toUpperCase()}
+                    </span>
+                    {(status as string) !== "submitted" && (
+                      <button
+                        onClick={() => handleDimensionPass(dimension)}
+                        disabled={actionLoading}
+                        className="px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        Mark Pass
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ),
+            )}
 
             {/* Missing Requirements */}
             {approvalResult.missing_requirements.length > 0 && (
@@ -310,9 +355,11 @@ export default function FormApprovalReview({
                   Missing Requirements:
                 </h3>
                 <ul className="text-sm text-yellow-700 dark:text-yellow-300 list-disc list-inside">
-                  {approvalResult.missing_requirements.map((req, index) => (
-                    <li key={index}>{req}</li>
-                  ))}
+                  {approvalResult.missing_requirements.map(
+                    (req: any, index: number) => (
+                      <li key={index}>{req}</li>
+                    ),
+                  )}
                 </ul>
               </div>
             )}
@@ -339,16 +386,18 @@ export default function FormApprovalReview({
             Registration Data
           </h2>
           <div className="space-y-3">
-            {Object.entries(registration.core_data || {}).map(([key, value]) => (
-              <div key={key} className="flex justify-between items-start">
-                <span className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">
-                  {key.replace(/_/g, " ")}:
-                </span>
-                <span className="text-sm text-gray-900 dark:text-white text-right max-w-md">
-                  {typeof value === "string" ? value : JSON.stringify(value)}
-                </span>
-              </div>
-            ))}
+            {Object.entries(registration.core_data || {}).map(
+              ([key, value]) => (
+                <div key={key} className="flex justify-between items-start">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">
+                    {key.replace(/_/g, " ")}:
+                  </span>
+                  <span className="text-sm text-gray-900 dark:text-white text-right max-w-md">
+                    {typeof value === "string" ? value : JSON.stringify(value)}
+                  </span>
+                </div>
+              ),
+            )}
           </div>
         </div>
 

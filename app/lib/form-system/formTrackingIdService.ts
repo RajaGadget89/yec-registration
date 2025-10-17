@@ -11,11 +11,14 @@ export class FormTrackingIdServiceImpl implements FormTrackingIdService {
   /**
    * Generate a sequential tracking ID for a form
    */
-  async generateTrackingId(formKey: string, payload?: any): Promise<{ tracking_id: string; sequence_number: number }> {
+  async generateTrackingId(
+    formKey: string,
+    payload?: any,
+  ): Promise<{ tracking_id: string; sequence_number: number }> {
     try {
-      const { data, error } = await this.supabase.rpc('form_seq_generate', {
+      const { data, error } = await this.supabase.rpc("form_seq_generate", {
         p_form_key: formKey,
-        p_payload: payload || {}
+        p_payload: payload || {},
       });
 
       if (error) {
@@ -24,35 +27,44 @@ export class FormTrackingIdServiceImpl implements FormTrackingIdService {
 
       return {
         tracking_id: data.tracking_id,
-        sequence_number: data.sequence_number
+        sequence_number: data.sequence_number,
       };
     } catch (error) {
-      console.error('Error generating tracking ID:', error);
-      throw new Error(`Failed to generate tracking ID for form ${formKey}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Error generating tracking ID:", error);
+      throw new Error(
+        `Failed to generate tracking ID for form ${formKey}: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
   /**
    * Generate a batch tracking ID for a form
    */
-  async generateBatchTrackingId(formKey: string, payload?: any): Promise<{ tracking_id: string; sequence_number: number }> {
+  async generateBatchTrackingId(
+    formKey: string,
+    payload?: any,
+  ): Promise<{ tracking_id: string; sequence_number: number }> {
     try {
-      const { data, error } = await this.supabase.rpc('form_batch_generate', {
+      const { data, error } = await this.supabase.rpc("form_batch_generate", {
         p_form_key: formKey,
-        p_payload: payload || {}
+        p_payload: payload || {},
       });
 
       if (error) {
-        throw new Error(`Failed to generate batch tracking ID: ${error.message}`);
+        throw new Error(
+          `Failed to generate batch tracking ID: ${error.message}`,
+        );
       }
 
       return {
         tracking_id: data.tracking_id,
-        sequence_number: data.sequence_number
+        sequence_number: data.sequence_number,
       };
     } catch (error) {
-      console.error('Error generating batch tracking ID:', error);
-      throw new Error(`Failed to generate batch tracking ID for form ${formKey}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Error generating batch tracking ID:", error);
+      throw new Error(
+        `Failed to generate batch tracking ID for form ${formKey}: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -73,7 +85,9 @@ export class FormTrackingIdServiceImpl implements FormTrackingIdService {
   /**
    * Parse tracking ID to extract components
    */
-  parseTrackingId(trackingId: string): { prefix: string; sequence: number } | null {
+  parseTrackingId(
+    trackingId: string,
+  ): { prefix: string; sequence: number } | null {
     const match = trackingId.match(/^([A-Z]+)-(\d+)$/);
     if (!match) {
       return null;
@@ -81,7 +95,7 @@ export class FormTrackingIdServiceImpl implements FormTrackingIdService {
 
     return {
       prefix: match[1],
-      sequence: parseInt(match[2], 10)
+      sequence: parseInt(match[2], 10),
     };
   }
 
@@ -90,13 +104,13 @@ export class FormTrackingIdServiceImpl implements FormTrackingIdService {
    */
   async getCurrentCounter(formKey: string): Promise<number> {
     const { data, error } = await this.supabase
-      .from('form_batch_counters')
-      .select('counter')
-      .eq('form_key', formKey)
+      .from("form_batch_counters")
+      .select("counter")
+      .eq("form_key", formKey)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
+      if (error.code === "PGRST116") {
         return 0; // No counter exists yet
       }
       throw new Error(`Failed to get current counter: ${error.message}`);
@@ -110,9 +124,9 @@ export class FormTrackingIdServiceImpl implements FormTrackingIdService {
    */
   async resetCounter(formKey: string): Promise<void> {
     const { error } = await this.supabase
-      .from('form_batch_counters')
+      .from("form_batch_counters")
       .delete()
-      .eq('form_key', formKey);
+      .eq("form_key", formKey);
 
     if (error) {
       throw new Error(`Failed to reset counter: ${error.message}`);
@@ -132,21 +146,21 @@ export class FormTrackingIdServiceImpl implements FormTrackingIdService {
 
     // Get last generated tracking ID
     const { data: lastRegistration, error: lastError } = await this.supabase
-      .from('form_registrations')
-      .select('tracking_id, created_at')
-      .eq('form_key', formKey)
-      .order('created_at', { ascending: false })
+      .from("form_registrations")
+      .select("tracking_id, created_at")
+      .eq("form_key", formKey)
+      .order("created_at", { ascending: false })
       .limit(1)
       .single();
 
-    if (lastError && lastError.code !== 'PGRST116') {
+    if (lastError && lastError.code !== "PGRST116") {
       throw new Error(`Failed to get last tracking ID: ${lastError.message}`);
     }
 
     return {
       total_generated: currentCounter,
       last_generated: lastRegistration?.tracking_id || null,
-      next_sequence: currentCounter + 1
+      next_sequence: currentCounter + 1,
     };
   }
 
@@ -154,17 +168,19 @@ export class FormTrackingIdServiceImpl implements FormTrackingIdService {
    * Check if tracking ID is unique
    */
   async isTrackingIdUnique(trackingId: string): Promise<boolean> {
-    const { data, error } = await this.supabase
-      .from('form_registrations')
-      .select('id')
-      .eq('tracking_id', trackingId)
+    const { data: _data, error } = await this.supabase
+      .from("form_registrations")
+      .select("id")
+      .eq("tracking_id", trackingId)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
+      if (error.code === "PGRST116") {
         return true; // Not found, so it's unique
       }
-      throw new Error(`Failed to check tracking ID uniqueness: ${error.message}`);
+      throw new Error(
+        `Failed to check tracking ID uniqueness: ${error.message}`,
+      );
     }
 
     return false; // Found, so it's not unique
@@ -173,13 +189,16 @@ export class FormTrackingIdServiceImpl implements FormTrackingIdService {
   /**
    * Generate preview tracking IDs for testing
    */
-  async generatePreviewIds(formKey: string, count: number = 5): Promise<string[]> {
+  async generatePreviewIds(
+    formKey: string,
+    count: number = 5,
+  ): Promise<string[]> {
     const previewIds: string[] = [];
     const currentCounter = await this.getCurrentCounter(formKey);
 
     for (let i = 1; i <= count; i++) {
       const sequence = currentCounter + i;
-      const trackingId = `${formKey}-${sequence.toString().padStart(6, '0')}`;
+      const trackingId = `${formKey}-${sequence.toString().padStart(6, "0")}`;
       previewIds.push(trackingId);
     }
 
@@ -201,9 +220,9 @@ export class FormTrackingIdServiceImpl implements FormTrackingIdService {
   sanitizeFormKey(formKey: string): string {
     return formKey
       .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
   }
 }
 

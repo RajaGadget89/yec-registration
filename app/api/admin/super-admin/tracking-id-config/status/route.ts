@@ -1,56 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { audit } from "@/app/lib/audit";
+import { getSupabaseServerClient } from "../../../../../lib/supabase/server";
+import { audit } from "../../../../../lib/audit";
+import { hasRoleFromRequest } from "../../../../../lib/auth-utils.server";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { searchParams } = request.nextUrl;
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "all";
 
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!(await hasRoleFromRequest(request, "super_admin"))) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Check if user has super admin role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user: _user },
+    } = await supabase.auth.getUser();
 
-    if (profile?.role !== "super_admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    // Get all form types
-    const { data: formTypes, error: formTypesError } = await supabase
+    // Get all form types with search filter
+    let formTypesQuery = supabase
       .from("form_types")
       .select("form_key, name, created_at, updated_at")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
+    if (search) {
+      formTypesQuery = formTypesQuery.ilike("name", `%${search}%`);
+    }
+
+    const { data: formTypes, error: formTypesError } = await formTypesQuery;
+
     if (formTypesError) {
       console.error("Error fetching form types:", formTypesError);
       return NextResponse.json(
         { error: "Failed to fetch form types" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
-    // Get tracking ID configurations
+    // Get tracking ID configurations from normalized table
     const { data: trackingConfigs, error: trackingError } = await supabase
-      .from("form_types")
-      .select(`
-        form_key,
-        config->registration_id_config as registration_id_config
-      `)
-      .eq("is_active", true);
+      .from("form_tracking_configs")
+      .select(
+        "form_key, prefix, sequence_start, sequence_length, format, is_active, updated_at",
+      );
 
     if (trackingError) {
       console.error("Error fetching tracking configs:", trackingError);
       return NextResponse.json(
         { error: "Failed to fetch tracking configurations" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -63,7 +65,7 @@ export async function GET(request: NextRequest) {
       console.error("Error fetching batch counters:", countersError);
       return NextResponse.json(
         { error: "Failed to fetch sequence counters" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -95,46 +97,75 @@ export async function GET(request: NextRequest) {
     });
 
     // Build response with tracking status for each form
-    const trackingStatus = formTypes?.map((form) => {
-      const trackingConfig = trackingConfigs?.find(tc => tc.form_key === form.form_key);
-      const registrationIdConfig = trackingConfig?.registration_id_config;
-      const hasConfig = !!registrationIdConfig;
-      const currentSequence = sequenceMap.get(form.form_key);
-      const lastGenerated = lastGeneratedMap.get(form.form_key);
+    const trackingStatus =
+      formTypes?.map((form) => {
+        const registrationIdConfig = trackingConfigs?.find(
+          (tc) => tc.form_key === form.form_key,
+        );
+        const hasConfig = !!registrationIdConfig;
+        const currentSequence = sequenceMap.get(form.form_key);
+        const lastGenerated = lastGeneratedMap.get(form.form_key);
 
-      return {
-        form_key: form.form_key,
-        form_name: form.name,
-        has_config: hasConfig,
-        current_sequence: currentSequence,
-        last_generated: lastGenerated?.tracking_id,
-        config: hasConfig ? {
-          prefix: registrationIdConfig.prefix,
-          sequence_start: registrationIdConfig.sequence_start,
-          sequence_length: registrationIdConfig.sequence_length,
-          format: registrationIdConfig.format,
-          is_active: registrationIdConfig.is_active,
-        } : undefined,
-      };
-    }) || [];
+        return {
+          id: form.form_key, // Use form_key as ID for consistency
+          form_key: form.form_key,
+          form_name: form.name,
+          prefix: registrationIdConfig?.prefix || "",
+          sequence_start: registrationIdConfig?.sequence_start || 1,
+          created_at: form.created_at,
+          updated_at: form.updated_at,
+          has_config: hasConfig,
+          current_sequence: currentSequence,
+          last_generated: lastGenerated?.tracking_id,
+          config: hasConfig
+            ? {
+                prefix: registrationIdConfig.prefix,
+                sequence_start: registrationIdConfig.sequence_start,
+                sequence_length: registrationIdConfig.sequence_length,
+                format: registrationIdConfig.format,
+                is_active: registrationIdConfig.is_active,
+              }
+            : undefined,
+        };
+      }) || [];
+
+    // Apply status filter
+    let filteredStatus = trackingStatus;
+    if (status === "configured") {
+      filteredStatus = trackingStatus.filter((item) => item.has_config);
+    } else if (status === "not_configured") {
+      filteredStatus = trackingStatus.filter((item) => !item.has_config);
+    }
+
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedStatus = filteredStatus.slice(startIndex, endIndex);
+    const totalItems = filteredStatus.length;
+    const totalPages = Math.ceil(totalItems / limit);
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: "/api/admin/super-admin/tracking-id-config/status",
+      action: "get_tracking_id_status",
+      method: "GET",
+      resource: "form_tracking_id_status",
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: { form_count: formTypes?.length || 0 },
     });
 
     return NextResponse.json({
       success: true,
-      trackingStatus,
+      trackingIdConfigs: paginatedStatus,
+      totalItems,
+      totalPages,
+      currentPage: page,
     });
   } catch (error) {
     console.error("Error in tracking ID status API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

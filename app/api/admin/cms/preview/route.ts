@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
 
       if (!pagesError && pages) {
         contentList.push(
-          ...pages.map((page) => ({
+          ...pages.map((page: any) => ({
             id: page.id,
             type: "page" as const,
             title: page.title,
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
       if (!newsError && news) {
         contentList.push(
-          ...news.map((article) => ({
+          ...news.map((article: any) => ({
             id: article.id,
             type: "news" as const,
             title: article.headline,
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
 
       if (!cardsError && activityCards) {
         contentList.push(
-          ...activityCards.map((card) => ({
+          ...activityCards.map((card: any) => ({
             id: card.id,
             type: "activity-card" as const,
             title: card.title,
@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
 
       if (!videosError && heroVideos) {
         contentList.push(
-          ...heroVideos.map((video) => ({
+          ...heroVideos.map((video: any) => ({
             id: video.id,
             type: "hero-video" as const,
             title: video.title || "Hero Video",
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get responsive content for sections
-    const sectionIds = sections?.map((s) => s.id) || [];
+    const sectionIds = sections?.map((s: any) => s.id) || [];
     let responsiveContent = {};
 
     if (sectionIds.length > 0) {
@@ -266,7 +266,7 @@ export async function POST(request: NextRequest) {
 
       responsiveContent =
         responsiveData?.reduce(
-          (acc, item) => {
+          (acc: any, item: any) => {
             acc[item.section_id] = item.content_config;
             return acc;
           },

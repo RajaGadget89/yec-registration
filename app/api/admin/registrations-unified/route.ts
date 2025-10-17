@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { audit } from "@/app/lib/audit";
+import { getSupabaseServerClient } from "../../../lib/supabase/server";
+import { audit } from "../../../lib/audit";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -131,16 +134,19 @@ export async function GET(request: NextRequest) {
     params.push(limit, offset);
 
     // Execute the query
-    const { data: registrations, error: queryError } = await supabase.rpc('execute_sql', {
-      sql: query,
-      params: params
-    });
+    const { data: registrations, error: queryError } = await supabase.rpc(
+      "execute_sql",
+      {
+        sql: query,
+        params: params,
+      },
+    );
 
     if (queryError) {
       console.error("Error executing unified query:", queryError);
       return NextResponse.json(
         { error: "Failed to fetch registrations" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -221,10 +227,13 @@ export async function GET(request: NextRequest) {
       countParams.push(searchPattern, searchPattern, searchPattern);
     }
 
-    const { data: countResult, error: countError } = await supabase.rpc('execute_sql', {
-      sql: countQuery,
-      params: countParams
-    });
+    const { data: countResult, error: countError } = await supabase.rpc(
+      "execute_sql",
+      {
+        sql: countQuery,
+        params: countParams,
+      },
+    );
 
     if (countError) {
       console.error("Error getting count:", countError);
@@ -245,9 +254,11 @@ export async function GET(request: NextRequest) {
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: "/api/admin/registrations-unified",
+      action: "GET",
+      method: "GET",
+      resource: "registrations-unified",
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: {
         form_filter: formFilter,
         status_filter: statusFilter,
@@ -276,7 +287,7 @@ export async function GET(request: NextRequest) {
     console.error("Error in unified registrations API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

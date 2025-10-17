@@ -20,20 +20,30 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const active = searchParams.get("active");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "10");
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "all";
 
-    const formTypes = await formTypeService.list(
-      active ? active === "true" : undefined
-    );
+    const result = await formTypeService.list({
+      active: active ? active === "true" : undefined,
+      page,
+      limit,
+      search,
+      status,
+    });
 
     return NextResponse.json({
-      formTypes,
-      total: formTypes.length
+      formTypes: result.formTypes,
+      total: result.total,
+      totalPages: result.totalPages,
+      currentPage: page,
     });
   } catch (error) {
     console.error("Form types GET error:", error);
     return NextResponse.json(
       { error: "Failed to fetch form types" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -54,12 +64,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    
+
     // Validate required fields
     if (!body.form_key || !body.name) {
       return NextResponse.json(
         { error: "Form key and name are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,7 +78,7 @@ export async function POST(request: NextRequest) {
     if (!validation.valid) {
       return NextResponse.json(
         { error: "Invalid form configuration", details: validation.errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -77,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (existing) {
       return NextResponse.json(
         { error: "Form key already exists" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -86,7 +96,7 @@ export async function POST(request: NextRequest) {
       name: body.name,
       description: body.description,
       config: body.config,
-      is_active: body.is_active !== undefined ? body.is_active : true
+      is_active: body.is_active !== undefined ? body.is_active : true,
     });
 
     return NextResponse.json(formType, { status: 201 });
@@ -94,7 +104,7 @@ export async function POST(request: NextRequest) {
     console.error("Form type creation error:", error);
     return NextResponse.json(
       { error: "Failed to create form type" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

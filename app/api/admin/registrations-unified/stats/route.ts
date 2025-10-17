@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { audit } from "@/app/lib/audit";
+import { getSupabaseServerClient } from "../../../../lib/supabase/server";
+import { audit } from "../../../../lib/audit";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -82,9 +85,11 @@ export async function GET(request: NextRequest) {
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: "/api/admin/registrations-unified/stats",
+      action: "GET",
+      method: "GET",
+      resource: "registrations-unified-stats",
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: { stats_requested: true },
     });
 
@@ -96,7 +101,7 @@ export async function GET(request: NextRequest) {
     console.error("Error in unified registrations stats API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

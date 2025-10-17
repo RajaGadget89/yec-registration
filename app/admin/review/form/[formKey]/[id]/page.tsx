@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import { createClient } from "@/app/lib/supabase/server";
-import { audit } from "@/app/lib/audit";
+import { getSupabaseServerClient } from "../../../../../lib/supabase/server";
+import { audit } from "../../../../../lib/audit";
 import FormApprovalReview from "./_components/FormApprovalReview";
 
 interface FormApprovalPageProps {
@@ -10,12 +10,17 @@ interface FormApprovalPageProps {
   }>;
 }
 
-export default async function FormApprovalPage({ params }: FormApprovalPageProps) {
+export default async function FormApprovalPage({
+  params,
+}: FormApprovalPageProps) {
   const { formKey, id } = await params;
 
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return (
@@ -47,7 +52,7 @@ export default async function FormApprovalPage({ params }: FormApprovalPageProps
               Access Denied
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              You don't have permission to access the approval system.
+              You don&apos;t have permission to access the approval system.
             </p>
           </div>
         </div>
@@ -101,13 +106,16 @@ export default async function FormApprovalPage({ params }: FormApprovalPageProps
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: `/admin/review/form/${formKey}/${id}`,
+      action: "view_registration",
+      method: "GET",
+      resource: `form_registration_${id}`,
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: {
         form_key: formKey,
         registration_id: id,
         registration_status: registration.status,
+        actor: user.id,
       },
     });
 

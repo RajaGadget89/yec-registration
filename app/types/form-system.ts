@@ -42,16 +42,16 @@ export interface FormField {
   };
 }
 
-export type FormFieldType = 
-  | "text" 
-  | "email" 
-  | "tel" 
-  | "select" 
-  | "textarea" 
-  | "file" 
-  | "checkbox" 
-  | "radio" 
-  | "date" 
+export type FormFieldType =
+  | "text"
+  | "email"
+  | "tel"
+  | "select"
+  | "textarea"
+  | "file"
+  | "checkbox"
+  | "radio"
+  | "date"
   | "number";
 
 export interface FieldValidation {
@@ -63,9 +63,9 @@ export interface FieldValidation {
   custom_validation?: string; // function name
 }
 
-export type ApprovalWorkflowTemplate = 
-  | "payment_only" 
-  | "payment_profile" 
+export type ApprovalWorkflowTemplate =
+  | "payment_only"
+  | "payment_profile"
   | "full_3d";
 
 export interface PricingConfig {
@@ -146,7 +146,7 @@ export interface PricingData {
   is_early_bird?: boolean;
 }
 
-export type RegistrationStatus = 
+export type RegistrationStatus =
   | "waiting_for_review"
   | "waiting_for_update_payment"
   | "waiting_for_update_info"
@@ -260,7 +260,9 @@ export interface UnifiedRegistration {
 
 // Service interfaces
 export interface FormTypeService {
-  create(formType: Omit<FormType, 'id' | 'created_at' | 'updated_at'>): Promise<FormType>;
+  create(
+    formType: Omit<FormType, "id" | "created_at" | "updated_at">,
+  ): Promise<FormType>;
   getById(id: string): Promise<FormType | null>;
   getByFormKey(formKey: string): Promise<FormType | null>;
   update(id: string, updates: Partial<FormType>): Promise<FormType>;
@@ -269,12 +271,20 @@ export interface FormTypeService {
 }
 
 export interface FormRegistrationService {
-  create(registration: Omit<FormRegistration, 'id' | 'created_at' | 'updated_at'>): Promise<FormRegistration>;
+  create(
+    registration: Omit<FormRegistration, "id" | "created_at" | "updated_at">,
+  ): Promise<FormRegistration>;
   getById(id: string): Promise<FormRegistration | null>;
   getByTrackingId(trackingId: string): Promise<FormRegistration | null>;
-  update(id: string, updates: Partial<FormRegistration>): Promise<FormRegistration>;
+  update(
+    id: string,
+    updates: Partial<FormRegistration>,
+  ): Promise<FormRegistration>;
   delete(id: string): Promise<void>;
-  listByFormKey(formKey: string, status?: RegistrationStatus): Promise<FormRegistration[]>;
+  listByFormKey(
+    formKey: string,
+    status?: RegistrationStatus,
+  ): Promise<FormRegistration[]>;
   listUnified(filters?: {
     form_key?: string;
     status?: RegistrationStatus;
@@ -285,42 +295,91 @@ export interface FormRegistrationService {
 export interface FormPricingService {
   calculatePrice(formKey: string, data: any): Promise<PricingData>;
   getConfig(formKey: string): Promise<FormPricingConfig | null>;
-  updateConfig(formKey: string, config: Partial<FormPricingConfig>): Promise<FormPricingConfig>;
+  updateConfig(
+    formKey: string,
+    config: Partial<FormPricingConfig>,
+  ): Promise<FormPricingConfig>;
 }
 
 export interface FormTrackingIdService {
-  generateTrackingId(formKey: string, payload?: any): Promise<{ tracking_id: string; sequence_number: number }>;
-  generateBatchTrackingId(formKey: string, payload?: any): Promise<{ tracking_id: string; sequence_number: number }>;
+  generateTrackingId(
+    formKey: string,
+    payload?: any,
+  ): Promise<{ tracking_id: string; sequence_number: number }>;
+  generateBatchTrackingId(
+    formKey: string,
+    payload?: any,
+  ): Promise<{ tracking_id: string; sequence_number: number }>;
 }
 
 export interface FormEmailService {
   getTemplates(formKey: string): Promise<FormEmailTemplate[]>;
-  updateTemplate(formKey: string, templateType: string, template: Partial<FormEmailTemplate>): Promise<FormEmailTemplate>;
-  sendEmail(formKey: string, templateType: string, registration: FormRegistration, variables?: Record<string, string>): Promise<boolean>;
+  updateTemplate(
+    formKey: string,
+    templateType: string,
+    template: Partial<FormEmailTemplate>,
+  ): Promise<FormEmailTemplate>;
+  sendEmail(
+    formKey: string,
+    templateType: string,
+    registration: FormRegistration,
+    variables?: Record<string, string>,
+  ): Promise<boolean>;
 }
 
 export interface FormApprovalService {
   getApprovalDimensions(formKey: string): Promise<string[]>;
-  markDimensionPass(formKey: string, registrationId: string, dimension: string, adminEmail: string): Promise<void>;
-  approve(formKey: string, registrationId: string, adminEmail: string): Promise<void>;
-  reject(formKey: string, registrationId: string, reason: string, adminEmail: string): Promise<void>;
+  markDimensionPass(
+    formKey: string,
+    registrationId: string,
+    dimension: string,
+    adminEmail: string,
+  ): Promise<void>;
+  approve(
+    formKey: string,
+    registrationId: string,
+    adminEmail: string,
+  ): Promise<void>;
+  reject(
+    formKey: string,
+    registrationId: string,
+    reason: string,
+    adminEmail: string,
+  ): Promise<void>;
 }
 
 export interface FormBadgeService {
-  generateBadge(formKey: string, registration: FormRegistration): Promise<string>;
+  generateBadge(
+    formKey: string,
+    registration: FormRegistration,
+  ): Promise<string>;
   getBadgeTemplate(formKey: string): Promise<BadgeTemplate | null>;
   updateBadgeTemplate(formKey: string, template: BadgeTemplate): Promise<void>;
 }
 
 export interface FormCheckinService {
   getCheckinPoints(formKey: string): Promise<FormCheckinPoint[]>;
-  addCheckinPoint(formKey: string, checkinEventId: string): Promise<FormCheckinPoint>;
+  addCheckinPoint(
+    formKey: string,
+    checkinEventId: string,
+  ): Promise<FormCheckinPoint>;
   removeCheckinPoint(formKey: string, checkinEventId: string): Promise<void>;
-  processCheckin(formKey: string, trackingId: string, checkinPoint: string, checkedInBy: string): Promise<FormCheckin>;
+  processCheckin(
+    formKey: string,
+    trackingId: string,
+    checkinPoint: string,
+    checkedInBy: string,
+  ): Promise<FormCheckin>;
 }
 
 export interface FormImportService {
-  createJob(formKey: string, fileName: string, fileSize: number, fileType: string, createdBy: string): Promise<FormImportJob>;
+  createJob(
+    formKey: string,
+    fileName: string,
+    fileSize: number,
+    fileType: string,
+    createdBy: string,
+  ): Promise<FormImportJob>;
   processJob(jobId: string): Promise<void>;
   getJobStatus(jobId: string): Promise<FormImportJob>;
   getJobItems(jobId: string): Promise<FormImportItem[]>;

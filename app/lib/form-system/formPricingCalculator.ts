@@ -1,4 +1,4 @@
-import { createClient } from "@/app/lib/supabase/server";
+import { getSupabaseServerClient } from "../supabase/server";
 
 export interface PricingConfig {
   pricing_type: "fixed" | "tiered" | "early_bird";
@@ -40,7 +40,7 @@ export class FormPricingCalculator {
 
   private async getSupabase() {
     if (!this.supabase) {
-      this.supabase = await createClient();
+      this.supabase = await getSupabaseServerClient();
     }
     return this.supabase;
   }
@@ -75,7 +75,7 @@ export class FormPricingCalculator {
   async calculatePricing(
     formKey: string,
     registrationData: any,
-    quantity: number = 1
+    quantity: number = 1,
   ): Promise<PricingResult | null> {
     try {
       const config = await this.getPricingConfig(formKey);
@@ -96,7 +96,7 @@ export class FormPricingCalculator {
         case "tiered":
           const tierResult = this.calculateTieredPricing(
             config.tiered_pricing?.tiers || [],
-            quantity
+            quantity,
           );
           basePrice = tierResult.price;
           appliedTier = tierResult.tierName;
@@ -105,7 +105,7 @@ export class FormPricingCalculator {
         case "early_bird":
           const earlyBirdResult = this.calculateEarlyBirdPricing(
             config.early_bird_pricing!,
-            quantity
+            quantity,
           );
           basePrice = earlyBirdResult.price;
           isEarlyBird = earlyBirdResult.isEarlyBird;
@@ -150,10 +150,12 @@ export class FormPricingCalculator {
       max_quantity?: number;
       price_per_item: number;
     }>,
-    quantity: number
+    quantity: number,
   ): { price: number; tierName: string } {
     // Sort tiers by min_quantity
-    const sortedTiers = [...tiers].sort((a, b) => a.min_quantity - b.min_quantity);
+    const sortedTiers = [...tiers].sort(
+      (a, b) => a.min_quantity - b.min_quantity,
+    );
 
     // Find the appropriate tier
     for (const tier of sortedTiers) {
@@ -189,7 +191,7 @@ export class FormPricingCalculator {
       regular_price: number;
       deadline: string;
     },
-    quantity: number
+    quantity: number,
   ): { price: number; isEarlyBird: boolean } {
     const now = new Date();
     const deadline = new Date(earlyBirdConfig.deadline);
@@ -208,7 +210,10 @@ export class FormPricingCalculator {
   /**
    * Validate pricing configuration
    */
-  validatePricingConfig(config: PricingConfig): { valid: boolean; errors: string[] } {
+  validatePricingConfig(config: PricingConfig): {
+    valid: boolean;
+    errors: string[];
+  } {
     const errors: string[] = [];
 
     if (!config.pricing_type) {
@@ -227,7 +232,10 @@ export class FormPricingCalculator {
         break;
 
       case "tiered":
-        if (!config.tiered_pricing?.tiers || config.tiered_pricing.tiers.length === 0) {
+        if (
+          !config.tiered_pricing?.tiers ||
+          config.tiered_pricing.tiers.length === 0
+        ) {
           errors.push("At least one pricing tier is required");
         } else {
           config.tiered_pricing.tiers.forEach((tier, index) => {
@@ -235,13 +243,22 @@ export class FormPricingCalculator {
               errors.push(`Tier ${index + 1}: Name is required`);
             }
             if (tier.min_quantity < 0) {
-              errors.push(`Tier ${index + 1}: Min quantity must be non-negative`);
+              errors.push(
+                `Tier ${index + 1}: Min quantity must be non-negative`,
+              );
             }
-            if (tier.max_quantity !== undefined && tier.max_quantity < tier.min_quantity) {
-              errors.push(`Tier ${index + 1}: Max quantity must be greater than or equal to min quantity`);
+            if (
+              tier.max_quantity !== undefined &&
+              tier.max_quantity < tier.min_quantity
+            ) {
+              errors.push(
+                `Tier ${index + 1}: Max quantity must be greater than or equal to min quantity`,
+              );
             }
             if (tier.price_per_item < 0) {
-              errors.push(`Tier ${index + 1}: Price per item must be non-negative`);
+              errors.push(
+                `Tier ${index + 1}: Price per item must be non-negative`,
+              );
             }
           });
         }
@@ -269,7 +286,10 @@ export class FormPricingCalculator {
         break;
     }
 
-    if (config.tax_rate !== undefined && (config.tax_rate < 0 || config.tax_rate > 100)) {
+    if (
+      config.tax_rate !== undefined &&
+      (config.tax_rate < 0 || config.tax_rate > 100)
+    ) {
       errors.push("Tax rate must be between 0 and 100");
     }
 
@@ -305,8 +325,13 @@ export class FormPricingCalculator {
           break;
 
         case "tiered":
-          if (config.tiered_pricing?.tiers && config.tiered_pricing.tiers.length > 0) {
-            const prices = config.tiered_pricing.tiers.map(tier => tier.price_per_item);
+          if (
+            config.tiered_pricing?.tiers &&
+            config.tiered_pricing.tiers.length > 0
+          ) {
+            const prices = config.tiered_pricing.tiers.map(
+              (tier) => tier.price_per_item,
+            );
             priceRange = {
               min: Math.min(...prices),
               max: Math.max(...prices),
@@ -319,11 +344,11 @@ export class FormPricingCalculator {
             priceRange = {
               min: Math.min(
                 config.early_bird_pricing.early_price,
-                config.early_bird_pricing.regular_price
+                config.early_bird_pricing.regular_price,
               ),
               max: Math.max(
                 config.early_bird_pricing.early_price,
-                config.early_bird_pricing.regular_price
+                config.early_bird_pricing.regular_price,
               ),
             };
           }

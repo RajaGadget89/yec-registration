@@ -1,7 +1,9 @@
-import { createClient } from "@/app/lib/supabase/server";
-import { EventFactory, EventService } from "@/app/lib/events";
-import { audit } from "@/app/lib/audit";
-import { uploadFileToSupabase } from "@/app/lib/supabase/storage";
+import { getSupabaseServerClient } from "../supabase/server";
+import { EventFactory } from "../events/eventFactory";
+import { EventService } from "../events/eventService";
+import { audit } from "../audit";
+import { uploadFileToSupabase } from "../uploadFileToSupabase";
+import { encryptQrPayload, renderQrToCanvas } from "../qr/qrService";
 
 export interface BadgeTemplate {
   logo_url?: string;
@@ -10,6 +12,10 @@ export interface BadgeTemplate {
   background_color: string;
   text_color: string;
   fields: string[];
+  field_labels?: Record<string, string>;
+  show_field_labels?: boolean;
+  field_label_visibility?: Record<string, boolean>;
+  field_visibility?: Record<string, boolean>;
   layout: "vertical" | "horizontal";
   font_family?: string;
   font_size?: {
@@ -20,6 +26,11 @@ export interface BadgeTemplate {
   dimensions: {
     width: number;
     height: number;
+  };
+  qr?: {
+    enabled?: boolean;
+    size?: number;
+    margin?: number;
   };
 }
 
@@ -39,7 +50,7 @@ export class FormBadgeService {
 
   private async getSupabase() {
     if (!this.supabase) {
-      this.supabase = await createClient();
+      this.supabase = await getSupabaseServerClient();
     }
     return this.supabase;
   }
@@ -50,22 +61,24 @@ export class FormBadgeService {
   async getBadgeTemplate(formKey: string): Promise<BadgeTemplate | null> {
     try {
       const supabase = await this.getSupabase();
-      const { data: formType, error } = await supabase
-        .from("form_types")
-        .select("config")
+      // Prefer new table
+      const { data: row } = await supabase
+        .from("form_badge_templates")
+        .select("template")
         .eq("form_key", formKey)
         .eq("is_active", true)
-        .single();
-
-      if (error || !formType) {
-        return null;
-      }
-
-      const badgeConfig = formType.config?.badge_config;
+        .maybeSingle();
+      let badgeConfig = row?.template;
       if (!badgeConfig) {
-        return null;
+        const { data: legacy } = await supabase
+          .from("form_types")
+          .select("config")
+          .eq("form_key", formKey)
+          .eq("is_active", true)
+          .single();
+        badgeConfig = legacy?.config?.badge_config;
       }
-
+      if (!badgeConfig) return null;
       return this.normalizeBadgeTemplate(badgeConfig);
     } catch (error) {
       console.error("Error getting badge template:", error);
@@ -84,6 +97,10 @@ export class FormBadgeService {
       background_color: config.background_color || "#2F68C9",
       text_color: config.text_color || "#FFFFFF",
       fields: config.fields || ["name", "tracking_id"],
+      field_labels: config.field_labels || {},
+      show_field_labels: config.show_field_labels !== false,
+      field_label_visibility: config.field_label_visibility || {},
+      field_visibility: config.field_visibility || {},
       layout: config.layout || "vertical",
       font_family: config.font_family || "Arial, sans-serif",
       font_size: {
@@ -95,6 +112,11 @@ export class FormBadgeService {
         width: config.dimensions?.width || 400,
         height: config.dimensions?.height || 600,
       },
+      qr: {
+        enabled: config.qr?.enabled !== false,
+        size: config.qr?.size || 120,
+        margin: config.qr?.margin || 12,
+      },
     };
   }
 
@@ -104,7 +126,7 @@ export class FormBadgeService {
   async generateBadge(
     formKey: string,
     registrationId: string,
-    registrationData: any
+    registrationData: any,
   ): Promise<BadgeGenerationResult> {
     try {
       const template = await this.getBadgeTemplate(formKey);
@@ -116,23 +138,26 @@ export class FormBadgeService {
       }
 
       // Generate badge using canvas
-      const badgeDataUrl = await this.generateBadgeCanvas(template, registrationData);
-      
+      const badgeDataUrl = await this.generateBadgeCanvas(
+        template,
+        registrationData,
+      );
+
       // Convert data URL to buffer
-      const base64Data = badgeDataUrl.split(',')[1];
-      const buffer = Buffer.from(base64Data, 'base64');
+      const base64Data = badgeDataUrl.split(",")[1];
+      const buffer = Buffer.from(base64Data, "base64");
 
       // Upload to Supabase storage
       const fileName = `${formKey}-${registrationData.tracking_id || registrationId}.png`;
       const filePath = `badges/${formKey}/${fileName}`;
-      
+
       const uploadResult = await uploadFileToSupabase(
-        buffer,
+        buffer as any,
         filePath,
-        'image/png'
+        "image/png",
       );
 
-      if (!uploadResult.success) {
+      if (!(uploadResult as any).success) {
         return {
           success: false,
           error: "Failed to upload badge to storage",
@@ -164,18 +189,18 @@ export class FormBadgeService {
           applicationId: registrationId,
           badgePath: filePath,
           correlationId: crypto.randomUUID(),
-          meta: {
-            form_key: formKey,
-            badge_template: template,
-          },
-        })
+        }),
       );
 
       // Log audit event
       await audit.logEvent({
-        correlationId: crypto.randomUUID(),
-        eventType: "form_badge_generated",
-        entityId: registrationId,
+        action: "form_badge_generated",
+        resource: "form_registrations",
+        resource_id: registrationId,
+        actor_id: "system",
+        actor_role: "system",
+        result: "success",
+        correlation_id: crypto.randomUUID(),
         meta: {
           form_key: formKey,
           badge_path: filePath,
@@ -185,7 +210,7 @@ export class FormBadgeService {
       return {
         success: true,
         badge_path: filePath,
-        badge_url: uploadResult.url,
+        badge_url: (uploadResult as any).url,
       };
     } catch (error) {
       console.error("Error generating badge:", error);
@@ -201,12 +226,12 @@ export class FormBadgeService {
    */
   private async generateBadgeCanvas(
     template: BadgeTemplate,
-    registrationData: any
+    registrationData: any,
   ): Promise<string> {
     // This would typically use a canvas library like node-canvas
     // For now, we'll create a simple HTML-based approach
     const canvas = await this.createBadgeCanvas(template, registrationData);
-    return canvas.toDataURL('image/png');
+    return canvas.toDataURL("image/png");
   }
 
   /**
@@ -214,15 +239,15 @@ export class FormBadgeService {
    */
   private async createBadgeCanvas(
     template: BadgeTemplate,
-    registrationData: any
+    registrationData: any,
   ): Promise<HTMLCanvasElement> {
     // This is a simplified implementation
     // In a real implementation, you would use a proper canvas library
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
     if (!ctx) {
-      throw new Error('Could not get canvas context');
+      throw new Error("Could not get canvas context");
     }
 
     // Set canvas dimensions
@@ -235,40 +260,63 @@ export class FormBadgeService {
 
     // Set text properties
     ctx.fillStyle = template.text_color;
-    ctx.font = `${template.font_size.title}px ${template.font_family}`;
-    ctx.textAlign = 'center';
+    ctx.font = `${template.font_size?.title || 16}px ${template.font_family}`;
+    ctx.textAlign = "center";
 
     // Draw title
-    ctx.fillText(
-      template.title_text,
-      canvas.width / 2,
-      50
-    );
+    ctx.fillText(template.title_text, canvas.width / 2, 50);
 
     // Draw subtitle if exists
     if (template.subtitle_text) {
-      ctx.font = `${template.font_size.subtitle}px ${template.font_family}`;
-      ctx.fillText(
-        template.subtitle_text,
-        canvas.width / 2,
-        80
-      );
+      ctx.font = `${template.font_size?.subtitle || 14}px ${template.font_family}`;
+      ctx.fillText(template.subtitle_text, canvas.width / 2, 80);
     }
 
     // Draw fields
     let yPosition = 120;
-    ctx.font = `${template.font_size.field}px ${template.font_family}`;
-    
+    ctx.font = `${template.font_size?.field || 12}px ${template.font_family}`;
+
     for (const field of template.fields) {
+      if (
+        template.field_visibility &&
+        template.field_visibility[field] === false
+      ) {
+        continue;
+      }
       const value = this.getFieldValue(registrationData, field);
       if (value) {
-        ctx.fillText(
-          `${field.toUpperCase()}: ${value}`,
-          canvas.width / 2,
-          yPosition
-        );
+        const showLabel =
+          template.field_label_visibility &&
+          field in template.field_label_visibility
+            ? template.field_label_visibility[field] !== false
+            : template.show_field_labels !== false;
+        const labelPrefix = showLabel
+          ? `${(template.field_labels && template.field_labels[field]) || field.toUpperCase()}: `
+          : "";
+        ctx.fillText(`${labelPrefix}${value}`, canvas.width / 2, yPosition);
         yPosition += 30;
       }
+    }
+
+    // Draw QR at bottom center if enabled
+    try {
+      const qrEnabled = template.qr?.enabled !== false;
+      const trackingId = this.getFieldValue(registrationData, "tracking_id");
+      const formKey =
+        registrationData?.form_key || registrationData?.formKey || "generic";
+      if (qrEnabled && trackingId) {
+        const size = Math.min(template.qr?.size || 120, canvas.width - 24);
+        const margin = template.qr?.margin ?? 12;
+        const x = Math.floor((canvas.width - size) / 2);
+        const y = canvas.height - size - margin;
+        const token = await encryptQrPayload({
+          tracking_id: trackingId,
+          form_key: String(formKey),
+        });
+        await renderQrToCanvas(ctx as any, x, y, size, token);
+      }
+    } catch (err) {
+      console.warn("QR render skipped:", err);
     }
 
     return canvas;
@@ -279,24 +327,27 @@ export class FormBadgeService {
    */
   private getFieldValue(registrationData: any, field: string): string {
     // Handle nested field access (e.g., "core_data.name")
-    const parts = field.split('.');
+    const parts = field.split(".");
     let value = registrationData;
-    
+
     for (const part of parts) {
-      if (value && typeof value === 'object') {
+      if (value && typeof value === "object") {
         value = value[part];
       } else {
-        return '';
+        return "";
       }
     }
-    
-    return value ? String(value) : '';
+
+    return value ? String(value) : "";
   }
 
   /**
    * Get badge URL for a registration
    */
-  async getBadgeUrl(formKey: string, registrationId: string): Promise<string | null> {
+  async getBadgeUrl(
+    formKey: string,
+    registrationId: string,
+  ): Promise<string | null> {
     try {
       const supabase = await this.getSupabase();
       const { data: registration, error } = await supabase
@@ -312,7 +363,7 @@ export class FormBadgeService {
 
       // Get signed URL from Supabase storage
       const { data, error: urlError } = await supabase.storage
-        .from('badges')
+        .from("badges")
         .createSignedUrl(registration.badge_path, 3600); // 1 hour expiry
 
       if (urlError || !data) {
@@ -332,11 +383,11 @@ export class FormBadgeService {
    */
   async regenerateBadge(
     formKey: string,
-    registrationId: string
+    registrationId: string,
   ): Promise<BadgeGenerationResult> {
     try {
       const supabase = await this.getSupabase();
-      
+
       // Get registration data
       const { data: registration, error } = await supabase
         .from("form_registrations")
@@ -356,7 +407,7 @@ export class FormBadgeService {
       if (registration.badge_path) {
         try {
           await supabase.storage
-            .from('badges')
+            .from("badges")
             .remove([registration.badge_path]);
         } catch (deleteError) {
           console.error("Error deleting existing badge:", deleteError);
@@ -386,7 +437,7 @@ export class FormBadgeService {
   }> {
     try {
       const supabase = await this.getSupabase();
-      
+
       // Get total registrations
       const { count: total, error: totalError } = await supabase
         .from("form_registrations")
@@ -413,7 +464,8 @@ export class FormBadgeService {
       const totalCount = total || 0;
       const badgesCount = badgesGenerated || 0;
       const badgesPending = totalCount - badgesCount;
-      const generationRate = totalCount > 0 ? (badgesCount / totalCount) * 100 : 0;
+      const generationRate =
+        totalCount > 0 ? (badgesCount / totalCount) * 100 : 0;
 
       return {
         total_registrations: totalCount,
@@ -437,7 +489,7 @@ export class FormBadgeService {
    */
   async batchGenerateBadges(
     formKey: string,
-    registrationIds: string[]
+    registrationIds: string[],
   ): Promise<{
     success: number;
     failed: number;
@@ -465,7 +517,7 @@ export class FormBadgeService {
         } else {
           failedCount++;
         }
-      } catch (error) {
+      } catch (_error) {
         results.push({
           registrationId,
           success: false,

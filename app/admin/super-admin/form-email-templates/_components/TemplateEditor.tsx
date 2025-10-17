@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FormType } from "@/app/types/form-system";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { FormType } from "../../../../types/form-system";
 
 interface EmailTemplate {
   template_type: "tracking" | "approval" | "rejection" | "update_request";
@@ -103,11 +103,7 @@ const AVAILABLE_VARIABLES = {
     "{{organization_name}}",
     "{{registration_date}}",
   ],
-  approval: [
-    "{{approval_date}}",
-    "{{approver_name}}",
-    "{{badge_ready_date}}",
-  ],
+  approval: ["{{approval_date}}", "{{approver_name}}", "{{badge_ready_date}}"],
   rejection: [
     "{{rejection_reasons}}",
     "{{rejection_date}}",
@@ -126,6 +122,8 @@ export default function TemplateEditor({
   onClose,
   onSave,
 }: TemplateEditorProps) {
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [template, setTemplate] = useState<EmailTemplate>({
     template_type: templateType as any,
     subject_template: "",
@@ -139,16 +137,11 @@ export default function TemplateEditor({
   const [previewData, setPreviewData] = useState<Record<string, string>>({});
   const [showPreview, setShowPreview] = useState(false);
 
-  useEffect(() => {
-    loadExistingTemplate();
-    initializePreviewData();
-  }, [form, templateType]);
-
-  const loadExistingTemplate = async () => {
+  const loadExistingTemplate = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/admin/super-admin/form-email-templates/${form.form_key}/${templateType}`
+        `/api/admin/super-admin/form-email-templates/${form.form_key}/${templateType}`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -156,7 +149,8 @@ export default function TemplateEditor({
           setTemplate(data.template);
         } else {
           // Initialize with base template
-          const baseTemplate = BASE_TEMPLATES[templateType as keyof typeof BASE_TEMPLATES];
+          const baseTemplate =
+            BASE_TEMPLATES[templateType as keyof typeof BASE_TEMPLATES];
           setTemplate({
             template_type: templateType as any,
             subject_template: baseTemplate.subject,
@@ -171,9 +165,9 @@ export default function TemplateEditor({
     } finally {
       setLoading(false);
     }
-  };
+  }, [form.form_key, templateType]);
 
-  const initializePreviewData = () => {
+  const initializePreviewData = useCallback(() => {
     setPreviewData({
       name: "John Doe",
       email: "john.doe@example.com",
@@ -187,14 +181,21 @@ export default function TemplateEditor({
       approval_date: new Date().toLocaleDateString(),
       approver_name: "Admin User",
       badge_ready_date: "March 10, 2025",
-      rejection_reasons: "• Missing payment slip\n• Incomplete profile information",
+      rejection_reasons:
+        "• Missing payment slip\n• Incomplete profile information",
       rejection_date: new Date().toLocaleDateString(),
       reviewer_name: "Review Team",
-      update_requirements: "• Payment slip\n• Profile photo\n• Emergency contact",
+      update_requirements:
+        "• Payment slip\n• Profile photo\n• Emergency contact",
       deadline_date: "March 1, 2025",
       contact_person: "Registration Team",
     });
-  };
+  }, [form.form_key, form.name]);
+
+  useEffect(() => {
+    loadExistingTemplate();
+    initializePreviewData();
+  }, [form, templateType, loadExistingTemplate, initializePreviewData]);
 
   const handleSave = async () => {
     try {
@@ -205,7 +206,7 @@ export default function TemplateEditor({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ template }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -238,7 +239,9 @@ export default function TemplateEditor({
 
   const getAvailableVariables = () => {
     const common = AVAILABLE_VARIABLES.common;
-    const specific = AVAILABLE_VARIABLES[templateType as keyof typeof AVAILABLE_VARIABLES] || [];
+    const specific =
+      AVAILABLE_VARIABLES[templateType as keyof typeof AVAILABLE_VARIABLES] ||
+      [];
     return [...common, ...specific];
   };
 
@@ -246,9 +249,39 @@ export default function TemplateEditor({
     let rendered = text;
     Object.entries(previewData).forEach(([key, value]) => {
       const placeholder = `{{${key}}}`;
-      rendered = rendered.replace(new RegExp(placeholder, 'g'), value);
+      rendered = rendered.replace(new RegExp(placeholder, "g"), value);
     });
     return rendered;
+  };
+
+  const insertAtCursor = (
+    el: HTMLInputElement | HTMLTextAreaElement,
+    text: string,
+  ) => {
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const newValue = el.value.slice(0, start) + text + el.value.slice(end);
+    el.value = newValue;
+    const pos = start + text.length;
+    el.setSelectionRange(pos, pos);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+
+  const handleDropVariable = (
+    e: React.DragEvent<HTMLInputElement | HTMLTextAreaElement>,
+    field: "subject_template" | "body",
+  ) => {
+    e.preventDefault();
+    const variable = e.dataTransfer.getData("text/plain");
+    if (!variable) return;
+
+    if (field === "subject_template" && subjectRef.current) {
+      insertAtCursor(subjectRef.current, variable);
+      updateTemplate({ subject_template: subjectRef.current.value });
+    } else if (field === "body" && bodyRef.current) {
+      insertAtCursor(bodyRef.current, variable);
+      updateBodyVariable("body", bodyRef.current.value);
+    }
   };
 
   if (loading) {
@@ -274,15 +307,27 @@ export default function TemplateEditor({
                 Email Template Editor
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {form.name} - {templateType.charAt(0).toUpperCase() + templateType.slice(1)} Template
+                {form.name} -{" "}
+                {templateType.charAt(0).toUpperCase() + templateType.slice(1)}{" "}
+                Template
               </p>
             </div>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -302,9 +347,14 @@ export default function TemplateEditor({
                   Subject Template
                 </label>
                 <input
+                  ref={subjectRef}
                   type="text"
                   value={template.subject_template}
-                  onChange={(e) => updateTemplate({ subject_template: e.target.value })}
+                  onChange={(e) =>
+                    updateTemplate({ subject_template: e.target.value })
+                  }
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleDropVariable(e, "subject_template")}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                   placeholder="Enter subject template"
                 />
@@ -316,8 +366,11 @@ export default function TemplateEditor({
                   Body Template
                 </label>
                 <textarea
+                  ref={bodyRef}
                   value={template.body_variables.body || ""}
                   onChange={(e) => updateBodyVariable("body", e.target.value)}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleDropVariable(e, "body")}
                   rows={12}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white font-mono text-sm"
                   placeholder="Enter body template"
@@ -330,10 +383,15 @@ export default function TemplateEditor({
                   type="checkbox"
                   id="is_active"
                   checked={template.is_active}
-                  onChange={(e) => updateTemplate({ is_active: e.target.checked })}
+                  onChange={(e) =>
+                    updateTemplate({ is_active: e.target.checked })
+                  }
                   className="mr-2"
                 />
-                <label htmlFor="is_active" className="text-sm text-gray-700 dark:text-gray-300">
+                <label
+                  htmlFor="is_active"
+                  className="text-sm text-gray-700 dark:text-gray-300"
+                >
                   Active (use this template)
                 </label>
               </div>
@@ -354,10 +412,15 @@ export default function TemplateEditor({
                     {getAvailableVariables().map((variable) => (
                       <button
                         key={variable}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", variable);
+                        }}
                         onClick={() => {
                           navigator.clipboard.writeText(variable);
                         }}
-                        className="px-2 py-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        className="px-2 py-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-grab active:cursor-grabbing"
+                        title="Drag into Subject/Body or click to copy"
                       >
                         {variable}
                       </button>

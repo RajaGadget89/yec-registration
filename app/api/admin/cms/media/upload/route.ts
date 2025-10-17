@@ -17,6 +17,9 @@ const ALLOWED_MIME_TYPES = [
   "image/webp",
   "image/svg+xml",
   "image/gif",
+  // Favicons
+  "image/x-icon",
+  "image/vnd.microsoft.icon",
   "video/mp4",
   "video/webm",
   "video/quicktime",
@@ -73,6 +76,29 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 },
       );
+    }
+
+    // Ensure bucket allows this mime (auto-upgrade for ico in cms-media)
+    try {
+      if (
+        folder === "cms-media" &&
+        ["image/x-icon", "image/vnd.microsoft.icon"].includes(file.type)
+      ) {
+        const svc = getSupabaseServiceClient();
+        const { data: buckets } = await svc.storage.listBuckets();
+        const cms = buckets?.find((b: any) => b.name === folder);
+        const current = (cms?.allowed_mime_types as string[] | undefined) || [];
+        if (!current.includes(file.type)) {
+          await svc.storage.updateBucket(folder, {
+            public: true,
+            allowedMimeTypes: Array.from(
+              new Set([...current, "image/x-icon", "image/vnd.microsoft.icon"]),
+            ),
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("Bucket allowlist check/update skipped:", e);
     }
 
     // Validate additional parameters

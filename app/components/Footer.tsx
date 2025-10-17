@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 function scrollToSection(targetId: string) {
   if (typeof window === "undefined") return;
@@ -12,22 +13,51 @@ function scrollToSection(targetId: string) {
 }
 
 export default function Footer() {
+  const [branding, setBranding] = useState<any>(null);
+  useEffect(() => {
+    const loadBranding = async () => {
+      try {
+        const res = await fetch("/api/cms/branding", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setBranding(data.branding || null);
+        }
+      } catch (_) {}
+    };
+    loadBranding();
+  }, []);
   return (
     <footer className="bg-yec-primary text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="col-span-1 md:col-span-2">
-            {/* Logo */}
+            {/* Logo: swap by breakpoint just like header */}
             <div className="mb-4">
-              <Image
-                src="/assets/logo-full.png"
-                alt="YEC Day Logo"
-                width={200}
-                height={66}
-                className="h-16 w-auto"
-                priority
-              />
+              {/* Desktop */}
+              <div className="hidden md:block">
+                <Image
+                  src={branding?.logo_desktop_url || "/assets/logo-full.png"}
+                  alt="YEC Day Logo"
+                  width={200}
+                  height={66}
+                  className="h-16 w-auto"
+                  priority
+                />
+              </div>
+              {/* Mobile */}
+              <div className="md:hidden">
+                <Image
+                  src={
+                    branding?.logo_mobile_url || "/assets/logo-shield-only.png"
+                  }
+                  alt="YEC Day Logo"
+                  width={100}
+                  height={100}
+                  className="h-16 w-auto"
+                  priority
+                />
+              </div>
             </div>
             <h3 className="text-2xl font-bold mb-4">YEC Day 2025</h3>
             <p className="text-gray-300 mb-6">
@@ -141,7 +171,7 @@ export default function Footer() {
           {/* Contact Info */}
           <div>
             <h4 className="text-lg font-semibold mb-4">Contact</h4>
-            <ul className="space-y-2 text-gray-300">
+            <ul className="space-y-2 text-gray-300" suppressHydrationWarning>
               <li>
                 <b>Email:</b> yecsongkhla.official@gmail.com
               </li>

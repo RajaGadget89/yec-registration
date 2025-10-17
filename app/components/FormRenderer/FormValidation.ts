@@ -6,7 +6,10 @@ export class FormValidation {
    */
   static validateField(field: FormField, value: any): string | null {
     // Check required field
-    if (field.required && (!value || value === "" || (Array.isArray(value) && value.length === 0))) {
+    if (
+      field.required &&
+      (!value || value === "" || (Array.isArray(value) && value.length === 0))
+    ) {
       return `${field.label} is required`;
     }
 
@@ -47,17 +50,17 @@ export class FormValidation {
   private static validatePhone(value: string): string | null {
     // Remove all non-digit characters
     const digits = value.replace(/\D/g, "");
-    
+
     // Check if it's a valid Thai phone number (10 digits starting with 0)
     if (digits.length === 10 && digits.startsWith("0")) {
       return null;
     }
-    
+
     // Check if it's a valid international format
     if (digits.length >= 10 && digits.length <= 15) {
       return null;
     }
-    
+
     return "Please enter a valid phone number";
   }
 
@@ -111,9 +114,11 @@ export class FormValidation {
 
     // Check file type
     if (validation.file_types && validation.file_types.length > 0) {
-      const fileExtension = file.name.split('.').pop()?.toLowerCase();
-      const allowedTypes = validation.file_types.map(type => type.toLowerCase());
-      
+      const fileExtension = file.name.split(".").pop()?.toLowerCase();
+      const allowedTypes = validation.file_types.map((type) =>
+        type.toLowerCase(),
+      );
+
       if (!fileExtension || !allowedTypes.includes(fileExtension)) {
         return `File type must be one of: ${validation.file_types.join(", ")}`;
       }
@@ -133,10 +138,13 @@ export class FormValidation {
   /**
    * Validate entire form
    */
-  static validateForm(fields: FormField[], formData: Record<string, any>): Record<string, string> {
+  static validateForm(
+    fields: FormField[],
+    formData: Record<string, any>,
+  ): Record<string, string> {
     const errors: Record<string, string> = {};
 
-    fields.forEach(field => {
+    fields.forEach((field) => {
       const error = this.validateField(field, formData[field.id]);
       if (error) {
         errors[field.id] = error;
@@ -149,7 +157,10 @@ export class FormValidation {
   /**
    * Check if form is valid
    */
-  static isFormValid(fields: FormField[], formData: Record<string, any>): boolean {
+  static isFormValid(
+    fields: FormField[],
+    formData: Record<string, any>,
+  ): boolean {
     const errors = this.validateForm(fields, formData);
     return Object.keys(errors).length === 0;
   }
@@ -157,7 +168,10 @@ export class FormValidation {
   /**
    * Get validation summary
    */
-  static getValidationSummary(fields: FormField[], formData: Record<string, any>): {
+  static getValidationSummary(
+    fields: FormField[],
+    formData: Record<string, any>,
+  ): {
     valid: boolean;
     errors: Record<string, string>;
     errorCount: number;
@@ -165,10 +179,12 @@ export class FormValidation {
     missingRequired: string[];
   } {
     const errors = this.validateForm(fields, formData);
-    const requiredFields = fields.filter(f => f.required).map(f => f.id);
-    const missingRequired = requiredFields.filter(fieldId => {
+    const requiredFields = fields.filter((f) => f.required).map((f) => f.id);
+    const missingRequired = requiredFields.filter((fieldId) => {
       const value = formData[fieldId];
-      return !value || value === "" || (Array.isArray(value) && value.length === 0);
+      return (
+        !value || value === "" || (Array.isArray(value) && value.length === 0)
+      );
     });
 
     return {
@@ -176,7 +192,7 @@ export class FormValidation {
       errors,
       errorCount: Object.keys(errors).length,
       requiredFields,
-      missingRequired
+      missingRequired,
     };
   }
 }

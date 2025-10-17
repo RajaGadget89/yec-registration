@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FormType } from "@/app/types/form-system";
+import { useState, useEffect, useCallback } from "react";
+import { FormType } from "../../../../types/form-system";
 
 interface PricingConfig {
   pricing_type: "fixed" | "tiered" | "early_bird";
@@ -46,15 +46,11 @@ export default function PricingConfigEditor({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    loadExistingConfig();
-  }, [form]);
-
-  const loadExistingConfig = async () => {
+  const loadExistingConfig = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/admin/super-admin/form-pricing/${form.form_key}`
+        `/api/admin/super-admin/form-pricing/${form.form_key}`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -67,7 +63,11 @@ export default function PricingConfigEditor({
     } finally {
       setLoading(false);
     }
-  };
+  }, [form.form_key]);
+
+  useEffect(() => {
+    loadExistingConfig();
+  }, [form, loadExistingConfig]);
 
   const handleSave = async () => {
     try {
@@ -78,7 +78,7 @@ export default function PricingConfigEditor({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ config }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -160,8 +160,18 @@ export default function PricingConfigEditor({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -180,7 +190,9 @@ export default function PricingConfigEditor({
                   name="pricing_type"
                   value="fixed"
                   checked={config.pricing_type === "fixed"}
-                  onChange={(e) => updateConfig({ pricing_type: e.target.value as any })}
+                  onChange={(e) =>
+                    updateConfig({ pricing_type: e.target.value as any })
+                  }
                   className="sr-only"
                 />
                 <div
@@ -190,7 +202,9 @@ export default function PricingConfigEditor({
                       : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
                   }`}
                 >
-                  <div className="font-medium text-gray-900 dark:text-white">Fixed Price</div>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    Fixed Price
+                  </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Single price for all registrations
                   </div>
@@ -203,7 +217,9 @@ export default function PricingConfigEditor({
                   name="pricing_type"
                   value="tiered"
                   checked={config.pricing_type === "tiered"}
-                  onChange={(e) => updateConfig({ pricing_type: e.target.value as any })}
+                  onChange={(e) =>
+                    updateConfig({ pricing_type: e.target.value as any })
+                  }
                   className="sr-only"
                 />
                 <div
@@ -213,7 +229,9 @@ export default function PricingConfigEditor({
                       : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
                   }`}
                 >
-                  <div className="font-medium text-gray-900 dark:text-white">Tiered Pricing</div>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    Tiered Pricing
+                  </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Different prices based on quantity
                   </div>
@@ -226,7 +244,9 @@ export default function PricingConfigEditor({
                   name="pricing_type"
                   value="early_bird"
                   checked={config.pricing_type === "early_bird"}
-                  onChange={(e) => updateConfig({ pricing_type: e.target.value as any })}
+                  onChange={(e) =>
+                    updateConfig({ pricing_type: e.target.value as any })
+                  }
                   className="sr-only"
                 />
                 <div
@@ -236,7 +256,9 @@ export default function PricingConfigEditor({
                       : "border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500"
                   }`}
                 >
-                  <div className="font-medium text-gray-900 dark:text-white">Early Bird</div>
+                  <div className="font-medium text-gray-900 dark:text-white">
+                    Early Bird
+                  </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     Discounted price before deadline
                   </div>
@@ -255,7 +277,11 @@ export default function PricingConfigEditor({
                 <input
                   type="number"
                   value={config.fixed_price || 0}
-                  onChange={(e) => updateConfig({ fixed_price: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) =>
+                    updateConfig({
+                      fixed_price: parseFloat(e.target.value) || 0,
+                    })
+                  }
                   className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"
                   min="0"
                   step="0.01"
@@ -284,32 +310,51 @@ export default function PricingConfigEditor({
 
               <div className="space-y-3">
                 {(config.tiered_pricing?.tiers || []).map((tier, index) => (
-                  <div key={index} className="flex items-center space-x-2 p-3 bg-white dark:bg-gray-800 rounded border">
+                  <div
+                    key={index}
+                    className="flex items-center space-x-2 p-3 bg-white dark:bg-gray-800 rounded border"
+                  >
                     <input
                       type="text"
                       value={tier.name}
-                      onChange={(e) => updateTier(index, { name: e.target.value })}
+                      onChange={(e) =>
+                        updateTier(index, { name: e.target.value })
+                      }
                       className="flex-1 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
                       placeholder="Tier name"
                     />
                     <input
                       type="number"
                       value={tier.min_quantity}
-                      onChange={(e) => updateTier(index, { min_quantity: parseInt(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        updateTier(index, {
+                          min_quantity: parseInt(e.target.value) || 0,
+                        })
+                      }
                       className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
                       placeholder="Min"
                     />
                     <input
                       type="number"
                       value={tier.max_quantity || ""}
-                      onChange={(e) => updateTier(index, { max_quantity: e.target.value ? parseInt(e.target.value) : undefined })}
+                      onChange={(e) =>
+                        updateTier(index, {
+                          max_quantity: e.target.value
+                            ? parseInt(e.target.value)
+                            : undefined,
+                        })
+                      }
                       className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
                       placeholder="Max"
                     />
                     <input
                       type="number"
                       value={tier.price_per_item}
-                      onChange={(e) => updateTier(index, { price_per_item: parseFloat(e.target.value) || 0 })}
+                      onChange={(e) =>
+                        updateTier(index, {
+                          price_per_item: parseFloat(e.target.value) || 0,
+                        })
+                      }
                       className="w-24 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-white"
                       placeholder="Price"
                     />
@@ -339,8 +384,10 @@ export default function PricingConfigEditor({
                     onChange={(e) =>
                       updateConfig({
                         early_bird_pricing: {
-                          ...config.early_bird_pricing,
                           early_price: parseFloat(e.target.value) || 0,
+                          regular_price:
+                            config.early_bird_pricing?.regular_price || 0,
+                          deadline: config.early_bird_pricing?.deadline || "",
                         },
                       })
                     }
@@ -365,8 +412,10 @@ export default function PricingConfigEditor({
                     onChange={(e) =>
                       updateConfig({
                         early_bird_pricing: {
-                          ...config.early_bird_pricing,
+                          early_price:
+                            config.early_bird_pricing?.early_price || 0,
                           regular_price: parseFloat(e.target.value) || 0,
+                          deadline: config.early_bird_pricing?.deadline || "",
                         },
                       })
                     }
@@ -390,7 +439,10 @@ export default function PricingConfigEditor({
                   onChange={(e) =>
                     updateConfig({
                       early_bird_pricing: {
-                        ...config.early_bird_pricing,
+                        early_price:
+                          config.early_bird_pricing?.early_price || 0,
+                        regular_price:
+                          config.early_bird_pricing?.regular_price || 0,
                         deadline: e.target.value,
                       },
                     })
@@ -425,7 +477,9 @@ export default function PricingConfigEditor({
               <input
                 type="number"
                 value={config.tax_rate || 0}
-                onChange={(e) => updateConfig({ tax_rate: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  updateConfig({ tax_rate: parseFloat(e.target.value) || 0 })
+                }
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-800 dark:text-white"
                 min="0"
                 max="100"
@@ -442,7 +496,10 @@ export default function PricingConfigEditor({
               onChange={(e) => updateConfig({ tax_included: e.target.checked })}
               className="mr-2"
             />
-            <label htmlFor="tax_included" className="text-sm text-gray-700 dark:text-gray-300">
+            <label
+              htmlFor="tax_included"
+              className="text-sm text-gray-700 dark:text-gray-300"
+            >
               Tax included in price
             </label>
           </div>

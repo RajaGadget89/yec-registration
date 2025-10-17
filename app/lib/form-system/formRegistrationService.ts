@@ -1,7 +1,11 @@
 import { getSupabaseServiceClient } from "../supabase-server";
 import { EventService } from "../events/eventService";
 import { EventFactory } from "../events/eventFactory";
-import { FormRegistration, FormRegistrationService, UnifiedRegistration } from "../../types/form-system";
+import {
+  FormRegistration,
+  FormRegistrationService,
+  UnifiedRegistration,
+} from "../../types/form-system";
 
 /**
  * Form Registration Service
@@ -13,9 +17,11 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
   /**
    * Create a new form registration
    */
-  async create(registration: Omit<FormRegistration, 'id' | 'created_at' | 'updated_at'>): Promise<FormRegistration> {
+  async create(
+    registration: Omit<FormRegistration, "id" | "created_at" | "updated_at">,
+  ): Promise<FormRegistration> {
     const { data, error } = await this.supabase
-      .from('form_registrations')
+      .from("form_registrations")
       .insert({
         form_key: registration.form_key,
         tracking_id: registration.tracking_id,
@@ -26,7 +32,7 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
         status: registration.status,
         dimension_status: registration.dimension_status,
         badge_path: registration.badge_path,
-        import_job_id: registration.import_job_id
+        import_job_id: registration.import_job_id,
       })
       .select()
       .single();
@@ -42,11 +48,11 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
       const event = EventFactory.createRegistrationSubmitted(
         formRegistration as any, // Cast to match existing event structure
         formRegistration.pricing_data.total_amount,
-        formRegistration.form_key
+        formRegistration.form_key,
       );
       await EventService.emit(event);
     } catch (eventError) {
-      console.error('Failed to emit registration submitted event:', eventError);
+      console.error("Failed to emit registration submitted event:", eventError);
       // Don't fail the registration if event emission fails
     }
 
@@ -58,13 +64,13 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
    */
   async getById(id: string): Promise<FormRegistration | null> {
     const { data, error } = await this.supabase
-      .from('form_registrations')
-      .select('*')
-      .eq('id', id)
+      .from("form_registrations")
+      .select("*")
+      .eq("id", id)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
+      if (error.code === "PGRST116") {
         return null; // Not found
       }
       throw new Error(`Failed to get form registration: ${error.message}`);
@@ -78,13 +84,13 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
    */
   async getByTrackingId(trackingId: string): Promise<FormRegistration | null> {
     const { data, error } = await this.supabase
-      .from('form_registrations')
-      .select('*')
-      .eq('tracking_id', trackingId)
+      .from("form_registrations")
+      .select("*")
+      .eq("tracking_id", trackingId)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
+      if (error.code === "PGRST116") {
         return null; // Not found
       }
       throw new Error(`Failed to get form registration: ${error.message}`);
@@ -96,14 +102,17 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
   /**
    * Update form registration
    */
-  async update(id: string, updates: Partial<FormRegistration>): Promise<FormRegistration> {
+  async update(
+    id: string,
+    updates: Partial<FormRegistration>,
+  ): Promise<FormRegistration> {
     const { data, error } = await this.supabase
-      .from('form_registrations')
+      .from("form_registrations")
       .update({
         ...updates,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -119,9 +128,9 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
    */
   async delete(id: string): Promise<void> {
     const { error } = await this.supabase
-      .from('form_registrations')
+      .from("form_registrations")
       .delete()
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) {
       throw new Error(`Failed to delete form registration: ${error.message}`);
@@ -131,15 +140,18 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
   /**
    * List registrations by form key
    */
-  async listByFormKey(formKey: string, status?: string): Promise<FormRegistration[]> {
+  async listByFormKey(
+    formKey: string,
+    status?: string,
+  ): Promise<FormRegistration[]> {
     let query = this.supabase
-      .from('form_registrations')
-      .select('*')
-      .eq('form_key', formKey)
-      .order('created_at', { ascending: false });
+      .from("form_registrations")
+      .select("*")
+      .eq("form_key", formKey)
+      .order("created_at", { ascending: false });
 
     if (status) {
-      query = query.eq('status', status);
+      query = query.eq("status", status);
     }
 
     const { data, error } = await query;
@@ -161,20 +173,20 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
   }): Promise<UnifiedRegistration[]> {
     // Use the unified view
     let query = this.supabase
-      .from('admin_registrations_unified')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .from("admin_registrations_unified")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (filters?.form_key) {
-      query = query.eq('form_key', filters.form_key);
+      query = query.eq("form_key", filters.form_key);
     }
 
     if (filters?.status) {
-      query = query.eq('status', filters.status);
+      query = query.eq("status", filters.status);
     }
 
     if (filters?.source_type) {
-      query = query.eq('source_type', filters.source_type);
+      query = query.eq("source_type", filters.source_type);
     }
 
     const { data, error } = await query;
@@ -189,10 +201,14 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
   /**
    * Update registration status
    */
-  async updateStatus(id: string, status: string, reason?: string): Promise<FormRegistration> {
+  async updateStatus(
+    id: string,
+    status: string,
+    reason?: string,
+  ): Promise<FormRegistration> {
     const updates: any = {
       status,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     if (reason) {
@@ -200,9 +216,9 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
     }
 
     const { data, error } = await this.supabase
-      .from('form_registrations')
+      .from("form_registrations")
       .update(updates)
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -217,32 +233,34 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
    * Update dimension status
    */
   async updateDimensionStatus(
-    id: string, 
-    dimension: string, 
+    id: string,
+    dimension: string,
     status: "pending" | "needs_update" | "passed" | "rejected",
-    notes?: string
+    notes?: string,
   ): Promise<FormRegistration> {
     // Get current dimension status
     const { data: current, error: fetchError } = await this.supabase
-      .from('form_registrations')
-      .select('dimension_status')
-      .eq('id', id)
+      .from("form_registrations")
+      .select("dimension_status")
+      .eq("id", id)
       .single();
 
     if (fetchError) {
-      throw new Error(`Failed to get current dimension status: ${fetchError.message}`);
+      throw new Error(
+        `Failed to get current dimension status: ${fetchError.message}`,
+      );
     }
 
     const dimensionStatus = current.dimension_status || {};
     dimensionStatus[dimension] = { status, notes };
 
     const { data, error } = await this.supabase
-      .from('form_registrations')
+      .from("form_registrations")
       .update({
         dimension_status: dimensionStatus,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
-      .eq('id', id)
+      .eq("id", id)
       .select()
       .single();
 
@@ -258,9 +276,9 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
    */
   async canApprove(id: string, requiredDimensions: string[]): Promise<boolean> {
     const { data, error } = await this.supabase
-      .from('form_registrations')
-      .select('dimension_status')
-      .eq('id', id)
+      .from("form_registrations")
+      .select("dimension_status")
+      .eq("id", id)
       .single();
 
     if (error) {
@@ -268,9 +286,9 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
     }
 
     const dimensionStatus = data.dimension_status || {};
-    
-    return requiredDimensions.every(dimension => 
-      dimensionStatus[dimension]?.status === 'passed'
+
+    return requiredDimensions.every(
+      (dimension) => dimensionStatus[dimension]?.status === "passed",
     );
   }
 
@@ -283,31 +301,34 @@ export class FormRegistrationServiceImpl implements FormRegistrationService {
     by_form: Record<string, number>;
   }> {
     let query = this.supabase
-      .from('admin_registrations_unified')
-      .select('status, form_key, source_type');
+      .from("admin_registrations_unified")
+      .select("status, form_key, source_type");
 
     if (formKey) {
-      query = query.eq('form_key', formKey);
+      query = query.eq("form_key", formKey);
     }
 
     const { data, error } = await query;
 
     if (error) {
-      throw new Error(`Failed to get registration statistics: ${error.message}`);
+      throw new Error(
+        `Failed to get registration statistics: ${error.message}`,
+      );
     }
 
     const stats = {
       total: data.length,
       by_status: {} as Record<string, number>,
-      by_form: {} as Record<string, number>
+      by_form: {} as Record<string, number>,
     };
 
     data.forEach((item: any) => {
       // Count by status
       stats.by_status[item.status] = (stats.by_status[item.status] || 0) + 1;
-      
+
       // Count by form
-      const formLabel = item.source_type === 'legacy' ? 'YEC Day (Traditional)' : item.form_key;
+      const formLabel =
+        item.source_type === "legacy" ? "YEC Day (Traditional)" : item.form_key;
       stats.by_form[formLabel] = (stats.by_form[formLabel] || 0) + 1;
     });
 

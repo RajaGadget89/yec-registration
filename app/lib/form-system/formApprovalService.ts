@@ -1,6 +1,7 @@
-import { createClient } from "@/app/lib/supabase/server";
-import { EventFactory, EventService } from "@/app/lib/events";
-import { audit } from "@/app/lib/audit";
+import { getSupabaseServerClient } from "../supabase/server";
+import { EventFactory } from "../events/eventFactory";
+import { EventService } from "../events/eventService";
+import { audit } from "../audit";
 
 export interface ApprovalWorkflowTemplate {
   type: "payment_only" | "profile_payment" | "full_3_dimension" | "no_approval";
@@ -36,7 +37,7 @@ export class FormApprovalService {
 
   private async getSupabase() {
     if (!this.supabase) {
-      this.supabase = await createClient();
+      this.supabase = await getSupabaseServerClient();
     }
     return this.supabase;
   }
@@ -44,7 +45,9 @@ export class FormApprovalService {
   /**
    * Get approval workflow template for a form
    */
-  async getApprovalWorkflow(formKey: string): Promise<ApprovalWorkflowTemplate | null> {
+  async getApprovalWorkflow(
+    formKey: string,
+  ): Promise<ApprovalWorkflowTemplate | null> {
     try {
       const supabase = await this.getSupabase();
       const { data: formType, error } = await supabase
@@ -109,11 +112,11 @@ export class FormApprovalService {
    */
   async getApprovalContext(
     formKey: string,
-    registrationId: string
+    registrationId: string,
   ): Promise<FormApprovalContext | null> {
     try {
       const supabase = await this.getSupabase();
-      
+
       // Get form registration
       const { data: registration, error: regError } = await supabase
         .from("form_registrations")
@@ -138,7 +141,7 @@ export class FormApprovalService {
       }
 
       const approvalWorkflow = this.getWorkflowTemplate(
-        formType.config?.approval_workflow || "full_3_dimension"
+        formType.config?.approval_workflow || "full_3_dimension",
       );
 
       return {
@@ -160,15 +163,15 @@ export class FormApprovalService {
    */
   async canApprove(
     formKey: string,
-    registrationId: string
+    registrationId: string,
   ): Promise<ApprovalResult> {
     try {
       const context = await this.getApprovalContext(formKey, registrationId);
       if (!context) {
         return {
           success: false,
-          new_status: context?.current_status || "unknown",
-          new_dimension_status: context?.dimension_status || {},
+          new_status: (context as any)?.current_status || "unknown",
+          new_dimension_status: (context as any)?.dimension_status || {},
           can_approve: false,
           missing_requirements: ["Registration not found"],
           message: "Registration not found",
@@ -245,7 +248,7 @@ export class FormApprovalService {
     formKey: string,
     registrationId: string,
     approverId: string,
-    notes?: string
+    notes?: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       const supabase = await this.getSupabase();
@@ -278,25 +281,27 @@ export class FormApprovalService {
         };
       }
 
+      // Get registration for event
+      const { data: registration } = await supabase
+        .from("form_registrations")
+        .select("*")
+        .eq("id", registrationId)
+        .single();
+
       // Emit approval event
       await EventService.emit(
-        EventFactory.createAdminApproved({
-          applicationId: registrationId,
-          actorId: approverId,
-          correlationId: crypto.randomUUID(),
-          meta: {
-            form_key: formKey,
-            approval_notes: notes,
-            approval_type: "form_registration",
-          },
-        })
+        EventFactory.createAdminApproved(registration as any, approverId),
       );
 
       // Log audit event
       await audit.logEvent({
-        correlationId: crypto.randomUUID(),
-        eventType: "form_registration_approved",
-        entityId: registrationId,
+        action: "form_registration_approved",
+        resource: "form_registrations",
+        resource_id: registrationId,
+        actor_id: approverId,
+        actor_role: "admin",
+        result: "success",
+        correlation_id: crypto.randomUUID(),
         meta: {
           form_key: formKey,
           approver_id: approverId,
@@ -324,7 +329,7 @@ export class FormApprovalService {
     formKey: string,
     registrationId: string,
     approverId: string,
-    reason: string
+    reason: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       const supabase = await this.getSupabase();
@@ -347,25 +352,32 @@ export class FormApprovalService {
         };
       }
 
+      // Get registration for event
+      const { data: registration } = await supabase
+        .from("form_registrations")
+        .select("*")
+        .eq("id", registrationId)
+        .single();
+
       // Emit rejection event
       await EventService.emit(
-        EventFactory.createAdminRejected({
-          applicationId: registrationId,
-          actorId: approverId,
-          correlationId: crypto.randomUUID(),
-          meta: {
-            form_key: formKey,
-            rejection_reason: reason,
-            rejection_type: "form_registration",
-          },
-        })
+        EventFactory.createAdminRejected(
+          registration as any,
+          approverId,
+          "other",
+          reason,
+        ),
       );
 
       // Log audit event
       await audit.logEvent({
-        correlationId: crypto.randomUUID(),
-        eventType: "form_registration_rejected",
-        entityId: registrationId,
+        action: "form_registration_rejected",
+        resource: "form_registrations",
+        resource_id: registrationId,
+        actor_id: approverId,
+        actor_role: "admin",
+        result: "success",
+        correlation_id: crypto.randomUUID(),
         meta: {
           form_key: formKey,
           approver_id: approverId,
@@ -393,7 +405,7 @@ export class FormApprovalService {
     formKey: string,
     registrationId: string,
     dimension: string,
-    approverId: string
+    approverId: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
       const supabase = await this.getSupabase();
@@ -439,9 +451,13 @@ export class FormApprovalService {
 
       // Log audit event
       await audit.logEvent({
-        correlationId: crypto.randomUUID(),
-        eventType: "form_dimension_passed",
-        entityId: registrationId,
+        action: "form_dimension_passed",
+        resource: "form_registrations",
+        resource_id: registrationId,
+        actor_id: approverId,
+        actor_role: "admin",
+        result: "success",
+        correlation_id: crypto.randomUUID(),
         meta: {
           form_key: formKey,
           dimension,
@@ -502,7 +518,7 @@ export class FormApprovalService {
       };
 
       // Count by status
-      registrations.forEach((reg) => {
+      registrations.forEach((reg: any) => {
         switch (reg.status) {
           case "pending":
           case "waiting_for_review":

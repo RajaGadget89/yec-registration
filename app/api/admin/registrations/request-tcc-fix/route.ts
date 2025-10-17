@@ -1,6 +1,6 @@
 // app/api/admin/registrations/request-tcc-fix/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabaseServerClient } from "../../../../lib/supabase";
 import { createHash, randomUUID } from "crypto";
 
 export const runtime = "nodejs";
@@ -9,13 +9,7 @@ type Json = Record<string, any>;
 const nowISO = () => new Date().toISOString();
 
 function getAdminClient() {
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key)
-    throw new Error("Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  return getSupabaseServerClient();
 }
 
 function appBaseUrl() {
@@ -84,12 +78,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Hash the token for storage (same as test endpoint)
     const tokenHash = createHash("sha256").update(tokenUUID).digest("hex");
 
-    const { data: ins, error: insErr } = await supabase
+    const { data: ins, error: insErr } = await (supabase as any)
       .from("deep_link_tokens")
       .insert({
         token_hash: tokenHash,
         token_id: tokenUUID,
-        registration_id: reg.id,
+        registration_id: (reg as any).id,
         dimension: "tcc",
         expires_at: expiresAt,
         created_at: nowISO(),
@@ -110,23 +104,29 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const deepLink = `${appBaseUrl()}/update?token=${publicTokenUUID}`;
 
     // 3) enqueue email (เติม html_content ให้ผ่าน not-null)
-    const payload = { deepLink, reason, registrationId: reg.id };
-    const { error: outErr } = await supabase.from("email_outbox").insert({
-      template: "tcc_fix_request",
-      to_email: reg.email,
-      subject: "[Action Required] Please re-upload your TCC card",
-      html_content: `<p>Please re-upload your TCC card: <a href="${deepLink}">${deepLink}</a></p>`,
-      payload,
-      status: "pending",
-      attempts: 0,
-      max_attempts: 5,
-      created_at: nowISO(),
-    } as Json);
+    const payload = { deepLink, reason, registrationId: (reg as any).id };
+    const { error: outErr } = await (supabase as any)
+      .from("email_outbox")
+      .insert({
+        template: "tcc_fix_request",
+        to_email: (reg as any).email,
+        subject: "[Action Required] Please re-upload your TCC card",
+        html_content: `<p>Please re-upload your TCC card: <a href="${deepLink}">${deepLink}</a></p>`,
+        payload,
+        status: "pending",
+        attempts: 0,
+        max_attempts: 5,
+        created_at: nowISO(),
+      } as Json);
     if (outErr) console.warn("[tcc-fix] email_outbox warn:", outErr.message);
 
     // (ไม่อัปเดตตาราง registrations ตอนนี้ เพื่อเลี่ยง check constraint)
     return NextResponse.json(
-      { ok: true, deepLink, registration: { id: reg.id, email: reg.email } },
+      {
+        ok: true,
+        deepLink,
+        registration: { id: (reg as any).id, email: (reg as any).email },
+      },
       { status: 200 },
     );
   } catch (e: any) {

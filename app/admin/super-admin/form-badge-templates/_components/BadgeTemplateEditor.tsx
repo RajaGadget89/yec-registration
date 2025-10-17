@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FormType } from "@/app/types/form-system";
+import { useState, useEffect, useCallback } from "react";
+import MediaSelector from "../../../../components/cms/MediaSelector";
+import { FormType } from "../../../../types/form-system";
 
 interface BadgeTemplate {
   logo_url?: string;
@@ -10,6 +11,10 @@ interface BadgeTemplate {
   background_color: string;
   text_color: string;
   fields: string[];
+  field_labels?: Record<string, string>; // optional custom labels per field
+  show_field_labels?: boolean; // global default
+  field_label_visibility?: Record<string, boolean>; // per-field label on/off
+  field_visibility?: Record<string, boolean>; // per-field visibility on/off
   layout: "vertical" | "horizontal";
   font_family?: string;
   font_size?: {
@@ -20,6 +25,11 @@ interface BadgeTemplate {
   dimensions: {
     width: number;
     height: number;
+  };
+  qr?: {
+    enabled?: boolean;
+    size?: number; // px
+    margin?: number; // px from bottom
   };
 }
 
@@ -72,6 +82,10 @@ export default function BadgeTemplateEditor({
     background_color: "#2F68C9",
     text_color: "#FFFFFF",
     fields: ["name", "tracking_id"],
+    field_labels: {},
+    show_field_labels: true,
+    field_label_visibility: {},
+    field_visibility: {},
     layout: "vertical",
     font_family: "Arial, sans-serif",
     font_size: {
@@ -83,22 +97,18 @@ export default function BadgeTemplateEditor({
       width: 400,
       height: 600,
     },
+    qr: { enabled: true, size: 120, margin: 12 },
   });
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewData, setPreviewData] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    loadExistingTemplate();
-    initializePreviewData();
-  }, [form]);
-
-  const loadExistingTemplate = async () => {
+  const loadExistingTemplate = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `/api/admin/super-admin/form-badge-templates/${form.form_key}`
+        `/api/admin/super-admin/form-badge-templates/${form.form_key}`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -111,9 +121,9 @@ export default function BadgeTemplateEditor({
     } finally {
       setLoading(false);
     }
-  };
+  }, [form.form_key]);
 
-  const initializePreviewData = () => {
+  const initializePreviewData = useCallback(() => {
     setPreviewData({
       name: "John Doe",
       email: "john.doe@example.com",
@@ -130,7 +140,12 @@ export default function BadgeTemplateEditor({
       "extra_data.organization": "YEC Organization",
       "extra_data.department": "IT Department",
     });
-  };
+  }, [form.form_key, form.name]);
+
+  useEffect(() => {
+    loadExistingTemplate();
+    initializePreviewData();
+  }, [form, loadExistingTemplate, initializePreviewData]);
 
   const handleSave = async () => {
     try {
@@ -141,7 +156,7 @@ export default function BadgeTemplateEditor({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ template }),
-        }
+        },
       );
 
       if (response.ok) {
@@ -166,22 +181,33 @@ export default function BadgeTemplateEditor({
     if (!template.fields.includes(field)) {
       updateTemplate({
         fields: [...template.fields, field],
+        field_labels: {
+          ...(template.field_labels || {}),
+          [field]: field.toUpperCase(),
+        },
+        field_visibility: {
+          ...(template.field_visibility || {}),
+          [field]: true,
+        },
       });
     }
   };
 
   const removeField = (field: string) => {
     updateTemplate({
-      fields: template.fields.filter(f => f !== field),
+      fields: template.fields.filter((f) => f !== field),
     });
   };
 
   const moveField = (index: number, direction: "up" | "down") => {
     const newFields = [...template.fields];
     const newIndex = direction === "up" ? index - 1 : index + 1;
-    
+
     if (newIndex >= 0 && newIndex < newFields.length) {
-      [newFields[index], newFields[newIndex]] = [newFields[newIndex], newFields[index]];
+      [newFields[index], newFields[newIndex]] = [
+        newFields[newIndex],
+        newFields[index],
+      ];
       updateTemplate({ fields: newFields });
     }
   };
@@ -206,35 +232,47 @@ export default function BadgeTemplateEditor({
               </div>
             </div>
           )}
-          
+
           <div
             className="font-bold mb-2"
-            style={{ fontSize: template.font_size.title / 2 }}
+            style={{ fontSize: (template.font_size?.title || 24) / 2 }}
           >
             {template.title_text}
           </div>
-          
+
           {template.subtitle_text && (
             <div
               className="mb-4"
-              style={{ fontSize: template.font_size.subtitle / 2 }}
+              style={{ fontSize: (template.font_size?.subtitle || 18) / 2 }}
             >
               {template.subtitle_text}
             </div>
           )}
-          
+
           <div className="space-y-1">
-            {template.fields.map((field, index) => {
-              const value = previewData[field] || `[${field}]`;
-              return (
-                <div
-                  key={index}
-                  style={{ fontSize: template.font_size.field / 2 }}
-                >
-                  {field.toUpperCase()}: {value}
-                </div>
-              );
-            })}
+            {template.fields
+              .filter((f) => template.field_visibility?.[f] !== false)
+              .map((field, index) => {
+                const value = previewData[field] || `[${field}]`;
+                const showLabel =
+                  template.field_label_visibility &&
+                  field in template.field_label_visibility
+                    ? template.field_label_visibility[field] !== false
+                    : template.show_field_labels !== false;
+                const label = showLabel
+                  ? (template.field_labels?.[field] || field.toUpperCase()) +
+                    ": "
+                  : "";
+                return (
+                  <div
+                    key={index}
+                    style={{ fontSize: (template.font_size?.field || 16) / 2 }}
+                  >
+                    {label}
+                    {value}
+                  </div>
+                );
+              })}
           </div>
         </div>
       </div>
@@ -271,8 +309,18 @@ export default function BadgeTemplateEditor({
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -295,7 +343,9 @@ export default function BadgeTemplateEditor({
                   <input
                     type="text"
                     value={template.title_text}
-                    onChange={(e) => updateTemplate({ title_text: e.target.value })}
+                    onChange={(e) =>
+                      updateTemplate({ title_text: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                     placeholder="Event Title"
                   />
@@ -308,22 +358,21 @@ export default function BadgeTemplateEditor({
                   <input
                     type="text"
                     value={template.subtitle_text || ""}
-                    onChange={(e) => updateTemplate({ subtitle_text: e.target.value })}
+                    onChange={(e) =>
+                      updateTemplate({ subtitle_text: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                     placeholder="Event Subtitle"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Logo URL (Optional)
-                  </label>
-                  <input
-                    type="url"
+                  <MediaSelector
                     value={template.logo_url || ""}
-                    onChange={(e) => updateTemplate({ logo_url: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                    placeholder="https://example.com/logo.png"
+                    onChange={(url) => updateTemplate({ logo_url: url })}
+                    placeholder="Enter image URL or select from library"
+                    label="Logo Image (Optional)"
+                    required={false}
                   />
                 </div>
               </div>
@@ -337,7 +386,9 @@ export default function BadgeTemplateEditor({
                   <input
                     type="color"
                     value={template.background_color}
-                    onChange={(e) => updateTemplate({ background_color: e.target.value })}
+                    onChange={(e) =>
+                      updateTemplate({ background_color: e.target.value })
+                    }
                     className="w-full h-10 border border-gray-300 dark:border-gray-600 rounded-lg"
                   />
                 </div>
@@ -349,7 +400,9 @@ export default function BadgeTemplateEditor({
                   <input
                     type="color"
                     value={template.text_color}
-                    onChange={(e) => updateTemplate({ text_color: e.target.value })}
+                    onChange={(e) =>
+                      updateTemplate({ text_color: e.target.value })
+                    }
                     className="w-full h-10 border border-gray-300 dark:border-gray-600 rounded-lg"
                   />
                 </div>
@@ -362,7 +415,11 @@ export default function BadgeTemplateEditor({
                 </label>
                 <select
                   value={template.layout}
-                  onChange={(e) => updateTemplate({ layout: e.target.value as "vertical" | "horizontal" })}
+                  onChange={(e) =>
+                    updateTemplate({
+                      layout: e.target.value as "vertical" | "horizontal",
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                 >
                   {LAYOUT_OPTIONS.map((option) => (
@@ -380,7 +437,9 @@ export default function BadgeTemplateEditor({
                 </label>
                 <select
                   value={template.font_family}
-                  onChange={(e) => updateTemplate({ font_family: e.target.value })}
+                  onChange={(e) =>
+                    updateTemplate({ font_family: e.target.value })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                 >
                   {FONT_FAMILIES.map((font) => (
@@ -399,10 +458,16 @@ export default function BadgeTemplateEditor({
                   </label>
                   <input
                     type="number"
-                    value={template.font_size.title}
-                    onChange={(e) => updateTemplate({
-                      font_size: { ...template.font_size, title: parseInt(e.target.value) || 24 }
-                    })}
+                    value={template.font_size?.title || 24}
+                    onChange={(e) =>
+                      updateTemplate({
+                        font_size: {
+                          title: parseInt(e.target.value) || 24,
+                          subtitle: template.font_size?.subtitle || 18,
+                          field: template.font_size?.field || 16,
+                        },
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                     min="12"
                     max="48"
@@ -415,10 +480,16 @@ export default function BadgeTemplateEditor({
                   </label>
                   <input
                     type="number"
-                    value={template.font_size.subtitle}
-                    onChange={(e) => updateTemplate({
-                      font_size: { ...template.font_size, subtitle: parseInt(e.target.value) || 16 }
-                    })}
+                    value={template.font_size?.subtitle || 18}
+                    onChange={(e) =>
+                      updateTemplate({
+                        font_size: {
+                          title: template.font_size?.title || 24,
+                          subtitle: parseInt(e.target.value) || 18,
+                          field: template.font_size?.field || 16,
+                        },
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                     min="10"
                     max="32"
@@ -431,10 +502,16 @@ export default function BadgeTemplateEditor({
                   </label>
                   <input
                     type="number"
-                    value={template.font_size.field}
-                    onChange={(e) => updateTemplate({
-                      font_size: { ...template.font_size, field: parseInt(e.target.value) || 14 }
-                    })}
+                    value={template.font_size?.field || 16}
+                    onChange={(e) =>
+                      updateTemplate({
+                        font_size: {
+                          title: template.font_size?.title || 24,
+                          subtitle: template.font_size?.subtitle || 18,
+                          field: parseInt(e.target.value) || 16,
+                        },
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                     min="8"
                     max="24"
@@ -451,9 +528,14 @@ export default function BadgeTemplateEditor({
                   <input
                     type="number"
                     value={template.dimensions.width}
-                    onChange={(e) => updateTemplate({
-                      dimensions: { ...template.dimensions, width: parseInt(e.target.value) || 400 }
-                    })}
+                    onChange={(e) =>
+                      updateTemplate({
+                        dimensions: {
+                          ...template.dimensions,
+                          width: parseInt(e.target.value) || 400,
+                        },
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                     min="200"
                     max="800"
@@ -467,13 +549,84 @@ export default function BadgeTemplateEditor({
                   <input
                     type="number"
                     value={template.dimensions.height}
-                    onChange={(e) => updateTemplate({
-                      dimensions: { ...template.dimensions, height: parseInt(e.target.value) || 600 }
-                    })}
+                    onChange={(e) =>
+                      updateTemplate({
+                        dimensions: {
+                          ...template.dimensions,
+                          height: parseInt(e.target.value) || 600,
+                        },
+                      })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                     min="300"
                     max="1200"
                   />
+                </div>
+              </div>
+
+              {/* QR Code Settings */}
+              <div className="space-y-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-md font-medium text-gray-900 dark:text-white">
+                  QR Code
+                </h4>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-gray-700 dark:text-gray-300">
+                    Enable QR
+                  </label>
+                  <input
+                    type="checkbox"
+                    checked={template.qr?.enabled !== false}
+                    onChange={(e) =>
+                      updateTemplate({
+                        qr: {
+                          ...(template.qr || {}),
+                          enabled: e.target.checked,
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      QR Size (px)
+                    </label>
+                    <input
+                      type="number"
+                      value={template.qr?.size ?? 120}
+                      onChange={(e) =>
+                        updateTemplate({
+                          qr: {
+                            ...(template.qr || {}),
+                            size: parseInt(e.target.value) || 120,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                      min="60"
+                      max="300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Bottom Margin (px)
+                    </label>
+                    <input
+                      type="number"
+                      value={template.qr?.margin ?? 12}
+                      onChange={(e) =>
+                        updateTemplate({
+                          qr: {
+                            ...(template.qr || {}),
+                            margin: parseInt(e.target.value) || 12,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                      min="0"
+                      max="80"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -485,10 +638,13 @@ export default function BadgeTemplateEditor({
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                   Badge Fields
                 </h3>
-                
+
                 <div className="space-y-2">
                   {template.fields.map((field, index) => (
-                    <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                    <div
+                      key={index}
+                      className="flex items-center space-x-2 p-2 bg-gray-50 dark:bg-gray-700 rounded"
+                    >
                       <span className="flex-1 text-sm text-gray-700 dark:text-gray-300">
                         {field}
                       </span>
@@ -530,12 +686,89 @@ export default function BadgeTemplateEditor({
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
                   >
                     <option value="">Select a field to add...</option>
-                    {AVAILABLE_FIELDS.filter(field => !template.fields.includes(field)).map((field) => (
+                    {AVAILABLE_FIELDS.filter(
+                      (field) => !template.fields.includes(field),
+                    ).map((field) => (
                       <option key={field} value={field}>
                         {field}
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Field Labels */}
+                <div className="mt-6 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Show field labels by default
+                    </label>
+                    <input
+                      type="checkbox"
+                      checked={template.show_field_labels !== false}
+                      onChange={(e) =>
+                        updateTemplate({ show_field_labels: e.target.checked })
+                      }
+                    />
+                  </div>
+                  {template.fields.map((field) => (
+                    <div
+                      key={field}
+                      className="grid grid-cols-5 gap-2 items-center"
+                    >
+                      <div className="col-span-1 text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {field}
+                      </div>
+                      <input
+                        type="text"
+                        value={
+                          template.field_labels?.[field] || field.toUpperCase()
+                        }
+                        onChange={(e) =>
+                          updateTemplate({
+                            field_labels: {
+                              ...(template.field_labels || {}),
+                              [field]: e.target.value,
+                            },
+                          })
+                        }
+                        className="col-span-2 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
+                        placeholder={`${field} label`}
+                      />
+                      <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <input
+                          type="checkbox"
+                          checked={template.field_visibility?.[field] !== false}
+                          onChange={(e) =>
+                            updateTemplate({
+                              field_visibility: {
+                                ...(template.field_visibility || {}),
+                                [field]: e.target.checked,
+                              },
+                            })
+                          }
+                        />
+                        Show
+                      </label>
+                      <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <input
+                          type="checkbox"
+                          checked={
+                            (template.field_label_visibility?.[field] ??
+                              template.show_field_labels) !== false
+                          }
+                          onChange={(e) =>
+                            updateTemplate({
+                              field_label_visibility: {
+                                ...(template.field_label_visibility || {}),
+                                [field]: e.target.checked,
+                              },
+                            })
+                          }
+                        />
+                        Show label
+                      </label>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -544,8 +777,12 @@ export default function BadgeTemplateEditor({
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                   Preview
                 </h3>
-                <div className="flex justify-center">
-                  {renderPreview()}
+                <div className="space-y-4">
+                  <div className="flex justify-center">{renderPreview()}</div>
+                  {/* QR config section appears below preview as requested */}
+                  <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                    QR code will be placed at the bottom of the printed badge.
+                  </div>
                 </div>
               </div>
             </div>

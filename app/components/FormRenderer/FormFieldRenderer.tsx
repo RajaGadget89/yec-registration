@@ -9,11 +9,11 @@ interface FormFieldRendererProps {
   error?: string;
 }
 
-export default function FormFieldRenderer({ 
-  field, 
-  value, 
-  onChange, 
-  error 
+export default function FormFieldRenderer({
+  field,
+  value,
+  onChange,
+  error,
 }: FormFieldRendererProps) {
   const baseClasses = `w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
     error ? "border-red-300" : "border-gray-300"
@@ -79,7 +79,9 @@ export default function FormFieldRenderer({
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                   required={field.required}
                 />
-                <span className="ml-2 text-sm text-gray-900">{option.label}</span>
+                <span className="ml-2 text-sm text-gray-900">
+                  {option.label}
+                </span>
               </label>
             ))}
           </div>
@@ -94,18 +96,22 @@ export default function FormFieldRenderer({
                   type="checkbox"
                   name={field.id}
                   value={option.value}
-                  checked={Array.isArray(value) ? value.includes(option.value) : false}
+                  checked={
+                    Array.isArray(value) ? value.includes(option.value) : false
+                  }
                   onChange={(e) => {
                     const currentValues = Array.isArray(value) ? value : [];
                     if (e.target.checked) {
                       onChange([...currentValues, option.value]);
                     } else {
-                      onChange(currentValues.filter(v => v !== option.value));
+                      onChange(currentValues.filter((v) => v !== option.value));
                     }
                   }}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <span className="ml-2 text-sm text-gray-900">{option.label}</span>
+                <span className="ml-2 text-sm text-gray-900">
+                  {option.label}
+                </span>
               </label>
             ))}
           </div>
@@ -161,24 +167,27 @@ export default function FormFieldRenderer({
 
   return (
     <div className="space-y-2">
-      <label htmlFor={field.id} className="block text-sm font-medium text-gray-700">
+      <label
+        htmlFor={field.id}
+        className="block text-sm font-medium text-gray-700"
+      >
         {field.label}
         {field.required && <span className="text-red-500 ml-1">*</span>}
       </label>
-      
+
       {renderField()}
-      
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
-      
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
       {field.validation && (
         <div className="text-xs text-gray-500">
           {field.validation.min_length && (
             <span>Min: {field.validation.min_length} chars</span>
           )}
           {field.validation.max_length && (
-            <span className="ml-2">Max: {field.validation.max_length} chars</span>
+            <span className="ml-2">
+              Max: {field.validation.max_length} chars
+            </span>
           )}
           {field.validation.pattern && (
             <span className="ml-2">Pattern: {field.validation.pattern}</span>

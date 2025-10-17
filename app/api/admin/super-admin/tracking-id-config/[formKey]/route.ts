@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { audit } from "@/app/lib/audit";
+import { getSupabaseServerClient } from "../../../../../lib/supabase/server";
+import { audit } from "../../../../../lib/audit";
+import { hasRoleFromRequest } from "../../../../../lib/auth-utils.server";
 
 interface RouteParams {
   params: {
@@ -8,52 +9,36 @@ interface RouteParams {
   };
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { formKey } = params;
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has super admin role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.role !== "super_admin") {
+    const { formKey } = await params; // Next.js 15 dynamic params
+    // Authorize via central helper (supports DB + RBAC)
+    if (!(await hasRoleFromRequest(request, "super_admin"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user: _user },
+    } = await supabase.auth.getUser();
 
-    // Get tracking ID configuration from form_types table
-    const { data: formType, error: formError } = await supabase
-      .from("form_types")
-      .select("config")
+    // Prefer normalized table; fallback to JSON in form_types
+    const { data: trackingRow, error: _trackingErr } = await supabase
+      .from("form_tracking_configs")
+      .select(
+        "form_key, prefix, sequence_start, sequence_length, format, is_active",
+      )
       .eq("form_key", formKey)
-      .eq("is_active", true)
-      .single();
+      .maybeSingle();
 
-    if (formError || !formType) {
-      return NextResponse.json(
-        { error: "Form not found" },
-        { status: 404 }
-      );
-    }
-
-    const registrationIdConfig = formType.config?.registration_id_config;
+    const registrationIdConfig = trackingRow || null;
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: `/api/admin/super-admin/tracking-id-config/${formKey}`,
+      action: "get_tracking_id_config",
+      method: "GET",
+      resource: "form_tracking_id",
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: { form_key: formKey, has_config: !!registrationIdConfig },
     });
 
@@ -65,89 +50,86 @@ export async function GET(
     console.error("Error in tracking ID config API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    const { formKey } = params;
+    const { formKey } = await params; // Next.js 15 dynamic params
     const body = await request.json();
     const { config } = body;
 
     if (!config) {
       return NextResponse.json(
         { error: "Configuration is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has super admin role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.role !== "super_admin") {
+    // Authorize via central helper
+    if (!(await hasRoleFromRequest(request, "super_admin"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user: _user },
+    } = await supabase.auth.getUser();
 
-    // Validate form exists
-    const { data: formType, error: formError } = await supabase
-      .from("form_types")
-      .select("id, config")
+    // Mirror write: normalized table plus legacy JSON
+    const { data: existing } = await supabase
+      .from("form_tracking_configs")
+      .select("form_key")
       .eq("form_key", formKey)
-      .eq("is_active", true)
-      .single();
+      .maybeSingle();
 
-    if (formError || !formType) {
-      return NextResponse.json(
-        { error: "Form not found" },
-        { status: 404 }
-      );
+    const payload = {
+      form_key: formKey,
+      prefix: config.prefix,
+      sequence_start: config.sequence_start,
+      sequence_length: config.sequence_length,
+      format: config.format,
+      is_active: config.is_active,
+      updated_at: new Date().toISOString(),
+    } as any;
+
+    if (existing) {
+      const { error: updErr } = await supabase
+        .from("form_tracking_configs")
+        .update(payload)
+        .eq("form_key", formKey);
+      if (updErr) {
+        console.error("Error updating form_tracking_configs:", updErr);
+        return NextResponse.json(
+          { error: "Failed to update tracking ID configuration" },
+          { status: 500 },
+        );
+      }
+    } else {
+      const { error: insErr } = await supabase
+        .from("form_tracking_configs")
+        .insert({ ...payload, created_at: new Date().toISOString() });
+      if (insErr) {
+        console.error("Error inserting form_tracking_configs:", insErr);
+        return NextResponse.json(
+          { error: "Failed to update tracking ID configuration" },
+          { status: 500 },
+        );
+      }
     }
 
-    // Update the form's config with the new registration_id_config
-    const updatedConfig = {
-      ...formType.config,
-      registration_id_config: config,
-    };
+    // Finalized: do not write legacy JSON into form_types.config anymore
 
-    const { data, error } = await supabase
-      .from("form_types")
-      .update({
-        config: updatedConfig,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", formType.id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error updating tracking ID config:", error);
-      return NextResponse.json(
-        { error: "Failed to update tracking ID configuration" },
-        { status: 500 }
-      );
-    }
-
-    // Log event
+    // Log event (normalized payload)
     await audit.logEvent({
-      correlationId: crypto.randomUUID(),
-      eventType: "tracking_id_config_updated",
-      entityId: formType.id,
+      action: "update_tracking_id_config",
+      resource: "form_tracking_id",
+      resource_id: formKey,
+      actor_id: _user?.id || "super_admin",
+      actor_role: "admin",
+      result: "success",
+      correlation_id: crypto.randomUUID(),
       meta: {
         form_key: formKey,
         prefix: config.prefix,
@@ -155,19 +137,15 @@ export async function PUT(
         sequence_length: config.sequence_length,
         format: config.format,
         is_active: config.is_active,
-        actor: user.id,
       },
     });
 
-    return NextResponse.json({
-      success: true,
-      config: data.config.registration_id_config,
-    });
+    return NextResponse.json({ success: true, config });
   } catch (error) {
     console.error("Error in tracking ID config update API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

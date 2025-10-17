@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FormType, FormField, FormRegistration } from "../../types/form-system";
+import { useState, useEffect, useCallback } from "react";
+import { FormType, FormField } from "../../types/form-system";
 import FormFieldRenderer from "./FormFieldRenderer";
-import FormValidation from "./FormValidation";
-import FormSubmitHandler from "./FormSubmitHandler";
+import { FormValidation } from "./FormValidation";
+import { FormSubmitHandler } from "./FormSubmitHandler";
 
 interface DynamicFormRendererProps {
   formKey: string;
@@ -13,11 +13,11 @@ interface DynamicFormRendererProps {
   className?: string;
 }
 
-export default function DynamicFormRenderer({ 
-  formKey, 
-  onSubmit, 
+export default function DynamicFormRenderer({
+  formKey,
+  onSubmit,
   onError,
-  className = "" 
+  className = "",
 }: DynamicFormRendererProps) {
   const [formType, setFormType] = useState<FormType | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -25,12 +25,7 @@ export default function DynamicFormRenderer({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Load form configuration
-  useEffect(() => {
-    loadFormType();
-  }, [formKey]);
-
-  const loadFormType = async () => {
+  const loadFormType = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/cms/form-types/${formKey}`);
@@ -45,14 +40,19 @@ export default function DynamicFormRenderer({
     } finally {
       setLoading(false);
     }
-  };
+  }, [formKey, onError]);
+
+  // Load form configuration
+  useEffect(() => {
+    loadFormType();
+  }, [formKey, loadFormType]);
 
   const handleFieldChange = (fieldId: string, value: any) => {
-    setFormData(prev => ({ ...prev, [fieldId]: value }));
-    
+    setFormData((prev) => ({ ...prev, [fieldId]: value }));
+
     // Clear error when user starts typing
     if (errors[fieldId]) {
-      setErrors(prev => ({ ...prev, [fieldId]: "" }));
+      setErrors((prev) => ({ ...prev, [fieldId]: "" }));
     }
   };
 
@@ -60,21 +60,21 @@ export default function DynamicFormRenderer({
     if (!formType) return false;
 
     const newErrors: Record<string, string> = {};
-    
-    formType.config.fields.forEach(field => {
+
+    formType.config.fields.forEach((field) => {
       const error = FormValidation.validateField(field, formData[field.id]);
       if (error) {
         newErrors[field.id] = error;
       }
     });
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formType) return;
 
     if (!validateForm()) {
@@ -83,7 +83,7 @@ export default function DynamicFormRenderer({
 
     try {
       setSubmitting(true);
-      
+
       // Calculate pricing if needed
       let pricingData = null;
       if (formType.config.pricing_config) {
@@ -92,10 +92,10 @@ export default function DynamicFormRenderer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             form_key: formKey,
-            data: formData
-          })
+            data: formData,
+          }),
         });
-        
+
         if (pricingResponse.ok) {
           pricingData = await pricingResponse.json();
         }
@@ -106,13 +106,15 @@ export default function DynamicFormRenderer({
       const result = await submitHandler.submitForm({
         formKey,
         formData,
-        pricingData
+        pricingData,
       });
 
       onSubmit?.(result);
     } catch (error) {
       console.error("Form submission error:", error);
-      onError?.(error instanceof Error ? error.message : "Failed to submit form");
+      onError?.(
+        error instanceof Error ? error.message : "Failed to submit form",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -120,7 +122,7 @@ export default function DynamicFormRenderer({
 
   const shouldShowField = (field: FormField): boolean => {
     if (!field.depends_on) return true;
-    
+
     const dependentValue = formData[field.depends_on.field];
     return dependentValue === field.depends_on.value;
   };

@@ -1,194 +1,35 @@
-"use client";
+import { Metadata } from "next";
+import { getCurrentUser } from "../../../lib/auth-utils.server";
+import { redirect } from "next/navigation";
+import AdminHeader from "../../_components/AdminHeader";
+import PricingManagement from "./_components/PricingManagement";
 
-import { useState, useEffect } from "react";
-import { FormType } from "@/app/types/form-system";
-import PricingConfigEditor from "./_components/PricingConfigEditor";
+export const metadata: Metadata = {
+  title: "Form Pricing Management - YEC Registration Admin",
+  description: "Configure pricing settings for registration forms",
+};
 
-interface FormPricingStatus {
-  form_key: string;
-  form_name: string;
-  has_pricing: boolean;
-  pricing_type?: string;
-  last_updated?: string;
-}
+export default async function FormPricingManagementPage() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/admin/login");
+  }
 
-export default function FormPricingManagementPage() {
-  const [forms, setForms] = useState<FormType[]>([]);
-  const [pricingStatus, setPricingStatus] = useState<FormPricingStatus[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedForm, setSelectedForm] = useState<FormType | null>(null);
-  const [showEditor, setShowEditor] = useState(false);
-
-  useEffect(() => {
-    loadForms();
-    loadPricingStatus();
-  }, []);
-
-  const loadForms = async () => {
-    try {
-      const response = await fetch("/api/admin/cms/form-types");
-      if (response.ok) {
-        const data = await response.json();
-        setForms(data.formTypes || []);
-      }
-    } catch (error) {
-      console.error("Failed to load forms:", error);
-    }
-  };
-
-  const loadPricingStatus = async () => {
-    try {
-      const response = await fetch("/api/admin/super-admin/form-pricing/status");
-      if (response.ok) {
-        const data = await response.json();
-        setPricingStatus(data.pricingStatus || []);
-      }
-    } catch (error) {
-      console.error("Failed to load pricing status:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditPricing = (form: FormType) => {
-    setSelectedForm(form);
-    setShowEditor(true);
-  };
-
-  const handleCloseEditor = () => {
-    setSelectedForm(null);
-    setShowEditor(false);
-    loadPricingStatus(); // Refresh status after changes
-  };
-
-  const getPricingStatus = (formKey: string) => {
-    return pricingStatus.find(status => status.form_key === formKey);
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/4 mb-6"></div>
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  // Check if user has super admin role
+  if (user.role !== "super_admin") {
+    redirect("/admin");
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Form Pricing Management
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Configure pricing settings for each registration form
-          </p>
-        </div>
+    <div className="space-y-6">
+      <AdminHeader
+        compact
+        backHref="/admin/super-admin"
+        title="Form Pricing Management"
+        subtitle="Configure pricing settings for each registration form"
+      />
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Forms & Pricing Status
-            </h2>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Form
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Pricing Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Last Updated
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {forms.map((form) => {
-                  const status = getPricingStatus(form.form_key);
-                  return (
-                    <tr key={form.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {form.name}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {form.form_key}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            status?.has_pricing
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                          }`}
-                        >
-                          {status?.has_pricing ? "Configured" : "Not Configured"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {status?.pricing_type || "—"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {status?.last_updated
-                          ? new Date(status.last_updated).toLocaleDateString()
-                          : "—"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleEditPricing(form)}
-                          className="text-yec-primary hover:text-yec-accent transition-colors"
-                        >
-                          {status?.has_pricing ? "Edit Pricing" : "Configure Pricing"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {forms.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-gray-500 dark:text-gray-400">
-                No forms found. Create a form first in the Form Builder.
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Pricing Config Editor Modal */}
-        {showEditor && selectedForm && (
-          <PricingConfigEditor
-            form={selectedForm}
-            onClose={handleCloseEditor}
-            onSave={handleCloseEditor}
-          />
-        )}
-      </div>
+      <PricingManagement />
     </div>
   );
 }

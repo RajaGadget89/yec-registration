@@ -196,7 +196,7 @@ export async function PATCH(
     );
 
     const results = await Promise.all(updates);
-    const errors = results.filter((result) => result.error);
+    const errors = results.filter((result: any) => result.error);
 
     if (errors.length > 0) {
       console.error("Error reordering FAQ items:", errors);

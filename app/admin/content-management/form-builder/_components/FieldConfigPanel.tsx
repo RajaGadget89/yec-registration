@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X, Save } from "lucide-react";
 import { FormField, FormFieldType } from "../../../../types/form-system";
 
@@ -10,7 +10,11 @@ interface FieldConfigPanelProps {
   onCancel: () => void;
 }
 
-export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfigPanelProps) {
+export default function FieldConfigPanel({
+  field,
+  onSave,
+  onCancel,
+}: FieldConfigPanelProps) {
   const [editedField, setEditedField] = useState<FormField>({ ...field });
 
   const fieldTypes: { value: FormFieldType; label: string }[] = [
@@ -23,18 +27,25 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
     { value: "checkbox", label: "Checkbox" },
     { value: "radio", label: "Radio Button" },
     { value: "date", label: "Date" },
-    { value: "number", label: "Number" }
+    { value: "number", label: "Number" },
   ];
 
   const handleSave = () => {
     onSave(editedField);
   };
 
-  const handleOptionChange = (index: number, key: 'value' | 'label', value: string) => {
+  const handleOptionChange = (
+    index: number,
+    key: "value" | "label",
+    value: string,
+  ) => {
     if (!editedField.options) {
       editedField.options = [];
     }
-    editedField.options[index] = { ...editedField.options[index], [key]: value };
+    editedField.options[index] = {
+      ...editedField.options[index],
+      [key]: value,
+    };
     setEditedField({ ...editedField });
   };
 
@@ -76,7 +87,9 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
               <input
                 type="text"
                 value={editedField.label}
-                onChange={(e) => setEditedField(prev => ({ ...prev, label: e.target.value }))}
+                onChange={(e) =>
+                  setEditedField((prev) => ({ ...prev, label: e.target.value }))
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Enter field label"
               />
@@ -87,10 +100,15 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
               </label>
               <select
                 value={editedField.type}
-                onChange={(e) => setEditedField(prev => ({ ...prev, type: e.target.value as FormFieldType }))}
+                onChange={(e) =>
+                  setEditedField((prev) => ({
+                    ...prev,
+                    type: e.target.value as FormFieldType,
+                  }))
+                }
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {fieldTypes.map(type => (
+                {fieldTypes.map((type) => (
                   <option key={type.value} value={type.value}>
                     {type.label}
                   </option>
@@ -106,7 +124,12 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
             <input
               type="text"
               value={editedField.placeholder || ""}
-              onChange={(e) => setEditedField(prev => ({ ...prev, placeholder: e.target.value }))}
+              onChange={(e) =>
+                setEditedField((prev) => ({
+                  ...prev,
+                  placeholder: e.target.value,
+                }))
+              }
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter placeholder text"
             />
@@ -118,16 +141,26 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
               type="checkbox"
               id="required"
               checked={editedField.required}
-              onChange={(e) => setEditedField(prev => ({ ...prev, required: e.target.checked }))}
+              onChange={(e) =>
+                setEditedField((prev) => ({
+                  ...prev,
+                  required: e.target.checked,
+                }))
+              }
               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             />
-            <label htmlFor="required" className="ml-2 block text-sm text-gray-900">
+            <label
+              htmlFor="required"
+              className="ml-2 block text-sm text-gray-900"
+            >
               Required field
             </label>
           </div>
 
           {/* Options for select, radio, checkbox */}
-          {(editedField.type === "select" || editedField.type === "radio" || editedField.type === "checkbox") && (
+          {(editedField.type === "select" ||
+            editedField.type === "radio" ||
+            editedField.type === "checkbox") && (
             <div>
               <div className="flex items-center justify-between mb-3">
                 <label className="block text-sm font-medium text-gray-700">
@@ -140,7 +173,7 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
                   Add Option
                 </button>
               </div>
-              
+
               {editedField.options && editedField.options.length > 0 ? (
                 <div className="space-y-2">
                   {editedField.options.map((option, index) => (
@@ -148,14 +181,18 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
                       <input
                         type="text"
                         value={option.value}
-                        onChange={(e) => handleOptionChange(index, 'value', e.target.value)}
+                        onChange={(e) =>
+                          handleOptionChange(index, "value", e.target.value)
+                        }
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Option value"
                       />
                       <input
                         type="text"
                         value={option.label}
-                        onChange={(e) => handleOptionChange(index, 'label', e.target.value)}
+                        onChange={(e) =>
+                          handleOptionChange(index, "label", e.target.value)
+                        }
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Option label"
                       />
@@ -169,7 +206,10 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm">No options added yet. Click "Add Option" to get started.</p>
+                <p className="text-gray-500 text-sm">
+                  No options added yet. Click &quot;Add Option&quot; to get
+                  started.
+                </p>
               )}
             </div>
           )}
@@ -179,56 +219,73 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Validation Rules
             </label>
-            
+
             <div className="space-y-3">
-              {editedField.type === "text" || editedField.type === "textarea" ? (
+              {editedField.type === "text" ||
+              editedField.type === "textarea" ? (
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Min Length</label>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        Min Length
+                      </label>
                       <input
                         type="number"
                         value={editedField.validation?.min_length || ""}
-                        onChange={(e) => setEditedField(prev => ({
-                          ...prev,
-                          validation: {
-                            ...prev.validation,
-                            min_length: e.target.value ? parseInt(e.target.value) : undefined
-                          }
-                        }))}
+                        onChange={(e) =>
+                          setEditedField((prev) => ({
+                            ...prev,
+                            validation: {
+                              ...prev.validation,
+                              min_length: e.target.value
+                                ? parseInt(e.target.value)
+                                : undefined,
+                            },
+                          }))
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Minimum length"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-600 mb-1">Max Length</label>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        Max Length
+                      </label>
                       <input
                         type="number"
                         value={editedField.validation?.max_length || ""}
-                        onChange={(e) => setEditedField(prev => ({
-                          ...prev,
-                          validation: {
-                            ...prev.validation,
-                            max_length: e.target.value ? parseInt(e.target.value) : undefined
-                          }
-                        }))}
+                        onChange={(e) =>
+                          setEditedField((prev) => ({
+                            ...prev,
+                            validation: {
+                              ...prev.validation,
+                              max_length: e.target.value
+                                ? parseInt(e.target.value)
+                                : undefined,
+                            },
+                          }))
+                        }
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Maximum length"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Pattern (Regex)</label>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Pattern (Regex)
+                    </label>
                     <input
                       type="text"
                       value={editedField.validation?.pattern || ""}
-                      onChange={(e) => setEditedField(prev => ({
-                        ...prev,
-                        validation: {
-                          ...prev.validation,
-                          pattern: e.target.value
-                        }
-                      }))}
+                      onChange={(e) =>
+                        setEditedField((prev) => ({
+                          ...prev,
+                          validation: {
+                            ...prev.validation,
+                            pattern: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Regular expression pattern"
                     />
@@ -237,33 +294,48 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
               ) : editedField.type === "file" ? (
                 <>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Allowed File Types</label>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Allowed File Types
+                    </label>
                     <input
                       type="text"
-                      value={editedField.validation?.file_types?.join(", ") || ""}
-                      onChange={(e) => setEditedField(prev => ({
-                        ...prev,
-                        validation: {
-                          ...prev.validation,
-                          file_types: e.target.value.split(",").map(s => s.trim()).filter(s => s)
-                        }
-                      }))}
+                      value={
+                        editedField.validation?.file_types?.join(", ") || ""
+                      }
+                      onChange={(e) =>
+                        setEditedField((prev) => ({
+                          ...prev,
+                          validation: {
+                            ...prev.validation,
+                            file_types: e.target.value
+                              .split(",")
+                              .map((s) => s.trim())
+                              .filter((s) => s),
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="jpg, png, pdf (comma separated)"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Max File Size (MB)</label>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Max File Size (MB)
+                    </label>
                     <input
                       type="number"
                       value={editedField.validation?.max_file_size || ""}
-                      onChange={(e) => setEditedField(prev => ({
-                        ...prev,
-                        validation: {
-                          ...prev.validation,
-                          max_file_size: e.target.value ? parseInt(e.target.value) : undefined
-                        }
-                      }))}
+                      onChange={(e) =>
+                        setEditedField((prev) => ({
+                          ...prev,
+                          validation: {
+                            ...prev.validation,
+                            max_file_size: e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Maximum file size in MB"
                     />
@@ -278,7 +350,7 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Conditional Logic
             </label>
-            
+
             <div className="space-y-3">
               <div className="flex items-center">
                 <input
@@ -287,20 +359,23 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
                   checked={!!editedField.depends_on}
                   onChange={(e) => {
                     if (e.target.checked) {
-                      setEditedField(prev => ({
+                      setEditedField((prev) => ({
                         ...prev,
-                        depends_on: { field: "", value: "" }
+                        depends_on: { field: "", value: "" },
                       }));
                     } else {
-                      setEditedField(prev => ({
+                      setEditedField((prev) => ({
                         ...prev,
-                        depends_on: undefined
+                        depends_on: undefined,
                       }));
                     }
                   }}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label htmlFor="hasCondition" className="ml-2 block text-sm text-gray-900">
+                <label
+                  htmlFor="hasCondition"
+                  className="ml-2 block text-sm text-gray-900"
+                >
                   Show this field conditionally
                 </label>
               </div>
@@ -308,33 +383,41 @@ export default function FieldConfigPanel({ field, onSave, onCancel }: FieldConfi
               {editedField.depends_on && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Depends on field</label>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Depends on field
+                    </label>
                     <input
                       type="text"
                       value={editedField.depends_on.field}
-                      onChange={(e) => setEditedField(prev => ({
-                        ...prev,
-                        depends_on: {
-                          ...prev.depends_on!,
-                          field: e.target.value
-                        }
-                      }))}
+                      onChange={(e) =>
+                        setEditedField((prev) => ({
+                          ...prev,
+                          depends_on: {
+                            ...prev.depends_on!,
+                            field: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Field ID"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">When value equals</label>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      When value equals
+                    </label>
                     <input
                       type="text"
                       value={editedField.depends_on.value}
-                      onChange={(e) => setEditedField(prev => ({
-                        ...prev,
-                        depends_on: {
-                          ...prev.depends_on!,
-                          value: e.target.value
-                        }
-                      }))}
+                      onChange={(e) =>
+                        setEditedField((prev) => ({
+                          ...prev,
+                          depends_on: {
+                            ...prev.depends_on!,
+                            value: e.target.value,
+                          },
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Value to match"
                     />

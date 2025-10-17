@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { audit } from "@/app/lib/audit";
+import { getSupabaseServerClient } from "../../../../../lib/supabase/server";
+import { audit } from "../../../../../lib/audit";
+import { hasRoleFromRequest } from "../../../../../lib/auth-utils.server";
 
 interface RouteParams {
   params: {
@@ -8,29 +9,15 @@ interface RouteParams {
   };
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { formKey } = params;
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has super admin role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.role !== "super_admin") {
+    const { formKey } = await params;
+    // Authorize as super admin using central auth utility
+    const isSuperAdmin = await hasRoleFromRequest(request, "super_admin");
+    if (!isSuperAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const supabase = await getSupabaseServerClient();
 
     // Get pricing configuration for the form
     const { data: pricingConfig, error: pricingError } = await supabase
@@ -44,15 +31,17 @@ export async function GET(
       console.error("Error fetching pricing config:", pricingError);
       return NextResponse.json(
         { error: "Failed to fetch pricing configuration" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: `/api/admin/super-admin/form-pricing/${formKey}`,
+      action: "get_pricing_config",
+      method: "GET",
+      resource: "form_pricing",
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: { form_key: formKey, has_config: !!pricingConfig },
     });
 
@@ -64,44 +53,30 @@ export async function GET(
     console.error("Error in form pricing config API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    const { formKey } = params;
+    const { formKey } = await params;
     const body = await request.json();
     const { config } = body;
 
     if (!config) {
       return NextResponse.json(
         { error: "Configuration is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    // Check if user has super admin role
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile?.role !== "super_admin") {
+    // Authorize as super admin using central auth utility
+    const isSuperAdmin = await hasRoleFromRequest(request, "super_admin");
+    if (!isSuperAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const supabase = await getSupabaseServerClient();
 
     // Validate form exists
     const { data: formType, error: formError } = await supabase
@@ -112,10 +87,7 @@ export async function PUT(
       .single();
 
     if (formError || !formType) {
-      return NextResponse.json(
-        { error: "Form not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Form not found" }, { status: 404 });
     }
 
     // Check if pricing config already exists
@@ -130,7 +102,7 @@ export async function PUT(
       console.error("Error checking existing config:", existingError);
       return NextResponse.json(
         { error: "Failed to check existing configuration" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -151,7 +123,7 @@ export async function PUT(
         console.error("Error updating pricing config:", error);
         return NextResponse.json(
           { error: "Failed to update pricing configuration" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -173,7 +145,7 @@ export async function PUT(
         console.error("Error creating pricing config:", error);
         return NextResponse.json(
           { error: "Failed to create pricing configuration" },
-          { status: 500 }
+          { status: 500 },
         );
       }
 
@@ -182,13 +154,16 @@ export async function PUT(
 
     // Log event
     await audit.logEvent({
-      correlationId: crypto.randomUUID(),
-      eventType: "pricing_config_updated",
-      entityId: result.id,
+      action: "update_pricing_config",
+      resource: "form_pricing",
+      resource_id: result.id,
+      actor_id: "super_admin",
+      actor_role: "admin",
+      result: "success",
+      correlation_id: crypto.randomUUID(),
       meta: {
         form_key: formKey,
         pricing_type: config.pricing_type,
-        actor: user.id,
       },
     });
 
@@ -200,7 +175,7 @@ export async function PUT(
     console.error("Error in form pricing config update API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

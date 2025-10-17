@@ -10,6 +10,10 @@ export default function TopMenuBar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isLandingPage, setIsLandingPage] = useState(false);
   const router = useRouter();
+  const [branding, setBranding] = useState<{
+    logo_desktop_url?: string;
+    logo_mobile_url?: string;
+  } | null>(null);
 
   useEffect(() => {
     // Check if we're on the landing page (root path)
@@ -28,6 +32,23 @@ export default function TopMenuBar() {
       return () => window.removeEventListener("scroll", handleScroll);
     }
     return undefined;
+  }, []);
+
+  useEffect(() => {
+    // Load branding logos for header
+    const loadBranding = async () => {
+      try {
+        // Add a cache-busting query to ensure latest branding after admin updates
+        const res = await fetch(`/api/cms/branding?ts=${Date.now()}`, {
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBranding(data.branding || null);
+        }
+      } catch (_) {}
+    };
+    loadBranding();
   }, []);
 
   // Handle Home navigation with fresh refresh
@@ -80,7 +101,7 @@ export default function TopMenuBar() {
             <div className="hidden md:block">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/assets/logo-full.png"
+                src={branding?.logo_desktop_url || "/assets/logo-full.png"}
                 alt="YEC Day Logo"
                 style={{ height: "92px", width: "auto" }}
               />
@@ -89,7 +110,9 @@ export default function TopMenuBar() {
             <div className="md:hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/assets/logo-shield-only.png"
+                src={
+                  branding?.logo_mobile_url || "/assets/logo-shield-only.png"
+                }
                 alt="YEC Day Logo"
                 style={{ height: "92px", width: "auto" }}
               />

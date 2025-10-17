@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { audit } from "@/app/lib/audit";
-import { formBadgeService } from "@/app/lib/form-system/formBadgeService";
+import { getSupabaseServerClient } from "../../../../../../../lib/supabase/server";
+import { audit } from "../../../../../../../lib/audit";
+import { formBadgeService } from "../../../../../../../lib/form-system/formBadgeService";
 
 interface RouteParams {
   params: {
@@ -10,15 +10,15 @@ interface RouteParams {
   };
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { formKey, id } = params;
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,7 +46,7 @@ export async function POST(
     if (regError || !registration) {
       return NextResponse.json(
         { error: "Registration not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -54,7 +54,7 @@ export async function POST(
     if (registration.badge_path) {
       return NextResponse.json(
         { error: "Badge already exists for this registration" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -62,21 +62,23 @@ export async function POST(
     const result = await formBadgeService.generateBadge(
       formKey,
       id,
-      registration
+      registration,
     );
 
     if (!result.success) {
       return NextResponse.json(
         { error: result.error || "Failed to generate badge" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: `/api/admin/review/form/${formKey}/${id}/generate-badge`,
+      action: "POST",
+      method: "POST",
+      resource: `form-${formKey}-generate-badge`,
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: {
         form_key: formKey,
         registration_id: id,
@@ -95,7 +97,7 @@ export async function POST(
     console.error("Error generating badge:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

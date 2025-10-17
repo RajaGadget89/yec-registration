@@ -9,7 +9,7 @@ import { formTypeService } from "../../../../../lib/form-system/formTypeService"
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     // Check authentication and permissions
@@ -27,7 +27,7 @@ export async function GET(
     if (!formType) {
       return NextResponse.json(
         { error: "Form type not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -36,7 +36,7 @@ export async function GET(
     console.error("Form type GET error:", error);
     return NextResponse.json(
       { error: "Failed to fetch form type" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -47,7 +47,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     // Check authentication and permissions
@@ -67,7 +67,7 @@ export async function PUT(
     if (!existing) {
       return NextResponse.json(
         { error: "Form type not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -77,7 +77,7 @@ export async function PUT(
       if (!validation.valid) {
         return NextResponse.json(
           { error: "Invalid form configuration", details: validation.errors },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -88,7 +88,7 @@ export async function PUT(
       if (keyExists) {
         return NextResponse.json(
           { error: "Form key already exists" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -100,7 +100,7 @@ export async function PUT(
     console.error("Form type update error:", error);
     return NextResponse.json(
       { error: "Failed to update form type" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -111,7 +111,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     // Check authentication and permissions
@@ -130,7 +130,7 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json(
         { error: "Form type not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -141,7 +141,7 @@ export async function DELETE(
     console.error("Form type deletion error:", error);
     return NextResponse.json(
       { error: "Failed to delete form type" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

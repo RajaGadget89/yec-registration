@@ -62,3 +62,5 @@ export const getSupabaseServiceClient = (): SupabaseClient<Database> => {
   }
   return supabaseServiceClient;
 };
+
+export const getSupabaseServerClient = getSupabaseServiceClient;

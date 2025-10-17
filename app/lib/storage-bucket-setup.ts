@@ -70,6 +70,9 @@ export const REQUIRED_BUCKETS: StorageBucketConfig[] = [
       "image/webp",
       "image/svg+xml",
       "image/gif",
+      // Favicons
+      "image/x-icon",
+      "image/vnd.microsoft.icon",
       "video/mp4",
       "video/webm",
       "video/quicktime",

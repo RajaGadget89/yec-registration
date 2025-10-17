@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Search, Filter, X } from "lucide-react";
 
@@ -27,10 +27,10 @@ export default function UnifiedFilters({
   const router = useRouter();
 
   const [formFilter, setFormFilter] = useState(
-    searchParams.get("form_filter") || "all"
+    searchParams.get("form_filter") || "all",
   );
   const [statusFilter, setStatusFilter] = useState(
-    searchParams.get("status_filter") || "all"
+    searchParams.get("status_filter") || "all",
   );
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -43,12 +43,14 @@ export default function UnifiedFilters({
     { value: "rejected", label: "Rejected" },
   ];
 
-  const updateFilters = (newFilters: Partial<{
-    form_filter: string;
-    status_filter: string;
-    search: string;
-    page: number;
-  }>) => {
+  const updateFilters = (
+    newFilters: Partial<{
+      form_filter: string;
+      status_filter: string;
+      search: string;
+      page: number;
+    }>,
+  ) => {
     const updatedFilters = {
       form_filter: newFilters.form_filter ?? formFilter,
       status_filter: newFilters.status_filter ?? statusFilter,
@@ -58,7 +60,7 @@ export default function UnifiedFilters({
 
     // Update URL params
     const params = new URLSearchParams(searchParams.toString());
-    
+
     if (updatedFilters.form_filter !== "all") {
       params.set("form_filter", updatedFilters.form_filter);
     } else {
@@ -118,7 +120,8 @@ export default function UnifiedFilters({
     });
   };
 
-  const hasActiveFilters = formFilter !== "all" || statusFilter !== "all" || search;
+  const hasActiveFilters =
+    formFilter !== "all" || statusFilter !== "all" || search;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">

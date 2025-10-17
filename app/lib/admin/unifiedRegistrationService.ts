@@ -1,4 +1,4 @@
-import { createClient } from "@/app/lib/supabase/server";
+import { getSupabaseServerClient } from "../supabase/server";
 
 export interface UnifiedRegistration {
   id: string;
@@ -48,7 +48,7 @@ export class UnifiedRegistrationService {
 
   private async getSupabase() {
     if (!this.supabase) {
-      this.supabase = await createClient();
+      this.supabase = await getSupabaseServerClient();
     }
     return this.supabase;
   }
@@ -56,10 +56,12 @@ export class UnifiedRegistrationService {
   /**
    * Get unified registrations with filtering and pagination
    */
-  async getRegistrations(filters: RegistrationFilters = {}): Promise<UnifiedResponse> {
+  async getRegistrations(
+    filters: RegistrationFilters = {},
+  ): Promise<UnifiedResponse> {
     try {
       const supabase = await this.getSupabase();
-      
+
       const {
         form_filter = "all",
         status_filter = "all",
@@ -71,9 +73,7 @@ export class UnifiedRegistrationService {
       const offset = (page - 1) * limit;
 
       // Build the unified query using the view
-      let query = supabase
-        .from("admin_registrations_unified")
-        .select("*");
+      let query = supabase.from("admin_registrations_unified").select("*");
 
       // Apply filters
       if (form_filter !== "all") {
@@ -89,7 +89,9 @@ export class UnifiedRegistrationService {
       }
 
       if (search) {
-        query = query.or(`tracking_id.ilike.%${search}%,name.ilike.%${search}%,email.ilike.%${search}%`);
+        query = query.or(
+          `tracking_id.ilike.%${search}%,name.ilike.%${search}%,email.ilike.%${search}%`,
+        );
       }
 
       // Add ordering and pagination
@@ -123,7 +125,9 @@ export class UnifiedRegistrationService {
       }
 
       if (search) {
-        countQuery = countQuery.or(`tracking_id.ilike.%${search}%,name.ilike.%${search}%,email.ilike.%${search}%`);
+        countQuery = countQuery.or(
+          `tracking_id.ilike.%${search}%,name.ilike.%${search}%,email.ilike.%${search}%`,
+        );
       }
 
       const { count, error: countError } = await countQuery;
@@ -167,10 +171,13 @@ export class UnifiedRegistrationService {
   /**
    * Get a single registration by ID and form type
    */
-  async getRegistrationById(id: string, formType: string): Promise<UnifiedRegistration | null> {
+  async getRegistrationById(
+    id: string,
+    formType: string,
+  ): Promise<UnifiedRegistration | null> {
     try {
       const supabase = await this.getSupabase();
-      
+
       const { data, error } = await supabase
         .from("admin_registrations_unified")
         .select("*")
@@ -272,7 +279,7 @@ export class UnifiedRegistrationService {
     id: string,
     formType: string,
     status: string,
-    dimensionStatus?: any
+    dimensionStatus?: any,
   ): Promise<boolean> {
     try {
       const supabase = await this.getSupabase();
@@ -319,7 +326,10 @@ export class UnifiedRegistrationService {
   /**
    * Get registration details for review
    */
-  async getRegistrationForReview(id: string, formType: string): Promise<{
+  async getRegistrationForReview(
+    id: string,
+    formType: string,
+  ): Promise<{
     registration: UnifiedRegistration;
     form_config?: any;
     approval_workflow?: string;

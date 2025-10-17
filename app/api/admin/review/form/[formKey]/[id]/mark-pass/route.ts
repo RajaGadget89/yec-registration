@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/app/lib/supabase/server";
-import { audit } from "@/app/lib/audit";
-import { formApprovalService } from "@/app/lib/form-system/formApprovalService";
+import { getSupabaseServerClient } from "../../../../../../../lib/supabase/server";
+import { audit } from "../../../../../../../lib/audit";
+import { formApprovalService } from "../../../../../../../lib/form-system/formApprovalService";
 
 interface RouteParams {
   params: {
@@ -10,10 +10,7 @@ interface RouteParams {
   };
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: RouteParams
-) {
+export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { formKey, id } = params;
     const body = await request.json();
@@ -22,12 +19,15 @@ export async function POST(
     if (!dimension || !dimension.trim()) {
       return NextResponse.json(
         { error: "Dimension is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = await getSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -55,15 +55,18 @@ export async function POST(
     if (regError || !registration) {
       return NextResponse.json(
         { error: "Registration not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     // Check if already processed
-    if (registration.status === "approved" || registration.status === "rejected") {
+    if (
+      registration.status === "approved" ||
+      registration.status === "rejected"
+    ) {
       return NextResponse.json(
         { error: `Registration is already ${registration.status}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -72,21 +75,20 @@ export async function POST(
       formKey,
       id,
       dimension,
-      user.id
+      user.id,
     );
 
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: result.message }, { status: 400 });
     }
 
     // Log access
     await audit.logAccess({
-      requestId: crypto.randomUUID(),
-      actor: user.id,
-      route: `/api/admin/review/form/${formKey}/${id}/mark-pass`,
+      action: "POST",
+      method: "POST",
+      resource: `form-${formKey}-mark-pass`,
+      result: "success",
+      request_id: crypto.randomUUID(),
       meta: {
         form_key: formKey,
         registration_id: id,
@@ -102,7 +104,7 @@ export async function POST(
     console.error("Error in form dimension pass API:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
