@@ -8,6 +8,10 @@ import { withContentManagementGuard } from "../../../../../../../lib/cms-api-gua
 import { getCurrentUserFromRequest } from "../../../../../../../lib/auth-utils.server";
 import { maybeServiceClient } from "../../../../../../../lib/supabase/server";
 import { UpdateFAQItemSchema } from "../../../../../../../lib/validations/faq";
+import {
+  generateAndStoreFAQEmbeddings,
+  removeEmbeddings,
+} from "../../../../../../../lib/cms-embedding-helper";
 import { z } from "zod";
 
 /**
@@ -107,6 +111,17 @@ export async function PATCH(
       );
     }
 
+    // Generate embeddings for the updated FAQ item
+    try {
+      await generateAndStoreFAQEmbeddings(supabase, itemId, {
+        question: updatedItem.question,
+        answer: updatedItem.answer,
+      });
+    } catch (error) {
+      console.error("Failed to update embeddings for FAQ item:", error);
+      // Don't fail the operation
+    }
+
     return NextResponse.json(updatedItem);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -153,6 +168,14 @@ export async function DELETE(
         { error: "FAQ item not found" },
         { status: 404 },
       );
+    }
+
+    // Remove embeddings before deleting the FAQ item
+    try {
+      await removeEmbeddings(supabase, itemId);
+    } catch (error) {
+      console.error("Failed to remove embeddings for FAQ item:", error);
+      // Don't fail the operation
     }
 
     // Delete item

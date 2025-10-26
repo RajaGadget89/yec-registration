@@ -79,6 +79,7 @@ export default function NewsDetail({ article }: NewsDetailProps) {
                 alt={article.headline}
                 width={800}
                 height={400}
+                priority
                 className="w-full h-auto max-w-full object-contain"
               />
             </div>
@@ -147,10 +148,11 @@ export default function NewsDetail({ article }: NewsDetailProps) {
 
         {/* Article Content */}
         <div className="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 sm:p-8">
-          <div className="prose prose-lg max-w-none dark:prose-invert">
-            <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 leading-relaxed">
-              {article.content}
-            </div>
+          <div className="prose prose-lg max-w-none dark:prose-invert prose-headings:text-gray-900 dark:prose-headings:text-white prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-a:text-yec-primary hover:prose-a:text-yec-accent prose-strong:text-gray-900 dark:prose-strong:text-white">
+            <div
+              className="text-gray-700 dark:text-gray-300 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: article.content }}
+            />
           </div>
         </div>
 

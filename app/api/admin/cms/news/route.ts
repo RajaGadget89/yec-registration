@@ -7,13 +7,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { withNewsManagementGuard } from "../../../../lib/cms-api-guard";
 import { getCurrentUserFromRequest } from "../../../../lib/auth-utils.server";
 import { maybeServiceClient } from "../../../../lib/supabase/server";
+import { generateAndStoreEmbeddings } from "../../../../lib/cms-embedding-helper";
 import { z } from "zod";
 
 // Validation schemas
 const CreateNewsSchema = z.object({
   headline: z.string().min(1).max(200),
   content: z.string().min(1),
-  image_url: z.string().url().optional(),
+  image_url: z.string().url().or(z.literal("")).optional(),
   external_links: z
     .array(
       z.object({
@@ -159,6 +160,23 @@ export async function POST(request: NextRequest) {
         { error: "Failed to create news article" },
         { status: 500 },
       );
+    }
+
+    // Generate embeddings for the new news article
+    try {
+      await generateAndStoreEmbeddings(
+        supabase,
+        "news",
+        newNews.id,
+        {
+          headline: newNews.headline,
+          content: newNews.content,
+        },
+        newNews.language,
+      );
+    } catch (error) {
+      console.error("Failed to generate embeddings for news:", error);
+      // Don't fail the operation
     }
 
     return NextResponse.json(newNews, { status: 201 });

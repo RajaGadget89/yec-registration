@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withContentManagementGuard } from "../../../../../../lib/cms-api-guard";
 import { maybeServiceClient } from "../../../../../../lib/supabase/server";
+import { generateAndStoreEmbeddings } from "../../../../../../lib/cms-embedding-helper";
 import { z } from "zod";
 
 const CreateSectionSchema = z.object({
@@ -64,6 +65,36 @@ export async function POST(
       .single();
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Regenerate embeddings for the page since sections changed
+    try {
+      const { data: pageWithSections } = await supabase
+        .from("cms_pages")
+        .select("*, cms_page_sections(*)")
+        .eq("id", id)
+        .single();
+
+      if (pageWithSections) {
+        await generateAndStoreEmbeddings(
+          supabase,
+          "pages",
+          id,
+          {
+            title: pageWithSections.title,
+            meta_description: pageWithSections.meta_description,
+            sections: pageWithSections.cms_page_sections || [],
+          },
+          pageWithSections.language,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Failed to update embeddings for page after section change:",
+        error,
+      );
+      // Don't fail the operation
+    }
+
     return NextResponse.json({ section: data });
   } catch (e) {
     if (e instanceof z.ZodError) {
@@ -102,6 +133,36 @@ export async function PUT(
 
     if (error)
       return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Regenerate embeddings for the page since sections changed
+    try {
+      const { data: pageWithSections } = await supabase
+        .from("cms_pages")
+        .select("*, cms_page_sections(*)")
+        .eq("id", id)
+        .single();
+
+      if (pageWithSections) {
+        await generateAndStoreEmbeddings(
+          supabase,
+          "pages",
+          id,
+          {
+            title: pageWithSections.title,
+            meta_description: pageWithSections.meta_description,
+            sections: pageWithSections.cms_page_sections || [],
+          },
+          pageWithSections.language,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Failed to update embeddings for page after section update:",
+        error,
+      );
+      // Don't fail the operation
+    }
+
     return NextResponse.json({ section: data });
   } catch (e) {
     if (e instanceof z.ZodError) {

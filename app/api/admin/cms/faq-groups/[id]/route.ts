@@ -8,6 +8,7 @@ import { withContentManagementGuard } from "../../../../../lib/cms-api-guard";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
 import { maybeServiceClient } from "../../../../../lib/supabase/server";
 import { UpdateFAQGroupSchema } from "../../../../../lib/validations/faq";
+import { removeEmbeddingsBatch } from "../../../../../lib/cms-embedding-helper";
 import { z } from "zod";
 
 /**
@@ -198,6 +199,22 @@ export async function DELETE(
         { error: "FAQ group not found" },
         { status: 404 },
       );
+    }
+
+    // Before deleting group, remove embeddings for all items
+    try {
+      const { data: items } = await supabase
+        .from("cms_faq_items")
+        .select("id")
+        .eq("group_id", id);
+
+      if (items && items.length > 0) {
+        const itemIds = items.map((item) => item.id);
+        await removeEmbeddingsBatch(supabase, itemIds);
+      }
+    } catch (error) {
+      console.error("Failed to remove embeddings for FAQ group items:", error);
+      // Don't fail the operation
     }
 
     // Delete group (items will be cascade deleted)

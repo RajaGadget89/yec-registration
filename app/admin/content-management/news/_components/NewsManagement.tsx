@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { Plus, Search, Edit, Trash2, Eye, Globe, Calendar } from "lucide-react";
+import { formatDate } from "../../../../lib/datetime";
 
 interface NewsArticle {
   id: string;
@@ -182,10 +183,10 @@ export default function NewsManagement() {
       {/* News Articles Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[800px]">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-2/5">
                   Article
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -208,7 +209,7 @@ export default function NewsManagement() {
                   key={article.id}
                   className="hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 w-2/5">
                     <div className="flex items-start space-x-3">
                       <div className="flex-shrink-0">
                         {article.image_url ? (
@@ -229,7 +230,15 @@ export default function NewsManagement() {
                         <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
                           {article.headline}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                        <div
+                          className="text-sm text-gray-500 dark:text-gray-400 break-words"
+                          style={{
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}
+                        >
                           {article.meta_description || "No description"}
                         </div>
                         {article.hashtags && article.hashtags.length > 0 && (
@@ -276,12 +285,12 @@ export default function NewsManagement() {
                       <Calendar className="h-4 w-4" />
                       <span>
                         {article.published_at
-                          ? new Date(article.published_at).toLocaleDateString()
+                          ? formatDate(article.published_at)
                           : "Not published"}
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right w-32">
                     <div className="flex items-center justify-end space-x-2">
                       <button
                         onClick={() =>

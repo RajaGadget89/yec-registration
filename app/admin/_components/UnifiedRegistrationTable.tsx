@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Eye, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import type { UnifiedRegistration } from "../../lib/admin/unifiedRegistrationService";
+import { formatDate } from "../../lib/datetime";
 
 interface UnifiedRegistrationTableProps {
   registrations: UnifiedRegistration[];
@@ -47,15 +48,7 @@ export default function UnifiedRegistrationTable({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  // Using timezone-aware formatDate from lib/datetime.ts
 
   const getFormTypeBadge = (formType: string, formName: string) => {
     if (formType === "traditional") {
@@ -160,7 +153,7 @@ export default function UnifiedRegistrationTable({
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {formatDate(registration.created_at)}
+                  {formatDate(registration.created_at, true)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button

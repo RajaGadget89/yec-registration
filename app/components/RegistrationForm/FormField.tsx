@@ -446,7 +446,32 @@ export default function FormField({
 
   const validateAndSetFile = (file: File) => {
     // Enhanced file validation with immediate feedback
-    const maxSizeInMB = normalizedField.validation?.maxFileSize || 10;
+    const validation = normalizedField.validation;
+
+    // File type validation
+    if (validation?.fileTypes && !validation.fileTypes.includes(file.type)) {
+      const allowedTypes = validation.fileTypes
+        .map((type) => {
+          const ext = type.split("/")[1];
+          return ext === "jpeg" ? "JPG" : ext.toUpperCase();
+        })
+        .join(", ");
+
+      const errorMessage = `ไฟล์ต้องเป็นรูปแบบ ${allowedTypes} เท่านั้น`;
+
+      setValidation({
+        isValid: false,
+        message: errorMessage,
+        status: "invalid",
+      });
+
+      // Clear the file input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    // File size validation
+    const maxSizeInMB = validation?.maxFileSize || 10;
     const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
 
     if (file.size > maxSizeInBytes) {

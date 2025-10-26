@@ -6,6 +6,7 @@ import { Download, Activity, Users, CheckCircle, Clock } from "lucide-react";
 import UnifiedFilters from "../../_components/UnifiedFilters";
 import UnifiedRegistrationTable from "../../_components/UnifiedRegistrationTable";
 import type { UnifiedRegistration } from "../../../lib/admin/unifiedRegistrationService";
+import { formatDate } from "../../../lib/datetime";
 
 interface FormType {
   form_key: string;
@@ -381,9 +382,7 @@ export default function UnifiedAdminDashboard({
                           Created
                         </dt>
                         <dd className="text-sm text-gray-900 dark:text-white">
-                          {new Date(
-                            selectedRegistration.created_at,
-                          ).toLocaleString()}
+                          {formatDate(selectedRegistration.created_at, true)}
                         </dd>
                       </div>
                       <div>
@@ -391,9 +390,7 @@ export default function UnifiedAdminDashboard({
                           Updated
                         </dt>
                         <dd className="text-sm text-gray-900 dark:text-white">
-                          {new Date(
-                            selectedRegistration.updated_at,
-                          ).toLocaleString()}
+                          {formatDate(selectedRegistration.updated_at, true)}
                         </dd>
                       </div>
                     </dl>

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withContentManagementGuard } from "../../../../lib/cms-api-guard";
 import { getCurrentUserFromRequest } from "../../../../lib/auth-utils.server";
 import { maybeServiceClient } from "../../../../lib/supabase/server";
+import { generateAndStoreEmbeddings } from "../../../../lib/cms-embedding-helper";
 import { z } from "zod";
 
 // Validation schemas (extended to mirror News feature set)
@@ -169,11 +170,14 @@ export async function POST(request: NextRequest) {
       return d.toISOString();
     };
 
-    // Map API field `summary` -> DB column `description`
+    // Map API field `summary` -> DB column `description` and ensure icon_emoji is properly handled
     const { summary, ...restValidated } = validatedData as any;
     const insertPayload: Record<string, any> = {
       ...restValidated,
       ...(summary !== undefined ? { description: summary } : {}),
+      ...(restValidated.icon_emoji !== undefined
+        ? { icon_emoji: restValidated.icon_emoji?.trim() || null }
+        : {}),
       ...(restValidated.published_at
         ? { published_at: toISO(restValidated.published_at) }
         : {}),
@@ -213,6 +217,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if display_order already exists for this page and auto-increment if needed
+    const { data: existingOrder } = await supabase
+      .from("cms_activity_cards")
+      .select("display_order")
+      .eq("page_id", validatedData.page_id)
+      .eq("display_order", validatedData.display_order)
+      .single();
+
+    if (existingOrder) {
+      // Auto-increment display_order to next available number
+      const { data: maxOrder } = await supabase
+        .from("cms_activity_cards")
+        .select("display_order")
+        .eq("page_id", validatedData.page_id)
+        .order("display_order", { ascending: false })
+        .limit(1)
+        .single();
+
+      insertPayload.display_order = (maxOrder?.display_order || 0) + 1;
+    }
+
     // Check if detail_page_id exists (if provided)
     if (validatedData.detail_page_id) {
       const { data: detailPageExists } = await supabase
@@ -242,6 +267,24 @@ export async function POST(request: NextRequest) {
         { error: "Failed to create activity card" },
         { status: 500 },
       );
+    }
+
+    // Generate embeddings for the new activity
+    try {
+      await generateAndStoreEmbeddings(
+        supabase,
+        "activities",
+        newCard.id,
+        {
+          title: newCard.title,
+          summary: newCard.description, // Note: DB uses 'description'
+          content: newCard.content,
+        },
+        newCard.language,
+      );
+    } catch (error) {
+      console.error("Failed to generate embeddings for activity:", error);
+      // Don't fail the operation
     }
 
     return NextResponse.json(newCard, { status: 201 });

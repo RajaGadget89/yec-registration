@@ -95,6 +95,14 @@
     "security:scan:fix": "./scripts/scan-credentials.sh --fix",
     "pre-cicd": "./pre-cicd-check.sh",
     "pre-cicd:v2": "./pre-cicd-check-v2.sh",
+    "reindex": "tsx scripts/reindex-embeddings.ts",
+    "test:thai": "tsx scripts/test-thai-search.ts",
+    "test:search": "tsx scripts/test-search-api.ts",
+    "debug:thai": "tsx scripts/debug-thai-query.ts",
+    "test:simple": "tsx scripts/simple-thai-test.ts",
+    "test:database": "tsx scripts/test-database-thai.ts",
+    "test:compare": "tsx scripts/compare-embeddings.ts",
+    "test:prefixes": "tsx scripts/verify-prefixes.ts",
     "ci-health:help": "echo 'CI Health Check Commands:' && echo '  npm run test:ci-health          - Run basic health check' && echo '  npm run test:ci-health:fast      - Run fast health check (15s timeout)' && echo '  npm run test:ci-health:local     - Run with local environment' && echo '  npm run test:ci-health:staging   - Run with staging environment' && echo '  npm run test:ci-health:debug     - Run in debug mode' && echo '  npm run test:ci-health:ui        - Run with UI' && echo '  npm run test:ci-health:list      - List all tests'"
   },
   "dependencies": {
@@ -109,6 +117,7 @@
     "@tiptap/react": "^3.6.6",
     "@tiptap/starter-kit": "^3.6.6",
     "@types/papaparse": "^5.3.16",
+    "@xenova/transformers": "^2.17.2",
     "@yudiel/react-qr-scanner": "^2.3.1",
     "canvas": "^3.1.2",
     "csv-parser": "^3.2.0",
