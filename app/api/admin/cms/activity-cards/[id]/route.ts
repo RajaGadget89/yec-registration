@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { withContentManagementGuard } from "../../../../../lib/cms-api-guard";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
 import { maybeServiceClient } from "../../../../../lib/supabase/server";
+import {
+  generateAndStoreEmbeddings,
+  removeEmbeddings,
+} from "../../../../../lib/cms-embedding-helper";
 import { z } from "zod";
 
 export async function GET(
@@ -36,6 +40,10 @@ export async function GET(
         language,
         is_active,
         published_at,
+        scheduled_at,
+        ends_at,
+        display_order,
+        detail_page_id,
         created_at,
         updated_at
       `,
@@ -50,7 +58,13 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(card);
+    // Map description -> summary for frontend compatibility
+    const mappedCard = {
+      ...card,
+      summary: card.description,
+    };
+
+    return NextResponse.json(mappedCard);
   } catch (error) {
     console.error("Error fetching activity card:", error);
     return NextResponse.json(
@@ -120,12 +134,15 @@ export async function PUT(
       .strict();
 
     const raw = await request.json();
+    console.log("Raw update data:", raw); // Debug log
     const cleaned = Object.fromEntries(
       Object.entries(raw).filter(
         ([_, v]) => v !== "" && v !== null && v !== undefined,
       ),
     );
+    console.log("Cleaned update data:", cleaned); // Debug log
     const validated = UpdateSchema.parse(cleaned);
+    console.log("Validated update data:", validated); // Debug log
 
     // If slug changes, ensure uniqueness within the same page
     if (validated.card_slug) {
@@ -146,6 +163,30 @@ export async function PUT(
       }
     }
 
+    // If display_order changes, check for conflicts and auto-increment if needed
+    if (validated.display_order !== undefined) {
+      const { data: existingOrder } = await supabase
+        .from("cms_activity_cards")
+        .select("display_order")
+        .eq("page_id", existing.page_id)
+        .eq("display_order", validated.display_order)
+        .neq("id", params.id)
+        .single();
+
+      if (existingOrder) {
+        // Auto-increment display_order to next available number
+        const { data: maxOrder } = await supabase
+          .from("cms_activity_cards")
+          .select("display_order")
+          .eq("page_id", existing.page_id)
+          .order("display_order", { ascending: false })
+          .limit(1)
+          .single();
+
+        validated.display_order = (maxOrder?.display_order || 0) + 1;
+      }
+    }
+
     const toISO = (v: unknown) => {
       if (!v || typeof v !== "string") return undefined;
       const trimmed = v.trim();
@@ -159,7 +200,11 @@ export async function PUT(
     const updatePayload: Record<string, any> = {
       ...rest,
       ...(summary !== undefined ? { description: summary } : {}),
+      ...(rest.icon_emoji !== undefined
+        ? { icon_emoji: rest.icon_emoji?.trim() || null }
+        : {}),
     };
+    console.log("Update payload:", updatePayload); // Debug log
     if (rest.published_at)
       updatePayload.published_at = toISO(rest.published_at);
     if (rest.scheduled_at)
@@ -181,6 +226,24 @@ export async function PUT(
       );
     }
 
+    // Generate embeddings for the updated activity
+    try {
+      await generateAndStoreEmbeddings(
+        supabase,
+        "activities",
+        params.id,
+        {
+          title: updated.title,
+          summary: updated.description,
+          content: updated.content,
+        },
+        updated.language,
+      );
+    } catch (error) {
+      console.error("Failed to update embeddings for activity:", error);
+      // Don't fail the operation
+    }
+
     return NextResponse.json(updated);
   } catch (e) {
     if (e instanceof z.ZodError) {
@@ -190,6 +253,73 @@ export async function PUT(
       );
     }
     console.error("Error in Activity Card PUT:", e);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * DELETE /api/admin/cms/activity-cards/[id]
+ * Delete a specific activity card
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  try {
+    // Check authentication and permissions
+    const guardResponse = await withContentManagementGuard(request);
+    if (guardResponse) return guardResponse;
+
+    const user = await getCurrentUserFromRequest(request);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = params;
+    const supabase = await maybeServiceClient(request);
+
+    // Check if activity card exists
+    const { data: existingActivity } = await supabase
+      .from("cms_activity_cards")
+      .select("id, title")
+      .eq("id", id)
+      .single();
+
+    if (!existingActivity) {
+      return NextResponse.json(
+        { error: "Activity card not found" },
+        { status: 404 },
+      );
+    }
+
+    // Remove embeddings before deleting the activity
+    try {
+      await removeEmbeddings(supabase, id);
+    } catch (error) {
+      console.error("Failed to remove embeddings for activity:", error);
+      // Don't fail the operation
+    }
+
+    // Delete activity card
+    const { error } = await supabase
+      .from("cms_activity_cards")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting activity card:", error);
+      return NextResponse.json(
+        { error: "Failed to delete activity card" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ message: "Activity card deleted successfully" });
+  } catch (error) {
+    console.error("Activity Card DELETE error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

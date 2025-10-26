@@ -10,8 +10,9 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import ConfirmDialog from "./ConfirmDialog";
+import { formatDate } from "../../../lib/datetime";
 
 interface AdminUser {
   id: string;
@@ -303,7 +304,7 @@ export default function AdminsTab({ filters }: AdminsTabProps) {
     try {
       const date = new Date(utcTime);
       return {
-        formatted: format(date, "yyyy-MM-dd HH:mm:ss"),
+        formatted: formatDate(utcTime, true), // Use timezone-aware formatting
         timeAgo: formatDistanceToNow(date, { addSuffix: true }),
       };
     } catch {

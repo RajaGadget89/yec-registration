@@ -7,6 +7,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { withNewsManagementGuard } from "../../../../../lib/cms-api-guard";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
 import { maybeServiceClient } from "../../../../../lib/supabase/server";
+import {
+  generateAndStoreEmbeddings,
+  removeEmbeddings,
+} from "../../../../../lib/cms-embedding-helper";
 import { z } from "zod";
 
 function isUuid(value: unknown): value is string {
@@ -20,7 +24,7 @@ function isUuid(value: unknown): value is string {
 const UpdateNewsSchema = z.object({
   headline: z.string().min(1).max(200).optional(),
   content: z.string().min(1).optional(),
-  image_url: z.string().url().optional(),
+  image_url: z.string().url().or(z.literal("")).optional(),
   external_links: z
     .array(
       z.object({
@@ -173,6 +177,23 @@ export async function PUT(
       );
     }
 
+    // Generate embeddings for the updated news article
+    try {
+      await generateAndStoreEmbeddings(
+        supabase,
+        "news",
+        id,
+        {
+          headline: updatedNews.headline,
+          content: updatedNews.content,
+        },
+        updatedNews.language,
+      );
+    } catch (error) {
+      console.error("Failed to update embeddings for news:", error);
+      // Don't fail the operation
+    }
+
     return NextResponse.json(updatedNews);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -218,6 +239,14 @@ export async function DELETE(
         { error: "News article not found" },
         { status: 404 },
       );
+    }
+
+    // Remove embeddings before deleting the news article
+    try {
+      await removeEmbeddings(supabase, id);
+    } catch (error) {
+      console.error("Failed to remove embeddings for news:", error);
+      // Don't fail the operation
     }
 
     // Delete news article

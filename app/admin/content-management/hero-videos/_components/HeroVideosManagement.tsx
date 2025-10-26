@@ -508,6 +508,7 @@ export default function HeroVideosManagement() {
                       alt="Hero video thumbnail"
                       width={400}
                       height={225}
+                      priority
                       className="w-full h-full object-cover"
                       onLoad={() => {
                         setThumbnailLoading((prev) => {

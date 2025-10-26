@@ -458,6 +458,7 @@ export default function ActivityCardsManagement() {
                   alt={card.title}
                   width={400}
                   height={225}
+                  priority
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -699,7 +700,12 @@ export default function ActivityCardsManagement() {
                 <input
                   value={newCard.card_slug}
                   onChange={(e) =>
-                    setNewCard((v) => ({ ...v, card_slug: e.target.value }))
+                    setNewCard((v) => ({
+                      ...v,
+                      card_slug: e.target.value
+                        .replace(/\s+/g, "-")
+                        .toLowerCase(),
+                    }))
                   }
                   placeholder="auto from title"
                   className="w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700"

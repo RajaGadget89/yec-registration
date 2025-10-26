@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { withContentManagementGuard } from "../../../../../lib/cms-api-guard";
 import { getCurrentUserFromRequest } from "../../../../../lib/auth-utils.server";
 import { maybeServiceClient } from "../../../../../lib/supabase/server";
+import {
+  generateAndStoreEmbeddings,
+  removeEmbeddings,
+} from "../../../../../lib/cms-embedding-helper";
 import { z } from "zod";
 
 // Validation schema for page updates
@@ -110,6 +114,33 @@ export async function PUT(
       );
     }
 
+    // Generate embeddings for the updated page
+    try {
+      // Fetch page with sections to get complete content
+      const { data: pageWithSections } = await supabase
+        .from("cms_pages")
+        .select("*, cms_page_sections(*)")
+        .eq("id", id)
+        .single();
+
+      if (pageWithSections) {
+        await generateAndStoreEmbeddings(
+          supabase,
+          "pages",
+          id,
+          {
+            title: pageWithSections.title,
+            meta_description: pageWithSections.meta_description,
+            sections: pageWithSections.cms_page_sections || [],
+          },
+          pageWithSections.language,
+        );
+      }
+    } catch (error) {
+      console.error("Failed to update embeddings for page:", error);
+      // Don't fail the operation
+    }
+
     return NextResponse.json({ page });
   } catch (error) {
     console.error("Error updating page:", error);
@@ -146,6 +177,14 @@ export async function DELETE(
 
     const { id } = await params;
     const supabase = await maybeServiceClient(request);
+
+    // Remove embeddings before deleting the page
+    try {
+      await removeEmbeddings(supabase, id);
+    } catch (error) {
+      console.error("Failed to remove embeddings for page:", error);
+      // Don't fail the operation
+    }
 
     // First, delete associated sections (if any)
     const { error: sectionsError } = await supabase

@@ -35,7 +35,7 @@ export default function TopMenuBar() {
   }, []);
 
   useEffect(() => {
-    // Load branding logos for header
+    // Load branding logos for header - delay to avoid hydration issues
     const loadBranding = async () => {
       try {
         // Add a cache-busting query to ensure latest branding after admin updates
@@ -48,7 +48,14 @@ export default function TopMenuBar() {
         }
       } catch (_) {}
     };
-    loadBranding();
+
+    // Use requestIdleCallback to avoid blocking hydration
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(loadBranding);
+    } else {
+      // Fallback for browsers without requestIdleCallback
+      setTimeout(loadBranding, 100);
+    }
   }, []);
 
   // Handle Home navigation with fresh refresh

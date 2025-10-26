@@ -279,6 +279,7 @@ export default function TemplatesManagement() {
                   alt={template.name}
                   width={400}
                   height={225}
+                  priority
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -418,6 +419,7 @@ export default function TemplatesManagement() {
                     alt={selectedTemplate.name}
                     width={600}
                     height={400}
+                    priority
                     className="w-full rounded-lg border border-gray-200 dark:border-gray-700"
                   />
                 </div>

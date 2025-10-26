@@ -79,15 +79,33 @@ export default function RootLayout({
             __html: `
               (function(){
                 try {
-                  fetch('/api/cms/branding', { cache: 'no-store' }).then(function(r){
-                    if(!r.ok) return; return r.json();
-                  }).then(function(data){
-                    if(!data || !data.branding || !data.branding.logo_favicon_url) return;
-                    var href = data.branding.logo_favicon_url;
-                    var link = document.querySelector('link[rel="icon"]');
-                    if(!link){ link = document.createElement('link'); link.rel='icon'; document.head.appendChild(link); }
-                    link.href = href;
-                  }).catch(function(){});
+                  // Use requestIdleCallback to avoid blocking hydration
+                  if (window.requestIdleCallback) {
+                    window.requestIdleCallback(function() {
+                      fetch('/api/cms/branding', { cache: 'no-store' }).then(function(r){
+                        if(!r.ok) return; return r.json();
+                      }).then(function(data){
+                        if(!data || !data.branding || !data.branding.logo_favicon_url) return;
+                        var href = data.branding.logo_favicon_url;
+                        var link = document.querySelector('link[rel="icon"]');
+                        if(!link){ link = document.createElement('link'); link.rel='icon'; document.head.appendChild(link); }
+                        link.href = href;
+                      }).catch(function(){});
+                    });
+                  } else {
+                    // Fallback for browsers without requestIdleCallback
+                    setTimeout(function() {
+                      fetch('/api/cms/branding', { cache: 'no-store' }).then(function(r){
+                        if(!r.ok) return; return r.json();
+                      }).then(function(data){
+                        if(!data || !data.branding || !data.branding.logo_favicon_url) return;
+                        var href = data.branding.logo_favicon_url;
+                        var link = document.querySelector('link[rel="icon"]');
+                        if(!link){ link = document.createElement('link'); link.rel='icon'; document.head.appendChild(link); }
+                        link.href = href;
+                      }).catch(function(){});
+                    }, 100);
+                  }
                 } catch(e){}
               })();
             `,

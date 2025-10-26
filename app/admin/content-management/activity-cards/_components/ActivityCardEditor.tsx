@@ -55,6 +55,7 @@ export default function ActivityCardEditor({
     ends_at: "",
     icon_emoji: "",
     image_url: "",
+    detail_page_id: "",
     is_active: true,
     hashtags: [] as string[],
     external_links: [] as Array<{
@@ -110,6 +111,7 @@ export default function ActivityCardEditor({
         ends_at: formatForInput(data.ends_at),
         icon_emoji: data.icon_emoji || "",
         image_url: data.image_url || "",
+        detail_page_id: data.detail_page_id || "",
         is_active: data.is_active || false,
         hashtags: data.hashtags || [],
         external_links: data.external_links || [],
@@ -129,6 +131,7 @@ export default function ActivityCardEditor({
   const handleSave = async () => {
     try {
       setSaving(true);
+      console.log("Saving form data:", form); // Debug log
       const response = await fetch(`/api/admin/cms/activity-cards/${cardId}`, {
         method: "PUT",
         headers: {
@@ -138,9 +141,13 @@ export default function ActivityCardEditor({
       });
 
       if (!response.ok) {
+        const errorData = await response.json();
+        console.error("API Error:", errorData);
         throw new Error("Failed to update activity card");
       }
 
+      const result = await response.json();
+      console.log("Update result:", result); // Debug log
       alert("Activity card updated successfully!");
       router.push("/admin/content-management/activity-cards");
     } catch (error) {
@@ -310,7 +317,12 @@ export default function ActivityCardEditor({
                   type="text"
                   value={form.card_slug}
                   onChange={(e) =>
-                    setForm({ ...form, card_slug: e.target.value })
+                    setForm({
+                      ...form,
+                      card_slug: e.target.value
+                        .replace(/\s+/g, "-")
+                        .toLowerCase(),
+                    })
                   }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white text-gray-900 placeholder-gray-500 shadow-sm focus:ring-2 focus:ring-yec-primary focus:border-yec-primary/50 dark:bg-gray-700 dark:text-white"
                   placeholder="activity-slug"
@@ -329,6 +341,25 @@ export default function ActivityCardEditor({
                   }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white text-gray-900 placeholder-gray-500 shadow-sm focus:ring-2 focus:ring-yec-primary focus:border-yec-primary/50 dark:bg-gray-700 dark:text-white"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Detail Page ID (optional)
+                </label>
+                <input
+                  type="text"
+                  value={form.detail_page_id || ""}
+                  onChange={(e) =>
+                    setForm({ ...form, detail_page_id: e.target.value })
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white text-gray-900 placeholder-gray-500 shadow-sm focus:ring-2 focus:ring-yec-primary focus:border-yec-primary/50 dark:bg-gray-700 dark:text-white"
+                  placeholder="UUID of detail page (optional)"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Link to a dedicated CMS page for more detailed information
+                  about this activity
+                </p>
               </div>
 
               <div>

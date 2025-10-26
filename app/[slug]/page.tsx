@@ -15,8 +15,10 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const { slug } = await params;
+    // Properly decode the slug to handle Thai characters
+    const decodedSlug = decodeURIComponent(slug);
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/cms/pages/${slug}`,
+      `${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/cms/pages/${decodedSlug}`,
       { cache: "no-store" },
     );
     if (!res.ok) return { title: "Page not found" };
@@ -27,14 +29,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     });
   } catch {
     const { slug } = await params;
-    return { title: slug };
+    // Properly decode the slug to handle Thai characters
+    const decodedSlug = decodeURIComponent(slug);
+    return { title: decodedSlug };
   }
 }
 
 export default async function CmsPage({ params }: Props) {
   const { slug } = await params;
+  // Properly decode the slug to handle Thai characters
+  const decodedSlug = decodeURIComponent(slug);
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/cms/pages/${slug}`,
+    `${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/cms/pages/${decodedSlug}`,
     { cache: "no-store" },
   );
   if (res.status === 404) {

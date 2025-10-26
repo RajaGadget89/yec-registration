@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { withContentManagementGuard } from "../../../../lib/cms-api-guard";
 import { getCurrentUserFromRequest } from "../../../../lib/auth-utils.server";
 import { maybeServiceClient } from "../../../../lib/supabase/server";
+import { generateAndStoreEmbeddings } from "../../../../lib/cms-embedding-helper";
 import { z } from "zod";
 
 // Validation schemas
@@ -165,6 +166,24 @@ export async function POST(request: NextRequest) {
 
     // Note: TopMenuBar and Footer are now global components included in all CMS pages
     // No need to create them as sections since they're part of the page layout
+
+    // Generate embeddings for the new page
+    try {
+      await generateAndStoreEmbeddings(
+        supabase,
+        "pages",
+        newPage.id,
+        {
+          title: newPage.title,
+          meta_description: newPage.meta_description,
+          sections: [], // New pages have no sections yet
+        },
+        newPage.language,
+      );
+    } catch (error) {
+      console.error("Failed to generate embeddings for new page:", error);
+      // Don't fail the operation
+    }
 
     return NextResponse.json(newPage, { status: 201 });
   } catch (error) {

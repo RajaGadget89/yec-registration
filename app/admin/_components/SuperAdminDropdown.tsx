@@ -11,6 +11,7 @@ import {
   Upload,
   ChevronRight,
   Hash,
+  Server,
 } from "lucide-react";
 
 interface SuperAdminDropdownProps {
@@ -48,6 +49,13 @@ export default function SuperAdminDropdown({
       label: "Admin Management Team",
       description: "Manage admin users and roles",
       show: process.env.FEATURES_ADMIN_MANAGEMENT !== "false",
+    },
+    {
+      href: "/admin/mcp-management",
+      icon: Server,
+      label: "MCP Management",
+      description: "Configure content exposure for MCP server",
+      show: true,
     },
     {
       href: "/admin/super-admin/form-email-templates",

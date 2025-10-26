@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
       .select(
         "id, card_slug, title, description, content, image_url, icon_emoji, external_links, hashtags, language, published_at, scheduled_at, ends_at",
       )
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .or("published_at.is.null,published_at.lte.now()"); // Only show activities that are published or have no published_at date
 
     if (page_id) {
       query = query

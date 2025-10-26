@@ -179,6 +179,9 @@ export default function ActivityCardsSection({
 
             <div className="p-6">
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-yec-primary transition-colors duration-200 line-clamp-2">
+                {activity.icon_emoji && (
+                  <span className="mr-2">{activity.icon_emoji}</span>
+                )}
                 {activity.title}
               </h3>
 

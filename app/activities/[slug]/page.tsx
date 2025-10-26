@@ -20,7 +20,10 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const activity = await fetchActivity(slug);
+
+  // Properly decode the slug to handle Thai characters
+  const decodedSlug = decodeURIComponent(slug);
+  const activity = await fetchActivity(decodedSlug);
 
   if (!activity) {
     return {
@@ -52,7 +55,10 @@ export default async function ActivityDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const activity = await fetchActivity(slug);
+
+  // Properly decode the slug to handle Thai characters
+  const decodedSlug = decodeURIComponent(slug);
+  const activity = await fetchActivity(decodedSlug);
   if (!activity) return notFound();
 
   const now = new Date();
@@ -66,7 +72,12 @@ export default async function ActivityDetailPage({
     <main className="min-h-screen">
       <TopMenuBar />
       <div className="max-w-4xl mx-auto px-4 pt-40 pb-10">
-        <h1 className="text-3xl font-bold mb-3">{activity.title}</h1>
+        <h1 className="text-3xl font-bold mb-3">
+          {activity.icon_emoji && (
+            <span className="mr-3">{activity.icon_emoji}</span>
+          )}
+          {activity.title}
+        </h1>
         <div className="flex items-center gap-2 mb-6 text-sm">
           {isUpcoming && (
             <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-800">
@@ -95,6 +106,7 @@ export default async function ActivityDetailPage({
             alt={activity.title}
             width={800}
             height={400}
+            priority
             className="w-full rounded-lg shadow mb-6 object-cover"
           />
         )}
@@ -102,8 +114,11 @@ export default async function ActivityDetailPage({
           <p className="text-lg text-gray-700 mb-4">{activity.summary}</p>
         )}
         {activity.content && (
-          <div className="prose max-w-none">
-            <p>{activity.content}</p>
+          <div className="prose prose-lg max-w-none dark:prose-invert prose-headings:text-gray-900 dark:prose-headings:text-white prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-a:text-yec-primary hover:prose-a:text-yec-accent prose-strong:text-gray-900 dark:prose-strong:text-white">
+            <div
+              className="text-gray-700 dark:text-gray-300 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: activity.content }}
+            />
           </div>
         )}
         {Array.isArray(activity.external_links) &&

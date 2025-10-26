@@ -11,6 +11,7 @@ import {
   CreateFAQItemSchema,
   ReorderFAQItemsSchema,
 } from "../../../../../../lib/validations/faq";
+import { generateAndStoreFAQEmbeddings } from "../../../../../../lib/cms-embedding-helper";
 import { z } from "zod";
 
 /**
@@ -134,6 +135,17 @@ export async function POST(
         { error: "Failed to create FAQ item" },
         { status: 500 },
       );
+    }
+
+    // Generate embeddings for the new FAQ item
+    try {
+      await generateAndStoreFAQEmbeddings(supabase, newItem.id, {
+        question: newItem.question,
+        answer: newItem.answer,
+      });
+    } catch (error) {
+      console.error("Failed to generate embeddings for FAQ item:", error);
+      // Don't fail the operation
     }
 
     return NextResponse.json(newItem, { status: 201 });

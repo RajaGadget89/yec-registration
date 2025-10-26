@@ -12,7 +12,8 @@ export type Role =
   | "super_admin"
   | "admin_payment"
   | "admin_profile"
-  | "admin_tcc";
+  | "admin_tcc"
+  | "admin_istm";
 
 export type Dimension = "payment" | "profile" | "tcc";
 
@@ -48,6 +49,7 @@ const SUPER_ADMIN_EMAILS = parseEmailAllowlist("SUPER_ADMIN_EMAILS");
 const PAYMENT_ADMIN_EMAILS = parseEmailAllowlist("ADMIN_PAYMENT_EMAILS");
 const PROFILE_ADMIN_EMAILS = parseEmailAllowlist("ADMIN_PROFILE_EMAILS");
 const TCC_ADMIN_EMAILS = parseEmailAllowlist("ADMIN_TCC_EMAILS");
+const ISTM_ADMIN_EMAILS = parseEmailAllowlist("ADMIN_ISTM_EMAILS");
 
 /**
  * Gets all roles for a given user email
@@ -71,6 +73,9 @@ export function getRolesForEmail(email: string): Set<Role> {
   }
   if (TCC_ADMIN_EMAILS.has(emailNormalized)) {
     roles.add("admin_tcc");
+  }
+  if (ISTM_ADMIN_EMAILS.has(emailNormalized)) {
+    roles.add("admin_istm");
   }
 
   return roles;
@@ -304,6 +309,7 @@ export function getRoleStats(): Record<Role, number> {
     admin_payment: PAYMENT_ADMIN_EMAILS.size,
     admin_profile: PROFILE_ADMIN_EMAILS.size,
     admin_tcc: TCC_ADMIN_EMAILS.size,
+    admin_istm: ISTM_ADMIN_EMAILS.size,
   };
 }
 

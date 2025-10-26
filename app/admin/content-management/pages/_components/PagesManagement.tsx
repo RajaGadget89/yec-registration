@@ -11,6 +11,7 @@ import {
   Lock,
   FileText,
 } from "lucide-react";
+import { formatDate } from "../../../../lib/datetime";
 
 interface CMSPage {
   id: string;
@@ -258,7 +259,7 @@ export default function PagesManagement() {
                     </button>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                    {new Date(page.updated_at).toLocaleDateString()}
+                    {formatDate(page.updated_at)}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-2">

@@ -53,7 +53,7 @@ export default function NewsFeed() {
         const data = await res.json();
 
         if (!cancelled) {
-          setNews(data.news || []);
+          setNews(data.data || []);
         }
       } catch (err) {
         if (!cancelled) {
@@ -75,10 +75,15 @@ export default function NewsFeed() {
     };
   }, []);
 
-  // Truncate description to 150 characters
+  // Strip HTML tags and truncate description to 150 characters
   const truncateDescription = (text: string, maxLength: number = 150) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength).trim() + "...";
+    if (!text) return "";
+
+    // Strip HTML tags
+    const strippedText = text.replace(/<[^>]*>/g, "");
+
+    if (strippedText.length <= maxLength) return strippedText;
+    return strippedText.substring(0, maxLength).trim() + "...";
   };
 
   // Format date for display

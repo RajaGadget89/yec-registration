@@ -369,7 +369,8 @@ export type BusinessRole =
   | "payment_slip"
   | "tcc_card"
   | "checker_admin"
-  | "cms_admin";
+  | "cms_admin"
+  | "istm_admin";
 
 // Admin user table types
 export interface AdminUser {

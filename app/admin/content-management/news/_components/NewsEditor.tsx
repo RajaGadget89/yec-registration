@@ -34,6 +34,7 @@ export default function NewsEditor({ articleId }: NewsEditorProps) {
   const [article, setArticle] = useState<NewsArticle | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [form, setForm] = useState({
     headline: "",
     content: "",
@@ -104,6 +105,7 @@ export default function NewsEditor({ articleId }: NewsEditorProps) {
   const handleSave = async () => {
     try {
       setSaving(true);
+
       const response = await fetch(`/api/admin/cms/news/${articleId}`, {
         method: "PUT",
         headers: {

@@ -24,7 +24,14 @@ export default function Footer() {
         }
       } catch (_) {}
     };
-    loadBranding();
+
+    // Use requestIdleCallback to avoid blocking hydration
+    if (window.requestIdleCallback) {
+      window.requestIdleCallback(loadBranding);
+    } else {
+      // Fallback for browsers without requestIdleCallback
+      setTimeout(loadBranding, 100);
+    }
   }, []);
   return (
     <footer className="bg-yec-primary text-white">
