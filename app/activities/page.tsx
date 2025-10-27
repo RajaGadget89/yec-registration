@@ -3,11 +3,18 @@ import { getSupabaseServerClient } from "../lib/supabase/server";
 import ActivitiesListing from "./_components/ActivitiesListing";
 import TopMenuBar from "../components/TopMenuBar";
 import Footer from "../components/Footer";
+import { buildDynamicPageMetadata } from "../lib/seo-utils";
 
-export const metadata: Metadata = {
-  title: "Activities - YEC Day",
-  description: "Explore all available activities and events from YEC Day",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const seoConfig = await import("../lib/seo-config").then((m) =>
+    m.getSEOConfig(),
+  );
+  return buildDynamicPageMetadata({
+    title: seoConfig.activitiesTitle,
+    description: seoConfig.activitiesDescription,
+    canonicalPath: "/activities",
+  });
+}
 
 interface ActivitiesPageProps {
   searchParams: Promise<{

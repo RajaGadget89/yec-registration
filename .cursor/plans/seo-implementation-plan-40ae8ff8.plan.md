@@ -1,77 +1,151 @@
-<!-- 40ae8ff8-9346-4e9d-be12-0357c7a5bf61 e4623671-72df-4996-84a0-01ace05ce06f -->
-# SEO Implementation for Public Content Zones
+<!-- 40ae8ff8-9346-4e9d-be12-0357c7a5bf61 d19e2e2d-37a4-4540-b4f1-b46cf4aae33c -->
+# Dynamic SEO Configuration System
 
 ## Overview
 
-Implement SEO optimization for all public-facing content without modifying backend systems or authentication.
+Replace hardcoded "YEC Day" branding and SEO metadata with dynamic, database-driven configuration that can be managed through the admin interface. This makes the platform white-labelable for resale to other organizations.
 
-## CRITICAL PRIORITY: LineOA Integration
+## Phase 1: Database Schema Extension
 
-**The most critical issue**: MCP_Fetch endpoints for Activities and FAQ are missing base URLs in their `full_url` generation, causing LineOA users to receive incomplete URLs that cannot be navigated to.
+### 1.1 Extend cms_branding Table
 
-**Impact**: LineOA chatbot users cannot access full content because URLs are missing the domain (e.g., `/activities/slug` instead of `https://yec-registration.com/activities/slug`).
+Create migration to add SEO fields to existing `cms_branding` table:
 
-**Solution**: Fix the `full_url` generation in Activities and FAQ APIs to include the complete domain URL.
+```sql
+-- Add SEO configuration fields to cms_branding
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_site_name TEXT DEFAULT 'YEC Day';
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_site_title_suffix TEXT DEFAULT 'YEC Day';
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_default_description TEXT;
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_og_image_url TEXT;
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_twitter_handle TEXT;
 
-## Phase 1: Critical MCP_Fetch URL Fixes (LineOA Integration)
+-- Per-content-type defaults
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_activities_title TEXT DEFAULT 'Activities';
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_activities_description TEXT DEFAULT 'Explore all available activities and events';
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_news_title TEXT DEFAULT 'News';
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_news_description TEXT DEFAULT 'Latest news and updates';
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_faq_title TEXT DEFAULT 'FAQ';
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_faq_description TEXT DEFAULT 'Frequently asked questions and answers';
 
-### 1.1 Fix Activities API full_url Generation
-
-**CRITICAL ISSUE**: Activities API missing base URL in full_url
-
-Update `app/api/cms/activities/route.ts`:
-
-```typescript
-// Line 78: Fix missing base URL
-full_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://yec-registration.com'}/activities/${activity.card_slug}`,
+-- Robots.txt and sitemap configuration
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_robots_allow JSONB DEFAULT '["/" ,"/activities", "/news", "/faq"]'::jsonb;
+ALTER TABLE cms_branding ADD COLUMN IF NOT EXISTS seo_robots_disallow JSONB DEFAULT '["/admin/", "/api/", "/checker/", "/preview/", "/_next/"]'::jsonb;
 ```
 
-### 1.2 Fix FAQ API full_url Generation
+File: `sql/2025-10-26_add_seo_config_to_branding.staging.sql`
 
-**CRITICAL ISSUE**: FAQ API missing base URL in full_url
+## Phase 2: Server-Side SEO Configuration Utility
 
-Update `app/api/cms/faq/route.ts`:
+### 2.1 Create SEO Config Helper
 
-```typescript
-// Line 126: Fix missing base URL
-full_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://yec-registration.com'}/faq/${group.slug}/${item.slug}`,
-```
-
-### 1.3 Verify News API full_url Generation
-
-**STATUS**: News API already has correct full_url generation
+Create centralized helper to fetch SEO configuration with fallbacks:
 
 ```typescript
-// Line 58: Already correct
-full_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://yec-registration.com'}/news/${row.id}`
-```
+// app/lib/seo-config.ts
+import { maybeServiceClient } from './supabase/server';
 
-### 1.4 Verify Pages API full_url Generation
+interface SEOConfig {
+  siteName: string;
+  siteTitleSuffix: string;
+  defaultDescription: string;
+  ogImageUrl?: string;
+  twitterHandle?: string;
+  activitiesTitle: string;
+  activitiesDescription: string;
+  newsTitle: string;
+  newsDescription: string;
+  faqTitle: string;
+  faqDescription: string;
+  robotsAllow: string[];
+  robotsDisallow: string[];
+}
 
-**STATUS**: Pages API already has correct full_url generation
+const DEFAULT_SEO_CONFIG: SEOConfig = {
+  siteName: 'YEC Day',
+  siteTitleSuffix: 'YEC Day',
+  defaultDescription: '',
+  activitiesTitle: 'Activities',
+  activitiesDescription: 'Explore all available activities and events',
+  newsTitle: 'News',
+  newsDescription: 'Latest news and updates',
+  faqTitle: 'FAQ',
+  faqDescription: 'Frequently asked questions and answers',
+  robotsAllow: ['/', '/activities', '/news', '/faq'],
+  robotsDisallow: ['/admin/', '/api/', '/checker/', '/preview/', '/_next/'],
+};
 
-```typescript
-// Line 42: Already correct
-full_url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://yec-registration.com'}/pages/${row.slug}`
-```
+let cachedConfig: SEOConfig | null = null;
+let cacheTime: number = 0;
+const CACHE_TTL = 60000; // 1 minute
 
-## Phase 2: Enhanced SEO Utilities
+export async function getSEOConfig(): Promise<SEOConfig> {
+  const now = Date.now();
+  if (cachedConfig && (now - cacheTime) < CACHE_TTL) {
+    return cachedConfig;
+  }
 
-### 2.1 Update `app/lib/seo-utils.ts`
+  try {
+    const supabase = await maybeServiceClient();
+    const { data } = await supabase
+      .from('cms_branding')
+      .select(`
+        seo_site_name,
+        seo_site_title_suffix,
+        seo_default_description,
+        seo_og_image_url,
+        seo_twitter_handle,
+        seo_activities_title,
+        seo_activities_description,
+        seo_news_title,
+        seo_news_description,
+        seo_faq_title,
+        seo_faq_description,
+        seo_robots_allow,
+        seo_robots_disallow
+      `)
+      .eq('is_active', true)
+      .single();
 
-Add canonical URL helper function:
+    if (data) {
+      cachedConfig = {
+        siteName: data.seo_site_name || DEFAULT_SEO_CONFIG.siteName,
+        siteTitleSuffix: data.seo_site_title_suffix || DEFAULT_SEO_CONFIG.siteTitleSuffix,
+        defaultDescription: data.seo_default_description || DEFAULT_SEO_CONFIG.defaultDescription,
+        ogImageUrl: data.seo_og_image_url,
+        twitterHandle: data.seo_twitter_handle,
+        activitiesTitle: data.seo_activities_title || DEFAULT_SEO_CONFIG.activitiesTitle,
+        activitiesDescription: data.seo_activities_description || DEFAULT_SEO_CONFIG.activitiesDescription,
+        newsTitle: data.seo_news_title || DEFAULT_SEO_CONFIG.newsTitle,
+        newsDescription: data.seo_news_description || DEFAULT_SEO_CONFIG.newsDescription,
+        faqTitle: data.seo_faq_title || DEFAULT_SEO_CONFIG.faqTitle,
+        faqDescription: data.seo_faq_description || DEFAULT_SEO_CONFIG.faqDescription,
+        robotsAllow: data.seo_robots_allow || DEFAULT_SEO_CONFIG.robotsAllow,
+        robotsDisallow: data.seo_robots_disallow || DEFAULT_SEO_CONFIG.robotsDisallow,
+      };
+      cacheTime = now;
+      return cachedConfig;
+    }
+  } catch (error) {
+    console.error('Failed to fetch SEO config:', error);
+  }
 
-```typescript
-export function buildCanonicalUrl(path: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-  return `${baseUrl}${path}`;
+  return DEFAULT_SEO_CONFIG;
+}
+
+export function clearSEOConfigCache() {
+  cachedConfig = null;
+  cacheTime = 0;
 }
 ```
 
-Update `buildPageMetadata` to support canonical URLs:
+### 2.2 Update SEO Utils to Use Dynamic Config
+
+Update `app/lib/seo-utils.ts`:
 
 ```typescript
-export function buildPageMetadata({
+import { getSEOConfig } from './seo-config';
+
+export async function buildDynamicPageMetadata({
   title,
   description,
   image,
@@ -81,349 +155,229 @@ export function buildPageMetadata({
   description?: string;
   image?: string;
   canonicalPath?: string;
-}): Metadata {
+}): Promise<Metadata> {
+  const seoConfig = await getSEOConfig();
   const canonical = canonicalPath ? buildCanonicalUrl(canonicalPath) : undefined;
   
   const meta: Metadata = {
-    title,
-    description,
+    title: `${title} - ${seoConfig.siteTitleSuffix}`,
+    description: description || seoConfig.defaultDescription,
     alternates: canonical ? { canonical } : undefined,
     openGraph: {
       title,
-      description,
+      description: description || seoConfig.defaultDescription,
       url: canonical,
-      images: image ? [image] : undefined,
+      images: image ? [image] : seoConfig.ogImageUrl ? [seoConfig.ogImageUrl] : undefined,
       type: 'website',
+      siteName: seoConfig.siteName,
     },
     twitter: {
       card: 'summary_large_image',
       title,
-      description,
-      images: image ? [image] : undefined,
+      description: description || seoConfig.defaultDescription,
+      images: image ? [image] : seoConfig.ogImageUrl ? [seoConfig.ogImageUrl] : undefined,
+      site: seoConfig.twitterHandle,
     },
   };
   return meta;
 }
 ```
 
-## Phase 3: Update Listing Pages
+## Phase 3: Update Page Metadata to Use Dynamic Config
 
-### 3.1 Update `app/activities/page.tsx`
+### 3.1 Update Activities Page
 
-Enhance metadata with canonical URL and Open Graph:
+Modify `app/activities/page.tsx`:
 
 ```typescript
-export const metadata: Metadata = {
-  title: "Activities - YEC Day",
-  description: "Explore all available activities and events from YEC Day",
-  alternates: {
-    canonical: buildCanonicalUrl('/activities'),
-  },
-  openGraph: {
-    title: "Activities - YEC Day",
-    description: "Explore all available activities and events from YEC Day",
-    url: buildCanonicalUrl('/activities'),
-    type: 'website',
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const seoConfig = await getSEOConfig();
+  return buildDynamicPageMetadata({
+    title: seoConfig.activitiesTitle,
+    description: seoConfig.activitiesDescription,
+    canonicalPath: '/activities',
+  });
+}
 ```
 
-### 3.2 Update `app/news/page.tsx`
+### 3.2 Update News Page
 
-Enhance metadata with canonical URL and Open Graph:
+Modify `app/news/page.tsx`:
 
 ```typescript
-export const metadata: Metadata = {
-  title: "News - YEC Day",
-  description: "Latest news and updates from YEC Day",
-  alternates: {
-    canonical: buildCanonicalUrl('/news'),
-  },
-  openGraph: {
-    title: "News - YEC Day",
-    description: "Latest news and updates from YEC Day",
-    url: buildCanonicalUrl('/news'),
-    type: 'website',
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const seoConfig = await getSEOConfig();
+  return buildDynamicPageMetadata({
+    title: seoConfig.newsTitle,
+    description: seoConfig.newsDescription,
+    canonicalPath: '/news',
+  });
+}
 ```
 
-### 3.3 Update `app/faq/page.tsx`
+### 3.3 Update FAQ Page
 
-Enhance metadata with canonical URL and Open Graph:
+Modify `app/faq/page.tsx`:
 
 ```typescript
-export const metadata: Metadata = {
-  title: "FAQ - YEC Day",
-  description: "Frequently asked questions and answers about YEC Day",
-  alternates: {
-    canonical: buildCanonicalUrl('/faq'),
-  },
-  openGraph: {
-    title: "FAQ - YEC Day",
-    description: "Frequently asked questions and answers about YEC Day",
-    url: buildCanonicalUrl('/faq'),
-    type: 'website',
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const seoConfig = await getSEOConfig();
+  return buildDynamicPageMetadata({
+    title: seoConfig.faqTitle,
+    description: seoConfig.faqDescription,
+    canonicalPath: '/faq',
+  });
+}
 ```
 
-## Phase 4: Update Detail Pages
+### 3.4 Update Detail Pages
 
-### 4.1 Update `app/activities/[slug]/page.tsx`
+Update dynamic metadata generation in:
 
-Enhance `generateMetadata` with canonical URL and complete Open Graph:
+- `app/activities/[slug]/page.tsx` - Use `seoConfig.siteTitleSuffix` instead of "YEC Registration"
+- `app/news/[id]/page.tsx` - Use `seoConfig.siteTitleSuffix` instead of "YEC Day News"
+- `app/faq/[id]/page.tsx` - Use `seoConfig.siteTitleSuffix` instead of "YEC Day"
+
+## Phase 4: Dynamic Robots.txt and Sitemap
+
+### 4.1 Convert robots.txt to Dynamic Route
+
+Replace `public/robots.txt` with `app/robots.ts`:
 
 ```typescript
-export async function generateMetadata({ params }): Promise<Metadata> {
-  const { slug } = await params;
-  const activity = await fetchActivity(slug);
+import { MetadataRoute } from 'next';
+import { getSEOConfig } from './lib/seo-config';
 
-  if (!activity) {
-    return {
-      title: "Activity Not Found",
-      description: "The requested activity could not be found.",
-    };
-  }
-
-  const canonicalUrl = buildCanonicalUrl(`/activities/${slug}`);
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const seoConfig = await getSEOConfig();
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://yec-registration.com';
 
   return {
-    title: `${activity.title} - YEC Registration`,
-    description: activity.summary || activity.description || `Learn more about ${activity.title}`,
-    alternates: {
-      canonical: canonicalUrl,
+    rules: {
+      userAgent: '*',
+      allow: seoConfig.robotsAllow,
+      disallow: seoConfig.robotsDisallow,
     },
-    openGraph: {
-      title: activity.title,
-      description: activity.summary || activity.description || `Learn more about ${activity.title}`,
-      url: canonicalUrl,
-      images: activity.image_url ? [activity.image_url] : undefined,
-      type: 'article',
-    },
+    sitemap: `${baseUrl}/sitemap.xml`,
   };
 }
 ```
 
-### 4.2 Update `app/news/[id]/page.tsx`
+### 4.2 Update Sitemap to Use Config
 
-Enhance `generateMetadata` with canonical URL, Open Graph, and image handling:
+Modify `app/sitemap.ts` to use dynamic config for page names.
+
+## Phase 5: Admin UI - SEO Configuration Tab
+
+### 5.1 Update SEO Tools Component
+
+Modify `app/admin/content-management/seo/_components/SEOTools.tsx` to add tabs:
 
 ```typescript
-export async function generateMetadata({ params }: NewsDetailPageProps): Promise<Metadata> {
-  const { id } = await params;
-  const supabase = await getSupabaseServerClient();
+export default function SEOTools() {
+  const [activeTab, setActiveTab] = useState<'analyzer' | 'settings'>('analyzer');
 
-  const { data: article } = await supabase
-    .from("cms_news")
-    .select("headline, meta_description, image_url, content")
-    .eq("id", id)
-    .eq("is_active", true)
-    .single();
+  return (
+    <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('analyzer')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'analyzer'
+                ? 'border-yec-primary text-yec-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            SEO Analyzer
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'settings'
+                ? 'border-yec-primary text-yec-primary'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            SEO Settings
+          </button>
+        </nav>
+      </div>
 
-  if (!article) {
-    return {
-      title: "Article Not Found - YEC Day",
-    };
-  }
-
-  const canonicalUrl = buildCanonicalUrl(`/news/${id}`);
-  const description = article.meta_description || article.content?.substring(0, 160) || "Read the latest news from YEC Day";
-
-  return {
-    title: `${article.headline} - YEC Day News`,
-    description,
-    alternates: {
-      canonical: canonicalUrl,
-    },
-    openGraph: {
-      title: article.headline,
-      description,
-      url: canonicalUrl,
-      images: article.image_url ? [article.image_url] : undefined,
-      type: 'article',
-    },
-  };
+      {/* Tab Content */}
+      {activeTab === 'analyzer' && <SEOAnalyzer />}
+      {activeTab === 'settings' && <SEOSettings />}
+    </div>
+  );
 }
 ```
 
-### 4.3 Update `app/faq/[id]/page.tsx`
+### 5.2 Create SEO Settings Component
 
-Enhance `generateMetadata` with canonical URL and Open Graph:
+Create `app/admin/content-management/seo/_components/SEOSettings.tsx`:
 
-```typescript
-export async function generateMetadata({ params }: FAQPageProps): Promise<Metadata> {
-  const { id } = await params;
+Component should include forms for:
 
-  try {
-    const supabase = getSupabaseServiceClient();
-    const { data: group } = await supabase
-      .from("cms_faq_groups")
-      .select("title, description")
-      .eq("id", id)
-      .eq("is_active", true)
-      .not("published_at", "is", null)
-      .single();
+- Site Name and Title Suffix
+- Default Description
+- Open Graph Default Image
+- Twitter Handle
+- Per-content-type titles and descriptions (Activities, News, FAQ)
+- Robots.txt configuration (allow/disallow paths)
 
-    if (!group) {
-      return {
-        title: "FAQ Not Found - YEC Day",
-        description: "The requested FAQ group could not be found.",
-      };
-    }
+API calls to: `/api/admin/cms/seo-config` (new endpoint)
 
-    const canonicalUrl = buildCanonicalUrl(`/faq/${id}`);
-    const description = group.description || `Frequently asked questions about ${group.title}`;
+## Phase 6: API Endpoints for SEO Config
 
-    return {
-      title: `${group.title} - YEC Day`,
-      description,
-      alternates: {
-        canonical: canonicalUrl,
-      },
-      openGraph: {
-        title: group.title,
-        description,
-        url: canonicalUrl,
-        type: 'article',
-      },
-    };
-  } catch (_error) {
-    return {
-      title: "FAQ - YEC Day",
-      description: "Frequently asked questions",
-    };
-  }
-}
-```
+### 6.1 Create SEO Config API
 
-### 4.4 Update `app/[slug]/page.tsx`
-
-Enhance `generateMetadata` to use canonical URL:
+Create `app/api/admin/cms/seo-config/route.ts`:
 
 ```typescript
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  try {
-    const { slug } = await params;
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/cms/pages/${slug}`,
-      { cache: "no-store" },
-    );
-    if (!res.ok) return { title: "Page not found" };
-    const { page } = await res.json();
-    return buildPageMetadata({
-      title: page?.title || slug,
-      description: page?.meta_description,
-      canonicalPath: `/${slug}`,
-    });
-  } catch {
-    const { slug } = await params;
-    return { title: slug };
-  }
-}
+// GET - Fetch current SEO config
+// PUT - Update SEO config (updates cms_branding table)
 ```
 
-## Phase 5: Create Static SEO Files
+Schema validation with zod for all SEO fields.
 
-### 5.1 Create `public/robots.txt`
+Clear cache after updates by calling `clearSEOConfigCache()`.
 
-Create new file with content:
+## Phase 7: Update Existing Implementations
 
-```txt
-User-agent: *
-Allow: /
-Allow: /activities
-Allow: /activities/
-Allow: /news
-Allow: /news/
-Allow: /faq
-Allow: /faq/
-Disallow: /admin/
-Disallow: /api/
-Disallow: /checker/
-Disallow: /preview/
-Disallow: /_next/
-
-Sitemap: https://yec-registration.com/sitemap.xml
-```
-
-Note: Update the Sitemap URL with actual production domain from `NEXT_PUBLIC_BASE_URL`
-
-### 5.2 Create `app/sitemap.ts`
-
-Create new file for static sitemap generation:
-
-```typescript
-import { MetadataRoute } from 'next'
-
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://yec-registration.com'
-  
-  return [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: `${baseUrl}/activities`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/news`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/faq`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.6,
-    },
-  ]
-}
-```
+Update the original SEO implementation plan (Phases 1-5) to use the new dynamic config system instead of hardcoded values.
 
 ## Testing Checklist
 
-1. Verify canonical URLs render correctly on all pages
-2. Test Open Graph tags with social media debuggers (Facebook, Twitter)
-3. Confirm robots.txt is accessible at `/robots.txt`
-4. Confirm sitemap.xml is accessible at `/sitemap.xml`
-5. Validate no backend systems are affected
-6. Test all 4 content types (Pages, Activities, News, FAQ)
+1. Test SEO config fetching with cache validation
+2. Verify fallback to defaults when database has no config
+3. Test all pages render with dynamic metadata
+4. Verify robots.txt and sitemap.xml use dynamic config
+5. Test admin UI for updating SEO settings
+6. Confirm cache clears after updates
+7. Test white-labeling by changing brand name
 
 ## Safety Notes
 
-- No changes to database schema
-- No changes to API endpoints
-- No changes to authentication system
-- No changes to admin functionality
-- Only metadata and static files modified
+- Extends existing cms_branding table (no new tables)
+- Backwards compatible with fallback defaults
+- Cache prevents performance impact
+- All changes are CMS-scoped (no backend system changes)
+- Original plan's SEO features remain intact
 
 ### To-dos
 
-- [ ] Fix Activities API full_url generation (missing base URL)
-- [ ] Fix FAQ API full_url generation (missing base URL)
-- [ ] Verify News API full_url generation (already correct)
-- [ ] Verify Pages API full_url generation (already correct)
-- [ ] Enhance app/lib/seo-utils.ts with canonical URL support
-- [ ] Update app/activities/page.tsx metadata with canonical and OG tags
-- [ ] Update app/news/page.tsx metadata with canonical and OG tags
-- [ ] Update app/faq/page.tsx metadata with canonical and OG tags
-- [ ] Update app/activities/[slug]/page.tsx generateMetadata with canonical and enhanced OG
-- [ ] Update app/news/[id]/page.tsx generateMetadata with canonical and image handling
-- [ ] Update app/faq/[id]/page.tsx generateMetadata with canonical and OG
-- [ ] Update app/[slug]/page.tsx generateMetadata to use canonical path
-- [ ] Create public/robots.txt with proper directives
-- [ ] Create app/sitemap.ts for static sitemap generation
-- [ ] Test all pages for SEO metadata and validate functionality
-- [ ] Test MCP_Fetch endpoints return complete URLs
-- [ ] Verify LineOA integration works with fixed URLs
-- [ ] Test canonical URLs render correctly on all pages
-- [ ] Test Open Graph tags with social media debuggers
-- [ ] Confirm robots.txt and sitemap.xml accessibility
+- [ ] Create database migration to extend cms_branding with SEO fields
+- [ ] Create app/lib/seo-config.ts with getSEOConfig() and caching
+- [ ] Add buildDynamicPageMetadata() to app/lib/seo-utils.ts
+- [ ] Update app/activities/page.tsx to use dynamic SEO config
+- [ ] Update app/news/page.tsx to use dynamic SEO config
+- [ ] Update app/faq/page.tsx to use dynamic SEO config
+- [ ] Update all detail pages ([slug], [id]) to use siteTitleSuffix from config
+- [ ] Convert public/robots.txt to app/robots.ts with dynamic config
+- [ ] Update app/sitemap.ts to use dynamic config
+- [ ] Add tab navigation to SEOTools.tsx (Analyzer/Settings tabs)
+- [ ] Create SEOSettings.tsx component with configuration forms
+- [ ] Create /api/admin/cms/seo-config route (GET/PUT)
+- [ ] Update original SEO plan todos to use dynamic config instead of hardcoded values
+- [ ] Test dynamic SEO configuration end-to-end

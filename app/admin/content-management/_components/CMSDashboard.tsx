@@ -16,6 +16,7 @@ import {
   Calendar,
   HelpCircle,
   FormInput,
+  Layers,
 } from "lucide-react";
 
 interface CMSStats {
@@ -112,6 +113,12 @@ export default function CMSDashboard() {
       icon: Video,
       title: "Hero Videos",
       description: "Configure hero videos for different devices",
+    },
+    {
+      href: "/admin/content-management/footer",
+      icon: Layers,
+      title: "Footer Content",
+      description: "Manage footer content and links",
     },
     {
       href: "/admin/content-management/responsive",

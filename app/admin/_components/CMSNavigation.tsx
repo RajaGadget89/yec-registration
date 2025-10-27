@@ -14,6 +14,7 @@ import {
   Eye,
   Layout,
   Settings,
+  Layers,
 } from "lucide-react";
 
 interface CMSNavigationProps {
@@ -68,6 +69,13 @@ export default function CMSNavigation({ hasCMSAccess }: CMSNavigationProps) {
       icon: Palette,
       label: "Branding",
       description: "Manage logos and branding",
+      show: true,
+    },
+    {
+      href: "/admin/content-management/footer",
+      icon: Layers,
+      label: "Footer Content",
+      description: "Manage footer content and links",
       show: true,
     },
     {

@@ -11,6 +11,7 @@ import { getCurrentUser } from "../lib/auth-utils.server";
 import { getRolesForEmail } from "../lib/rbac";
 import { isCheckinSystemEnabled } from "../lib/features";
 import { hasCMSAdminRole } from "../lib/cms-auth";
+import { getAdminBrandingConfig } from "../lib/admin-branding-config";
 import { headers } from "next/headers";
 
 // Force dynamic rendering for admin routes that use cookies
@@ -26,6 +27,9 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Get admin branding configuration
+  const adminBranding = await getAdminBrandingConfig();
+
   // Normal mode: perform full authentication check
   let user = null;
   let isSuperAdmin = false;
@@ -95,7 +99,7 @@ export default async function AdminLayout({
                   <Home className="h-5 w-5 text-white" />
                 </div>
                 <span className="font-bold text-lg bg-gradient-to-r from-yec-primary to-yec-accent bg-clip-text text-transparent">
-                  YEC Day
+                  {adminBranding.adminSiteName}
                 </span>
               </Link>
               <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>

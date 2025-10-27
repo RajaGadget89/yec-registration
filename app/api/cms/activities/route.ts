@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       created_at: activity.created_at,
       updated_at: activity.updated_at,
       is_active: activity.is_active,
-      full_url: `/activities/${activity.card_slug}`,
+      full_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://yec-registration.com"}/activities/${activity.card_slug}`,
       registration_status: activity.registration_required
         ? activity.participant_count >= activity.max_participants
           ? "full"

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Pagination from "../../_components/Pagination";
+import AdminHeader from "../../_components/AdminHeader";
 import {
   Plus,
   Edit,
@@ -118,23 +119,19 @@ export default function ContentTypesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Content Types
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage MCP content type configurations
-          </p>
-        </div>
-        <Link
-          href="/admin/mcp-management/content-types/new"
-          className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Content Type
-        </Link>
-      </div>
+      <AdminHeader
+        title="Content Types"
+        subtitle="Manage MCP content type configurations and API endpoints"
+        actions={
+          <Link
+            href="/admin/mcp-management/content-types/new"
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Content Type
+          </Link>
+        }
+      />
 
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4">

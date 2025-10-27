@@ -3,11 +3,18 @@ import { getSupabaseServiceClient } from "../lib/supabase/server";
 import NewsListing from "./_components/NewsListing";
 import TopMenuBar from "../components/TopMenuBar";
 import Footer from "../components/Footer";
+import { buildDynamicPageMetadata } from "../lib/seo-utils";
 
-export const metadata: Metadata = {
-  title: "News - YEC Day",
-  description: "Latest news and updates from YEC Day",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const seoConfig = await import("../lib/seo-config").then((m) =>
+    m.getSEOConfig(),
+  );
+  return buildDynamicPageMetadata({
+    title: seoConfig.newsTitle,
+    description: seoConfig.newsDescription,
+    canonicalPath: "/news",
+  });
+}
 
 interface NewsPageProps {
   searchParams: Promise<{

@@ -26,6 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return buildPageMetadata({
       title: page?.title || slug,
       description: page?.meta_description,
+      canonicalPath: `/${slug}`,
     });
   } catch {
     const { slug } = await params;
