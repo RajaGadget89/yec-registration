@@ -9,23 +9,44 @@ export default function AdminNavigation() {
     adminManagement?: boolean;
   }>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [adminBranding, setAdminBranding] = useState({
+    adminSiteName: "YEC Day",
+    adminLogoUrl: undefined,
+    adminFaviconUrl: undefined,
+  });
 
   useEffect(() => {
-    const fetchFeatureFlags = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch("/api/features");
-        if (response.ok) {
-          const flags = await response.json();
+        // Fetch feature flags
+        const featuresResponse = await fetch("/api/features");
+        if (featuresResponse.ok) {
+          const flags = await featuresResponse.json();
           setFeatureFlags(flags);
         }
+
+        // Fetch admin branding
+        const brandingResponse = await fetch(
+          "/api/admin/cms/admin-branding-config",
+        );
+        if (brandingResponse.ok) {
+          const brandingData = await brandingResponse.json();
+          if (brandingData.config) {
+            setAdminBranding({
+              adminSiteName: brandingData.config.admin_site_name || "YEC Day",
+              adminLogoUrl: brandingData.config.admin_logo_url,
+              adminFaviconUrl: brandingData.config.admin_favicon_url,
+            });
+          }
+        }
       } catch (error) {
-        console.error("Error fetching feature flags:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchFeatureFlags();
+    fetchData();
   }, []);
 
   if (isLoading) {
@@ -66,7 +87,7 @@ export default function AdminNavigation() {
           <Home className="h-5 w-5 text-white" />
         </div>
         <span className="font-bold text-lg bg-gradient-to-r from-yec-primary to-yec-accent bg-clip-text text-transparent">
-          YEC Day
+          {adminBranding.adminSiteName}
         </span>
       </Link>
       <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>

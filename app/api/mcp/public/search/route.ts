@@ -373,15 +373,51 @@ export async function GET(request: NextRequest) {
           (a: any, b: any) => (b.similarity || 0) - (a.similarity || 0),
         );
 
+        // Add full_url to each hit based on content type
+        const hitsWithUrls = allResults.map((hit: any) => {
+          const baseUrl =
+            process.env.NEXT_PUBLIC_BASE_URL || "https://yec-registration.com";
+          let fullUrl = "";
+
+          switch (hit.type) {
+            case "news":
+              fullUrl = `${baseUrl}/news/${hit.item_id}`;
+              break;
+            case "activities":
+              // For activities, we need to get the slug from the database
+              // For now, use the item_id as fallback
+              fullUrl = `${baseUrl}/activities/${hit.item_id}`;
+              break;
+            case "pages":
+              // For pages, we need to get the slug from the database
+              // For now, use the item_id as fallback
+              fullUrl = `${baseUrl}/pages/${hit.item_id}`;
+              break;
+            case "faq":
+              // For FAQ, we need to get the group and item slugs from the database
+              // For now, use the item_id as fallback
+              fullUrl = `${baseUrl}/faq/${hit.item_id}`;
+              break;
+            default:
+              fullUrl = `${baseUrl}/${hit.type}/${hit.item_id}`;
+          }
+
+          return {
+            ...hit,
+            full_url: fullUrl,
+          };
+        });
+
         // Show top 10 results
         console.log("\n🔝 TOP 10 RESULTS (regardless of language):");
-        allResults.slice(0, 10).forEach((hit: any, i: number) => {
+        hitsWithUrls.slice(0, 10).forEach((hit: any, i: number) => {
           const isThai = /[\u0E00-\u0E7F]/.test(hit.content || "");
           const lang = isThai ? "🇹🇭" : "🇬🇧";
           console.log(
             `   ${i + 1}. ${lang} Score: ${(hit.similarity || 0).toFixed(4)} | Type: ${hit.type} | Lang: ${hit.language}`,
           );
           console.log(`      "${(hit.content || "").substring(0, 80)}..."`);
+          console.log(`      URL: ${hit.full_url}`);
         });
 
         // Show top Thai results specifically
@@ -424,7 +460,7 @@ export async function GET(request: NextRequest) {
         const actualThreshold = 0.3;
         console.log(`\n✂️  APPLYING THRESHOLD: ${actualThreshold}`);
 
-        const filteredHits = allResults
+        const filteredHits = hitsWithUrls
           .filter((hit: any) => (hit.similarity || 0) >= actualThreshold)
           .slice(0, topK);
 
@@ -433,8 +469,8 @@ export async function GET(request: NextRequest) {
           `   Final results returned: ${Math.min(filteredHits.length, topK)}`,
         );
 
-        if (filteredHits.length === 0 && allResults.length > 0) {
-          const highestScore = allResults[0].similarity || 0;
+        if (filteredHits.length === 0 && hitsWithUrls.length > 0) {
+          const highestScore = hitsWithUrls[0].similarity || 0;
           console.log(`\n⚠️  NO RESULTS ABOVE THRESHOLD!`);
           console.log(`   Highest score was: ${highestScore.toFixed(4)}`);
           console.log(`   Current threshold: ${actualThreshold}`);

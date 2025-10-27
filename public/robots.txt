@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /activities
+Allow: /activities/
+Allow: /news
+Allow: /news/
+Allow: /faq
+Allow: /faq/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /checker/
+Disallow: /preview/
+Disallow: /_next/
+
+Sitemap: https://yec-registration.com/sitemap.xml

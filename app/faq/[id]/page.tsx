@@ -4,6 +4,7 @@ import TopMenuBar from "../../components/TopMenuBar";
 import Footer from "../../components/Footer";
 import ShareButton from "../../components/ShareButton";
 import { notFound } from "next/navigation";
+import { buildDynamicPageMetadata } from "../../lib/seo-utils";
 
 interface FAQPageProps {
   params: Promise<{ id: string }>;
@@ -26,19 +27,22 @@ export async function generateMetadata({
 
     if (!group) {
       return {
-        title: "FAQ Not Found - YEC Day",
+        title: "FAQ Not Found",
         description: "The requested FAQ group could not be found.",
       };
     }
 
-    return {
-      title: `${group.title} - YEC Day`,
-      description:
-        group.description || `Frequently asked questions about ${group.title}`,
-    };
+    const description =
+      group.description || `Frequently asked questions about ${group.title}`;
+
+    return buildDynamicPageMetadata({
+      title: group.title,
+      description,
+      canonicalPath: `/faq/${id}`,
+    });
   } catch (_error) {
     return {
-      title: "FAQ - YEC Day",
+      title: "FAQ",
       description: "Frequently asked questions",
     };
   }

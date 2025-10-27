@@ -4,11 +4,18 @@ import TopMenuBar from "../components/TopMenuBar";
 import Footer from "../components/Footer";
 import Link from "next/link";
 import { HelpCircle, Calendar } from "lucide-react";
+import { buildDynamicPageMetadata } from "../lib/seo-utils";
 
-export const metadata: Metadata = {
-  title: "FAQ - YEC Day",
-  description: "Frequently asked questions and answers about YEC Day",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const seoConfig = await import("../lib/seo-config").then((m) =>
+    m.getSEOConfig(),
+  );
+  return buildDynamicPageMetadata({
+    title: seoConfig.faqTitle,
+    description: seoConfig.faqDescription,
+    canonicalPath: "/faq",
+  });
+}
 
 export default async function FAQPage() {
   const supabase = await getSupabaseServiceClient();

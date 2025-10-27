@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Pagination from "../../_components/Pagination";
+import AdminHeader from "../../_components/AdminHeader";
 import {
   Plus,
   Edit,
@@ -109,6 +110,20 @@ export default function ContentTypesClient() {
 
   return (
     <>
+      <AdminHeader
+        title="Content Types"
+        subtitle="Manage MCP content type configurations and API endpoints"
+        actions={
+          <Link
+            href="/admin/mcp-management/content-types/new"
+            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Add Content Type
+          </Link>
+        }
+      />
+
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl p-4">
           <div className="text-sm text-red-800 dark:text-red-200">{error}</div>
@@ -117,7 +132,7 @@ export default function ContentTypesClient() {
 
       {/* Search and Filter Section */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
             {/* Search */}
             <div className="relative flex-1 max-w-md">
@@ -144,15 +159,6 @@ export default function ContentTypesClient() {
               </select>
             </div>
           </div>
-
-          {/* Create Button */}
-          <Link
-            href="/admin/mcp-management/content-types/new"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            Create Content Type
-          </Link>
         </div>
       </div>
 

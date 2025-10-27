@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
             item.estimated_read_time ||
             Math.ceil(item.answer?.length / 200) ||
             1,
-          full_url: `/faq/${(group as any).slug || group.id}/${(item as any).slug || item.id}`,
+          full_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://yec-registration.com"}/faq/${(group as any).slug || group.id}/${(item as any).slug || item.id}`,
           helpful_ratio:
             item.helpful_count + item.not_helpful_count > 0
               ? item.helpful_count /

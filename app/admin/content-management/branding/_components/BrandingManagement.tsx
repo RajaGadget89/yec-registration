@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   X,
   Eye,
+  Shield,
 } from "lucide-react";
 import MediaLibraryModal from "./MediaLibraryModal";
 import BrandingPreview from "./BrandingPreview";
@@ -32,6 +33,12 @@ interface BrandingConfig {
   is_active?: boolean;
 }
 
+interface AdminBrandingConfig {
+  admin_site_name?: string;
+  admin_logo_url?: string;
+  admin_favicon_url?: string;
+}
+
 interface MediaFile {
   id: string;
   filename: string;
@@ -46,6 +53,7 @@ interface MediaFile {
 
 export default function BrandingManagement() {
   const [branding, setBranding] = useState<BrandingConfig>({});
+  const [adminBranding, setAdminBranding] = useState<AdminBrandingConfig>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +61,7 @@ export default function BrandingManagement() {
   // Media Library modal state
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const [currentLogoType, setCurrentLogoType] = useState<
-    "desktop" | "mobile" | "favicon" | null
+    "desktop" | "mobile" | "favicon" | "admin_logo" | "admin_favicon" | null
   >(null);
   const [selectedImageDetails, setSelectedImageDetails] = useState<{
     [key: string]: MediaFile;
@@ -69,13 +77,23 @@ export default function BrandingManagement() {
   const fetchBranding = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/cms/branding");
-      if (!response.ok) {
+
+      // Fetch public branding
+      const brandingResponse = await fetch("/api/admin/cms/branding");
+      if (!brandingResponse.ok) {
         throw new Error("Failed to fetch branding configuration");
       }
+      const brandingData = await brandingResponse.json();
+      setBranding(brandingData.branding || {});
 
-      const data = await response.json();
-      setBranding(data.branding || {});
+      // Fetch admin branding
+      const adminBrandingResponse = await fetch(
+        "/api/admin/cms/admin-branding-config",
+      );
+      if (adminBrandingResponse.ok) {
+        const adminBrandingData = await adminBrandingResponse.json();
+        setAdminBranding(adminBrandingData.config || {});
+      }
     } catch (error) {
       console.error("Error fetching branding:", error);
     } finally {
@@ -122,6 +140,41 @@ export default function BrandingManagement() {
     }
   };
 
+  const handleAdminBrandingSave = async () => {
+    try {
+      setSaving(true);
+      setError(null);
+
+      const response = await fetch("/api/admin/cms/admin-branding-config", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(adminBranding),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(
+          errorData.error || "Failed to save admin branding configuration",
+        );
+      }
+
+      const data = await response.json();
+      setAdminBranding(data.config);
+      alert("Admin branding configuration saved successfully!");
+    } catch (error) {
+      console.error("Error saving admin branding:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Failed to save admin branding",
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const _handleLogoUpload = async (
     type: "desktop" | "mobile" | "favicon",
     file: File,
@@ -162,7 +215,9 @@ export default function BrandingManagement() {
   };
 
   // Media Library handlers
-  const openMediaLibrary = (logoType: "desktop" | "mobile" | "favicon") => {
+  const openMediaLibrary = (
+    logoType: "desktop" | "mobile" | "favicon" | "admin_logo" | "admin_favicon",
+  ) => {
     setCurrentLogoType(logoType);
     setShowMediaLibrary(true);
   };
@@ -170,10 +225,22 @@ export default function BrandingManagement() {
   const handleImageSelect = (file: MediaFile) => {
     if (!currentLogoType) return;
 
-    setBranding((prev) => ({
-      ...prev,
-      [`logo_${currentLogoType}_url`]: file.file_path,
-    }));
+    if (
+      currentLogoType === "admin_logo" ||
+      currentLogoType === "admin_favicon"
+    ) {
+      // Handle admin branding
+      setAdminBranding((prev) => ({
+        ...prev,
+        [`admin_${currentLogoType.replace("admin_", "")}_url`]: file.file_path,
+      }));
+    } else {
+      // Handle public branding
+      setBranding((prev) => ({
+        ...prev,
+        [`logo_${currentLogoType}_url`]: file.file_path,
+      }));
+    }
 
     setSelectedImageDetails((prev) => ({
       ...prev,
@@ -184,11 +251,22 @@ export default function BrandingManagement() {
     setCurrentLogoType(null);
   };
 
-  const handleRemoveImage = (logoType: "desktop" | "mobile" | "favicon") => {
-    setBranding((prev) => ({
-      ...prev,
-      [`logo_${logoType}_url`]: undefined,
-    }));
+  const handleRemoveImage = (
+    logoType: "desktop" | "mobile" | "favicon" | "admin_logo" | "admin_favicon",
+  ) => {
+    if (logoType === "admin_logo" || logoType === "admin_favicon") {
+      // Handle admin branding
+      setAdminBranding((prev) => ({
+        ...prev,
+        [`admin_${logoType.replace("admin_", "")}_url`]: undefined,
+      }));
+    } else {
+      // Handle public branding
+      setBranding((prev) => ({
+        ...prev,
+        [`logo_${logoType}_url`]: undefined,
+      }));
+    }
 
     setSelectedImageDetails((prev) => {
       const newDetails = { ...prev };
@@ -561,6 +639,159 @@ export default function BrandingManagement() {
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Admin Branding */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+            <Shield className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              Admin Zone Branding
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Configure branding for the admin dashboard and navigation
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white">
+              Admin Site Name
+            </label>
+            <input
+              type="text"
+              value={adminBranding.admin_site_name || ""}
+              onChange={(e) =>
+                setAdminBranding((prev) => ({
+                  ...prev,
+                  admin_site_name: e.target.value,
+                }))
+              }
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yec-primary focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+              placeholder="YEC Day"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              This will appear in the admin navigation header
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white">
+              Admin Logo URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={adminBranding.admin_logo_url || ""}
+                onChange={(e) =>
+                  setAdminBranding((prev) => ({
+                    ...prev,
+                    admin_logo_url: e.target.value,
+                  }))
+                }
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yec-primary focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                placeholder="https://example.com/admin-logo.png"
+              />
+              <button
+                onClick={() => openMediaLibrary("admin_logo")}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
+              >
+                <ImageIcon className="h-4 w-4" />
+                <span>Browse</span>
+              </button>
+            </div>
+            {adminBranding.admin_logo_url && (
+              <div className="mt-2">
+                <div className="relative w-32 h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <Image
+                    src={adminBranding.admin_logo_url}
+                    alt="Admin Logo Preview"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    onClick={() => handleRemoveImage("admin_logo")}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                    aria-label="Remove admin logo"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Optional: Custom logo for admin zone (replaces home icon)
+            </p>
+          </div>
+
+          <div className="lg:col-span-2 space-y-2">
+            <label className="block text-sm font-semibold text-gray-900 dark:text-white">
+              Admin Favicon URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={adminBranding.admin_favicon_url || ""}
+                onChange={(e) =>
+                  setAdminBranding((prev) => ({
+                    ...prev,
+                    admin_favicon_url: e.target.value,
+                  }))
+                }
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yec-primary focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                placeholder="https://example.com/admin-favicon.ico"
+              />
+              <button
+                onClick={() => openMediaLibrary("admin_favicon")}
+                className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
+              >
+                <ImageIcon className="h-4 w-4" />
+                <span>Browse</span>
+              </button>
+            </div>
+            {adminBranding.admin_favicon_url && (
+              <div className="mt-2">
+                <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <Image
+                    src={adminBranding.admin_favicon_url}
+                    alt="Admin Favicon Preview"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    onClick={() => handleRemoveImage("admin_favicon")}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                    aria-label="Remove admin favicon"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Optional: Custom favicon for admin pages
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={handleAdminBrandingSave}
+            disabled={saving}
+            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+          >
+            {saving ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            <span>{saving ? "Saving..." : "Save Admin Branding"}</span>
+          </button>
         </div>
       </div>
 

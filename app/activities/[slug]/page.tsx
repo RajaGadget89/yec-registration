@@ -3,6 +3,7 @@ import { Metadata } from "next";
 import Image from "next/image";
 import TopMenuBar from "../../components/TopMenuBar";
 import Footer from "../../components/Footer";
+import { buildDynamicPageMetadata } from "../../lib/seo-utils";
 
 async function fetchActivity(slug: string) {
   const res = await fetch(
@@ -32,21 +33,19 @@ export async function generateMetadata({
     };
   }
 
-  return {
-    title: `${activity.title} - YEC Registration`,
+  const _seoConfig = await import("../../lib/seo-config").then((m) =>
+    m.getSEOConfig(),
+  );
+
+  return buildDynamicPageMetadata({
+    title: activity.title,
     description:
       activity.summary ||
       activity.description ||
       `Learn more about ${activity.title}`,
-    openGraph: {
-      title: activity.title,
-      description:
-        activity.summary ||
-        activity.description ||
-        `Learn more about ${activity.title}`,
-      images: activity.image_url ? [activity.image_url] : [],
-    },
-  };
+    image: activity.image_url,
+    canonicalPath: `/activities/${slug}`,
+  });
 }
 
 export default async function ActivityDetailPage({
