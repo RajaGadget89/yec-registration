@@ -14,6 +14,7 @@ import {
   FileText,
   Video,
 } from "lucide-react";
+import EditTemplateModal from "./EditTemplateModal";
 
 interface ContentTemplate {
   id: string;
@@ -40,15 +41,30 @@ export default function TemplatesManagement() {
   const [selectedTemplate, setSelectedTemplate] =
     useState<ContentTemplate | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [templateToEdit, setTemplateToEdit] = useState<ContentTemplate | null>(
+    null,
+  );
 
   const fetchTemplates = useCallback(async () => {
     try {
       setLoading(true);
+      // Map component template_type format to API type format
+      const typeMapping: Record<string, string> = {
+        page: "page_section",
+        news: "news",
+        "activity-card": "activity_card",
+        "hero-video": "banner",
+        component: "page_section",
+      };
+
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: "10",
         ...(searchTerm && { search: searchTerm }),
-        ...(filterType !== "all" && { template_type: filterType }),
+        ...(filterType !== "all" && {
+          type: typeMapping[filterType] || filterType,
+        }),
         ...(filterStatus !== "all" && {
           is_active: filterStatus === "active" ? "true" : "false",
         }),
@@ -60,7 +76,28 @@ export default function TemplatesManagement() {
       }
 
       const data = await response.json();
-      setTemplates(data.templates || []);
+
+      // Map API response to component interface format
+      const responseTypeMapping: Record<
+        string,
+        ContentTemplate["template_type"]
+      > = {
+        news: "news",
+        activity_card: "activity-card",
+        banner: "hero-video",
+        page_section: "page",
+      };
+
+      const mappedTemplates = (data.templates || []).map((template: any) => ({
+        ...template,
+        template_type: responseTypeMapping[template.type] || "page",
+        description: template.description || "",
+        preview_image: template.preview_image || "",
+        is_system: template.is_system || false,
+        updated_at: template.updated_at || template.created_at,
+      }));
+
+      setTemplates(mappedTemplates);
       setTotalPages(data.pagination?.totalPages || 1);
     } catch (error) {
       console.error("Error fetching templates:", error);
@@ -187,6 +224,11 @@ export default function TemplatesManagement() {
     }
   };
 
+  const formatTemplateType = (type: any) =>
+    typeof type === "string" && type.length > 0
+      ? type.replace("-", " ")
+      : "Unknown";
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -197,70 +239,72 @@ export default function TemplatesManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-4 flex-1">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search templates..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yec-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
-            />
+      {/* Filter Bar (API Keys style) */}
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="flex flex-col sm:flex-row gap-4 flex-1">
+            {/* Search */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search templates..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Filters: All Status, All Types */}
+            <div className="flex gap-3">
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Types</option>
+                <option value="page">Page</option>
+                <option value="news">News</option>
+                <option value="activity-card">Activity Card</option>
+                <option value="hero-video">Hero Video</option>
+                <option value="component">Component</option>
+              </select>
+            </div>
           </div>
 
-          {/* Filters */}
-          <div className="flex gap-2">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yec-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+          {/* Right Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                // TODO: Implement import template
+                alert("Import template functionality coming soon!");
+              }}
+              className="inline-flex items-center gap-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
             >
-              <option value="all">All Types</option>
-              <option value="page">Page</option>
-              <option value="news">News</option>
-              <option value="activity-card">Activity Card</option>
-              <option value="hero-video">Hero Video</option>
-              <option value="component">Component</option>
-            </select>
-
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-yec-primary focus:border-transparent dark:bg-gray-700 dark:text-white"
+              <Upload className="w-4 h-4" />
+              Import
+            </button>
+            <button
+              onClick={() => {
+                // TODO: Implement create template modal
+                alert("Create template functionality coming soon!");
+              }}
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
             >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
+              <Plus className="w-4 h-4" />
+              Create Template
+            </button>
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              // TODO: Implement import template
-              alert("Import template functionality coming soon!");
-            }}
-            className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
-          >
-            <Upload className="h-4 w-4" />
-            <span>Import</span>
-          </button>
-          <button
-            onClick={() => {
-              // TODO: Implement create template modal
-              alert("Create template functionality coming soon!");
-            }}
-            className="flex items-center space-x-2 px-4 py-2 bg-yec-primary text-white rounded-lg hover:bg-yec-accent transition-colors duration-200"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Create Template</span>
-          </button>
         </div>
       </div>
 
@@ -321,9 +365,9 @@ export default function TemplatesManagement() {
                   {template.name}
                 </h3>
                 <span
-                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTemplateTypeColor(template.template_type)}`}
+                  className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTemplateTypeColor((template as any).template_type || "unknown")}`}
                 >
-                  {template.template_type.replace("-", " ")}
+                  {formatTemplateType((template as any).template_type)}
                 </span>
               </div>
 
@@ -349,8 +393,8 @@ export default function TemplatesManagement() {
                   </button>
                   <button
                     onClick={() => {
-                      // TODO: Implement edit template
-                      alert("Edit template functionality coming soon!");
+                      setTemplateToEdit(template);
+                      setIsEditOpen(true);
                     }}
                     className="p-1 text-gray-400 hover:text-yec-primary transition-colors duration-200"
                     title="Edit Template"
@@ -390,6 +434,19 @@ export default function TemplatesManagement() {
         ))}
       </div>
 
+      {/* Edit Template Modal */}
+      <EditTemplateModal
+        template={templateToEdit}
+        isOpen={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setTemplateToEdit(null);
+        }}
+        onSave={() => {
+          fetchTemplates();
+        }}
+      />
+
       {/* Template Preview Modal */}
       {isPreviewOpen && selectedTemplate && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -400,7 +457,8 @@ export default function TemplatesManagement() {
                   {selectedTemplate.name}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {selectedTemplate.template_type.replace("-", " ")} Template
+                  {formatTemplateType((selectedTemplate as any).template_type)}{" "}
+                  Template
                 </p>
               </div>
               <button
@@ -451,9 +509,11 @@ export default function TemplatesManagement() {
                     Template Type
                   </h4>
                   <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTemplateTypeColor(selectedTemplate.template_type)}`}
+                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTemplateTypeColor((selectedTemplate as any).template_type || "unknown")}`}
                   >
-                    {selectedTemplate.template_type.replace("-", " ")}
+                    {formatTemplateType(
+                      (selectedTemplate as any).template_type,
+                    )}
                   </span>
                 </div>
                 <div>
