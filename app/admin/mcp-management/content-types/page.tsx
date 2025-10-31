@@ -212,7 +212,9 @@ export default function ContentTypesPage() {
                         className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
                           contentType.access_level === "public"
                             ? "bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400"
-                            : "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400"
+                            : contentType.access_level === "admin"
+                              ? "bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400"
+                              : "bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400"
                         }`}
                       >
                         <Server className="w-3 h-3" />

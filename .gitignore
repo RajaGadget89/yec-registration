@@ -67,6 +67,8 @@ migrations/
 e2e/
 supabase/migrations/
 migrations/
+.cursor/plans/
+sql/
 
 # ========================================
 # TypeScript

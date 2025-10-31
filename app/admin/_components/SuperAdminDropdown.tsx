@@ -10,7 +10,6 @@ import {
   Settings,
   Upload,
   ChevronRight,
-  Hash,
   Server,
 } from "lucide-react";
 
@@ -43,6 +42,7 @@ export default function SuperAdminDropdown({
   }, []);
 
   const menuItems = [
+    // 1) Admin Management Team
     {
       href: "/admin/management",
       icon: Users,
@@ -50,6 +50,15 @@ export default function SuperAdminDropdown({
       description: "Manage admin users and roles",
       show: process.env.FEATURES_ADMIN_MANAGEMENT !== "false",
     },
+    // 2) Manage Events
+    {
+      href: "/admin/checkin/events",
+      icon: Calendar,
+      label: "Manage Events",
+      description: "Create and manage check-in events",
+      show: isCheckinEnabled,
+    },
+    // 3) MCP Management
     {
       href: "/admin/mcp-management",
       icon: Server,
@@ -57,39 +66,15 @@ export default function SuperAdminDropdown({
       description: "Configure content exposure for MCP server",
       show: true,
     },
-    {
-      href: "/admin/super-admin/form-email-templates",
-      icon: Settings,
-      label: "Form Email Templates",
-      description: "Configure email templates for forms",
-      show: true,
-    },
+    // 4) Pricing Management (main menu, traditional pricing)
     {
       href: "/admin/pricing-management",
       icon: DollarSign,
       label: "Pricing Management",
       description: "Configure pricing and packages",
       show: true,
-      submenu: [
-        {
-          href: "/admin/pricing-management",
-          label: "Traditional Registration",
-          description: "Manage pricing for traditional forms",
-        },
-        {
-          href: "/admin/super-admin/form-pricing",
-          label: "Form Pricing Management",
-          description: "Configure pricing for new registration forms",
-        },
-      ],
     },
-    {
-      href: "/admin/super-admin/tracking-id-config",
-      icon: Hash,
-      label: "Tracking ID Format",
-      description: "Configure tracking ID formats for forms",
-      show: true,
-    },
+    // 5) Google Form Import
     {
       href: "/admin/import",
       icon: Upload,
@@ -97,12 +82,35 @@ export default function SuperAdminDropdown({
       description: "Import registration data from Google Forms",
       show: true,
     },
+    // 6) Advance Registration Form (parent with submenu)
     {
-      href: "/admin/checkin/events",
-      icon: Calendar,
-      label: "Manage Events",
-      description: "Create and manage check-in events",
-      show: isCheckinEnabled,
+      href: "/admin/super-admin/advance-registration",
+      icon: Settings,
+      label: "Advance Registration Form",
+      description: "Advanced form configuration",
+      show: true,
+      submenu: [
+        {
+          href: "/admin/super-admin/form-pricing",
+          label: "Form Pricing Management",
+          description: "Configure pricing for new registration forms",
+        },
+        {
+          href: "/admin/super-admin/form-badge-templates",
+          label: "Form Badge Templates",
+          description: "Manage badge card templates for forms",
+        },
+        {
+          href: "/admin/super-admin/form-email-templates",
+          label: "Form Email Templates",
+          description: "Configure email templates for forms",
+        },
+        {
+          href: "/admin/super-admin/tracking-id-config",
+          label: "Tracking ID Format",
+          description: "Configure tracking ID formats for forms",
+        },
+      ],
     },
   ].filter((item) => item.show);
 
