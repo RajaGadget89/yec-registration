@@ -50,7 +50,8 @@ export function isAdminManagementEnabled(): boolean {
 
 /**
  * Check if check-in system feature is enabled
+ * ✅ Always enabled - feature flag removed per user request
  */
 export function isCheckinSystemEnabled(): boolean {
-  return isFeatureEnabled(FEATURES.CHECKIN_SYSTEM);
+  return true; // Always enabled - no longer gated by feature flag
 }

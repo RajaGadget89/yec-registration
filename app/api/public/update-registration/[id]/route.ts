@@ -182,8 +182,19 @@ export async function POST(
 
         // Handle hotel choice fields for payment dimension (moved from profile)
         // ✅ CRITICAL FIX: Handle database constraints for room_type and external_hotel_name
+        // Get current hotel_choice from existing registration to handle constraint when hotel_choice is not being updated
+        const currentHotelChoice = currentRegistration.hotel_choice;
+        const effectiveHotelChoice = formData.hotelChoice || currentHotelChoice;
+
         if (formData.hotelChoice) {
-          updateData.hotel_choice = formData.hotelChoice;
+          // ✅ CRITICAL FIX: Map 'no-accommodation' to 'out-of-quota' for database
+          // The database only accepts 'in-quota' or 'out-of-quota', but form can send 'no-accommodation'
+          const dbHotelChoice =
+            formData.hotelChoice === "no-accommodation"
+              ? "out-of-quota"
+              : formData.hotelChoice;
+
+          updateData.hotel_choice = dbHotelChoice;
 
           // Handle roomType based on hotel choice to satisfy database constraint
           if (
@@ -196,7 +207,10 @@ export async function POST(
           }
 
           // ✅ CRITICAL FIX: Handle external_hotel_name constraint
-          if (formData.hotelChoice === "out-of-quota") {
+          if (formData.hotelChoice === "no-accommodation") {
+            // For 'no-accommodation' (mapped to 'out-of-quota' in DB), use special default value
+            updateData.external_hotel_name = "ไม่ต้องการที่พัก";
+          } else if (formData.hotelChoice === "out-of-quota") {
             // For out-of-quota, external_hotel_name is required
             if (
               formData.externalHotelName &&
@@ -204,20 +218,49 @@ export async function POST(
             ) {
               updateData.external_hotel_name = formData.externalHotelName;
             } else {
-              // If no external hotel name provided, use a default value
-              updateData.external_hotel_name = "External Hotel (Not Specified)";
+              // If no external hotel name provided, use existing value or default
+              updateData.external_hotel_name =
+                currentRegistration.external_hotel_name ||
+                "External Hotel (Not Specified)";
             }
-          } else if (
-            formData.hotelChoice === "in-quota" ||
-            formData.hotelChoice === "no-accommodation"
-          ) {
-            // For in-quota and no-accommodation, external_hotel_name must be null
+          } else if (formData.hotelChoice === "in-quota") {
+            // For in-quota, external_hotel_name must be null
             updateData.external_hotel_name = null;
           }
-        } else if (formData.roomType !== undefined) {
-          // Only update room_type if hotel_choice is not being changed
-          if (formData.roomType && formData.roomType.trim() !== "") {
-            updateData.room_type = formData.roomType;
+        } else {
+          // ✅ CRITICAL FIX: Hotel choice is not being updated, but we need to ensure constraint is satisfied
+          // If existing hotel_choice is out-of-quota, ensure external_hotel_name is not null
+          if (currentHotelChoice === "out-of-quota") {
+            // Preserve existing external_hotel_name if it exists, otherwise set default
+            if (!currentRegistration.external_hotel_name) {
+              updateData.external_hotel_name = "External Hotel (Not Specified)";
+            }
+            // If external_hotel_name is provided in form, use it
+            if (
+              formData.externalHotelName &&
+              formData.externalHotelName.trim() !== ""
+            ) {
+              updateData.external_hotel_name = formData.externalHotelName;
+            }
+          } else if (currentHotelChoice === "in-quota") {
+            // Ensure external_hotel_name is null for in-quota
+            // Note: Database doesn't store 'no-accommodation', it's stored as 'out-of-quota' with special external_hotel_name
+            if (currentRegistration.external_hotel_name) {
+              updateData.external_hotel_name = null;
+            }
+          }
+          // Note: If currentHotelChoice is 'out-of-quota', it's already handled above
+
+          // Handle roomType if provided
+          if (formData.roomType !== undefined) {
+            if (formData.roomType && formData.roomType.trim() !== "") {
+              updateData.room_type = formData.roomType;
+            } else if (
+              effectiveHotelChoice === "out-of-quota" ||
+              effectiveHotelChoice === "no-accommodation"
+            ) {
+              updateData.room_type = null;
+            }
           }
         }
         // ✅ CRITICAL FIX: Handle roommate constraint for double room
@@ -358,8 +401,10 @@ export async function POST(
           updateData.business_type = formData.businessType;
         if (formData.businessTypeOther)
           updateData.business_type_other = formData.businessTypeOther;
-        if (formData.yecProvince)
-          updateData.yec_province = formData.yecProvince;
+        // ✅ CRITICAL: yec_province is intentionally excluded from updates
+        // Province changes affect registration tracking numbers and tracking system integrity
+        // The field is hidden in the update form UI and any attempts to update it are ignored
+        // if (formData.yecProvince) updateData.yec_province = formData.yecProvince;
         if (formData.travelType) updateData.travel_type = formData.travelType;
         if (formData.profileImage)
           updateData.profile_image_url = formData.profileImage;
@@ -390,12 +435,89 @@ export async function POST(
 
     updateData.review_checklist = currentChecklist;
 
+    // ✅ CRITICAL FIX: Ensure external_hotel_name constraint is satisfied before update
+    // Check if hotel_choice will be 'out-of-quota' after update
+    // Note: 'no-accommodation' from form is already mapped to 'out-of-quota' in updateData.hotel_choice above
+    const finalHotelChoice =
+      updateData.hotel_choice || currentRegistration.hotel_choice;
+
+    // Always check constraint regardless of which fields are being updated
+    // The database only accepts 'in-quota' or 'out-of-quota', so finalHotelChoice should never be 'no-accommodation' here
+    if (finalHotelChoice === "out-of-quota") {
+      // For out-of-quota, external_hotel_name MUST be set (not null) and have length > 0
+      // Check if external_hotel_name is in updateData
+      const hasExternalHotelInUpdate = "external_hotel_name" in updateData;
+      const currentExternalHotel = currentRegistration.external_hotel_name;
+
+      if (!hasExternalHotelInUpdate) {
+        // external_hotel_name is not being updated, so we need to ensure existing value is valid
+        if (!currentExternalHotel || currentExternalHotel.trim() === "") {
+          // Existing value is invalid, must set a default
+          updateData.external_hotel_name = "External Hotel (Not Specified)";
+          console.log(
+            "[PUBLIC_UPDATE_API] Auto-setting external_hotel_name for out-of-quota constraint (existing was empty):",
+            updateData.external_hotel_name,
+          );
+        } else {
+          // Existing value is valid, explicitly preserve it in updateData
+          // This is critical when updating other fields (like travel_type) while hotel_choice stays 'out-of-quota'
+          updateData.external_hotel_name = currentExternalHotel;
+          console.log(
+            "[PUBLIC_UPDATE_API] Preserving existing external_hotel_name for out-of-quota constraint:",
+            currentExternalHotel,
+          );
+        }
+      } else {
+        // external_hotel_name is in updateData, validate it
+        if (
+          !updateData.external_hotel_name ||
+          (typeof updateData.external_hotel_name === "string" &&
+            updateData.external_hotel_name.trim() === "")
+        ) {
+          updateData.external_hotel_name = "External Hotel (Not Specified)";
+          console.log(
+            "[PUBLIC_UPDATE_API] Auto-setting external_hotel_name for out-of-quota constraint (provided was empty):",
+            updateData.external_hotel_name,
+          );
+        }
+      }
+    } else if (finalHotelChoice === "in-quota") {
+      // For in-quota, external_hotel_name MUST be null
+      const hasExternalHotelInUpdate = "external_hotel_name" in updateData;
+      const currentExternalHotel = currentRegistration.external_hotel_name;
+
+      if (!hasExternalHotelInUpdate && currentExternalHotel) {
+        // Not updating external_hotel_name but existing value is not null, must clear it
+        updateData.external_hotel_name = null;
+        console.log(
+          "[PUBLIC_UPDATE_API] Clearing existing external_hotel_name for in-quota (was:",
+          currentExternalHotel,
+          ")",
+        );
+      } else if (
+        hasExternalHotelInUpdate &&
+        updateData.external_hotel_name !== null &&
+        updateData.external_hotel_name !== undefined
+      ) {
+        // Explicitly setting to null
+        updateData.external_hotel_name = null;
+        console.log(
+          "[PUBLIC_UPDATE_API] Setting external_hotel_name to null for in-quota",
+        );
+      }
+    }
+    // Note: We don't need to handle 'no-accommodation' here because it's already mapped to 'out-of-quota' above
+
     // ✅ DEBUG: Log the update data before database update
     console.log("[PUBLIC_UPDATE_API] Update data before database update:", {
       registrationId,
       updateData,
       updateDataKeys: Object.keys(updateData),
-      hotelChoice: updateData.hotel_choice,
+      hotelChoice: updateData.hotel_choice || currentRegistration.hotel_choice,
+      finalHotelChoice,
+      currentHotelChoice: currentRegistration.hotel_choice,
+      externalHotelName: updateData.external_hotel_name,
+      currentExternalHotelName: currentRegistration.external_hotel_name,
       roomType: updateData.room_type,
       priceApplied: updateData.price_applied,
       packageCode: updateData.selected_package_code,

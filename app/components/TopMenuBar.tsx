@@ -14,6 +14,7 @@ export default function TopMenuBar() {
     logo_desktop_url?: string;
     logo_mobile_url?: string;
   } | null>(null);
+  const [showRegister, setShowRegister] = useState(true); // Default to true for backward compatibility
 
   useEffect(() => {
     // Check if we're on the landing page (root path)
@@ -56,6 +57,24 @@ export default function TopMenuBar() {
       // Fallback for browsers without requestIdleCallback
       setTimeout(loadBranding, 100);
     }
+
+    // Load registration CTA visibility setting
+    const loadRegistrationCTA = async () => {
+      try {
+        const res = await fetch(
+          "/api/cms/landing-page/sections/registration_cta",
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setShowRegister(data.section?.is_active !== false); // Default to true if not found
+        }
+      } catch (_) {
+        // Default to true on error for backward compatibility
+        setShowRegister(true);
+      }
+    };
+
+    loadRegistrationCTA();
   }, []);
 
   // Handle Home navigation with fresh refresh
@@ -76,17 +95,18 @@ export default function TopMenuBar() {
   // Handle Register navigation to form section
   const handleRegisterClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (window.location.pathname === "/") {
-      // If on homepage, scroll to form section
-      const formSection = document.getElementById("form");
-      if (formSection) {
-        const headerHeight = 96; // Approximate header height (h-24 = 6rem = 96px)
-        const targetPosition = formSection.offsetTop - headerHeight;
-        window.scrollTo({ top: targetPosition, behavior: "smooth" });
+    // Always navigate using URL parameter to ensure form is visible
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      // If already on homepage, just add the scroll parameter
+      if (window.location.pathname === "/") {
+        url.searchParams.set("scroll", "form");
+        // Use window.location to ensure full page reload and form visibility update
+        window.location.href = url.pathname + url.search;
+      } else {
+        // If on different page, navigate to homepage with scroll parameter
+        window.location.href = "/?scroll=form";
       }
-    } else {
-      // If on different page, navigate to homepage and scroll to form
-      router.push("/?scroll=form");
     }
   };
 
@@ -141,17 +161,19 @@ export default function TopMenuBar() {
               >
                 Home
               </button>
-              <button
-                onClick={handleRegisterClick}
-                className={`text-lg font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1 ${
-                  isLandingPage && !isScrolled
-                    ? "text-white hover:text-yec-accent"
-                    : "text-yec-primary hover:text-yec-accent"
-                }`}
-                aria-label="Go to registration form section"
-              >
-                Register
-              </button>
+              {showRegister && (
+                <button
+                  onClick={handleRegisterClick}
+                  className={`text-lg font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1 ${
+                    isLandingPage && !isScrolled
+                      ? "text-white hover:text-yec-accent"
+                      : "text-yec-primary hover:text-yec-accent"
+                  }`}
+                  aria-label="Go to registration form section"
+                >
+                  Register
+                </button>
+              )}
               <Link
                 href="/activities"
                 className={`text-lg font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-yec-accent focus:ring-offset-2 rounded px-2 py-1 ${

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { isCheckinSystemEnabled } from "../../lib/features";
 
 interface ActiveEvent {
   id: string;
@@ -83,21 +82,6 @@ export default function CheckerDashboard() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yec-primary mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isCheckinSystemEnabled()) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-600 text-lg font-semibold">
-            Feature Not Available
-          </div>
-          <p className="mt-2 text-gray-600">
-            The check-in system is not enabled.
-          </p>
         </div>
       </div>
     );

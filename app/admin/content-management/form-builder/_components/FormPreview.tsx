@@ -59,7 +59,7 @@ export default function FormPreview({ form, onClose }: FormPreviewProps) {
     const newErrors: Record<string, string> = {};
 
     // Validate all fields
-    form.config.fields.forEach((field) => {
+    (form.config?.fields ?? []).forEach((field) => {
       const error = validateField(field, formData[field.id]);
       if (error) {
         newErrors[field.id] = error;
@@ -255,7 +255,7 @@ export default function FormPreview({ form, onClose }: FormPreviewProps) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {form.config.fields.map((field) => {
+            {(form.config?.fields ?? []).map((field) => {
               if (!shouldShowField(field)) return null;
 
               return (
@@ -321,15 +321,17 @@ export default function FormPreview({ form, onClose }: FormPreviewProps) {
                 • <strong>Form Key:</strong> {form.form_key}
               </li>
               <li>
-                • <strong>Fields:</strong> {form.config.fields.length}
+                • <strong>Fields:</strong> {form.config?.fields?.length ?? 0}
               </li>
               <li>
                 • <strong>Approval Workflow:</strong>{" "}
-                {form.config.approval_workflow}
+                {form.config?.approval_workflow ?? "N/A"}
               </li>
               <li>
                 • <strong>Tracking ID Format:</strong>{" "}
-                {form.config.tracking_id_format.prefix}-XXXXXX
+                {form.config?.tracking_id_format?.prefix
+                  ? `${form.config.tracking_id_format.prefix}-XXXXXX`
+                  : "N/A"}
               </li>
             </ul>
           </div>

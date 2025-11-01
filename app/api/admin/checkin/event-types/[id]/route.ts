@@ -10,13 +10,13 @@ import { logAccess, logEvent } from "../../../../../lib/audit/auditClient";
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const startTime = Date.now();
   const requestId = `event_types_update_${Date.now()}_${Math.random()
     .toString(36)
     .substr(2, 9)}`;
-  const typeId = params.id;
+  const { id: typeId } = await params;
 
   try {
     if (!isCheckinSystemEnabled()) {
@@ -147,13 +147,13 @@ export async function PUT(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const startTime = Date.now();
   const requestId = `event_types_delete_${Date.now()}_${Math.random()
     .toString(36)
     .substr(2, 9)}`;
-  const typeId = params.id;
+  const { id: typeId } = await params;
 
   try {
     if (!isCheckinSystemEnabled()) {

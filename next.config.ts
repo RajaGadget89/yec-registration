@@ -34,6 +34,9 @@ const nextConfig: NextConfig = {
         pathname: '/vi/**',
       },
     ],
+    // Increase timeout for external image optimization (30 seconds)
+    // For Supabase storage signed URLs, we use unoptimized={true} to avoid timeouts
+    minimumCacheTTL: 60,
   },
   async headers() {
     return [
@@ -59,7 +62,7 @@ const nextConfig: NextConfig = {
       // Only add CORS if cross-origin calls are actually needed
     ];
   },
-  webpack: (config, { isServer }) => {
+  webpack: (config, { isServer, webpack }) => {
     if (isServer) {
       config.externals = config.externals || [];
       config.externals.push({
@@ -77,6 +80,31 @@ const nextConfig: NextConfig = {
       config.resolve.alias = config.resolve.alias || {};
       config.resolve.alias['@react-email/render'] = false;
       config.resolve.alias['@react-email/components'] = false;
+    } else {
+      // Client-side: exclude Node.js-only modules from client bundle
+      config.resolve = config.resolve || {};
+      config.resolve.fallback = config.resolve.fallback || {};
+      
+      // Exclude Node.js built-in modules from client bundle
+      config.resolve.fallback['async_hooks'] = false;
+      config.resolve.fallback['fs'] = false;
+      config.resolve.fallback['path'] = false;
+      config.resolve.fallback['crypto'] = false;
+      config.resolve.fallback['stream'] = false;
+      config.resolve.fallback['util'] = false;
+      config.resolve.fallback['canvas'] = false;
+      config.resolve.fallback['os'] = false;
+      config.resolve.fallback['net'] = false;
+      config.resolve.fallback['tls'] = false;
+      config.resolve.fallback['child_process'] = false;
+      
+      // Use IgnorePlugin to completely ignore these modules on client-side
+      config.plugins = config.plugins || [];
+      config.plugins.push(
+        new webpack.IgnorePlugin({
+          resourceRegExp: /^(async_hooks|fs|path|crypto|canvas|stream|util)$/,
+        })
+      );
     }
     return config;
   },

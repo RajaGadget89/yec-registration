@@ -597,6 +597,20 @@ export default function DetailsDrawer({
                                   </p>
                                 </div>
                               </div>
+
+                              {registration.line_id && (
+                                <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                  <Globe className="h-3 w-3 text-green-600 dark:text-green-400" />
+                                  <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      Line ID
+                                    </p>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                      {registration.line_id}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
 

@@ -51,7 +51,6 @@ export default async function ActivitiesPage({
       card_slug,
       title,
       description,
-      summary,
       content,
       image_url,
       icon_emoji,
@@ -105,6 +104,8 @@ export default async function ActivitiesPage({
 
   if (error) {
     console.error("Error fetching activities:", error);
+    console.error("Error details:", JSON.stringify(error, null, 2));
+    // Return empty result on error to prevent page crash
   }
 
   const totalPages = Math.ceil((count || 0) / limit);

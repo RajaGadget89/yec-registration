@@ -274,15 +274,21 @@ export default function ActivitiesListing({
                   {activity.image_url && (
                     <div
                       className={
-                        viewMode === "list" ? "w-48 flex-shrink-0" : "w-full"
+                        viewMode === "list"
+                          ? "w-48 flex-shrink-0 aspect-video overflow-hidden relative"
+                          : "w-full aspect-video overflow-hidden relative"
                       }
                     >
                       <Image
                         src={activity.image_url}
                         alt={activity.title}
-                        width={viewMode === "list" ? 192 : 400}
-                        height={viewMode === "list" ? 128 : 192}
-                        className={`${viewMode === "list" ? "w-full h-32" : "w-full h-48"} object-cover group-hover:scale-105 transition-transform duration-300`}
+                        fill
+                        sizes={
+                          viewMode === "list"
+                            ? "192px"
+                            : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        }
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>
                   )}

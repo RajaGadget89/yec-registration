@@ -6,10 +6,10 @@ import AdminUserInfoClient from "./_components/AdminUserInfoClient";
 import { EmailOutboxNavWidget } from "./_components/EmailOutboxNavWidget";
 import SuperAdminDropdown from "./_components/SuperAdminDropdown";
 import CMSNavigation from "./_components/CMSNavigation";
+import HydrationFix from "./_components/HydrationFix";
 
 import { getCurrentUser } from "../lib/auth-utils.server";
 import { getRolesForEmail } from "../lib/rbac";
-import { isCheckinSystemEnabled } from "../lib/features";
 import { hasCMSAdminRole } from "../lib/cms-auth";
 import { getAdminBrandingConfig } from "../lib/admin-branding-config";
 import { headers } from "next/headers";
@@ -56,8 +56,8 @@ export default async function AdminLayout({
     }
   }
 
-  // Check if check-in system is enabled
-  const checkinEnabled = isCheckinSystemEnabled();
+  // Check-in system is always enabled (feature flag removed per user request)
+  const checkinEnabled = true;
 
   // Safe E2E bypass: env + explicit header
   const headersList = await headers();
@@ -69,9 +69,16 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yec-primary via-blue-600 to-blue-500 relative overflow-hidden">
+    <div
+      className="min-h-screen bg-gradient-to-br from-yec-primary via-blue-600 to-blue-500 relative overflow-hidden"
+      suppressHydrationWarning
+    >
+      <HydrationFix />
       {/* Light overlay for better readability */}
-      <div className="absolute inset-0 bg-white/5"></div>
+      <div
+        className="absolute inset-0 bg-white/5"
+        suppressHydrationWarning
+      ></div>
 
       {/* Enhanced background decorations with more light */}
       <div className="fixed inset-0 -z-10 overflow-hidden">
@@ -87,7 +94,10 @@ export default async function AdminLayout({
       </div>
 
       {/* Header - Fixed at top like frontend website */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg transition-all duration-300">
+      <header
+        className="fixed top-0 left-0 right-0 z-50 bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 shadow-lg transition-all duration-300"
+        suppressHydrationWarning
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
@@ -190,8 +200,13 @@ export default async function AdminLayout({
       </header>
 
       {/* Main Content - Adjusted padding to account for fixed header */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-16rem)] relative pt-20">
-        <div className="animate-fade-in-up">{children}</div>
+      <main
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-16rem)] relative pt-20"
+        suppressHydrationWarning
+      >
+        <div className="animate-fade-in-up" suppressHydrationWarning>
+          {children}
+        </div>
       </main>
 
       {/* Footer */}
