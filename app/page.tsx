@@ -18,7 +18,15 @@ type Props = {
 
 export default async function Home({ searchParams }: Props) {
   // Fetch section visibility settings
-  let sections = await getLandingPageSections();
+  // Wrap in try-catch for extra safety during build time
+  let sections: Awaited<ReturnType<typeof getLandingPageSections>> = [];
+  try {
+    sections = await getLandingPageSections();
+  } catch (error) {
+    console.error("Error fetching landing page sections in page.tsx:", error);
+    // Will use fallback defaults below
+    sections = [];
+  }
 
   // If no sections found, default to all visible (fallback)
   if (!sections || sections.length === 0) {
