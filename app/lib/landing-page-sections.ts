@@ -7,21 +7,41 @@ import {
 /**
  * Get all landing page sections ordered by section_order
  * @returns Array of landing page sections
+ * Returns empty array on error to allow page fallback defaults and prevent build failures
  */
 export async function getLandingPageSections(): Promise<LandingPageSection[]> {
-  const supabase = getSupabaseServiceClient();
+  try {
+    const supabase = getSupabaseServiceClient();
 
-  const { data, error } = await supabase
-    .from("landing_page_sections")
-    .select("*")
-    .order("section_order", { ascending: true });
+    const { data, error } = await supabase
+      .from("landing_page_sections")
+      .select("*")
+      .order("section_order", { ascending: true });
 
-  if (error) {
-    console.error("Error fetching landing page sections:", error);
-    throw new Error(`Failed to fetch landing page sections: ${error.message}`);
+    if (error) {
+      console.error("Error fetching landing page sections:", error);
+
+      // Return empty array instead of throwing to allow fallback defaults
+      // This prevents build failures when env vars are missing/invalid during static generation
+      // The page component has fallback defaults that will be used when sections is empty
+      console.warn(
+        "Returning empty array due to error, page will use fallback defaults",
+      );
+      return [];
+    }
+
+    return (data as LandingPageSection[]) || [];
+  } catch (error) {
+    // Catch any errors during Supabase client initialization (e.g., missing env vars, invalid keys)
+    console.error("Error in getLandingPageSections:", error);
+
+    // Return empty array to allow page fallback and prevent build failures
+    // This is safe because app/page.tsx has comprehensive fallback defaults
+    console.warn(
+      "Returning empty array due to exception, page will use fallback defaults",
+    );
+    return [];
   }
-
-  return (data as LandingPageSection[]) || [];
 }
 
 /**
