@@ -22,6 +22,7 @@ export default function HeroSection() {
   const [heroVideo, setHeroVideo] = useState<LandingPageHeroVideo | null>(null);
   const [videoLoading, setVideoLoading] = useState(true);
   const [shouldShowHero, setShouldShowHero] = useState(false);
+  const [showRegistrationCTA, setShowRegistrationCTA] = useState(true); // Default to true for backward compatibility
 
   // Function to clear cache and force refresh
   const clearCacheAndRefresh = () => {
@@ -124,14 +125,33 @@ export default function HeroSection() {
     return () => window.removeEventListener("resize", checkDevice);
   }, []);
 
+  // Load registration CTA visibility setting
+  useEffect(() => {
+    const loadRegistrationCTA = async () => {
+      try {
+        const res = await fetch(
+          "/api/cms/landing-page/sections/registration_cta",
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setShowRegistrationCTA(data.section?.is_active !== false); // Default to true if not found
+        }
+      } catch (_) {
+        // Default to true on error for backward compatibility
+        setShowRegistrationCTA(true);
+      }
+    };
+
+    loadRegistrationCTA();
+  }, []);
+
   const handleScroll = () => {
-    // Scroll directly to the registration form section
-    const target = document.getElementById("form");
-    if (target) {
-      const header = document.querySelector("header");
-      const headerHeight = header ? header.offsetHeight : 96;
-      const targetPosition = target.offsetTop - headerHeight;
-      window.scrollTo({ top: targetPosition, behavior: "smooth" });
+    // Navigate to form using URL parameter to ensure form is visible
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("scroll", "form");
+      // Use window.location to ensure full page reload and form visibility update
+      window.location.href = url.pathname + url.search;
     }
   };
 
@@ -220,21 +240,23 @@ export default function HeroSection() {
       </div>
 
       {/* CTA Button */}
-      <div
-        className="absolute inset-0 flex items-center justify-center z-35 px-4"
-        style={{
-          transform: `translateY(${isMobile ? "20%" : "30%"})`,
-          pointerEvents: "none",
-        }}
-      >
-        <button
-          onClick={handleScroll}
-          className="bg-yec-accent hover:bg-yec-primary text-white font-semibold px-6 py-3 md:px-8 md:py-3 rounded-full shadow-lg transition-all text-sm md:text-lg transform hover:scale-105 active:scale-95 pointer-events-auto min-h-[44px] min-w-[120px] touch-manipulation focus:outline-none focus:ring-2 focus:ring-yec-primary focus:ring-offset-2"
-          aria-label="View event schedule and activities"
+      {showRegistrationCTA && (
+        <div
+          className="absolute inset-0 flex items-center justify-center z-35 px-4"
+          style={{
+            transform: `translateY(${isMobile ? "20%" : "30%"})`,
+            pointerEvents: "none",
+          }}
         >
-          ลงทะเบียน!!
-        </button>
-      </div>
+          <button
+            onClick={handleScroll}
+            className="bg-yec-accent hover:bg-yec-primary text-white font-semibold px-6 py-3 md:px-8 md:py-3 rounded-full shadow-lg transition-all text-sm md:text-lg transform hover:scale-105 active:scale-95 pointer-events-auto min-h-[44px] min-w-[120px] touch-manipulation focus:outline-none focus:ring-2 focus:ring-yec-primary focus:ring-offset-2"
+            aria-label="View event schedule and activities"
+          >
+            ลงทะเบียน!!
+          </button>
+        </div>
+      )}
     </section>
   );
 }

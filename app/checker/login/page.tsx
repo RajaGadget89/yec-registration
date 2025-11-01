@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function CheckerLoginPage() {
@@ -8,28 +8,7 @@ export default function CheckerLoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
   const _router = useRouter();
-
-  // Check feature flag on component mount
-  useEffect(() => {
-    const checkFeatureFlag = async () => {
-      try {
-        const response = await fetch("/api/features/checkin-system");
-        if (response.ok) {
-          const data = await response.json();
-          setFeatureEnabled(data.enabled);
-        } else {
-          setFeatureEnabled(false);
-        }
-      } catch (error) {
-        console.error("Failed to check feature flag:", error);
-        setFeatureEnabled(false);
-      }
-    };
-
-    checkFeatureFlag();
-  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,12 +17,6 @@ export default function CheckerLoginPage() {
     setError("");
 
     try {
-      // Check feature flag
-      if (featureEnabled === false) {
-        setError("Check-in system is not available");
-        return;
-      }
-
       // Use checker-specific magic link generation
       const response = await fetch("/api/checker/magic-link", {
         method: "POST",
@@ -66,34 +39,6 @@ export default function CheckerLoginPage() {
       setLoading(false);
     }
   };
-
-  // Show loading while checking feature flag
-  if (featureEnabled === null) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yec-primary mx-auto"></div>
-          <p className="mt-4 text-gray-600">Checking system availability...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if feature is disabled
-  if (featureEnabled === false) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-600 text-lg font-semibold">
-            Check-in System Not Available
-          </div>
-          <p className="mt-2 text-gray-600">
-            The check-in system is currently disabled.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">

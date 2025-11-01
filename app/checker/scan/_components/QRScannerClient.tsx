@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import QRScanner from "./QRScanner";
 import EventSelector from "./EventSelector";
@@ -31,7 +31,6 @@ interface QRScannerClientProps {
 
 export default function QRScannerClient({ user }: QRScannerClientProps) {
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
-  const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -42,26 +41,6 @@ export default function QRScannerClient({ user }: QRScannerClientProps) {
   const [scannerKey, setScannerKey] = useState(0); // Key to force scanner refresh
 
   const router = useRouter();
-
-  // Check feature flag on component mount
-  useEffect(() => {
-    const checkFeatureFlag = async () => {
-      try {
-        const response = await fetch("/api/features/checkin-system");
-        if (response.ok) {
-          const data = await response.json();
-          setFeatureEnabled(data.enabled);
-        } else {
-          setFeatureEnabled(false);
-        }
-      } catch (error) {
-        console.error("Failed to check feature flag:", error);
-        setFeatureEnabled(false);
-      }
-    };
-
-    checkFeatureFlag();
-  }, []);
 
   // Handle event selection change and reset scanner state
   const handleEventSelect = (eventId: string) => {
@@ -108,52 +87,105 @@ export default function QRScannerClient({ user }: QRScannerClientProps) {
       console.log("🔍 Data type:", typeof data);
       console.log("🔍 Data length:", data.length);
 
-      // Parse QR code data - it should contain JSON with registration info
-      let parsedData;
-      try {
-        parsedData = JSON.parse(data);
-        console.log("✅ QR Code parsed as JSON:", parsedData);
-      } catch (parseError) {
+      // ✅ CRITICAL FIX: Use validate-qr endpoint which handles both encrypted tokens and legacy JSON
+      // This endpoint can decrypt encrypted QR tokens and parse legacy JSON formats
+      console.log("📡 Validating QR code with validate-qr endpoint...");
+
+      let validationResponse;
+      let registrationId: string | null = null;
+
+      // Check if data looks like an encrypted token (base64url encoded, starts with alphanumeric)
+      // Encrypted tokens are typically base64url encoded and don't parse as JSON
+      const looksLikeEncryptedToken =
+        /^[A-Za-z0-9_-]+$/.test(data.trim()) && data.length > 50;
+
+      if (looksLikeEncryptedToken) {
+        // Likely an encrypted token - send as qr_token
         console.log(
-          "❌ QR Code is not JSON, treating as direct registration ID",
+          "🔐 Detected encrypted QR token, sending to validate-qr endpoint",
         );
-        console.log("❌ Parse error:", (parseError as Error).message);
-        // If not JSON, treat as registration ID directly
-        parsedData = { regId: data.trim() };
+        validationResponse = await fetch("/api/checkin/validate-qr", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            qr_token: data.trim(),
+          }),
+        });
+      } else {
+        // Try as JSON first, then as encrypted token
+        try {
+          const parsedData = JSON.parse(data);
+          console.log("✅ QR Code parsed as JSON:", parsedData);
+
+          // If it's valid JSON with expected structure, send as qr_data
+          if (
+            parsedData.regId ||
+            parsedData.registration_id ||
+            parsedData.tracking_id
+          ) {
+            console.log("📦 Sending JSON data to validate-qr endpoint");
+            validationResponse = await fetch("/api/checkin/validate-qr", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                qr_data: data,
+              }),
+            });
+          } else {
+            // Doesn't have expected structure, try as encrypted token
+            console.log(
+              "⚠️ JSON doesn't have expected structure, trying as encrypted token",
+            );
+            validationResponse = await fetch("/api/checkin/validate-qr", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                qr_token: data.trim(),
+              }),
+            });
+          }
+        } catch (_parseError) {
+          // Not JSON - try as encrypted token
+          console.log("🔐 Not JSON, trying as encrypted token");
+          validationResponse = await fetch("/api/checkin/validate-qr", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              qr_token: data.trim(),
+            }),
+          });
+        }
       }
 
-      // DEBUG: Log all possible registration ID sources
-      console.log(
-        "🔍 Available fields in parsed data:",
-        Object.keys(parsedData),
-      );
-      console.log("🔍 regId:", parsedData.regId);
-      console.log("🔍 registration_id:", parsedData.registration_id);
-      console.log("🔍 phone:", parsedData.phone);
-      console.log("🔍 id:", parsedData.id);
-      console.log("🔍 fullName:", parsedData.fullName);
+      const validationResult = await validationResponse.json();
+      console.log("📡 Validation response status:", validationResponse.status);
+      console.log("📡 Validation response data:", validationResult);
 
-      // Extract registration ID from parsed data
-      // Priority: regId (unique registration_id) > registration_id > phone (fallback)
-      const registrationId =
-        parsedData.regId ||
-        parsedData.registration_id ||
-        parsedData.phone ||
-        parsedData.id ||
-        data.trim();
+      if (!validationResponse.ok || !validationResult.valid) {
+        setError(
+          validationResult.error || "Invalid QR code - failed to validate",
+        );
+        return;
+      }
 
-      console.log("🎯 Final registration ID:", registrationId);
-      console.log(
-        "🌐 API URL will be:",
-        `/api/checkin/verify/${registrationId}`,
-      );
+      // Extract registration ID from validated result
+      registrationId = validationResult.registration_id;
+      console.log("🎯 Validated registration ID:", registrationId);
 
       if (!registrationId) {
         setError("Invalid QR code format - no registration ID found");
         return;
       }
 
-      // Fetch user information
+      // Fetch user information using the verified registration ID
       console.log(
         "📡 Making API call to:",
         `/api/checkin/verify/${registrationId}`,
@@ -325,34 +357,6 @@ export default function QRScannerClient({ user }: QRScannerClientProps) {
       router.push("/checker/login");
     }
   };
-
-  // Show loading while checking feature flag
-  if (featureEnabled === null) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yec-primary mx-auto"></div>
-          <p className="mt-4 text-gray-600">Checking system availability...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if feature is disabled
-  if (featureEnabled === false) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
-            Check-in System Not Available
-          </h1>
-          <p className="text-gray-600">
-            The check-in system is currently disabled.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

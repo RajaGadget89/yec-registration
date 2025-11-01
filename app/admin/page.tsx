@@ -85,7 +85,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   return (
     <Suspense
       fallback={
-        <div className="space-y-8">
+        <div className="space-y-8" suppressHydrationWarning>
           {/* Loading skeleton for summary cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             {["card-1", "card-2", "card-3", "card-4", "card-5"].map((key) => (

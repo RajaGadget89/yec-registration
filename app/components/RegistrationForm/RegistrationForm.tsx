@@ -371,7 +371,8 @@ export default function RegistrationForm() {
           "companyName",
           "businessType",
           "businessTypeOther",
-          "yecProvince",
+          // ✅ CRITICAL: yecProvince is excluded from updates to preserve tracking system integrity
+          // Province changes affect registration tracking numbers and cannot be modified via update requests
           "profileImage",
         ],
         tcc: ["chamberCard", "tccNumber", "tccHolderName"],

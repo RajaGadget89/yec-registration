@@ -15,6 +15,7 @@ import {
   Layout,
   Settings,
   Layers,
+  Home,
 } from "lucide-react";
 
 interface CMSNavigationProps {
@@ -48,6 +49,13 @@ export default function CMSNavigation({ hasCMSAccess }: CMSNavigationProps) {
       icon: FileText,
       label: "Content Management",
       description: "Manage pages and content",
+      show: true,
+    },
+    {
+      href: "/admin/content-management/landing-page",
+      icon: Home,
+      label: "Landing Page Sections",
+      description: "Manage landing page section visibility",
       show: true,
     },
     {

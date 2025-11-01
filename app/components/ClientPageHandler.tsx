@@ -11,18 +11,43 @@ export default function ClientPageHandler() {
     const token = urlParams.get("token");
     const dimension = urlParams.get("dimension");
 
-    // Check if this is a token-based update request
-    if (token && dimension) {
-      // This is a token-based update, scroll to form section
-      console.log("Detected token-based update request, scrolling to form");
-      setTimeout(() => {
+    // Helper function to scroll to form with retry logic
+    const scrollToForm = (
+      maxRetries: number = 30,
+      retryDelay: number = 100,
+    ) => {
+      let retries = 0;
+
+      const attemptScroll = () => {
         const formSection = document.getElementById("form");
         if (formSection) {
           const headerHeight = 80; // Approximate header height
           const targetPosition = formSection.offsetTop - headerHeight;
           window.scrollTo({ top: targetPosition, behavior: "smooth" });
+          return true;
         }
-      }, 100);
+
+        // Retry if form not found yet
+        if (retries < maxRetries) {
+          retries++;
+          setTimeout(attemptScroll, retryDelay);
+          return false;
+        }
+
+        // Max retries reached, form not found
+        console.warn("Form section not found after retries");
+        return false;
+      };
+
+      attemptScroll();
+    };
+
+    // Check if this is a token-based update request
+    if (token && dimension) {
+      // This is a token-based update, scroll to form section
+      console.log("Detected token-based update request, scrolling to form");
+      // Wait a bit for page to render, then try scrolling
+      setTimeout(() => scrollToForm(), 100);
       return;
     }
 
@@ -49,20 +74,14 @@ export default function ClientPageHandler() {
     }
 
     if (scrollTarget === "form" || isEditMode) {
-      // Wait for page to load, then scroll to form section
+      // Wait for page to load, then scroll to form section with retry logic
       setTimeout(() => {
-        const formSection = document.getElementById("form");
-        if (formSection) {
-          const headerHeight = 80; // Approximate header height
-          const targetPosition = formSection.offsetTop - headerHeight;
-          window.scrollTo({ top: targetPosition, behavior: "smooth" });
-
-          // Clean up URL parameters
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.delete("scroll");
-          newUrl.searchParams.delete("edit");
-          window.history.replaceState({}, "", newUrl.toString());
-        }
+        scrollToForm();
+        // Clean up URL parameters after attempting scroll
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete("scroll");
+        newUrl.searchParams.delete("edit");
+        window.history.replaceState({}, "", newUrl.toString());
       }, 100);
     }
   }, []);

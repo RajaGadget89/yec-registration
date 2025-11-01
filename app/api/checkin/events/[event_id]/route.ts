@@ -10,11 +10,11 @@ import { logAccess } from "../../../../lib/audit/auditClient";
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { event_id: string } },
+  { params }: { params: Promise<{ event_id: string }> },
 ) {
   const startTime = Date.now();
   const requestId = `checkin_event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const eventId = params.event_id;
+  const { event_id: eventId } = await params;
 
   try {
     // Check feature flag

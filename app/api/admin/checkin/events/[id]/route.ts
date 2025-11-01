@@ -10,11 +10,11 @@ import { logAccess, logEvent } from "@/lib/audit/auditClient";
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const startTime = Date.now();
   const requestId = `events_update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const eventId = params.id;
+  const { id: eventId } = await params;
 
   try {
     // Check feature flag
@@ -157,11 +157,11 @@ export async function PUT(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const startTime = Date.now();
   const requestId = `events_delete_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  const eventId = params.id;
+  const { id: eventId } = await params;
 
   try {
     // Check feature flag

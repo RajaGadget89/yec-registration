@@ -17,17 +17,31 @@ export async function GET(request: NextRequest) {
       .eq("is_active", true)
       .or("published_at.is.null,published_at.lte.now()"); // Only show activities that are published or have no published_at date
 
+    const sort = searchParams.get("sort") || "published_at";
+
     if (page_id) {
       query = query
         .eq("page_id", page_id)
         .order("display_order", { ascending: true });
     } else {
-      query = query.order("display_order", { ascending: true });
+      // Sort by published_at (newest first) by default, unless sort parameter specifies otherwise
+      if (sort === "published_at") {
+        query = query.order("published_at", { ascending: false });
+      } else if (sort === "display_order") {
+        query = query.order("display_order", { ascending: true });
+      } else {
+        // Default to published_at descending
+        query = query.order("published_at", { ascending: false });
+      }
     }
     if (slug) query = query.eq("card_slug", slug);
 
     const { data, error } = await query.limit(limit);
-    if (error) throw error;
+    if (error) {
+      console.error("Activity cards API error:", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
+      throw error;
+    }
     // Map DB description -> API summary for response consistency
     const activities = (data || []).map((row: any) => ({
       ...row,

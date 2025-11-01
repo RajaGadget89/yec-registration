@@ -1,3 +1,8 @@
+// Server-only: This module uses Node.js APIs that are not available in the browser
+if (typeof window !== "undefined") {
+  throw new Error("requestContext.ts can only be used on the server");
+}
+
 import { AsyncLocalStorage } from "async_hooks";
 import { randomUUID } from "crypto";
 

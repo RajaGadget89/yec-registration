@@ -122,6 +122,11 @@ export interface Database {
         Insert: EmailQueueInsert;
         Update: EmailQueueUpdate;
       };
+      landing_page_sections: {
+        Row: LandingPageSection;
+        Insert: LandingPageSectionInsert;
+        Update: LandingPageSectionUpdate;
+      };
     };
     Views: {
       [key: string]: unknown;
@@ -1141,4 +1146,53 @@ export interface EmailQueueUpdate {
   last_error?: string | null;
   created_at?: string;
   updated_at?: string;
+}
+
+// Landing page sections table types
+export interface LandingPageSection {
+  id: string;
+  section_key:
+    | "hero"
+    | "news"
+    | "banner"
+    | "activity_cards"
+    | "registration_form"
+    | "registration_cta";
+  section_name: string;
+  is_active: boolean;
+  section_order: number;
+  updated_by: string | null;
+  updated_at: string;
+  created_at: string;
+}
+
+export interface LandingPageSectionInsert {
+  section_key:
+    | "hero"
+    | "news"
+    | "banner"
+    | "activity_cards"
+    | "registration_form"
+    | "registration_cta";
+  section_name: string;
+  is_active?: boolean;
+  section_order?: number;
+  updated_by?: string | null;
+  updated_at?: string;
+  created_at?: string;
+}
+
+export interface LandingPageSectionUpdate {
+  section_key?:
+    | "hero"
+    | "news"
+    | "banner"
+    | "registration_form"
+    | "registration_cta";
+  section_name?: string;
+  is_active?: boolean;
+  section_order?: number;
+  updated_by?: string | null;
+  updated_at?: string;
+  created_at?: string;
 }

@@ -140,9 +140,15 @@ export default function AdminDashboard({
   };
 
   return (
-    <div className="space-y-8 animate-fade-in-up relative">
+    <div
+      className="space-y-8 animate-fade-in-up relative"
+      suppressHydrationWarning
+    >
       {/* Light overlay for content readability */}
-      <div className="absolute inset-0 bg-white/3 rounded-3xl"></div>
+      <div
+        className="absolute inset-0 bg-white/3 rounded-3xl"
+        suppressHydrationWarning
+      ></div>
 
       {/* Welcome Section */}
       <div className="text-center space-y-4 relative z-10">

@@ -1,3 +1,8 @@
+// Server-only: This module uses Node.js APIs that are not available in the browser
+if (typeof window !== "undefined") {
+  throw new Error("badgeGenerator.ts can only be used on the server");
+}
+
 import {
   createCanvas,
   loadImage,
@@ -571,11 +576,68 @@ async function drawQRCodeSection(
   const formKey = "yec";
 
   try {
-    const token = await encryptQrPayload({
-      tracking_id: trackingId,
-      form_key: formKey,
-    });
-    await renderQrToCanvas(ctx as any, qrX, qrY, qrSize, token);
+    console.log(`🔍 Generating QR code for registrationId: ${trackingId}`);
+
+    // Step 1: Encrypt QR payload (with fallback to unencrypted if secret missing)
+    let token: string;
+    let useEncryption = true;
+
+    try {
+      token = await encryptQrPayload({
+        tracking_id: trackingId,
+        form_key: formKey,
+      });
+      console.log(
+        `✅ QR payload encrypted successfully (token length: ${token.length})`,
+      );
+    } catch (encryptError: any) {
+      console.warn(
+        "⚠️ QR encryption failed, using unencrypted fallback:",
+        encryptError?.message,
+      );
+      console.warn("⚠️ Encrypt error details:", {
+        message: encryptError?.message,
+        hasQRSecret: !!process.env.QR_SECRET,
+        hasPublicQRSecret: !!process.env.NEXT_PUBLIC_QR_SECRET,
+      });
+
+      // Fallback: Use simple JSON payload if encryption fails (e.g., QR_SECRET missing)
+      // This ensures badge generation continues even without the secret
+      useEncryption = false;
+      token = JSON.stringify({
+        tracking_id: trackingId,
+        form_key: formKey,
+        version: 1,
+      });
+      console.log(
+        `⚠️ Using unencrypted QR payload fallback (token length: ${token.length})`,
+      );
+    }
+
+    // Step 2: Render QR code to canvas
+    try {
+      await renderQrToCanvas(ctx as any, qrX, qrY, qrSize, token);
+      console.log(
+        `✅ QR code rendered to canvas successfully (encrypted: ${useEncryption})`,
+      );
+    } catch (renderError: any) {
+      console.error("❌ Error rendering QR code to canvas:", renderError);
+      console.error("❌ Render error details:", {
+        message: renderError?.message,
+        stack: renderError?.stack,
+        tokenLength: token?.length,
+        qrSize,
+      });
+      // Draw placeholder if QR rendering fails completely
+      ctx.fillStyle = YEC_COLORS.lightGray;
+      ctx.fillRect(qrX, qrY, qrSize, qrSize);
+      ctx.fillStyle = YEC_COLORS.gray;
+      ctx.font = getThaiFont(16);
+      ctx.textAlign = "center";
+      drawThaiText(ctx, "QR Code Error", qrX + qrSize / 2, qrY + qrSize / 2);
+      // Don't throw - allow badge generation to complete
+      return;
+    }
 
     // Add QR code label
     ctx.fillStyle = YEC_COLORS.gray;
@@ -584,8 +646,15 @@ async function drawQRCodeSection(
     drawThaiText(ctx, "Scan for details", qrX + qrSize / 2, qrY + qrSize + 40);
 
     console.log("✅ QR code drawn successfully");
-  } catch (error) {
-    console.error("❌ Error generating QR code:", error);
+  } catch (error: any) {
+    // Final fallback: if everything fails, draw placeholder and continue
+    console.error("❌ Unexpected error in QR code generation:", error);
+    console.error("❌ Full error details:", {
+      message: error?.message,
+      stack: error?.stack,
+      name: error?.name,
+      registrationId: trackingId,
+    });
     // Draw placeholder if QR generation fails
     ctx.fillStyle = YEC_COLORS.lightGray;
     ctx.fillRect(qrX, qrY, qrSize, qrSize);
@@ -593,6 +662,7 @@ async function drawQRCodeSection(
     ctx.font = getThaiFont(16);
     ctx.textAlign = "center";
     drawThaiText(ctx, "QR Code Error", qrX + qrSize / 2, qrY + qrSize / 2);
+    // Don't throw - allow badge generation to complete even if QR fails
   }
 }
 

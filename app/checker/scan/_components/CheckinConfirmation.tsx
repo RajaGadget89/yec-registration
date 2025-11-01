@@ -207,6 +207,8 @@ export default function CheckinConfirmation({
                         className="w-24 h-24 rounded-full object-cover border-2 border-gray-300 shadow-sm"
                         width={96}
                         height={96}
+                        unoptimized={true}
+                        priority={false}
                         onError={(e) => {
                           console.log(
                             "📸 Profile image failed to load:",

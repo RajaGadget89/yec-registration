@@ -111,6 +111,7 @@ export async function POST(req: NextRequest) {
     let registration: any = null;
     let error: any = null;
     if (hasLegacyShape) {
+      // Legacy format: direct registration_id from JSON
       ({ data: registration, error } = await supabase
         .from("registrations")
         .select(
@@ -118,24 +119,39 @@ export async function POST(req: NextRequest) {
         )
         .eq("registration_id", parsedData.regId)
         .single());
-    } else {
-      const { data, error: formError } = await supabase
-        .from("form_registrations")
-        .select(`id, form_key, tracking_id, core_data, extra_data, status`)
-        .eq("form_key", parsedData.form_key)
-        .eq("tracking_id", parsedData.tracking_id)
-        .single();
-      error = formError;
-      if (data) {
-        registration = {
-          registration_id: data.id,
-          first_name: data.core_data?.first_name || data.core_data?.name || "",
-          last_name: data.core_data?.last_name || "",
-          email: data.core_data?.email,
-          phone: data.core_data?.phone,
-          status: data.status,
-          yec_province: data.extra_data?.yec_province,
-        };
+    } else if (hasEncryptedShape) {
+      // ✅ CRITICAL FIX: Handle encrypted QR codes for YEC registrations
+      // If form_key is "yec", query the registrations table using tracking_id as registration_id
+      if (parsedData.form_key === "yec") {
+        // YEC registration: tracking_id is the registration_id
+        ({ data: registration, error } = await supabase
+          .from("registrations")
+          .select(
+            `registration_id, first_name, last_name, email, phone, status, yec_province`,
+          )
+          .eq("registration_id", parsedData.tracking_id)
+          .single());
+      } else {
+        // Form-based registration: query form_registrations table
+        const { data, error: formError } = await supabase
+          .from("form_registrations")
+          .select(`id, form_key, tracking_id, core_data, extra_data, status`)
+          .eq("form_key", parsedData.form_key)
+          .eq("tracking_id", parsedData.tracking_id)
+          .single();
+        error = formError;
+        if (data) {
+          registration = {
+            registration_id: data.id,
+            first_name:
+              data.core_data?.first_name || data.core_data?.name || "",
+            last_name: data.core_data?.last_name || "",
+            email: data.core_data?.email,
+            phone: data.core_data?.phone,
+            status: data.status,
+            yec_province: data.extra_data?.yec_province,
+          };
+        }
       }
     }
 

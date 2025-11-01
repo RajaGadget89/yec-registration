@@ -123,25 +123,61 @@ export async function renderQrToCanvas(
   size: number,
   token: string,
 ): Promise<void> {
-  // Dynamic import qrcode to work both server and client
-  const QRCode = await import("qrcode");
-  const tmp = (
-    typeof document !== "undefined"
-      ? document.createElement("canvas")
-      : new (await import("canvas")).Canvas(size, size)
-  ) as HTMLCanvasElement;
+  try {
+    // Dynamic import qrcode to work both server and client
+    let QRCode: any;
+    try {
+      QRCode = await import("qrcode");
+      console.log("✅ QRCode library imported successfully");
+    } catch (importError: any) {
+      console.error("❌ Failed to import qrcode library:", importError);
+      throw new Error(
+        `Failed to import qrcode library: ${importError?.message || "Unknown error"}`,
+      );
+    }
 
-  await QRCode.toCanvas(tmp as any, token, {
-    width: size,
-    margin: 0,
-    errorCorrectionLevel: "M",
-    color: { dark: "#000000", light: "#FFFFFF" },
-  });
+    let tmp: HTMLCanvasElement | any;
+    try {
+      if (typeof document !== "undefined") {
+        tmp = document.createElement("canvas") as HTMLCanvasElement;
+      } else {
+        const canvasModule = await import("canvas");
+        tmp = new canvasModule.Canvas(size, size);
+      }
+      console.log(`✅ Temporary canvas created (${size}x${size})`);
+    } catch (canvasError: any) {
+      console.error("❌ Failed to create canvas:", canvasError);
+      throw new Error(
+        `Failed to create canvas: ${canvasError?.message || "Unknown error"}`,
+      );
+    }
 
-  // Draw white background box to ensure readability
-  ctx.save();
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(x, y, size, size);
-  ctx.drawImage(tmp as any, x, y, size, size);
-  ctx.restore();
+    try {
+      await QRCode.toCanvas(tmp as any, token, {
+        width: size,
+        margin: 4, // ✅ FIX: Increased margin (4 modules) for better Android scanning compatibility
+        errorCorrectionLevel: "M", // ✅ FIX: Use Medium error correction (balanced for Android compatibility)
+        // High (H) makes QR codes too dense for some Android scanners
+        // Medium (M) provides good reliability while maintaining scannability
+        color: { dark: "#000000", light: "#FFFFFF" },
+      });
+      console.log("✅ QR code generated on temporary canvas");
+    } catch (qrError: any) {
+      console.error("❌ Failed to generate QR code:", qrError);
+      throw new Error(
+        `QR code generation failed: ${qrError?.message || "Unknown error"}`,
+      );
+    }
+
+    // Draw white background box to ensure readability
+    ctx.save();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(x, y, size, size);
+    ctx.drawImage(tmp as any, x, y, size, size);
+    ctx.restore();
+    console.log("✅ QR code drawn to main canvas");
+  } catch (error: any) {
+    console.error("❌ Error in renderQrToCanvas:", error);
+    throw error;
+  }
 }

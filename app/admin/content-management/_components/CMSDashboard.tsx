@@ -17,6 +17,7 @@ import {
   HelpCircle,
   FormInput,
   Layers,
+  Home,
 } from "lucide-react";
 
 interface CMSStats {
@@ -96,6 +97,12 @@ export default function CMSDashboard() {
   ];
 
   const managementSections = [
+    {
+      href: "/admin/content-management/landing-page",
+      icon: Home,
+      title: "Landing Page Sections",
+      description: "Manage landing page section visibility",
+    },
     {
       href: "/admin/content-management/form-builder",
       icon: FormInput,

@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import TopMenuBar from "../../components/TopMenuBar";
 import Footer from "../../components/Footer";
 import { buildDynamicPageMetadata } from "../../lib/seo-utils";
+import { ArrowLeft } from "lucide-react";
+import ShareButton from "./_components/ShareButton";
 
 async function fetchActivity(slug: string) {
   const res = await fetch(
@@ -67,10 +70,29 @@ export default async function ActivityDetailPage({
   const isLive = start && start <= now && (!end || end >= now);
   const isPast = end && end < now;
 
+  const activityUrl = `${process.env.NEXT_PUBLIC_BASE_URL || ""}/activities/${slug}`;
+
   return (
     <main className="min-h-screen">
       <TopMenuBar />
       <div className="max-w-4xl mx-auto px-4 pt-40 pb-10">
+        {/* Back and Share Buttons */}
+        <div className="flex items-center justify-between mb-6">
+          <Link
+            href="/activities"
+            className="inline-flex items-center text-yec-primary hover:text-yec-accent font-medium transition-colors duration-200"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            <span>Back to All Activities</span>
+          </Link>
+
+          <ShareButton
+            title={activity.title}
+            text={activity.summary || activity.description || ""}
+            url={activityUrl}
+          />
+        </div>
+
         <h1 className="text-3xl font-bold mb-3">
           {activity.icon_emoji && (
             <span className="mr-3">{activity.icon_emoji}</span>
