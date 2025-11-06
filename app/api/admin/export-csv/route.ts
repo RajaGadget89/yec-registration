@@ -1,13 +1,20 @@
 import { NextRequest } from "next/server";
 import { exportToCSV } from "../../../admin/actions";
 import { getCurrentUser } from "../../../lib/auth-utils.server";
-import { isAdmin } from "../../../lib/admin-guard";
 
 export async function GET(request: NextRequest) {
   try {
-    // Check admin access
+    // Check admin access - use same pattern as other admin routes
     const user = await getCurrentUser();
-    if (!user || !isAdmin(user.email)) {
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // Check if user has admin or super_admin role (from database)
+    if (user.role !== "admin" && user.role !== "super_admin") {
       return new Response(JSON.stringify({ error: "forbidden" }), {
         status: 403,
         headers: { "Content-Type": "application/json" },

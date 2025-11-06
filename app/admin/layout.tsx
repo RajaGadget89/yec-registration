@@ -112,17 +112,22 @@ export default async function AdminLayout({
                   {adminBranding.adminSiteName}
                 </span>
               </Link>
-              <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
-              <Link
-                href="/admin"
-                className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
-              >
-                <div className="p-2 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 shadow-sm group-hover:shadow-md group-hover:from-yec-primary/10 group-hover:to-yec-accent/10 transition-all duration-300">
-                  <BarChart3 className="h-4 w-4" />
-                </div>
-                <span className="font-semibold">Admin</span>
-              </Link>
-              <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+              {/* Admin Link - Only visible when authenticated */}
+              {user && (
+                <>
+                  <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+                  <Link
+                    href="/admin"
+                    className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
+                  >
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 shadow-sm group-hover:shadow-md group-hover:from-yec-primary/10 group-hover:to-yec-accent/10 transition-all duration-300">
+                      <BarChart3 className="h-4 w-4" />
+                    </div>
+                    <span className="font-semibold">Admin</span>
+                  </Link>
+                  <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+                </>
+              )}
               {false && (
                 <>
                   <Link
@@ -138,8 +143,8 @@ export default async function AdminLayout({
                 </>
               )}
 
-              {/* Check-in System - All Admins */}
-              {checkinEnabled && (
+              {/* Check-in System - Only visible when authenticated */}
+              {user && checkinEnabled && (
                 <>
                   <Link
                     href="/admin/checkin/dashboard"
@@ -154,10 +159,15 @@ export default async function AdminLayout({
                 </>
               )}
 
-              {/* Email Outbox Widget */}
-              <div className="relative">
-                <EmailOutboxNavWidget />
-              </div>
+              {/* Email Outbox Widget - Only visible when authenticated */}
+              {user && (
+                <>
+                  <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+                  <div className="relative">
+                    <EmailOutboxNavWidget />
+                  </div>
+                </>
+              )}
 
               {/* CMS Navigation */}
               {hasCMSAccess && (
@@ -167,17 +177,21 @@ export default async function AdminLayout({
                 </>
               )}
 
-              {/* Seminar Management - All Admins */}
-              <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
-              <Link
-                href="/admin/seminar-management"
-                className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
-              >
-                <div className="p-2 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 shadow-sm group-hover:shadow-md group-hover:from-yec-primary/10 group-hover:to-yec-accent/10 transition-all duration-300">
-                  <UserCheck className="h-4 w-4" />
-                </div>
-                <span className="font-semibold">Seminar Management</span>
-              </Link>
+              {/* Seminar Management - Only visible when authenticated */}
+              {user && (
+                <>
+                  <div className="w-px h-6 bg-gradient-to-b from-gray-300 to-transparent dark:from-gray-600"></div>
+                  <Link
+                    href="/admin/seminar-management"
+                    className="flex items-center space-x-2 text-gray-600 dark:text-gray-300 hover:text-yec-primary dark:hover:text-yec-accent transition-all duration-300 hover:scale-105 group"
+                  >
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 shadow-sm group-hover:shadow-md group-hover:from-yec-primary/10 group-hover:to-yec-accent/10 transition-all duration-300">
+                      <UserCheck className="h-4 w-4" />
+                    </div>
+                    <span className="font-semibold">Seminar Management</span>
+                  </Link>
+                </>
+              )}
 
               {/* Super Admin Dropdown */}
               {isSuperAdmin && (
