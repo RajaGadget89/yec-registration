@@ -53,5 +53,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to get stats" }, { status: 500 });
   }
 }
-
-
