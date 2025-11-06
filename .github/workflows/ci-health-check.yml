@@ -57,7 +57,7 @@ jobs:
           
       - name: Run health validation tests
         run: |
-          npx playwright test tests/e2e/ci-health-check.spec.ts \
+          npx playwright test ci-tests/ci-health-check.spec.ts \
             --config=playwright.ci-health.config.ts \
             --reporter=line \
             --timeout=30000

@@ -5,7 +5,7 @@ import { config as loadDotenv } from 'dotenv';
 loadDotenv({ path: '.env.local' });
 
 export default defineConfig({
-  testDir: './tests/e2e',
+  testDir: './ci-tests',
   fullyParallel: false, // Sequential for CI
   forbidOnly: !!process.env.CI,
   retries: 0, // No retries for fast feedback
